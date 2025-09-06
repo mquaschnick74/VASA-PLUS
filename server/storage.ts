@@ -50,12 +50,9 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    
     const { data, error } = await supabase
       .from('users')
-      .insert(user)
+      .insert(insertUser)
       .select()
       .single();
     
