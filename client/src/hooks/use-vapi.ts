@@ -107,6 +107,9 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
         `Hello ${firstName}, it's good to continue our conversation. What's on your mind today?` :
         `Hello ${firstName}, I'm Sarah. I'm here to listen and support you. How are you feeling today?`;
 
+      // Get the current server URL for webhook configuration
+      const serverUrl = `${window.location.origin}/api/vapi/webhook`;
+
       // VAPI assistant configuration
       const assistantConfig = {
         model: {
@@ -126,6 +129,10 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
           voiceId: 'EXAVITQu4vr4xnSDxMaL',  // Valid Sarah voice ID
           stability: 0.5,
           similarityBoost: 0.75
+        },
+        server: {
+          url: serverUrl,
+          timeout: 30
         },
         firstMessage: firstMessage,
         transcriber: {
