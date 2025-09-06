@@ -178,13 +178,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       switch (eventType) {
         case 'call-started':
+          // Extract agent name from metadata
+          const agentName = message?.call?.metadata?.agentName || 
+                           message?.metadata?.agentName ||
+                           message?.call?.assistant?.metadata?.agentName ||
+                           message?.assistant?.metadata?.agentName ||
+                           'Sarah'; // Default fallback
+          
           // Create or update session
           const { data: sessionData, error: sessionError } = await supabase
             .from('therapeutic_sessions')
             .upsert({
               call_id: callId,
               user_id: userId,
-              agent_name: 'Sarah',
+              agent_name: agentName,
               status: 'active',
               start_time: new Date().toISOString(),
               metadata: message.call

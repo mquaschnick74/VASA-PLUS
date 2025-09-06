@@ -119,4 +119,58 @@
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+
+  /* Agent Selector Styles */
+  .agent-selector {
+    @apply mb-8;
+  }
+
+  .agent-selector-title {
+    @apply text-xl font-semibold text-center mb-6 text-foreground;
+  }
+
+  .agent-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+  }
+
+  .agent-card {
+    @apply glass rounded-2xl p-6 transition-all duration-300 hover:glass-strong transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-left;
+  }
+
+  .agent-card.selected {
+    @apply glass-strong ring-2 ring-purple-400 bg-purple-500 bg-opacity-5;
+  }
+
+  .agent-card.disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .agent-icon {
+    @apply text-4xl mb-3;
+  }
+
+  .agent-name {
+    @apply text-lg font-semibold mb-2 text-foreground;
+  }
+
+  .agent-description {
+    @apply text-sm text-muted-foreground leading-relaxed;
+  }
+
+  /* Color variants for different agents */
+  .agent-card[data-agent="sarah"] {
+    @apply border-purple-500 border-opacity-30;
+  }
+
+  .agent-card[data-agent="sarah"].selected {
+    @apply ring-purple-500 ring-opacity-50 bg-purple-500 bg-opacity-5;
+  }
+
+  .agent-card[data-agent="mathew"] {
+    @apply border-blue-500 border-opacity-30;
+  }
+
+  .agent-card[data-agent="mathew"].selected {
+    @apply ring-blue-500 ring-opacity-50 bg-blue-500 bg-opacity-5;
+  }
 }

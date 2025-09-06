@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import useVapi from '@/hooks/use-vapi';
+import AgentSelector from './AgentSelector';
+import { getAgentById } from '../config/agent-configs';
 
 interface VoiceInterfaceProps {
   userId: string;
@@ -21,6 +23,9 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [callTimer, setCallTimer] = useState(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState('sarah'); // Default to Sarah
+
+  const selectedAgent = getAgentById(selectedAgentId);
 
   const {
     isSessionActive,
@@ -31,7 +36,8 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   } = useVapi({
     userId,
     memoryContext: userContext?.memoryContext || '',
-    firstName: userContext?.firstName || 'there'
+    firstName: userContext?.firstName || 'there',
+    selectedAgent: selectedAgent!
   });
 
   // Load memory context
@@ -86,7 +92,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   }, [isSessionActive]);
 
   const handleStartSession = () => {
-    if (!memoryLoading && userContext) {
+    if (!memoryLoading && userContext && selectedAgent) {
       startSession();
     }
   };
@@ -151,31 +157,36 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           {/* Voice Assistant Interface - Main Column */}
           <div className="lg:col-span-2 space-y-8">
             
+            {/* Agent Selection */}
+            <AgentSelector 
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={setSelectedAgentId}
+              disabled={isSessionActive || isLoading}
+            />
+
             {/* Voice Call Interface */}
             <Card className="glass-strong rounded-3xl border-0">
               <CardContent className="p-8">
                 <div className="text-center space-y-6">
                   {/* Agent Avatar and Status */}
                   <div className="relative inline-block">
-                    <img 
-                      src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=400" 
-                      alt="Sarah - Therapeutic Voice Assistant" 
-                      className="w-32 h-32 rounded-full shadow-lg border-4 border-primary/30"
-                    />
+                    <div className={`w-32 h-32 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 bg-gradient-to-br from-${selectedAgent?.color || 'primary'}/20 to-${selectedAgent?.color || 'primary'}/10 flex items-center justify-center text-6xl`}>
+                      {selectedAgent?.icon || '💜'}
+                    </div>
                     <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-background flex items-center justify-center">
                       <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <h2 className="text-3xl font-bold">Sarah</h2>
-                    <p className="text-muted-foreground">Your Therapeutic Voice Assistant</p>
+                    <h2 className="text-3xl font-bold">{selectedAgent?.name || 'Sarah'}</h2>
+                    <p className="text-muted-foreground">{selectedAgent?.description || 'Your Therapeutic Voice Assistant'}</p>
                     <div className="inline-flex items-center space-x-2 text-sm text-accent">
                       <div className={`w-2 h-2 rounded-full animate-pulse ${
                         isSessionActive ? 'bg-red-500' : 'bg-accent'
                       }`}></div>
                       <span data-testid="status-call">
-                        {isSessionActive ? 'Call in progress' : 'Ready to chat'}
+                        {isSessionActive ? `Connected with ${selectedAgent?.name}` : 'Ready to chat'}
                       </span>
                     </div>
                   </div>

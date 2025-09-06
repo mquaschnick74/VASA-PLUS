@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { TherapeuticAgent } from '../config/agent-configs';
 
 interface UseVapiProps {
   userId: string;
   memoryContext: string;
   firstName: string;
+  selectedAgent: TherapeuticAgent;
 }
 
 interface UseVapiReturn {
@@ -14,7 +16,7 @@ interface UseVapiReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
 }
 
-const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiReturn => {
+const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiProps): UseVapiReturn => {
   const [vapi, setVapi] = useState<any>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,46 +78,44 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
   }, []);
 
   const startSession = useCallback(async () => {
-    if (!vapi || isLoading) return;
+    if (!vapi || isLoading || !selectedAgent) return;
 
     setIsLoading(true);
     setConnectionStatus('connecting');
 
     try {
-      // Build system prompt with memory context
-      const systemPrompt = `You are Sarah, a warm and empathetic therapeutic guide. 
-      You provide supportive, non-judgmental listening and gentle guidance.
+      // Build system prompt with agent-specific configuration
+      const hasMemory = memoryContext && memoryContext.length > 50;
       
-      ${memoryContext ? `===== PREVIOUS SESSION CONTEXT =====
-      ${memoryContext}
-      ===== END CONTEXT =====
+      let systemPrompt = selectedAgent.systemPrompt;
       
-      IMPORTANT: Reference the above context naturally in conversation when relevant.
-      Do not make up or hallucinate any details not explicitly mentioned above.` : 
-      'This is your first session with this user. Get to know them gently.'}
-      
-      The user's name is ${firstName}. Use their name naturally but not excessively.
-      
-      Focus on:
-      - Active listening and validation
-      - Exploring feelings with curiosity
-      - Holding space for difficult emotions
-      - Gentle, open-ended questions
-      - Reflecting back what you hear`;
+      // Add memory context if available
+      if (hasMemory) {
+        systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
+${memoryContext}
+===== END CONTEXT =====
 
-      const firstMessage = memoryContext && memoryContext.length > 50 ? 
-        `Hello ${firstName}, it's good to continue our conversation. What's on your mind today?` :
-        `Hello ${firstName}, I'm Sarah. I'm here to listen and support you. How are you feeling today?`;
+IMPORTANT: Reference the above context naturally in conversation when relevant.
+Do not make up or hallucinate any details not explicitly mentioned above.`;
+      } else {
+        systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
+      }
+      
+      systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
+
+      // Get personalized first message
+      const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
 
       // Get the current server URL for webhook configuration
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
 
-      // VAPI assistant configuration
+      // VAPI configuration with dynamic agent settings
       const assistantConfig = {
+        name: `VASA-${selectedAgent.name}`,
         model: {
           provider: 'openai',
-          model: 'gpt-3.5-turbo',
-          temperature: 0.7,
+          model: selectedAgent.model.model,
+          temperature: selectedAgent.model.temperature,
           messages: [
             {
               role: 'system',
@@ -125,10 +125,11 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
           maxTokens: 150
         },
         voice: {
-          provider: '11labs',
-          voiceId: 'EXAVITQu4vr4xnSDxMaL',  // Valid Sarah voice ID
-          stability: 0.5,
-          similarityBoost: 0.75
+          provider: selectedAgent.voice.provider,
+          voiceId: selectedAgent.voice.voiceId,
+          stability: selectedAgent.voice.stability || 0.5,
+          similarityBoost: 0.75,
+          speed: selectedAgent.voice.speed || 1.0
         },
         server: {
           url: serverUrl
@@ -141,11 +142,13 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
         },
         recordingEnabled: true,
         metadata: {
-          userId: userId
+          userId: userId,
+          agentName: selectedAgent.name,
+          agentId: selectedAgent.id
         }
       };
 
-      console.log('Starting VAPI session with config:', assistantConfig);
+      console.log(`Starting session with ${selectedAgent.name}:`, assistantConfig);
       await vapi.start(assistantConfig);
 
       // Set timeout fallback if call doesn't start
@@ -162,7 +165,7 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
       setIsLoading(false);
       setConnectionStatus('disconnected');
     }
-  }, [vapi, userId, memoryContext, firstName, isLoading, isSessionActive]);
+  }, [vapi, userId, memoryContext, firstName, isLoading, isSessionActive, selectedAgent]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {
