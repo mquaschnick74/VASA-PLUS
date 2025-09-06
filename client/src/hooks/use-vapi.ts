@@ -107,29 +107,22 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
       const assistantConfig = {
         model: {
           provider: 'openai',
-          model: 'gpt-4o-mini',
+          model: 'gpt-3.5-turbo',  // Not gpt-4o-mini
           temperature: 0.7,
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            }
-          ],
+          systemMessage: systemPrompt,  // Changed from systemPrompt
           maxTokens: 150
         },
         voice: {
-          provider: 'elevenlabs', // Use standard provider name
-          voiceId: 'rachel', // Use known voice ID
+          provider: '11labs',
+          voiceId: 'EXAVITQu4vr4xnSDxMaL',  // Valid Sarah voice ID
           stability: 0.5,
-          similarityBoost: 0.75,
-          style: 0.0,
-          useSpeakerBoost: true
+          similarityBoost: 0.75
         },
         firstMessage: firstMessage,
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
-          language: 'en-US' // Use full locale
+          language: 'en'
         },
         recordingEnabled: true,
         metadata: {
