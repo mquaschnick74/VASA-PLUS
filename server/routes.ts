@@ -12,23 +12,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.post('/auth/user', async (req, res) => {
     try {
       const { email, firstName } = req.body;
+      console.log('Auth request received:', { email, firstName });
 
       if (!email) {
         return res.status(400).json({ error: 'Email is required' });
       }
 
+      // Test Supabase connection first
+      console.log('Testing Supabase connection...');
+      const { data: testData, error: testError } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1);
+      
+      if (testError) {
+        console.error('Supabase connection test failed:', testError);
+        return res.status(500).json({ error: 'Database connection failed', details: testError.message });
+      }
+      
+      console.log('Supabase connection successful');
+
       // Check if user exists
-      const { data: existingUser } = await supabase
+      console.log('Checking for existing user...');
+      const { data: existingUser, error: selectError } = await supabase
         .from('users')
         .select('*')
         .eq('email', email)
         .single();
 
+      if (selectError && selectError.code !== 'PGRST116') {
+        console.error('Error checking existing user:', selectError);
+        throw selectError;
+      }
+
       if (existingUser) {
+        console.log('Found existing user:', existingUser.email);
         return res.json({ user: existingUser });
       }
 
       // Create new user
+      console.log('Creating new user...');
       const { data: newUser, error } = await supabase
         .from('users')
         .insert({
@@ -39,9 +62,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error) {
+        console.error('Error creating new user:', error);
         throw error;
       }
 
+      console.log('New user created:', newUser.email);
       res.json({ user: newUser });
     } catch (error) {
       console.error('Error in /user endpoint:', error);
