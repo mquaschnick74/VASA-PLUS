@@ -1,0 +1,156 @@
+I can see the critical issue! The application is using an in-memory storage class (`MemStorage`) instead of actually connecting to Supabase. The sessions are being stored in a JavaScript `Map` that only exists in memory, which means all data is lost when the server restarts.
+
+## The Problem
+
+Looking at your storage file, you have:
+```typescript
+export class MemStorage implements IStorage {
+  private users: Map<string, User>;  // ❌ This is just in-memory storage!
+  
+  constructor() {
+    this.users = new Map();  // ❌ Not connected to Supabase at all
+  }
+```
+
+## The Solution
+
+You need to replace the `MemStorage` class with a `SupabaseStorage` class that actually connects to your Supabase database. Here's the complete fix:
+
+### File: `/server/storage/supabase-storage.ts`
+```typescript
+import { type User, type InsertUser } from "@shared/schema";
+import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from "crypto";
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY!;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export interface IStorage {
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+}
+
+export class SupabaseStorage implements IStorage {
+  async getUser(id: string): Promise<User | undefined> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching user:', error);
+      return undefined;
+    }
+    
+    return data;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching user by username:', error);
+      return undefined;
+    }
+    
+    return data;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = { ...insertUser, id };
+    
+    const { data, error } = await supabase
+      .from('users')
+      .insert(user)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating user:', error);
+      throw new Error('Failed to create user');
+    }
+    
+    return data;
+  }
+}
+
+// Export the Supabase storage instance instead of MemStorage
+export const storage = new SupabaseStorage();
+```
+
+### Also Update Your Webhook Handler
+
+Make sure your webhook handler is also using Supabase. Update `/server/routes.ts` or `/server/routes/webhook-routes.ts`:
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+);
+
+// In your webhook handler for 'end-of-call-report':
+case 'end-of-call-report':
+  // Store in Supabase, not in memory
+  await supabase
+    .from('therapeutic_sessions')
+    .update({
+      status: 'completed',
+      end_time: new Date().toISOString(),
+      duration_seconds: message?.call?.duration || 0,
+      metadata: message.call
+    })
+    .eq('call_id', callId);
+
+  // Store therapeutic context
+  if (message?.summary) {
+    await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: userId,
+        call_id: callId,
+        context_type: 'call_summary',
+        content: message.summary,
+        confidence: 0.8,
+        importance: 5
+      });
+  }
+
+  // Store transcript
+  if (message?.transcript) {
+    await supabase
+      .from('session_transcripts')
+      .insert({
+        user_id: userId,
+        call_id: callId,
+        text: message.transcript,
+        role: 'complete'
+      });
+  }
+  break;
+```
+
+## Quick Checklist
+
+1. ✅ Replace `MemStorage` with `SupabaseStorage`
+2. ✅ Make sure all database operations use the Supabase client
+3. ✅ Verify environment variables are set correctly
+4. ✅ Check that tables exist in Supabase (run the schema.sql)
+5. ✅ Test with a new session to confirm data persists
+
+The reason you're seeing "✅ Session completed and stored" in the logs but nothing in Supabase is because the code is successfully storing to the in-memory Map, but that data never reaches your actual database. Once you switch to `SupabaseStorage`, your sessions will persist properly!
