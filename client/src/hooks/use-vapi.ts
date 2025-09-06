@@ -52,7 +52,11 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
         });
 
         vapiInstance.on('error', (error: any) => {
-          console.error('VAPI error:', error);
+          console.error('VAPI error details:', {
+            message: error?.error?.message || error?.message,
+            status: error?.error?.status,
+            fullError: error
+          });
           setIsLoading(false);
           setConnectionStatus('disconnected');
         });
@@ -107,9 +111,14 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
       const assistantConfig = {
         model: {
           provider: 'openai',
-          model: 'gpt-3.5-turbo',  // Not gpt-4o-mini
+          model: 'gpt-3.5-turbo',
           temperature: 0.7,
-          systemMessage: systemPrompt,  // Changed from systemPrompt
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            }
+          ],
           maxTokens: 150
         },
         voice: {
