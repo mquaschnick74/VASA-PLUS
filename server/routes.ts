@@ -143,12 +143,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`📥 Received VAPI webhook: ${eventType}`);
 
-      // Extract user ID from metadata
-      const userId = message?.call?.metadata?.userId || message?.metadata?.userId;
+      // Extract user ID from metadata - handle different webhook structures
+      const userId = message?.call?.metadata?.userId || 
+                    message?.metadata?.userId ||
+                    message?.call?.assistant?.metadata?.userId ||
+                    message?.assistant?.metadata?.userId;
       const callId = message?.call?.id || message?.callId;
+      
+      console.log('🔍 Parsing webhook data:', {
+        foundUserId: userId,
+        foundCallId: callId,
+        path1: message?.call?.metadata?.userId,
+        path2: message?.metadata?.userId,
+        path3: message?.call?.assistant?.metadata?.userId,
+        path4: message?.assistant?.metadata?.userId
+      });
 
       if (!userId || !callId) {
         console.warn('Missing userId or callId in webhook');
+        console.warn('Available data:', {
+          userId: userId,
+          callId: callId,
+          messageStructure: {
+            hasCall: !!message?.call,
+            hasCallMetadata: !!message?.call?.metadata,
+            hasCallAssistantMetadata: !!message?.call?.assistant?.metadata,
+            hasDirectMetadata: !!message?.metadata,
+            callKeys: message?.call ? Object.keys(message.call) : [],
+            metadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : []
+          }
+        });
         return res.status(200).json({ received: true });
       }
 
