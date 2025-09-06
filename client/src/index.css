@@ -1,0 +1,122 @@
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(240, 15%, 6%);
+  --foreground: hsl(240, 5%, 95%);
+  --card: hsla(268, 70%, 15%, 0.3);
+  --card-foreground: hsl(240, 5%, 95%);
+  --popover: hsla(268, 70%, 15%, 0.9);
+  --popover-foreground: hsl(240, 5%, 95%);
+  --primary: hsl(263, 70%, 60%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsla(268, 70%, 25%, 0.4);
+  --secondary-foreground: hsl(240, 5%, 95%);
+  --muted: hsla(268, 50%, 20%, 0.3);
+  --muted-foreground: hsl(240, 4%, 65%);
+  --accent: hsl(268, 85%, 70%);
+  --accent-foreground: hsl(0, 0%, 100%);
+  --destructive: hsl(0, 62%, 50%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsla(268, 50%, 50%, 0.2);
+  --input: hsla(268, 50%, 30%, 0.4);
+  --ring: hsl(263, 70%, 60%);
+  --chart-1: hsl(203.8863, 88.2845%, 53.1373%);
+  --chart-2: hsl(159.7826, 100%, 36.0784%);
+  --chart-3: hsl(42.0290, 92.8251%, 56.2745%);
+  --chart-4: hsl(147.1429, 78.5047%, 41.9608%);
+  --chart-5: hsl(341.4894, 75.2000%, 50.9804%);
+  --sidebar: hsla(268, 70%, 15%, 0.3);
+  --sidebar-foreground: hsl(240, 5%, 95%);
+  --sidebar-primary: hsl(263, 70%, 60%);
+  --sidebar-primary-foreground: hsl(0, 0%, 100%);
+  --sidebar-accent: hsl(268, 85%, 70%);
+  --sidebar-accent-foreground: hsl(0, 0%, 100%);
+  --sidebar-border: hsla(268, 50%, 50%, 0.2);
+  --sidebar-ring: hsl(263, 70%, 60%);
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+  --radius: 12px;
+  --shadow-2xs: 0px 2px 0px 0px rgba(139, 92, 246, 0.1);
+  --shadow-xs: 0px 2px 0px 0px rgba(139, 92, 246, 0.1);
+  --shadow-sm: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 1px 2px -1px rgba(139, 92, 246, 0.1);
+  --shadow: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 1px 2px -1px rgba(139, 92, 246, 0.1);
+  --shadow-md: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 2px 4px -1px rgba(139, 92, 246, 0.1);
+  --shadow-lg: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 4px 6px -1px rgba(139, 92, 246, 0.1);
+  --shadow-xl: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 8px 10px -1px rgba(139, 92, 246, 0.1);
+  --shadow-2xl: 0px 2px 0px 0px rgba(139, 92, 246, 0.1);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --background: hsl(240, 15%, 6%);
+  --foreground: hsl(240, 5%, 95%);
+  --card: hsla(268, 70%, 15%, 0.3);
+  --card-foreground: hsl(240, 5%, 95%);
+  --popover: hsla(268, 70%, 15%, 0.9);
+  --popover-foreground: hsl(240, 5%, 95%);
+  --primary: hsl(263, 70%, 60%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsla(268, 70%, 25%, 0.4);
+  --secondary-foreground: hsl(240, 5%, 95%);
+  --muted: hsla(268, 50%, 20%, 0.3);
+  --muted-foreground: hsl(240, 4%, 65%);
+  --accent: hsl(268, 85%, 70%);
+  --accent-foreground: hsl(0, 0%, 100%);
+  --destructive: hsl(0, 62%, 50%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsla(268, 50%, 50%, 0.2);
+  --input: hsla(268, 50%, 30%, 0.4);
+  --ring: hsl(263, 70%, 60%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .glass {
+    backdrop-filter: blur(16px);
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.1);
+  }
+
+  .glass-strong {
+    backdrop-filter: blur(20px);
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    box-shadow: 0 12px 40px rgba(139, 92, 246, 0.15);
+  }
+
+  .gradient-bg {
+    background: radial-gradient(ellipse at top, rgba(139, 92, 246, 0.15) 0%, transparent 70%),
+                radial-gradient(ellipse at bottom, rgba(107, 70, 193, 0.1) 0%, transparent 70%);
+    background-color: var(--background);
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
