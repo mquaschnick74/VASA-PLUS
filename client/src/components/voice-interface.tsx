@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
+import { DeleteAccount } from './DeleteAccount';
 import { getAgentById } from '../config/agent-configs';
 
 interface VoiceInterfaceProps {
@@ -138,6 +139,15 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
               <div className="glass rounded-full px-4 py-2">
                 <span className="text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
               </div>
+              <DeleteAccount 
+                userId={userId}
+                userEmail={userContext.profile?.email}
+                sessionCount={userContext.sessionCount}
+                onAccountDeleted={() => {
+                  setUserId(null);
+                  window.location.href = '/';
+                }}
+              />
               <Button 
                 onClick={handleSignOut}
                 className="w-10 h-10 rounded-full glass hover:glass-strong transition-all duration-200 p-0"
