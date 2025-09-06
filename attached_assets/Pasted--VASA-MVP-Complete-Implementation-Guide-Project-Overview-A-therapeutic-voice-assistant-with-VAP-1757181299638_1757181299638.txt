@@ -1,0 +1,1491 @@
+# VASA MVP Complete Implementation Guide
+
+## Project Overview
+A therapeutic voice assistant with VAPI 2025 inline configuration, Supabase persistent memory, and purple glassmorphic UI.
+
+## Step 1: Project Setup
+
+### 1.1 Initialize Project Structure
+```bash
+# Create project directory
+mkdir vasa-mvp
+cd vasa-mvp
+
+# Initialize package.json
+npm init -y
+
+# Create folder structure
+mkdir -p client/src/components client/src/hooks client/src/styles
+mkdir -p server/routes server/services
+mkdir -p database
+```
+
+### 1.2 Install Dependencies
+```bash
+# Install all dependencies
+npm install express cors dotenv @supabase/supabase-js vapi-ai uuid
+npm install --save-dev @types/express @types/cors @types/node @types/uuid typescript nodemon concurrently vite @vitejs/plugin-react
+```
+
+### 1.3 Environment Variables
+Create `.env` file in root:
+```env
+# Supabase
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+
+# VAPI
+VITE_VAPI_PUBLIC_KEY=your_vapi_public_key
+VAPI_SECRET_KEY=your_vapi_secret_key
+
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+
+# Server
+PORT=3001
+NODE_ENV=development
+```
+
+## Step 2: Database Setup (Supabase)
+
+### File: `/database/schema.sql`
+```sql
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  first_name TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Therapeutic sessions table
+CREATE TABLE IF NOT EXISTS therapeutic_sessions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  call_id TEXT UNIQUE NOT NULL,
+  agent_name TEXT DEFAULT 'Sarah',
+  status TEXT DEFAULT 'active',
+  start_time TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  end_time TIMESTAMP WITH TIME ZONE,
+  duration_seconds INTEGER,
+  metadata JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Therapeutic context table for memory
+CREATE TABLE IF NOT EXISTS therapeutic_context (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  call_id TEXT,
+  context_type TEXT DEFAULT 'session_insight',
+  content TEXT NOT NULL,
+  confidence REAL DEFAULT 0.8,
+  importance INTEGER DEFAULT 5,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Session transcripts table
+CREATE TABLE IF NOT EXISTS session_transcripts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  call_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  role TEXT DEFAULT 'complete',
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_sessions_user ON therapeutic_sessions(user_id);
+CREATE INDEX idx_sessions_call ON therapeutic_sessions(call_id);
+CREATE INDEX idx_context_user ON therapeutic_context(user_id);
+CREATE INDEX idx_transcripts_user ON session_transcripts(user_id);
+CREATE INDEX idx_transcripts_call ON session_transcripts(call_id);
+```
+
+## Step 3: Backend Implementation
+
+### File: `/server/index.ts`
+```typescript
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import authRoutes from './routes/auth-routes';
+import webhookRoutes from './routes/webhook-routes';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/vapi', webhookRoutes);
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
+```
+
+### File: `/server/services/supabase-service.ts`
+```typescript
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+export interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TherapeuticSession {
+  id: string;
+  user_id: string;
+  call_id: string;
+  agent_name: string;
+  status: string;
+  start_time: string;
+  end_time?: string;
+  duration_seconds?: number;
+  metadata?: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TherapeuticContext {
+  id: string;
+  user_id: string;
+  call_id?: string;
+  context_type: string;
+  content: string;
+  confidence: number;
+  importance: number;
+  created_at: string;
+}
+
+export interface SessionTranscript {
+  id: string;
+  user_id: string;
+  call_id: string;
+  text: string;
+  role: string;
+  timestamp: string;
+}
+```
+
+### File: `/server/services/memory-service.ts`
+```typescript
+import { supabase } from './supabase-service';
+
+export async function buildMemoryContext(userId: string): Promise<string> {
+  try {
+    // Fetch recent sessions
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('therapeutic_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (sessionsError) {
+      console.error('Error fetching sessions:', sessionsError);
+      return '';
+    }
+
+    // Fetch recent insights
+    const { data: insights, error: insightsError } = await supabase
+      .from('therapeutic_context')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (insightsError) {
+      console.error('Error fetching insights:', insightsError);
+      return '';
+    }
+
+    // Format memory context
+    let memoryContext = '';
+    
+    if (sessions && sessions.length > 0) {
+      memoryContext += `You have had ${sessions.length} previous sessions with this user. `;
+      
+      const lastSession = sessions[0];
+      const lastDate = new Date(lastSession.created_at).toLocaleDateString();
+      memoryContext += `The last session was on ${lastDate}. `;
+      
+      if (lastSession.duration_seconds) {
+        const minutes = Math.floor(lastSession.duration_seconds / 60);
+        memoryContext += `It lasted ${minutes} minutes. `;
+      }
+    }
+
+    if (insights && insights.length > 0) {
+      memoryContext += '\n\nKey insights from previous sessions:\n';
+      insights.forEach((insight, index) => {
+        memoryContext += `${index + 1}. ${insight.content}\n`;
+      });
+    }
+
+    return memoryContext || 'This is your first session together.';
+  } catch (error) {
+    console.error('Error building memory context:', error);
+    return 'Welcome to your session.';
+  }
+}
+
+export async function storeSessionContext(
+  userId: string,
+  callId: string,
+  content: string,
+  contextType: string = 'session_insight'
+): Promise<void> {
+  try {
+    await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: userId,
+        call_id: callId,
+        context_type: contextType,
+        content: content,
+        confidence: 0.8,
+        importance: 5
+      });
+    
+    console.log('✅ Stored therapeutic context');
+  } catch (error) {
+    console.error('Error storing context:', error);
+  }
+}
+```
+
+### File: `/server/routes/auth-routes.ts`
+```typescript
+import { Router } from 'express';
+import { supabase } from '../services/supabase-service';
+import { buildMemoryContext } from '../services/memory-service';
+
+const router = Router();
+
+// Get or create user
+router.post('/user', async (req, res) => {
+  try {
+    const { email, firstName } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Check if user exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) {
+      return res.json({ user: existingUser });
+    }
+
+    // Create new user
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert({
+        email,
+        first_name: firstName || email.split('@')[0]
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({ user: newUser });
+  } catch (error) {
+    console.error('Error in /user endpoint:', error);
+    res.status(500).json({ error: 'Failed to process user' });
+  }
+});
+
+// Get user context with memory
+router.get('/user-context/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Fetch user profile
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Build memory context
+    const memoryContext = await buildMemoryContext(userId);
+
+    // Fetch recent sessions for stats
+    const { data: sessions } = await supabase
+      .from('therapeutic_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Set cache-control headers to prevent caching
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    res.json({
+      success: true,
+      profile: user,
+      memoryContext,
+      sessions: sessions || [],
+      firstName: user.first_name || 'there',
+      sessionCount: sessions?.length || 0
+    });
+  } catch (error) {
+    console.error('Error fetching user context:', error);
+    res.status(500).json({ error: 'Failed to fetch user context' });
+  }
+});
+
+export default router;
+```
+
+### File: `/server/routes/webhook-routes.ts`
+```typescript
+import { Router } from 'express';
+import crypto from 'crypto';
+import { supabase } from '../services/supabase-service';
+import { storeSessionContext } from '../services/memory-service';
+
+const router = Router();
+
+// VAPI webhook handler
+router.post('/webhook', async (req, res) => {
+  try {
+    // Verify webhook signature if in production
+    if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
+      const signature = req.headers['x-vapi-signature'] as string;
+      const payload = JSON.stringify(req.body);
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.VAPI_SECRET_KEY)
+        .update(payload)
+        .digest('hex');
+
+      if (signature !== expectedSignature) {
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    }
+
+    const { message } = req.body;
+    const eventType = message?.type;
+
+    console.log(`📥 Received VAPI webhook: ${eventType}`);
+
+    // Extract user ID from metadata
+    const userId = message?.call?.metadata?.userId || message?.metadata?.userId;
+    const callId = message?.call?.id || message?.callId;
+
+    if (!userId || !callId) {
+      console.warn('Missing userId or callId in webhook');
+      return res.status(200).json({ received: true });
+    }
+
+    switch (eventType) {
+      case 'call-started':
+        // Create or update session
+        await supabase
+          .from('therapeutic_sessions')
+          .upsert({
+            call_id: callId,
+            user_id: userId,
+            agent_name: 'Sarah',
+            status: 'active',
+            start_time: new Date().toISOString(),
+            metadata: message.call
+          }, {
+            onConflict: 'call_id'
+          });
+        
+        console.log('✅ Session started');
+        break;
+
+      case 'end-of-call-report':
+        // Update session with end time and duration
+        const duration = message?.call?.duration || 0;
+        
+        await supabase
+          .from('therapeutic_sessions')
+          .update({
+            status: 'completed',
+            end_time: new Date().toISOString(),
+            duration_seconds: duration,
+            metadata: message.call
+          })
+          .eq('call_id', callId);
+
+        // Store call summary as context
+        if (message?.summary) {
+          await storeSessionContext(
+            userId,
+            callId,
+            message.summary,
+            'call_summary'
+          );
+        }
+
+        // Store complete transcript
+        if (message?.transcript) {
+          await supabase
+            .from('session_transcripts')
+            .insert({
+              user_id: userId,
+              call_id: callId,
+              text: message.transcript,
+              role: 'complete'
+            });
+        }
+
+        console.log('✅ Session completed and stored');
+        break;
+
+      case 'transcript':
+        // Optional: Store real-time transcript chunks
+        if (message?.transcript?.text) {
+          // Could store incremental transcripts if needed
+        }
+        break;
+
+      default:
+        console.log(`Unhandled event type: ${eventType}`);
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+export default router;
+```
+
+## Step 4: Frontend Implementation
+
+### File: `/client/src/App.tsx`
+```tsx
+import React, { useState } from 'react';
+import Dashboard from './components/Dashboard';
+import './styles/glassmorphic.css';
+
+function App() {
+  const [userId, setUserId] = useState<string | null>(null);
+
+  return (
+    <div className="app-container">
+      <Dashboard userId={userId} setUserId={setUserId} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+### File: `/client/src/components/Dashboard.tsx`
+```tsx
+import React, { useState, useEffect } from 'react';
+import VoiceInterface from './VoiceInterface';
+
+interface DashboardProps {
+  userId: string | null;
+  setUserId: (id: string) => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ userId, setUserId }) => {
+  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSignIn = async () => {
+    if (!email) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, firstName })
+      });
+      
+      const data = await response.json();
+      if (data.user) {
+        setUserId(data.user.id);
+        localStorage.setItem('userId', data.user.id);
+      }
+    } catch (error) {
+      console.error('Sign in error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Check for existing user
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
+  }, []);
+
+  if (!userId) {
+    return (
+      <div className="auth-container">
+        <div className="glass-card auth-card">
+          <h1 className="title">VASA Therapeutic Voice Assistant</h1>
+          <p className="subtitle">Start your therapeutic journey</p>
+          
+          <div className="form-group">
+            <input
+              type="email"
+              className="glass-input"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          
+          <div className="form-group">
+            <input
+              type="text"
+              className="glass-input"
+              placeholder="First name (optional)"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+          </div>
+          
+          <button
+            className="glass-button"
+            onClick={handleSignIn}
+            disabled={loading || !email}
+          >
+            {loading ? 'Starting...' : 'Start Session'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-container">
+      <div className="glass-card dashboard-card">
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">Your Therapeutic Space</h1>
+          <button
+            className="glass-button-secondary"
+            onClick={() => {
+              setUserId(null);
+              localStorage.removeItem('userId');
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
+        
+        <VoiceInterface userId={userId} />
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
+```
+
+### File: `/client/src/components/VoiceInterface.tsx`
+```tsx
+import React, { useState, useEffect } from 'react';
+import useVapi from '../hooks/useVapi';
+
+interface VoiceInterfaceProps {
+  userId: string;
+}
+
+const VoiceInterface: React.FC<VoiceInterfaceProps> = ({ userId }) => {
+  const [memoryContext, setMemoryContext] = useState('');
+  const [firstName, setFirstName] = useState('there');
+  const [sessionCount, setSessionCount] = useState(0);
+  const [memoryLoading, setMemoryLoading] = useState(false);
+
+  const {
+    isSessionActive,
+    isLoading,
+    startSession,
+    endSession,
+    connectionStatus
+  } = useVapi({
+    userId,
+    memoryContext,
+    firstName
+  });
+
+  // Load memory context
+  useEffect(() => {
+    const loadMemoryContext = async () => {
+      if (!userId) return;
+      
+      setMemoryLoading(true);
+      try {
+        const response = await fetch(
+          `http://localhost:3001/api/auth/user-context/${userId}`,
+          {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setFirstName(data.firstName || 'there');
+          setMemoryContext(data.memoryContext || '');
+          setSessionCount(data.sessionCount || 0);
+          
+          console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
+        }
+      } catch (error) {
+        console.error('Error loading memory:', error);
+      } finally {
+        setMemoryLoading(false);
+      }
+    };
+    
+    loadMemoryContext();
+  }, [userId]);
+
+  const handleStartSession = () => {
+    if (!memoryLoading) {
+      startSession();
+    }
+  };
+
+  return (
+    <div className="voice-interface">
+      <div className="voice-status-bar">
+        <div className="status-indicator">
+          <span className={`status-dot ${connectionStatus}`}></span>
+          <span className="status-text">
+            {connectionStatus === 'connected' ? 'Ready' : 
+             connectionStatus === 'connecting' ? 'Connecting...' : 
+             'Disconnected'}
+          </span>
+        </div>
+        
+        {sessionCount > 0 && (
+          <div className="session-count">
+            Sessions: {sessionCount}
+          </div>
+        )}
+      </div>
+
+      <div className="voice-agent-display">
+        <div className="agent-avatar">
+          <div className="avatar-circle">
+            <span className="avatar-initial">S</span>
+          </div>
+        </div>
+        <h2 className="agent-name">Sarah</h2>
+        <p className="agent-description">Your empathetic guide</p>
+      </div>
+
+      <div className="voice-control-container">
+        <button
+          className={`voice-button ${isSessionActive ? 'active' : ''}`}
+          onClick={isSessionActive ? endSession : handleStartSession}
+          disabled={isLoading || memoryLoading}
+        >
+          <div className="voice-button-inner">
+            {isLoading || memoryLoading ? (
+              <span className="button-loading">Loading...</span>
+            ) : isSessionActive ? (
+              <>
+                <span className="pulse-ring"></span>
+                <span className="button-text">End Session</span>
+              </>
+            ) : (
+              <span className="button-text">Start Session</span>
+            )}
+          </div>
+        </button>
+      </div>
+
+      {isSessionActive && (
+        <div className="session-timer">
+          <span className="timer-label">Session Active</span>
+          <span className="timer-pulse"></span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default VoiceInterface;
+```
+
+### File: `/client/src/hooks/useVapi.ts`
+```typescript
+import { useState, useEffect, useCallback, useRef } from 'react';
+import Vapi from '@vapi-ai/web';
+
+interface UseVapiProps {
+  userId: string;
+  memoryContext: string;
+  firstName: string;
+}
+
+interface UseVapiReturn {
+  isSessionActive: boolean;
+  isLoading: boolean;
+  startSession: () => void;
+  endSession: () => void;
+  connectionStatus: 'connecting' | 'connected' | 'disconnected';
+}
+
+const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiReturn => {
+  const [vapi, setVapi] = useState<any>(null);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  const vapiRef = useRef<any>(null);
+
+  useEffect(() => {
+    const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
+    
+    if (!publicKey) {
+      console.error('VAPI public key not found');
+      return;
+    }
+
+    const vapiInstance = new Vapi(publicKey);
+    vapiRef.current = vapiInstance;
+    setVapi(vapiInstance);
+
+    // Set up event listeners
+    vapiInstance.on('call-start', () => {
+      console.log('✅ Call started');
+      setIsSessionActive(true);
+      setConnectionStatus('connected');
+      setIsLoading(false);
+    });
+
+    vapiInstance.on('call-end', () => {
+      console.log('📴 Call ended');
+      setIsSessionActive(false);
+      setConnectionStatus('disconnected');
+    });
+
+    vapiInstance.on('error', (error: any) => {
+      console.error('VAPI error:', error);
+      setIsLoading(false);
+      setConnectionStatus('disconnected');
+    });
+
+    return () => {
+      vapiInstance.stop();
+    };
+  }, []);
+
+  const startSession = useCallback(() => {
+    if (!vapi || isLoading) return;
+
+    setIsLoading(true);
+    setConnectionStatus('connecting');
+
+    // Build system prompt with memory context
+    const systemPrompt = `You are Sarah, a warm and empathetic therapeutic guide. 
+    You provide supportive, non-judgmental listening and gentle guidance.
+    
+    ${memoryContext ? `===== PREVIOUS SESSION CONTEXT =====
+    ${memoryContext}
+    ===== END CONTEXT =====
+    
+    IMPORTANT: Reference the above context naturally in conversation when relevant.
+    Do not make up or hallucinate any details not explicitly mentioned above.` : 
+    'This is your first session with this user. Get to know them gently.'}
+    
+    The user's name is ${firstName}. Use their name naturally but not excessively.
+    
+    Focus on:
+    - Active listening and validation
+    - Exploring feelings with curiosity
+    - Holding space for difficult emotions
+    - Gentle, open-ended questions
+    - Reflecting back what you hear`;
+
+    const firstMessage = memoryContext && memoryContext.length > 50 ? 
+      `Hello ${firstName}, it's good to continue our conversation. ${
+        sessionCount > 0 ? 'I remember our previous sessions. ' : ''
+      }What's on your mind today?` :
+      `Hello ${firstName}, I'm Sarah. I'm here to listen and support you. How are you feeling today?`;
+
+    // VAPI 2025 inline configuration
+    const assistantConfig = {
+      model: {
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        systemMessage: systemPrompt,
+        maxTokens: 150
+      },
+      voice: {
+        provider: '11labs',
+        voiceId: 'paula',
+        stability: 0.5,
+        similarityBoost: 0.75,
+        style: 0.0,
+        useSpeakerBoost: true
+      },
+      firstMessage: firstMessage,
+      transcriber: {
+        provider: 'deepgram',
+        model: 'nova-2',
+        language: 'en'
+      },
+      recordingEnabled: true,
+      metadata: {
+        userId: userId
+      }
+    };
+
+    vapi.start(assistantConfig);
+  }, [vapi, userId, memoryContext, firstName, isLoading]);
+
+  const endSession = useCallback(() => {
+    if (vapi && isSessionActive) {
+      vapi.stop();
+      setIsSessionActive(false);
+      setConnectionStatus('disconnected');
+    }
+  }, [vapi, isSessionActive]);
+
+  return {
+    isSessionActive,
+    isLoading,
+    startSession,
+    endSession,
+    connectionStatus
+  };
+};
+
+export default useVapi;
+```
+
+### File: `/client/src/styles/glassmorphic.css`
+```css
+/* Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: white;
+}
+
+/* App Container */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Glass Card Base */
+.glass-card {
+  background: rgba(139, 92, 246, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.15);
+  padding: 40px;
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  box-shadow: 0 12px 48px rgba(139, 92, 246, 0.25);
+}
+
+/* Auth Container */
+.auth-container {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.auth-card {
+  text-align: center;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.8) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 16px;
+  opacity: 0.9;
+  margin-bottom: 32px;
+}
+
+/* Form Elements */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.glass-input {
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+}
+
+/* Buttons */
+.glass-button {
+  width: 100%;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.5) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.glass-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.4) 0%, rgba(139, 92, 246, 0.6) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
+}
+
+.glass-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.glass-button-secondary {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Dashboard */
+.dashboard-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.dashboard-card {
+  min-height: 600px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dashboard-title {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+/* Voice Interface */
+.voice-interface {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.voice-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  transition: all 0.3s ease;
+}
+
+.status-dot.connected {
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.status-dot.connecting {
+  background: #f59e0b;
+  animation: pulse 1.5s infinite;
+}
+
+.status-text {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.session-count {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* Agent Display */
+.voice-agent-display {
+  text-align: center;
+}
+
+.agent-avatar {
+  margin-bottom: 16px;
+}
+
+.avatar-circle {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.5) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.2);
+}
+
+.avatar-initial {
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.agent-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.agent-description {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* Voice Control */
+.voice-control-container {
+  margin: 20px 0;
+}
+
+.voice-button {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.4) 100%);
+  border: 2px solid rgba(139, 92, 246, 0.5);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-button:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 0 40px rgba(139, 92, 246, 0.4);
+}
+
+.voice-button.active {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(239, 68, 68, 0.5) 100%);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.voice-button-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.button-text {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.button-loading {
+  color: white;
+  font-size: 14px;
+}
+
+/* Pulse Animation */
+.pulse-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  animation: pulse-ring-animation 1.5s infinite;
+}
+
+@keyframes pulse-ring-animation {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Session Timer */
+.session-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.timer-label {
+  font-size: 14px;
+  color: #fca5a5;
+}
+
+.timer-pulse {
+  width: 6px;
+  height: 6px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .glass-card {
+    padding: 24px;
+  }
+  
+  .dashboard-container {
+    padding: 10px;
+  }
+  
+  .voice-button {
+    width: 120px;
+    height: 120px;
+  }
+}
+```
+
+## Step 5: Configuration Files
+
+### File: `/package.json`
+```json
+{
+  "name": "vasa-mvp",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "nodemon server/index.ts",
+    "client:dev": "cd client && vite",
+    "build": "cd client && vite build",
+    "start": "node dist/server/index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@vapi-ai/web": "^2.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "@vitejs/plugin-react": "^4.2.0",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.0"
+  }
+}
+```
+
+### File: `/tsconfig.json`
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react-jsx",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "server/**/*",
+    "client/src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
+```
+
+### File: `/client/vite.config.ts`
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
+      }
+    }
+  }
+});
+```
+
+### File: `/nodemon.json`
+```json
+{
+  "watch": ["server"],
+  "ext": "ts,js",
+  "exec": "ts-node",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
+```
+
+### File: `/client/index.html`
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VASA - Therapeutic Voice Assistant</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+```
+
+### File: `/client/src/main.tsx`
+```tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+## Step 6: Deployment Instructions for Replit
+
+### 1. Create New Replit Project
+```bash
+1. Go to replit.com
+2. Click "Create Repl"
+3. Choose "Node.js" template
+4. Name it "vasa-mvp"
+```
+
+### 2. Upload Files
+```bash
+1. Delete default files
+2. Create folder structure as shown above
+3. Copy each file to its location
+4. Set up environment variables in Replit Secrets
+```
+
+### 3. Install Dependencies
+```bash
+# In Replit Shell:
+npm install
+```
+
+### 4. Configure Supabase
+```sql
+1. Go to Supabase dashboard
+2. Create new project
+3. Run the schema.sql in SQL editor
+4. Copy URL and Service Key to Replit Secrets
+```
+
+### 5. Configure VAPI
+```bash
+1. Go to vapi.ai
+2. Create account and get API keys
+3. Add to Replit Secrets
+```
+
+### 6. Start Development Server
+```bash
+# In Replit Shell:
+npm run dev
+```
+
+### 7. Access Application
+```bash
+Open the Webview panel in Replit
+Your app is running on port 3000
+```
+
+## Key Features Implemented
+
+✅ **Persistent Memory**: Sessions stored in Supabase, retrieved on each new session
+✅ **Voice Interface**: VAPI 2025 inline configuration with Sarah agent
+✅ **Purple Glassmorphic UI**: Complete styling with glass effects
+✅ **Single Dashboard**: Unified interface for voice sessions
+✅ **Cache-Busting**: Ensures fresh memory context retrieval
+✅ **Webhook Processing**: Stores transcripts and session data
+✅ **User Management**: Simple email-based user creation
+✅ **Session Tracking**: Complete session lifecycle management
+
+## Testing the MVP
+
+1. **First Session**:
+   - Enter email and optional name
+   - Start session
+   - Sarah greets as first-time user
+   - End session
+
+2. **Return Session**:
+   - Sign in with same email
+   - Start new session
+   - Sarah references previous session
+   - Memory context is preserved
+
+## Expansion Path
+
+This MVP can be expanded to include:
+- Multiple therapeutic agents
+- CSS pattern detection
+- Therapist/Client dashboards
+- Real-time WebSocket updates
+- Advanced analytics
+- Subscription management
+
+The architecture is designed to scale without major refactoring.
