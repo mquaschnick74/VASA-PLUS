@@ -122,6 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // VAPI webhook handler
   apiRouter.post('/vapi/webhook', async (req, res) => {
+    console.log('📥 VAPI webhook received:', JSON.stringify(req.body, null, 2));
     try {
       // Verify webhook signature if in production
       if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
@@ -154,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       switch (eventType) {
         case 'call-started':
           // Create or update session
-          await supabase
+          const { data: sessionData, error: sessionError } = await supabase
             .from('therapeutic_sessions')
             .upsert({
               call_id: callId,
@@ -167,7 +168,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               onConflict: 'call_id'
             });
           
-          console.log('✅ Session started');
+          if (sessionError) {
+            console.error('❌ Session creation failed:', sessionError);
+          } else {
+            console.log('✅ Session started:', sessionData);
+          }
           break;
 
         case 'end-of-call-report':
