@@ -131,8 +131,7 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
           similarityBoost: 0.75
         },
         server: {
-          url: serverUrl,
-          timeout: 30
+          url: serverUrl
         },
         firstMessage: firstMessage,
         transcriber: {
