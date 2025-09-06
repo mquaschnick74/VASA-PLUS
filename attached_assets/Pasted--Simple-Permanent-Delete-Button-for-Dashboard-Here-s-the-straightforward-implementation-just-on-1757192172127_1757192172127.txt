@@ -1,0 +1,180 @@
+## Simple Permanent Delete Button for Dashboard
+
+Here's the straightforward implementation - just one component to add to your dashboard:
+
+### Step 1: Create `/client/src/components/DeleteAccount.tsx`
+
+```tsx
+import React, { useState } from 'react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { Button } from './ui/button';
+import { Trash2, AlertTriangle } from 'lucide-react';
+
+interface DeleteAccountProps {
+  userId: string;
+  userEmail?: string;
+  sessionCount?: number;
+  onAccountDeleted?: () => void;
+}
+
+export const DeleteAccount: React.FC<DeleteAccountProps> = ({ 
+  userId, 
+  userEmail,
+  sessionCount = 0,
+  onAccountDeleted 
+}) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'DELETE') {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/auth/user/${userId}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Account deleted:', result);
+        localStorage.clear();
+        
+        if (onAccountDeleted) {
+          onAccountDeleted();
+        } else {
+          window.location.href = '/';
+        }
+      } else {
+        alert(`Failed to delete account: ${result.error || 'Unknown error'}`);
+        setIsDeleting(false);
+      }
+    } catch (error) {
+      alert('Error deleting account. Please try again.');
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="destructive"
+          className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Delete Account
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent className="bg-gray-900 border-white/10">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-white flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+            Delete Account Permanently?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-white/70 space-y-3">
+            <p>This will permanently delete:</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Your account ({userEmail})</li>
+              <li>All {sessionCount} therapeutic sessions</li>
+              <li>All transcripts and conversations</li>
+              <li>All therapeutic insights</li>
+            </ul>
+            <p className="font-semibold text-red-400 mt-4">
+              This action CANNOT be undone.
+            </p>
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded">
+              <p className="text-sm mb-2">
+                Type <span className="font-mono font-bold text-red-400">DELETE</span> to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                className="w-full px-3 py-2 bg-black/50 border border-white/20 rounded text-white"
+                placeholder="Type DELETE"
+                disabled={isDeleting}
+              />
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel 
+            className="bg-white/10 text-white hover:bg-white/20 border-white/20"
+            disabled={isDeleting}
+            onClick={() => setDeleteConfirmation('')}
+          >
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              handleDeleteAccount();
+            }}
+            className="bg-red-500 hover:bg-red-600 text-white"
+            disabled={deleteConfirmation !== 'DELETE' || isDeleting}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete My Account'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
+
+export default DeleteAccount;
+```
+
+### Step 2: Add Delete Button to Your Existing Dashboard
+
+In your dashboard component (wherever your main dashboard UI is), add these changes:
+
+```tsx
+// Add to imports at the top
+import { DeleteAccount } from "@/components/DeleteAccount";
+
+// In your Dashboard component, add the delete button in the header area
+// (This example shows where to place it - adjust to match your exact dashboard structure)
+
+return (
+  <div className="dashboard-container">
+    <div className="dashboard-header">
+      <h1>Your Therapeutic Space</h1>
+      <div className="header-actions">
+        <button onClick={() => { /* sign out logic */ }}>Sign Out</button>
+        
+        {/* ADD THIS DELETE BUTTON */}
+        <DeleteAccount 
+          userId={userId}
+          userEmail={userEmail}
+          sessionCount={sessionCount}
+          onAccountDeleted={() => {
+            setUserId(null);
+            window.location.href = '/';
+          }}
+        />
+      </div>
+    </div>
+    
+    {/* Rest of your dashboard content */}
+    <VoiceInterface userId={userId} />
+  </div>
+);
+```
+
+### That's It!
+
+Just two simple steps:
+1. Create the `DeleteAccount.tsx` component
+2. Import and add `<DeleteAccount />` to your dashboard
+
+The button will:
+- Show "Delete Account" in red
+- Require typing "DELETE" to confirm
+- Delete everything when confirmed
+- Redirect to the sign-in page
+
+No settings pages, no multiple options, just a straightforward delete button on the dashboard.
