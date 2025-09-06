@@ -24,7 +24,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     id: 'sarah',
     name: 'Sarah',
     description: 'Warm emotional support and gentle guidance',
-    icon: '💜',
+    icon: '👱🏽‍♀️',
     color: 'purple',
     model: {
       temperature: 0.7,
@@ -55,7 +55,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     id: 'mathew',
     name: 'Mathew',
     description: 'Analytical pattern recognition and deeper therapeutic work',
-    icon: '🔍',
+    icon: '👨🏻‍💼',
     color: 'blue',
     model: {
       temperature: 0.4,  // Lower for more analytical responses
