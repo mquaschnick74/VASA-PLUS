@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase-service';
 import { buildMemoryContext } from '../services/memory-service';
+import { deleteUserCascade, findUserByEmail } from '../services/user-service';
 
 const router = Router();
 
@@ -213,11 +214,7 @@ router.delete('/user-by-email', async (req, res) => {
     console.log(`🗑️ Starting cascade delete for user with email: ${email}`);
 
     // Find user by email
-    const { data: userToDelete, error: fetchError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
+    const { user: userToDelete, error: fetchError } = await findUserByEmail(email);
 
     if (fetchError || !userToDelete) {
       return res.status(404).json({ 
@@ -226,9 +223,25 @@ router.delete('/user-by-email', async (req, res) => {
       });
     }
 
-    // Delegate to delete by ID
-    req.params.userId = userToDelete.id;
-    return router.delete('/user/:userId', req, res);
+    // Use the cascade delete service
+    const result = await deleteUserCascade(userToDelete.id);
+    
+    if (!result.success) {
+      return res.status(500).json({ 
+        error: result.error || 'Failed to delete user'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'User and all related data successfully deleted via email lookup',
+      deletedUser: {
+        id: result.deletedUserId,
+        email: result.deletedEmail,
+        deletedAt: new Date().toISOString()
+      },
+      deletedCounts: result.deletedCounts
+    });
     
   } catch (error) {
     console.error('Error in delete by email:', error);
