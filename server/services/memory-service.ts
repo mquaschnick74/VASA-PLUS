@@ -1,24 +1,32 @@
-import { db } from './supabase-service';
-import { therapeuticSessions, therapeuticContext } from '../../shared/schema';
-import { eq, desc } from 'drizzle-orm';
+import { supabase } from './supabase-service';
 
 export async function buildMemoryContext(userId: string): Promise<string> {
   try {
     // Fetch recent sessions
-    const sessions = await db
-      .select()
-      .from(therapeuticSessions)
-      .where(eq(therapeuticSessions.user_id, userId))
-      .orderBy(desc(therapeuticSessions.created_at))
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('therapeutic_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
       .limit(5);
 
+    if (sessionsError) {
+      console.error('Error fetching sessions:', sessionsError);
+      return '';
+    }
+
     // Fetch recent insights
-    const insights = await db
-      .select()
-      .from(therapeuticContext)
-      .where(eq(therapeuticContext.user_id, userId))
-      .orderBy(desc(therapeuticContext.created_at))
+    const { data: insights, error: insightsError } = await supabase
+      .from('therapeutic_context')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
       .limit(5);
+
+    if (insightsError) {
+      console.error('Error fetching insights:', insightsError);
+      return '';
+    }
 
     // Format memory context
     let memoryContext = '';
@@ -57,9 +65,9 @@ export async function storeSessionContext(
   contextType: string = 'session_insight'
 ): Promise<void> {
   try {
-    await db
-      .insert(therapeuticContext)
-      .values({
+    await supabase
+      .from('therapeutic_context')
+      .insert({
         user_id: userId,
         call_id: callId,
         context_type: contextType,

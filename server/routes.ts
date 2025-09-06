@@ -2,9 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Router } from 'express';
 import crypto from 'crypto';
-import { db } from './services/supabase-service';
-import { users, therapeuticSessions, sessionTranscripts } from '../shared/schema';
-import { eq, desc } from 'drizzle-orm';
+import { supabase } from './services/supabase-service';
 import { buildMemoryContext, storeSessionContext } from './services/memory-service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -20,30 +18,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user exists
-      const existingUsers = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
 
-      if (existingUsers.length > 0) {
-        return res.json({ user: existingUsers[0] });
+      if (existingUser) {
+        return res.json({ user: existingUser });
       }
 
       // Create new user
-      const newUsers = await db
-        .insert(users)
-        .values({
+      const { data: newUser, error } = await supabase
+        .from('users')
+        .insert({
           email,
           first_name: firstName || email.split('@')[0]
         })
-        .returning();
+        .select()
+        .single();
 
-      if (newUsers.length === 0) {
-        throw new Error('Failed to create user');
+      if (error) {
+        throw error;
       }
 
-      res.json({ user: newUsers[0] });
+      res.json({ user: newUser });
     } catch (error) {
       console.error('Error in /user endpoint:', error);
       res.status(500).json({ error: 'Failed to process user' });
@@ -56,27 +55,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userId } = req.params;
 
       // Fetch user profile
-      const userResults = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-      if (userResults.length === 0) {
+      if (userError || !user) {
         return res.status(404).json({ error: 'User not found' });
       }
-
-      const user = userResults[0];
 
       // Build memory context
       const memoryContext = await buildMemoryContext(userId);
 
       // Fetch recent sessions for stats
-      const sessions = await db
-        .select()
-        .from(therapeuticSessions)
-        .where(eq(therapeuticSessions.user_id, userId))
-        .orderBy(desc(therapeuticSessions.created_at))
+      const { data: sessions } = await supabase
+        .from('therapeutic_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
         .limit(10);
 
       // Set cache-control headers to prevent caching
@@ -88,9 +85,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         profile: user,
         memoryContext,
-        sessions: sessions,
+        sessions: sessions || [],
         firstName: user.first_name || 'there',
-        sessionCount: sessions.length
+        sessionCount: sessions?.length || 0
       });
     } catch (error) {
       console.error('Error fetching user context:', error);
@@ -132,23 +129,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       switch (eventType) {
         case 'call-started':
           // Create or update session
-          await db
-            .insert(therapeuticSessions)
-            .values({
+          await supabase
+            .from('therapeutic_sessions')
+            .upsert({
               call_id: callId,
               user_id: userId,
               agent_name: 'Sarah',
               status: 'active',
               start_time: new Date().toISOString(),
               metadata: message.call
-            })
-            .onConflictDoUpdate({
-              target: therapeuticSessions.call_id,
-              set: {
-                status: 'active',
-                start_time: new Date().toISOString(),
-                metadata: message.call
-              }
+            }, {
+              onConflict: 'call_id'
             });
           
           console.log('✅ Session started');
@@ -158,15 +149,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update session with end time and duration
           const duration = message?.call?.duration || 0;
           
-          await db
-            .update(therapeuticSessions)
-            .set({
+          await supabase
+            .from('therapeutic_sessions')
+            .update({
               status: 'completed',
               end_time: new Date().toISOString(),
               duration_seconds: duration,
               metadata: message.call
             })
-            .where(eq(therapeuticSessions.call_id, callId));
+            .eq('call_id', callId);
 
           // Store call summary as context
           if (message?.summary) {
@@ -180,9 +171,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Store complete transcript
           if (message?.transcript) {
-            await db
-              .insert(sessionTranscripts)
-              .values({
+            await supabase
+              .from('session_transcripts')
+              .insert({
                 user_id: userId,
                 call_id: callId,
                 text: message.transcript,
