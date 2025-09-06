@@ -1,0 +1,656 @@
+## System Prompt for Replit AI Assistant to Implement Option 2
+
+Copy and paste this entire prompt to your Replit AI Assistant:
+
+---
+
+**TASK: Refactor VASA authentication routes into modular structure with cascade delete functionality**
+
+Please implement the following changes in the exact order specified. Create new files and folders as needed. Each file should be created with the COMPLETE code provided - do not use snippets or partial implementations.
+
+### STEP 1: Create Route Directory Structure
+Create the following folder:
+```
+server/routes/
+```
+
+### STEP 2: Create `/server/routes/auth-routes.ts`
+Create this new file with the following COMPLETE content:
+
+```typescript
+import { Router } from 'express';
+import { supabase } from '../services/supabase-service';
+import { buildMemoryContext } from '../services/memory-service';
+
+const router = Router();
+
+// Create or get user
+router.post('/user', async (req, res) => {
+  try {
+    const { email, firstName } = req.body;
+    console.log('Auth request received:', { email, firstName });
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Test Supabase connection first
+    console.log('Testing Supabase connection...');
+    const { data: testData, error: testError } = await supabase
+      .from('users')
+      .select('id')
+      .limit(1);
+    
+    if (testError) {
+      console.error('Supabase connection test failed:', testError);
+      return res.status(500).json({ error: 'Database connection failed', details: testError.message });
+    }
+    
+    console.log('Supabase connection successful');
+
+    // Check if user exists
+    console.log('Checking for existing user...');
+    const { data: existingUser, error: selectError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (selectError && selectError.code !== 'PGRST116') {
+      console.error('Error checking existing user:', selectError);
+      throw selectError;
+    }
+
+    if (existingUser) {
+      console.log('Found existing user:', existingUser.email);
+      return res.json({ user: existingUser });
+    }
+
+    // Create new user
+    console.log('Creating new user...');
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert({
+        email,
+        first_name: firstName || email.split('@')[0]
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating new user:', error);
+      throw error;
+    }
+
+    console.log('New user created:', newUser.email);
+    res.json({ user: newUser });
+  } catch (error) {
+    console.error('Error in /user endpoint:', error);
+    res.status(500).json({ error: 'Failed to process user' });
+  }
+});
+
+// Get user context with memory
+router.get('/user-context/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Fetch user profile
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Build memory context
+    const memoryContext = await buildMemoryContext(userId);
+
+    // Fetch recent sessions for stats
+    const { data: sessions } = await supabase
+      .from('therapeutic_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Set cache-control headers
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    res.json({
+      success: true,
+      profile: user,
+      memoryContext,
+      sessions: sessions || [],
+      firstName: user.first_name || 'there',
+      sessionCount: sessions?.length || 0
+    });
+  } catch (error) {
+    console.error('Error fetching user context:', error);
+    res.status(500).json({ error: 'Failed to fetch user context' });
+  }
+});
+
+// CASCADE DELETE: Delete user and all related data
+router.delete('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    console.log(`🗑️ Starting cascade delete for user: ${userId}`);
+
+    // Verify user exists
+    const { data: userToDelete, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (fetchError || !userToDelete) {
+      console.error('User not found for deletion:', userId);
+      return res.status(404).json({ 
+        error: 'User not found',
+        userId: userId 
+      });
+    }
+
+    console.log(`📋 User found: ${userToDelete.email}`);
+
+    // Get counts of related data
+    const { count: sessionsCount } = await supabase
+      .from('therapeutic_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    const { count: contextsCount } = await supabase
+      .from('therapeutic_context')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    const { count: transcriptsCount } = await supabase
+      .from('session_transcripts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    console.log(`📊 Related data to be deleted:
+      - Sessions: ${sessionsCount || 0}
+      - Contexts: ${contextsCount || 0}
+      - Transcripts: ${transcriptsCount || 0}`);
+
+    // Delete the user (CASCADE handles related tables)
+    const { error: deleteError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (deleteError) {
+      console.error('Error deleting user:', deleteError);
+      return res.status(500).json({ 
+        error: 'Failed to delete user',
+        details: deleteError.message 
+      });
+    }
+
+    console.log(`✅ Successfully deleted user ${userToDelete.email}`);
+
+    res.json({
+      success: true,
+      message: 'User and all related data successfully deleted',
+      deletedUser: {
+        id: userId,
+        email: userToDelete.email,
+        deletedAt: new Date().toISOString()
+      },
+      deletedCounts: {
+        sessions: sessionsCount || 0,
+        contexts: contextsCount || 0,
+        transcripts: transcriptsCount || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('Unexpected error in user deletion:', error);
+    res.status(500).json({ 
+      error: 'An unexpected error occurred during deletion',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Delete user by email
+router.delete('/user-by-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    console.log(`🗑️ Starting cascade delete for user with email: ${email}`);
+
+    // Find user by email
+    const { data: userToDelete, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (fetchError || !userToDelete) {
+      return res.status(404).json({ 
+        error: 'User not found with that email',
+        email: email 
+      });
+    }
+
+    // Delegate to delete by ID
+    req.params.userId = userToDelete.id;
+    return router.delete('/user/:userId', req, res);
+    
+  } catch (error) {
+    console.error('Error in delete by email:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete user by email',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+export default router;
+```
+
+### STEP 3: Create `/server/routes/webhook-routes.ts`
+Create this new file with the following COMPLETE content:
+
+```typescript
+import { Router } from 'express';
+import crypto from 'crypto';
+import { supabase } from '../services/supabase-service';
+import { storeSessionContext } from '../services/memory-service';
+
+const router = Router();
+
+// VAPI webhook handler
+router.post('/webhook', async (req, res) => {
+  console.log('📥 VAPI webhook received:', JSON.stringify(req.body, null, 2));
+  try {
+    // Verify webhook signature if in production
+    if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
+      const signature = req.headers['x-vapi-signature'] as string;
+      const payload = JSON.stringify(req.body);
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.VAPI_SECRET_KEY)
+        .update(payload)
+        .digest('hex');
+
+      if (signature !== expectedSignature) {
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    }
+
+    const { message } = req.body;
+    const eventType = message?.type;
+
+    console.log(`📥 Received VAPI webhook: ${eventType}`);
+
+    // Extract user ID from metadata - handle different webhook structures
+    const userId = message?.call?.metadata?.userId || 
+                  message?.metadata?.userId ||
+                  message?.call?.assistant?.metadata?.userId ||
+                  message?.assistant?.metadata?.userId;
+    const callId = message?.call?.id || message?.callId;
+    
+    console.log('🔍 Parsing webhook data:', {
+      foundUserId: userId,
+      foundCallId: callId,
+      path1: message?.call?.metadata?.userId,
+      path2: message?.metadata?.userId,
+      path3: message?.call?.assistant?.metadata?.userId,
+      path4: message?.assistant?.metadata?.userId
+    });
+
+    if (!userId || !callId) {
+      console.warn('Missing userId or callId in webhook');
+      console.warn('Available data:', {
+        userId: userId,
+        callId: callId,
+        messageStructure: {
+          hasCall: !!message?.call,
+          hasCallMetadata: !!message?.call?.metadata,
+          hasCallAssistantMetadata: !!message?.call?.assistant?.metadata,
+          hasDirectMetadata: !!message?.metadata,
+          callKeys: message?.call ? Object.keys(message.call) : [],
+          metadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : []
+        }
+      });
+      return res.status(200).json({ received: true });
+    }
+
+    switch (eventType) {
+      case 'call-started':
+        // Extract agent name from metadata
+        const agentName = message?.call?.metadata?.agentName || 
+                         message?.metadata?.agentName ||
+                         message?.call?.assistant?.metadata?.agentName ||
+                         message?.assistant?.metadata?.agentName ||
+                         'Sarah'; // Default fallback
+        
+        // Create or update session
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('therapeutic_sessions')
+          .upsert({
+            call_id: callId,
+            user_id: userId,
+            agent_name: agentName,
+            status: 'active',
+            start_time: new Date().toISOString(),
+            metadata: message.call
+          }, {
+            onConflict: 'call_id'
+          });
+        
+        if (sessionError) {
+          console.error('❌ Session creation failed:', sessionError);
+        } else {
+          console.log('✅ Session started:', sessionData);
+        }
+        break;
+
+      case 'end-of-call-report':
+        // Update session with end time and duration
+        const duration = message?.call?.duration || 0;
+        
+        await supabase
+          .from('therapeutic_sessions')
+          .update({
+            status: 'completed',
+            end_time: new Date().toISOString(),
+            duration_seconds: duration,
+            metadata: message.call
+          })
+          .eq('call_id', callId);
+
+        // Store call summary as context
+        if (message?.summary) {
+          await storeSessionContext(
+            userId,
+            callId,
+            message.summary,
+            'call_summary'
+          );
+        }
+
+        // Store complete transcript
+        if (message?.transcript) {
+          await supabase
+            .from('session_transcripts')
+            .insert({
+              user_id: userId,
+              call_id: callId,
+              text: message.transcript,
+              role: 'complete'
+            });
+        }
+
+        console.log('✅ Session completed and stored');
+        break;
+
+      case 'transcript':
+        // Optional: Store real-time transcript chunks
+        if (message?.transcript?.text) {
+          // Could store incremental transcripts if needed
+        }
+        break;
+
+      default:
+        console.log(`Unhandled event type: ${eventType}`);
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+export default router;
+```
+
+### STEP 4: Replace `/server/routes.ts`
+REPLACE the entire content of `/server/routes.ts` with:
+
+```typescript
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { Router } from 'express';
+
+// Import route modules
+import authRoutes from './routes/auth-routes';
+import webhookRoutes from './routes/webhook-routes';
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  const apiRouter = Router();
+
+  // Mount route modules
+  apiRouter.use('/auth', authRoutes);
+  apiRouter.use('/vapi', webhookRoutes);
+
+  // Health check
+  apiRouter.get('/health', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      routes: {
+        auth: 'Mounted at /api/auth',
+        vapi: 'Mounted at /api/vapi',
+        health: 'Mounted at /api/health'
+      }
+    });
+  });
+
+  app.use('/api', apiRouter);
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
+```
+
+### STEP 5: Create `/server/services/user-service.ts`
+Create this new file with the following COMPLETE content:
+
+```typescript
+import { supabase } from './supabase-service';
+
+export interface UserDeletionResult {
+  success: boolean;
+  deletedUserId?: string;
+  deletedEmail?: string;
+  deletedCounts?: {
+    sessions: number;
+    contexts: number;
+    transcripts: number;
+  };
+  error?: string;
+}
+
+export async function getRelatedDataCounts(userId: string) {
+  const [sessions, contexts, transcripts] = await Promise.all([
+    supabase
+      .from('therapeutic_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId),
+    supabase
+      .from('therapeutic_context')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId),
+    supabase
+      .from('session_transcripts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+  ]);
+
+  return {
+    sessions: sessions.count || 0,
+    contexts: contexts.count || 0,
+    transcripts: transcripts.count || 0
+  };
+}
+
+export async function deleteUserCascade(userId: string): Promise<UserDeletionResult> {
+  try {
+    // Get user info before deletion
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (fetchError || !user) {
+      return {
+        success: false,
+        error: 'User not found'
+      };
+    }
+
+    // Get counts before deletion
+    const counts = await getRelatedDataCounts(userId);
+
+    // Delete user (CASCADE handles related tables)
+    const { error: deleteError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (deleteError) {
+      return {
+        success: false,
+        error: deleteError.message
+      };
+    }
+
+    console.log(`✅ Cascade delete completed for user ${user.email}`);
+    console.log(`📊 Deleted: ${counts.sessions} sessions, ${counts.contexts} contexts, ${counts.transcripts} transcripts`);
+
+    return {
+      success: true,
+      deletedUserId: userId,
+      deletedEmail: user.email,
+      deletedCounts: counts
+    };
+    
+  } catch (error) {
+    console.error('Error in deleteUserCascade:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+export async function findUserByEmail(email: string) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email)
+    .single();
+  
+  return { user: data, error };
+}
+
+export async function verifyUserDeleted(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .single();
+  
+  return !data;
+}
+```
+
+### STEP 6: Test the Implementation
+After completing all steps above, create a test file `/test-cascade-delete.js`:
+
+```javascript
+const fetch = require('node-fetch');
+
+async function testCascadeDelete() {
+  const baseUrl = 'http://localhost:3000/api/auth';
+  
+  try {
+    // 1. Create a test user
+    console.log('1. Creating test user...');
+    const createResponse = await fetch(`${baseUrl}/user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'test-delete@example.com',
+        firstName: 'Test Delete User'
+      })
+    });
+    
+    if (!createResponse.ok) {
+      throw new Error(`Failed to create user: ${await createResponse.text()}`);
+    }
+    
+    const { user } = await createResponse.json();
+    console.log('✅ Created user:', user.id, user.email);
+    
+    // 2. Wait a moment
+    console.log('2. Waiting 2 seconds...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // 3. Delete the user
+    console.log('3. Deleting user...');
+    const deleteResponse = await fetch(`${baseUrl}/user/${user.id}`, {
+      method: 'DELETE'
+    });
+    
+    if (!deleteResponse.ok) {
+      throw new Error(`Failed to delete user: ${await deleteResponse.text()}`);
+    }
+    
+    const deleteResult = await deleteResponse.json();
+    console.log('✅ Delete result:', deleteResult);
+    
+    // 4. Verify user is gone
+    console.log('4. Verifying deletion...');
+    const verifyResponse = await fetch(`${baseUrl}/user-context/${user.id}`);
+    
+    if (verifyResponse.status === 404) {
+      console.log('✅ SUCCESS: User successfully deleted!');
+    } else {
+      console.log('❌ FAILED: User still exists!');
+    }
+  } catch (error) {
+    console.error('❌ Test failed:', error.message);
+  }
+}
+
+// Run the test
+console.log('Starting cascade delete test...\n');
+testCascadeDelete();
+```
+
+### VERIFICATION STEPS:
+1. Check that the folder `/server/routes/` exists
+2. Verify that `/server/routes/auth-routes.ts` was created
+3. Verify that `/server/routes/webhook-routes.ts` was created
+4. Verify that `/server/routes.ts` was updated with the new modular imports
+5. Verify that `/server/services/user-service.ts` was created
+6. Run the test: `node test-cascade-delete.js`
+
+### IMPORTANT NOTES:
+- All existing API endpoints remain the same
+- No frontend changes are required
+- The cascade delete uses existing database constraints
+- All related data (sessions, contexts, transcripts) will be automatically deleted
+
+---
+
+**END OF PROMPT**
+
+Simply copy this entire prompt and paste it to your Replit AI Assistant. The assistant should be able to follow these instructions step by step to implement the complete refactoring with cascade delete functionality.
