@@ -1,0 +1,574 @@
+Based on your comprehensive backend breakdown, I can see you have a strong foundation. Your MVP already has:
+- ✅ Working webhook processing with session persistence
+- ✅ Memory context building (last 5 sessions) 
+- ✅ Supabase integration with proper schema
+- ✅ User authentication flow
+
+To gradually add PCA/PCP orchestration, let's start with the smallest meaningful step. Before I provide specific code changes, **let me examine your current implementation files**:Now let me look at your memory service and webhook routes to understand the exact implementation:Perfect! I can see your MVP has a solid foundation. Let's add PCA/PCP orchestration **incrementally**, starting with the simplest meaningful step: **adding multi-agent support with just Sarah and Mathew**.
+
+## Phase 1: Add Multi-Agent Support (Minimal Changes)
+
+### Step 1: Create Agent Configuration File
+
+**New file: `/client/src/config/agent-configs.ts`**
+
+```typescript
+// Simplified agent configurations - Phase 1 (just 2 agents)
+export interface TherapeuticAgent {
+  id: string;
+  name: string;
+  description: string;
+  systemPrompt: string;
+  firstMessageTemplate: string;
+  voice: {
+    provider: string;
+    voiceId: string;
+    stability?: number;
+    speed?: number;
+  };
+  model: {
+    temperature: number;
+    model: string;
+  };
+  color: string;
+  icon: string;
+}
+
+export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
+  {
+    id: 'sarah',
+    name: 'Sarah',
+    description: 'Warm emotional support and gentle guidance',
+    icon: '💜',
+    color: 'purple',
+    model: {
+      temperature: 0.7,
+      model: 'gpt-3.5-turbo'
+    },
+    voice: {
+      provider: '11labs',
+      voiceId: 'EXAVITQu4vr4xnSDxMaL', // Your current Sarah voice
+      stability: 0.5,
+      speed: 0.95
+    },
+    systemPrompt: `You are Sarah, a warm and empathetic therapeutic guide. 
+    You provide supportive, non-judgmental listening and gentle guidance.
+    
+    Focus on:
+    - Active listening and validation
+    - Exploring feelings with curiosity
+    - Holding space for difficult emotions
+    - Gentle, open-ended questions
+    - Reflecting back what you hear`,
+    
+    firstMessageTemplate: (firstName: string, hasMemory: boolean) => 
+      hasMemory 
+        ? `Hello ${firstName}, it's good to continue our conversation. What's on your mind today?`
+        : `Hello ${firstName}, I'm Sarah. I'm here to listen and support you. How are you feeling today?`
+  },
+  {
+    id: 'mathew',
+    name: 'Mathew',
+    description: 'Analytical pattern recognition and deeper therapeutic work',
+    icon: '🔍',
+    color: 'blue',
+    model: {
+      temperature: 0.4,  // Lower for more analytical responses
+      model: 'gpt-4o-mini'  // Better model for pattern work
+    },
+    voice: {
+      provider: '11labs',
+      voiceId: 'pNInz6obpgDQGcFmaJgB', // Adam - professional voice
+      stability: 0.8,
+      speed: 1.0
+    },
+    systemPrompt: `You are Mathew, a therapeutic guide specializing in pattern recognition.
+    You help identify recurring patterns in thoughts, behaviors, and emotions.
+    
+    Focus on:
+    - Identifying behavioral patterns (what you do vs what you want)
+    - Noticing contradictions without forcing resolution
+    - Clear, direct communication
+    - Analytical but warm approach
+    - One insight at a time
+    
+    Keep responses concise and focused on pattern observation.`,
+    
+    firstMessageTemplate: (firstName: string, hasMemory: boolean) =>
+      hasMemory
+        ? `Hello ${firstName}, welcome back. I've been reflecting on the patterns we discussed. What would you like to explore today?`
+        : `Hello ${firstName}, I'm Mathew. I help identify patterns in your experiences. What situation would you like to examine?`
+  }
+];
+
+export function getAgentById(agentId: string): TherapeuticAgent | undefined {
+  return THERAPEUTIC_AGENTS.find(agent => agent.id === agentId);
+}
+```
+
+### Step 2: Add Agent Selection UI
+
+**New file: `/client/src/components/AgentSelector.tsx`**
+
+```tsx
+import React from 'react';
+import { THERAPEUTIC_AGENTS, TherapeuticAgent } from '../config/agent-configs';
+
+interface AgentSelectorProps {
+  selectedAgentId: string;
+  onSelectAgent: (agentId: string) => void;
+  disabled?: boolean;
+}
+
+const AgentSelector: React.FC<AgentSelectorProps> = ({ 
+  selectedAgentId, 
+  onSelectAgent, 
+  disabled 
+}) => {
+  return (
+    <div className="agent-selector">
+      <h3 className="agent-selector-title">Choose Your Guide</h3>
+      <div className="agent-grid">
+        {THERAPEUTIC_AGENTS.map(agent => (
+          <button
+            key={agent.id}
+            className={`agent-card ${selectedAgentId === agent.id ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
+            onClick={() => !disabled && onSelectAgent(agent.id)}
+            disabled={disabled}
+          >
+            <div className="agent-icon">{agent.icon}</div>
+            <h4 className="agent-name">{agent.name}</h4>
+            <p className="agent-description">{agent.description}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default AgentSelector;
+```
+
+### Step 3: Update useVapi Hook
+
+**Update: `/client/src/hooks/useVapi.ts`**
+
+```typescript
+import { useState, useEffect, useCallback, useRef } from 'react';
+import Vapi from '@vapi-ai/web';
+import { TherapeuticAgent } from '../config/agent-configs';
+
+interface UseVapiProps {
+  userId: string;
+  memoryContext: string;
+  firstName: string;
+  selectedAgent: TherapeuticAgent;  // NEW: Accept agent configuration
+}
+
+interface UseVapiReturn {
+  isSessionActive: boolean;
+  isLoading: boolean;
+  startSession: () => void;
+  endSession: () => void;
+  connectionStatus: 'connecting' | 'connected' | 'disconnected';
+}
+
+const useVapi = ({ 
+  userId, 
+  memoryContext, 
+  firstName,
+  selectedAgent  // NEW parameter
+}: UseVapiProps): UseVapiReturn => {
+  const [vapi, setVapi] = useState<any>(null);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  const vapiRef = useRef<any>(null);
+
+  useEffect(() => {
+    const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
+    
+    if (!publicKey) {
+      console.error('VAPI public key not found');
+      return;
+    }
+
+    const vapiInstance = new Vapi(publicKey);
+    vapiRef.current = vapiInstance;
+    setVapi(vapiInstance);
+
+    // Event listeners remain the same
+    vapiInstance.on('call-start', () => {
+      console.log('✅ Call started');
+      setIsSessionActive(true);
+      setConnectionStatus('connected');
+      setIsLoading(false);
+    });
+
+    vapiInstance.on('call-end', () => {
+      console.log('📴 Call ended');
+      setIsSessionActive(false);
+      setConnectionStatus('disconnected');
+    });
+
+    vapiInstance.on('error', (error: any) => {
+      console.error('VAPI error:', error);
+      setIsLoading(false);
+      setConnectionStatus('disconnected');
+    });
+
+    return () => {
+      vapiInstance.stop();
+    };
+  }, []);
+
+  const startSession = useCallback(() => {
+    if (!vapi || isLoading || !selectedAgent) return;
+
+    setIsLoading(true);
+    setConnectionStatus('connecting');
+
+    // Build system prompt with agent-specific configuration
+    const hasMemory = memoryContext && memoryContext.length > 50;
+    
+    let systemPrompt = selectedAgent.systemPrompt;
+    
+    // Add memory context if available
+    if (hasMemory) {
+      systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
+${memoryContext}
+===== END CONTEXT =====
+
+IMPORTANT: Reference the above context naturally in conversation when relevant.
+Do not make up or hallucinate any details not explicitly mentioned above.`;
+    } else {
+      systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
+    }
+    
+    systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
+
+    // Get personalized first message
+    const firstMessage = selectedAgent.firstMessageTemplate(firstName, hasMemory);
+
+    // VAPI configuration with dynamic agent settings
+    const assistantConfig = {
+      name: `VASA-${selectedAgent.name}`,
+      model: {
+        provider: 'openai',
+        model: selectedAgent.model.model,
+        temperature: selectedAgent.model.temperature,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          }
+        ],
+        maxTokens: 150
+      },
+      voice: {
+        provider: selectedAgent.voice.provider,
+        voiceId: selectedAgent.voice.voiceId,
+        stability: selectedAgent.voice.stability || 0.5,
+        similarityBoost: 0.75,
+        speed: selectedAgent.voice.speed || 1.0
+      },
+      firstMessage: firstMessage,
+      transcriber: {
+        provider: 'deepgram',
+        model: 'nova-2',
+        language: 'en'
+      },
+      serverUrl: `${window.location.origin}/api/vapi/webhook`,
+      metadata: {
+        userId: userId,
+        agentName: selectedAgent.name,  // Track which agent
+        agentId: selectedAgent.id
+      }
+    };
+
+    console.log(`Starting session with ${selectedAgent.name}:`, assistantConfig);
+    
+    vapi.start(assistantConfig)
+      .catch((error: any) => {
+        console.error('Failed to start VAPI session:', error);
+        setIsLoading(false);
+        setConnectionStatus('disconnected');
+      });
+
+  }, [vapi, userId, memoryContext, firstName, isLoading, selectedAgent]);
+
+  const endSession = useCallback(() => {
+    if (vapi && isSessionActive) {
+      vapi.stop();
+      setIsSessionActive(false);
+      setConnectionStatus('disconnected');
+    }
+  }, [vapi, isSessionActive]);
+
+  return {
+    isSessionActive,
+    isLoading,
+    startSession,
+    endSession,
+    connectionStatus
+  };
+};
+
+export default useVapi;
+```
+
+### Step 4: Update VoiceInterface Component
+
+**Update: `/client/src/components/VoiceInterface.tsx`**
+
+```tsx
+import React, { useState, useEffect } from 'react';
+import useVapi from '../hooks/useVapi';
+import AgentSelector from './AgentSelector';
+import { getAgentById } from '../config/agent-configs';
+
+interface VoiceInterfaceProps {
+  userId: string;
+}
+
+const VoiceInterface: React.FC<VoiceInterfaceProps> = ({ userId }) => {
+  const [memoryContext, setMemoryContext] = useState('');
+  const [firstName, setFirstName] = useState('there');
+  const [sessionCount, setSessionCount] = useState(0);
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState('sarah'); // Default to Sarah
+
+  const selectedAgent = getAgentById(selectedAgentId);
+
+  const {
+    isSessionActive,
+    isLoading,
+    startSession,
+    endSession,
+    connectionStatus
+  } = useVapi({
+    userId,
+    memoryContext,
+    firstName,
+    selectedAgent: selectedAgent!
+  });
+
+  // Load memory context (same as before)
+  useEffect(() => {
+    const loadMemoryContext = async () => {
+      if (!userId) return;
+      
+      setMemoryLoading(true);
+      try {
+        const response = await fetch(
+          `/api/auth/user-context/${userId}`,
+          {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setFirstName(data.firstName || 'there');
+          setMemoryContext(data.memoryContext || '');
+          setSessionCount(data.sessionCount || 0);
+          
+          console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
+        }
+      } catch (error) {
+        console.error('Error loading memory:', error);
+      } finally {
+        setMemoryLoading(false);
+      }
+    };
+    
+    loadMemoryContext();
+  }, [userId]);
+
+  const handleStartSession = () => {
+    if (!memoryLoading && selectedAgent) {
+      startSession();
+    }
+  };
+
+  return (
+    <div className="voice-interface">
+      {/* Agent Selection */}
+      <AgentSelector 
+        selectedAgentId={selectedAgentId}
+        onSelectAgent={setSelectedAgentId}
+        disabled={isSessionActive || isLoading}
+      />
+      
+      {/* Voice Status Bar */}
+      <div className="voice-status-bar">
+        <div className="status-indicator">
+          <span className={`status-dot ${connectionStatus}`}></span>
+          <span className="status-text">
+            {connectionStatus === 'connected' ? `Connected with ${selectedAgent?.name}` : 
+             connectionStatus === 'connecting' ? 'Connecting...' : 
+             'Disconnected'}
+          </span>
+        </div>
+      </div>
+
+      {/* Voice Button */}
+      <div className="voice-controls">
+        <button
+          className={`voice-button ${isSessionActive ? 'active' : ''} ${selectedAgent?.color || 'purple'}`}
+          onClick={isSessionActive ? endSession : handleStartSession}
+          disabled={isLoading || memoryLoading || !selectedAgent}
+        >
+          <div className="voice-button-inner">
+            {isLoading || memoryLoading ? (
+              <span className="button-loading">Loading...</span>
+            ) : isSessionActive ? (
+              <>
+                <span className="pulse-ring"></span>
+                <span className="button-text">End Session</span>
+              </>
+            ) : (
+              <span className="button-text">Start with {selectedAgent?.name}</span>
+            )}
+          </div>
+        </button>
+      </div>
+
+      {isSessionActive && (
+        <div className="session-timer">
+          <span className="timer-label">Session Active with {selectedAgent?.name}</span>
+          <span className="timer-pulse"></span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default VoiceInterface;
+```
+
+### Step 5: Add CSS for Agent Selection
+
+**Add to: `/client/src/styles/glassmorphic.css`**
+
+```css
+/* Agent Selector Styles */
+.agent-selector {
+  margin-bottom: 2rem;
+}
+
+.agent-selector-title {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.agent-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.agent-card:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(147, 51, 234, 0.2);
+}
+
+.agent-card.selected {
+  background: rgba(147, 51, 234, 0.2);
+  border-color: rgba(147, 51, 234, 0.5);
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.3);
+}
+
+.agent-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.agent-name {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.95);
+  margin-bottom: 0.5rem;
+}
+
+.agent-description {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+}
+
+/* Color variations for voice button */
+.voice-button.blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+}
+
+.voice-button.blue:hover:not(:disabled) {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+}
+```
+
+### Step 6: Update Backend to Track Agent Name
+
+**Update: `/server/routes/webhook-routes.ts`** (minimal change)
+
+```typescript
+// In the 'call-started' case, extract agent name from metadata:
+case 'call-started':
+  const agentName = message?.call?.metadata?.agentName || 'Sarah';
+  
+  await supabase
+    .from('therapeutic_sessions')
+    .upsert({
+      call_id: callId,
+      user_id: userId,
+      agent_name: agentName,  // Now dynamic!
+      status: 'active',
+      start_time: new Date().toISOString(),
+      metadata: message.call
+    }, {
+      onConflict: 'call_id'
+    });
+  
+  console.log(`✅ Session started with ${agentName}`);
+  break;
+```
+
+## What This Gives You
+
+1. ✅ **Two distinct therapeutic agents** with different personalities
+2. ✅ **Agent selection UI** that's disabled during sessions
+3. ✅ **Dynamic voice and model configuration** per agent
+4. ✅ **Memory context works with both agents**
+5. ✅ **Backend tracks which agent was used**
+6. ✅ **No complex orchestration yet** - keeping it simple
+
+## Next Steps (Phase 2 - When Ready)
+
+Once this is working, we can add:
+1. **Basic pattern detection** in your memory-service.ts
+2. **Agent-specific memory formatting**
+3. **Simple CSS pattern tracking** 
+4. **Eventually: Mathew's side-channel orchestration**
+
+Try implementing Phase 1 first and let me know when you're ready for Phase 2!
