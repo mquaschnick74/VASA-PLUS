@@ -22,7 +22,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Testing Supabase connection...');
       const { data: testData, error: testError } = await supabase
         .from('users')
-        .select('count')
+        .select('id')
         .limit(1);
       
       if (testError) {

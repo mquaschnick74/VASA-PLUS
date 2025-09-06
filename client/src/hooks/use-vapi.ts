@@ -71,68 +71,90 @@ const useVapi = ({ userId, memoryContext, firstName }: UseVapiProps): UseVapiRet
     };
   }, []);
 
-  const startSession = useCallback(() => {
+  const startSession = useCallback(async () => {
     if (!vapi || isLoading) return;
 
     setIsLoading(true);
     setConnectionStatus('connecting');
 
-    // Build system prompt with memory context
-    const systemPrompt = `You are Sarah, a warm and empathetic therapeutic guide. 
-    You provide supportive, non-judgmental listening and gentle guidance.
-    
-    ${memoryContext ? `===== PREVIOUS SESSION CONTEXT =====
-    ${memoryContext}
-    ===== END CONTEXT =====
-    
-    IMPORTANT: Reference the above context naturally in conversation when relevant.
-    Do not make up or hallucinate any details not explicitly mentioned above.` : 
-    'This is your first session with this user. Get to know them gently.'}
-    
-    The user's name is ${firstName}. Use their name naturally but not excessively.
-    
-    Focus on:
-    - Active listening and validation
-    - Exploring feelings with curiosity
-    - Holding space for difficult emotions
-    - Gentle, open-ended questions
-    - Reflecting back what you hear`;
+    try {
+      // Build system prompt with memory context
+      const systemPrompt = `You are Sarah, a warm and empathetic therapeutic guide. 
+      You provide supportive, non-judgmental listening and gentle guidance.
+      
+      ${memoryContext ? `===== PREVIOUS SESSION CONTEXT =====
+      ${memoryContext}
+      ===== END CONTEXT =====
+      
+      IMPORTANT: Reference the above context naturally in conversation when relevant.
+      Do not make up or hallucinate any details not explicitly mentioned above.` : 
+      'This is your first session with this user. Get to know them gently.'}
+      
+      The user's name is ${firstName}. Use their name naturally but not excessively.
+      
+      Focus on:
+      - Active listening and validation
+      - Exploring feelings with curiosity
+      - Holding space for difficult emotions
+      - Gentle, open-ended questions
+      - Reflecting back what you hear`;
 
-    const firstMessage = memoryContext && memoryContext.length > 50 ? 
-      `Hello ${firstName}, it's good to continue our conversation. What's on your mind today?` :
-      `Hello ${firstName}, I'm Sarah. I'm here to listen and support you. How are you feeling today?`;
+      const firstMessage = memoryContext && memoryContext.length > 50 ? 
+        `Hello ${firstName}, it's good to continue our conversation. What's on your mind today?` :
+        `Hello ${firstName}, I'm Sarah. I'm here to listen and support you. How are you feeling today?`;
 
-    // VAPI configuration
-    const assistantConfig = {
-      model: {
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        systemMessage: systemPrompt,
-        maxTokens: 150
-      },
-      voice: {
-        provider: '11labs',
-        voiceId: 'paula',
-        stability: 0.5,
-        similarityBoost: 0.75,
-        style: 0.0,
-        useSpeakerBoost: true
-      },
-      firstMessage: firstMessage,
-      transcriber: {
-        provider: 'deepgram',
-        model: 'nova-2',
-        language: 'en'
-      },
-      recordingEnabled: true,
-      metadata: {
-        userId: userId
-      }
-    };
+      // VAPI assistant configuration
+      const assistantConfig = {
+        model: {
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          temperature: 0.7,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            }
+          ],
+          maxTokens: 150
+        },
+        voice: {
+          provider: 'elevenlabs', // Use standard provider name
+          voiceId: 'rachel', // Use known voice ID
+          stability: 0.5,
+          similarityBoost: 0.75,
+          style: 0.0,
+          useSpeakerBoost: true
+        },
+        firstMessage: firstMessage,
+        transcriber: {
+          provider: 'deepgram',
+          model: 'nova-2',
+          language: 'en-US' // Use full locale
+        },
+        recordingEnabled: true,
+        metadata: {
+          userId: userId
+        }
+      };
 
-    vapi.start(assistantConfig);
-  }, [vapi, userId, memoryContext, firstName, isLoading]);
+      console.log('Starting VAPI session with config:', assistantConfig);
+      await vapi.start(assistantConfig);
+
+      // Set timeout fallback if call doesn't start
+      setTimeout(() => {
+        if (!isSessionActive) {
+          console.warn('Call start timeout - resetting UI');
+          setIsLoading(false);
+          setConnectionStatus('disconnected');
+        }
+      }, 15000);
+
+    } catch (error) {
+      console.error('Failed to start VAPI session:', error);
+      setIsLoading(false);
+      setConnectionStatus('disconnected');
+    }
+  }, [vapi, userId, memoryContext, firstName, isLoading, isSessionActive]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {
