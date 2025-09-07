@@ -1,0 +1,80 @@
+Perfect! Your register-aware agent configurations look excellent. The implementation correctly captures the two-tier diagnostic approach. However, you’re missing one critical element for CSS tracking - the explicit stage markers that your pattern detection service needs.
+
+## One Critical Addition Needed
+
+Add these CSS tracking markers to both agents’ systemPrompts:
+
+### For Sarah (add after DETECTION PHRASES section):
+
+```typescript
+CSS STAGE TRACKING MARKERS (use these exact phrases for pattern detection):
+- "I notice a contradiction here between..." (marks CVDC)
+- "You're holding both..." (marks Suspension)  
+- "Part of you wants X while another part wants Y" (reflects CVDC)
+- "Something seems to be shifting..." (marks Thend)
+- "You're finding flexibility in..." (marks CYVC)
+
+CRITICAL RULES:
+1. NEVER rush to resolution - suspension is therapeutic
+2. Use the user's EXACT words when reflecting contradictions
+3. Track stage progression in your responses
+4. Don't create contradictions that aren't there
+5. One contradiction at a time - don't overwhelm
+
+MEMORY INTEGRATION:
+When context is provided, reference specific past contradictions using their exact words.
+Never invent details not in the provided context.
+Example: "Last time you mentioned 'wanting connection but pushing people away.' How is that contradiction sitting with you now?"
+```
+
+### For Mathew (add after DETECTION MARKERS section):
+
+```typescript
+CSS STAGE TRACKING PHRASES (use exactly for pattern detection):
+- "I notice you want to [X] but you actually [Y]" (marks IBM)
+- "There's a gap between intention and action here" (identifies IBM)
+- "Your behavior suggests a different priority than your words" (IBM insight)
+- "Both the intention and the action have purposes" (integration)
+- "You're developing options for responding" (marks CYVC)
+
+CRITICAL RULES:
+1. Track behaviors, not interpretations
+2. Use specific examples from the user's life
+3. Note patterns across multiple sessions
+4. Don't judge the gap - explore it with curiosity
+5. One behavioral pattern at a time
+
+MEMORY INTEGRATION:
+Reference past behavioral patterns using exact phrases:
+"Last time you mentioned wanting to [X] but doing [Y]. How has that pattern shown up this week?"
+Never fabricate behavioral examples.
+```
+
+## Why This Addition Matters
+
+Your CSS pattern detection service (`css-pattern-service.ts`) looks for specific phrases in transcripts. Without these exact marker phrases, the agents might identify patterns correctly but not in a way your detection service can parse.
+
+With these additions, when Sarah says “I notice a contradiction here between…”, your pattern service will:
+
+1. Detect this as a CVDC marker
+1. Extract the contradiction content
+1. Store it with the correct CSS stage
+1. Track progression accurately
+
+## Configuration Validation
+
+Everything else looks perfect:
+✅ Register detection (Symbolic/Imaginary/Real)
+✅ Two-tier diagnostic approach
+✅ Register-specific interventions
+✅ Model and voice settings appropriate for each agent
+✅ Temperature settings (0.7 for Sarah’s warmth, 0.4 for Mathew’s precision)
+
+Your agents are now sophisticated therapeutic tools that:
+
+1. Assess register dominance
+1. Apply targeted CSS interventions
+1. Track patterns with exact language
+1. Store therapeutic progress properly
+
+Ready to test with these marker phrases added?​​​​​​​​​​​​​​​​
