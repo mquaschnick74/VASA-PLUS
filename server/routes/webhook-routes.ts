@@ -245,9 +245,89 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'transcript':
-        // Optional: Store real-time transcript chunks
-        if (message?.transcript?.text) {
-          // Could store incremental transcripts if needed
+        if (message?.transcript) {
+          console.log('📝 Real-time transcript:', message.transcript);
+          
+          // Store the real-time transcript chunk
+          await supabase
+            .from('session_transcripts')
+            .insert({
+              user_id: userId,
+              call_id: callId,
+              text: message.transcript.text || message.transcript,
+              role: message.transcript.role || 'user'
+            });
+            
+          // If it's a user message, detect patterns immediately
+          if (message.transcript.role === 'user') {
+            const patterns = detectCSSPatterns(message.transcript.text);
+            const { confidence, reasoning } = assessPatternConfidence(patterns);
+            console.log('🔍 Real-time CSS detection:', patterns.currentStage);
+            
+            // Store any CVDC patterns found
+            for (const cvdc of patterns.cvdcPatterns) {
+              await supabase
+                .from('therapeutic_context')
+                .insert({
+                  user_id: userId,
+                  call_id: callId,
+                  context_type: 'cvdc_identified',
+                  content: cvdc,
+                  css_stage: 'focus_bind',
+                  pattern_type: 'CVDC',
+                  confidence: confidence,
+                  importance: 8
+                });
+            }
+
+            // Store any IBM patterns found
+            for (const ibm of patterns.ibmPatterns) {
+              await supabase
+                .from('therapeutic_context')
+                .insert({
+                  user_id: userId,
+                  call_id: callId,
+                  context_type: 'ibm_pattern',
+                  content: ibm,
+                  css_stage: 'focus_bind',
+                  pattern_type: 'IBM',
+                  confidence: confidence,
+                  importance: 7
+                });
+            }
+
+            // Store any Thend moments found
+            for (const thend of patterns.thendIndicators) {
+              await supabase
+                .from('therapeutic_context')
+                .insert({
+                  user_id: userId,
+                  call_id: callId,
+                  context_type: 'thend_moment',
+                  content: thend,
+                  css_stage: 'gesture_toward',
+                  pattern_type: 'Thend',
+                  confidence: confidence,
+                  importance: 9
+                });
+            }
+
+            // Store any CYVC achievements found
+            for (const cyvc of patterns.cyvcPatterns) {
+              await supabase
+                .from('therapeutic_context')
+                .insert({
+                  user_id: userId,
+                  call_id: callId,
+                  context_type: 'cyvc_achieved',
+                  content: cyvc,
+                  css_stage: 'completion',
+                  pattern_type: 'CYVC',
+                  confidence: confidence,
+                  importance: 10
+                });
+            }
+          }
         }
         break;
 
