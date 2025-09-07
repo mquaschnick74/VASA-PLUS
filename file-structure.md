@@ -1,7 +1,7 @@
 # VASA - File Structure Documentation
 
 ## Project Overview
-VASA is a therapeutic voice assistant application with a React frontend, Express backend, and PostgreSQL database integration.
+VASA is a therapeutic voice assistant application with a React frontend, Express backend, and PostgreSQL database integration. Features multi-agent support, persistent memory, user authentication, session analytics, and cascade delete functionality.
 
 ## Root Directory
 ```
@@ -11,10 +11,12 @@ VASA is a therapeutic voice assistant application with a React frontend, Express
 ├── shared/                   # Shared types and schemas
 ├── components.json           # shadcn/ui component configuration
 ├── drizzle.config.ts         # Database ORM configuration
+├── file-structure.md         # Project file structure documentation
 ├── package.json              # Node.js dependencies and scripts
 ├── postcss.config.js         # CSS processing configuration
 ├── replit.md                 # Project documentation and user preferences
 ├── tailwind.config.ts        # Tailwind CSS configuration
+├── test-cascade-delete.js    # Test file for cascade delete functionality
 ├── tsconfig.json             # TypeScript configuration
 └── vite.config.ts            # Vite build tool configuration
 ```
@@ -36,9 +38,10 @@ src/
 │   │   ├── input.tsx
 │   │   ├── select.tsx
 │   │   ├── toast.tsx
-│   │   └── [30+ UI components...]
+│   │   └── [35+ UI components...]
 │   ├── AgentSelector.tsx     # Multi-agent selection interface
 │   ├── authentication.tsx    # User authentication component
+│   ├── DeleteAccount.tsx     # Account deletion with confirmation dialog
 │   └── voice-interface.tsx   # Main voice interaction component
 ├── config/
 │   └── agent-configs.ts      # Therapeutic agent configurations
@@ -61,6 +64,7 @@ src/
 - **`App.tsx`** - Main application with routing and theme provider
 - **`voice-interface.tsx`** - Core voice interaction UI with session management
 - **`AgentSelector.tsx`** - Multi-agent selection with Sarah and Mathew
+- **`DeleteAccount.tsx`** - Account deletion component with confirmation dialog
 - **`use-vapi.ts`** - Voice AI Platform integration and session handling
 - **`agent-configs.ts`** - Therapeutic agent configurations and prompts
 - **`authentication.tsx`** - Email-based user identification system
@@ -70,20 +74,27 @@ Backend Express server with TypeScript and modular architecture.
 
 ```
 server/
+├── routes/                   # Modular route handlers
+│   ├── auth-routes.ts        # User authentication and management routes
+│   └── webhook-routes.ts     # VAPI webhook processing routes
 ├── services/                 # Business logic services
 │   ├── memory-service.ts     # Therapeutic memory and context management
-│   └── supabase-service.ts   # Database service interfaces
+│   ├── supabase-service.ts   # Database service interfaces
+│   └── user-service.ts       # User management and cascade delete utilities
 ├── index.ts                  # Server entry point and configuration
-├── routes.ts                 # API routes and webhook handlers
+├── routes.ts                 # Main route registration and setup
 ├── storage.ts                # Storage interface definitions
 └── vite.ts                   # Vite integration for frontend serving
 ```
 
 ### Key Backend Files
 - **`index.ts`** - Express server setup with middleware and error handling
-- **`routes.ts`** - API endpoints including VAPI webhooks and user management
-- **`memory-service.ts`** - Manages therapeutic context and session memory
-- **`supabase-service.ts`** - Database connection and type definitions
+- **`routes.ts`** - Main route registration and modular route mounting
+- **`routes/auth-routes.ts`** - User authentication, context, and cascade delete endpoints
+- **`routes/webhook-routes.ts`** - VAPI webhook processing and session management
+- **`services/memory-service.ts`** - Manages therapeutic context and session memory
+- **`services/supabase-service.ts`** - Database connection and type definitions
+- **`services/user-service.ts`** - User management utilities and cascade delete logic
 - **`storage.ts`** - Storage interface for database operations
 
 ## Shared Directory (`/shared`)
@@ -124,11 +135,14 @@ shared/
 - **Multi-Agent Support** - Sarah (emotional support) and Mathew (analytical)
 - **Session Memory** - Persistent context across conversations
 - **Authentication** - Email-based user identification
+- **Account Management** - Account deletion with confirmation dialog
 - **Responsive UI** - Purple glassmorphic design with dark theme
 
 ### Backend Features
+- **Modular Route Structure** - Organized authentication and webhook routes
 - **VAPI Integration** - Voice AI webhook processing and session management
 - **Memory System** - Therapeutic context building and retrieval
+- **Cascade Delete** - Complete user data removal with safety checks
 - **Database Operations** - User, session, and transcript management
 - **API Routes** - RESTful endpoints for frontend data access
 
@@ -149,6 +163,11 @@ npm run dev                   # Starts both frontend and backend
 ```bash
 npm run db:push              # Push schema changes to database
 npm run db:generate          # Generate migration files
+```
+
+### Testing
+```bash
+node test-cascade-delete.js  # Test cascade delete functionality
 ```
 
 ### File Organization Principles
