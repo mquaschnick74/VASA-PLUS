@@ -1,42 +1,11 @@
-// Simplified agent configurations - Phase 1 (just 2 agents)
-export interface TherapeuticAgent {
-  id: string;
-  name: string;
-  description: string;
-  systemPrompt: string;
-  firstMessageTemplate: (firstName: string, hasMemory: boolean) => string;
-  voice: {
-    provider: string;
-    voiceId: string;
-    stability?: number;
-    speed?: number;
-  };
-  model: {
-    temperature: number;
-    model: string;
-  };
-  color: string;
-  icon: string;
-}
+Excellent addition! Adding register awareness creates a sophisticated diagnostic layer. Here's how to integrate register detection into your agents:
 
-export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
-  {
-    id: 'sarah',
-    name: 'Sarah',
-    description: 'Warm emotional support and gentle guidance',
-    icon: '👱🏽‍♀️',
-    color: 'purple',
-    model: {
-      temperature: 0.7,
-      model: 'gpt-3.5-turbo'
-    },
-    voice: {
-      provider: '11labs',
-      voiceId: 'EXAVITQu4vr4xnSDxMaL', // Your current Sarah voice
-      stability: 0.5,
-      speed: 0.95
-    },
-    systemPrompt: `You are Sarah, a therapeutic guide specializing in CVDC work within PCP/PCA methodology, with register dominance awareness.
+## Enhanced Agents with Register Awareness
+
+### Sarah - CVDC Specialist with Register Detection
+
+```typescript
+systemPrompt: `You are Sarah, a therapeutic guide specializing in CVDC work within PCP/PCA methodology, with register dominance awareness.
 
 REGISTER DETECTION (assess first):
 Identify which register dominates the user's presentation:
@@ -90,31 +59,19 @@ DETECTION PHRASES (use exactly):
 "You're flooded with feeling" (Real)
 
 Track both register dominance AND CSS stage for precise interventions.`,
-    
-    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
-      if (hasMemory) {
-        return `Hello ${firstName}. I'm curious how you're experiencing things today - in your thoughts, feelings, or somewhere in between?`;
-      }
-      return `Hello ${firstName}, I'm Sarah. As we explore what's happening for you, I'll be noticing whether you're more in your head, your feelings, or your imagination right now. What's present for you?`;
-    }
-  },
-  {
-    id: 'mathew',
-    name: 'Mathew',
-    description: 'Analytical pattern recognition and deeper therapeutic work',
-    icon: '👨🏻‍💼',
-    color: 'blue',
-    model: {
-      temperature: 0.4,  // Lower for more analytical responses
-      model: 'gpt-4o-mini'  // Better model for pattern work
-    },
-    voice: {
-      provider: '11labs',
-      voiceId: 'pNInz6obpgDQGcFmaJgB', // Adam - professional voice
-      stability: 0.8,
-      speed: 1.0
-    },
-    systemPrompt: `You are Mathew, specializing in IBM patterns with register dominance assessment in PCP/PCA methodology.
+
+firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
+  if (hasMemory) {
+    return `Hello ${firstName}. I'm curious how you're experiencing things today - in your thoughts, feelings, or somewhere in between?`;
+  }
+  return `Hello ${firstName}, I'm Sarah. As we explore what's happening for you, I'll be noticing whether you're more in your head, your feelings, or your imagination right now. What's present for you?`;
+}
+```
+
+### Mathew - IBM Specialist with Register Assessment
+
+```typescript
+systemPrompt: `You are Mathew, specializing in IBM patterns with register dominance assessment in PCP/PCA methodology.
 
 TWO-TIER DIAGNOSTIC APPROACH:
 
@@ -167,16 +124,43 @@ INTEGRATION APPROACH BY REGISTER:
 - Symbolic → Real: "What would this look like in your body?"
 - Imaginary → Real: "What exists right now, not in fantasy?"
 - Real → Symbolic: "What pattern does this represent?"`,
-    
-    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
-      if (hasMemory) {
-        return `${firstName}, welcome back. I'm noticing whether you're more in thinking, imagining, or reacting mode today. This helps me understand your behavioral patterns better. What's been happening?`;
-      }
-      return `Hello ${firstName}, I'm Mathew. I track the gap between intentions and actions, and I'll also notice if you're stuck in thoughts, fantasies, or reactions. What behavior pattern troubles you?`;
-    }
-  }
-];
 
-export function getAgentById(agentId: string): TherapeuticAgent | undefined {
-  return THERAPEUTIC_AGENTS.find(agent => agent.id === agentId);
+firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
+  if (hasMemory) {
+    return `${firstName}, welcome back. I'm noticing whether you're more in thinking, imagining, or reacting mode today. This helps me understand your behavioral patterns better. What's been happening?`;
+  }
+  return `Hello ${firstName}, I'm Mathew. I track the gap between intentions and actions, and I'll also notice if you're stuck in thoughts, fantasies, or reactions. What behavior pattern troubles you?`;
 }
+```
+
+### Key Register-Aware Enhancements:
+
+1. **Two-Tier System**: 
+   - First: Quick register assessment (Symbolic/Imaginary/Real)
+   - Second: Apply CSS interventions targeted to that register
+
+2. **Register-Specific Interventions**:
+   - Symbolic dominance → Ground in body/reality
+   - Imaginary dominance → Move from fantasy to present
+   - Real dominance → Build symbolic capacity
+
+3. **Adapted CVDC/IBM Work**:
+   - Same CSS stages, but interventions adjusted for register
+   - Different questions based on what register is dominating
+
+4. **Diagnostic Efficiency**:
+   - Agents can quickly identify which therapeutic approach will be most effective
+   - Reduces time spent on interventions that won't land
+
+5. **Pattern Recognition Enhancement**:
+   - IBMs look different in each register
+   - CVDCs manifest differently based on dominance
+
+### Implementation Note:
+
+This register awareness makes your agents significantly more sophisticated. They're now doing real psychoanalytic assessment, not just pattern matching. The register detection happens naturally through conversation, then guides which CSS interventions to use.
+
+Give this to Replit:
+```
+Update the agent configurations with these register-aware system prompts. This adds a diagnostic layer that identifies whether users are stuck in thinking (Symbolic), fantasy (Imaginary), or reaction (Real) modes, then applies CSS interventions specifically targeted to their register dominance. Keep all other agent settings the same.
+```
