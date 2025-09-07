@@ -1,0 +1,122 @@
+Modify /server/routes/webhook-routes.ts to integrate CSS pattern detection:
+
+1. At the top, add import:
+   import { detectCSSPatterns, assessPatternConfidence } from '../services/css-pattern-service';
+   import { supabase } from '../services/supabase-service';
+
+2. In the 'end-of-call-report' case, after storing the transcript, add this CSS detection logic:
+
+   // Detect CSS patterns in the transcript
+   const patterns = detectCSSPatterns(message.transcript);
+   const { confidence, reasoning } = assessPatternConfidence(patterns);
+   
+   console.log(`🎯 CSS Detection: Stage ${patterns.currentStage}, Confidence ${confidence}`);
+   console.log(`📊 Pattern counts: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}`);
+
+   // Store each CVDC pattern found
+   for (const cvdc of patterns.cvdcPatterns) {
+     await supabase
+       .from('therapeutic_context')
+       .insert({
+         user_id: userId,
+         call_id: callId,
+         context_type: 'cvdc_identified',
+         content: cvdc,
+         css_stage: 'focus_bind',
+         pattern_type: 'CVDC',
+         confidence: confidence,
+         importance: 8
+       });
+   }
+
+   // Store each IBM pattern found
+   for (const ibm of patterns.ibmPatterns) {
+     await supabase
+       .from('therapeutic_context')
+       .insert({
+         user_id: userId,
+         call_id: callId,
+         context_type: 'ibm_pattern',
+         content: ibm,
+         css_stage: 'focus_bind',
+         pattern_type: 'IBM',
+         confidence: confidence,
+         importance: 7
+       });
+   }
+
+   // Store Thend moments
+   for (const thend of patterns.thendIndicators) {
+     await supabase
+       .from('therapeutic_context')
+       .insert({
+         user_id: userId,
+         call_id: callId,
+         context_type: 'thend_moment',
+         content: thend,
+         css_stage: 'gesture_toward',
+         pattern_type: 'Thend',
+         confidence: confidence,
+         importance: 9
+       });
+   }
+
+   // Store CYVC achievements
+   for (const cyvc of patterns.cyvcPatterns) {
+     await supabase
+       .from('therapeutic_context')
+       .insert({
+         user_id: userId,
+         call_id: callId,
+         context_type: 'cyvc_achieved',
+         content: cyvc,
+         css_stage: 'completion',
+         pattern_type: 'CYVC',
+         confidence: confidence,
+         importance: 10
+       });
+   }
+
+   // Track stage progression if changed
+   // First get the user's last CSS stage
+   const { data: lastContext } = await supabase
+     .from('therapeutic_context')
+     .select('css_stage')
+     .eq('user_id', userId)
+     .not('css_stage', 'is', null)
+     .order('created_at', { ascending: false })
+     .limit(1)
+     .single();
+
+   const previousStage = lastContext?.css_stage || 'pointed_origin';
+   
+   // If stage has changed, record progression
+   if (patterns.currentStage !== previousStage) {
+     await supabase
+       .from('css_progressions')
+       .insert({
+         user_id: userId,
+         call_id: callId,
+         from_stage: previousStage,
+         to_stage: patterns.currentStage,
+         trigger_content: patterns.cvdcPatterns[0] || patterns.thendIndicators[0] || 'Stage transition detected',
+         agent_name: message?.call?.metadata?.agentName || 'Unknown'
+       });
+     
+     console.log(`📈 CSS Progression: ${previousStage} → ${patterns.currentStage}`);
+   }
+
+   // Store overall stage assessment
+   await supabase
+     .from('therapeutic_context')
+     .insert({
+       user_id: userId,
+       call_id: callId,
+       context_type: 'css_stage_assessment',
+       content: `Stage: ${patterns.currentStage}. ${reasoning}`,
+       css_stage: patterns.currentStage,
+       confidence: confidence,
+       importance: 6
+     });
+
+Keep all existing webhook functionality intact while adding this CSS tracking.

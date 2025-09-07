@@ -34,6 +34,8 @@ export const therapeuticContext = pgTable("therapeutic_context", {
   call_id: text("call_id"),
   context_type: text("context_type").default("session_insight"),
   content: text("content").notNull(),
+  css_stage: text("css_stage"),
+  pattern_type: text("pattern_type"),
   confidence: real("confidence").default(0.8),
   importance: integer("importance").default(5),
   created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
@@ -47,6 +49,18 @@ export const sessionTranscripts = pgTable("session_transcripts", {
   text: text("text").notNull(),
   role: text("role").default("complete"),
   timestamp: timestamp("timestamp", { withTimezone: true }).default(sql`timezone('utc', now())`),
+});
+
+// CSS progressions table for tracking stage transitions
+export const cssProgressions = pgTable("css_progressions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  call_id: text("call_id").notNull(),
+  from_stage: text("from_stage").notNull(),
+  to_stage: text("to_stage").notNull(),
+  trigger_content: text("trigger_content"),
+  agent_name: text("agent_name"),
+  created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
 // Insert schemas
@@ -71,6 +85,11 @@ export const insertSessionTranscriptSchema = createInsertSchema(sessionTranscrip
   timestamp: true,
 });
 
+export const insertCssProgressionSchema = createInsertSchema(cssProgressions).omit({
+  id: true,
+  created_at: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -80,3 +99,5 @@ export type TherapeuticContext = typeof therapeuticContext.$inferSelect;
 export type InsertTherapeuticContext = z.infer<typeof insertTherapeuticContextSchema>;
 export type SessionTranscript = typeof sessionTranscripts.$inferSelect;
 export type InsertSessionTranscript = z.infer<typeof insertSessionTranscriptSchema>;
+export type CssProgression = typeof cssProgressions.$inferSelect;
+export type InsertCssProgression = z.infer<typeof insertCssProgressionSchema>;
