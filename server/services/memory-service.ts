@@ -28,6 +28,15 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       return '';
     }
 
+    // Get CSS-specific patterns
+    const { data: cssPatterns } = await supabase
+      .from('therapeutic_context')
+      .select('css_stage, pattern_type, content')
+      .eq('user_id', userId)
+      .not('pattern_type', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(3);
+
     // Format memory context
     let memoryContext = '';
     
@@ -49,6 +58,16 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       insights.forEach((insight, index) => {
         memoryContext += `${index + 1}. ${insight.content}\n`;
       });
+    }
+
+    if (cssPatterns && cssPatterns.length > 0) {
+      const currentStage = cssPatterns[0].css_stage;
+      memoryContext += `\n\nTherapeutic Progress: Currently in ${currentStage} stage. `;
+      
+      const cvdcPattern = cssPatterns.find(p => p.pattern_type === 'CVDC');
+      if (cvdcPattern) {
+        memoryContext += `Key contradiction: "${cvdcPattern.content}" `;
+      }
     }
 
     return memoryContext || 'This is your first session together.';
