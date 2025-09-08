@@ -302,20 +302,36 @@ router.post('/webhook', async (req, res) => {
           }
 
           // Track stage progression if changed
-          // First get the user's last CSS stage
-          const { data: lastContext } = await supabase
+          console.log('🔄 Checking for stage progression...');
+          
+          // Get the user's last CSS stage from previous sessions
+          const { data: previousPatterns, error: historyError } = await supabase
             .from('css_patterns')
-            .select('css_stage')
+            .select('css_stage, detected_at, call_id')
             .eq('user_id', userId)
+            .neq('call_id', callId) // Exclude current call
             .not('css_stage', 'is', null)
             .order('detected_at', { ascending: false })
-            .limit(1)
-            .single();
+            .limit(1);
 
-          const previousStage = lastContext?.css_stage || 'pointed_origin';
+          if (historyError) {
+            console.error('❌ Error fetching previous patterns:', historyError);
+          } else {
+            console.log(`📜 Previous patterns found:`, previousPatterns);
+          }
+
+          const previousStage = previousPatterns?.[0]?.css_stage || 'pointed_origin';
+          console.log(`📊 Stage comparison: Previous="${previousStage}" → Current="${patterns.currentStage}"`);
           
           // If stage has changed, record progression
           if (patterns.currentStage !== previousStage) {
+            // Determine trigger content
+            const triggerContent = patterns.cvdcPatterns[0] || 
+                                 patterns.ibmPatterns[0] || 
+                                 patterns.thendIndicators[0] || 
+                                 patterns.cyvcPatterns[0] || 
+                                 'Stage transition detected';
+            
             await supabase
               .from('css_progressions')
               .insert({
@@ -323,11 +339,22 @@ router.post('/webhook', async (req, res) => {
                 call_id: callId,
                 from_stage: previousStage,
                 to_stage: patterns.currentStage,
-                trigger_content: patterns.cvdcPatterns[0] || patterns.thendIndicators[0] || 'Stage transition detected',
+                trigger_content: triggerContent.substring(0, 200), // Limit length
                 agent_name: message?.call?.metadata?.agentName || 'Unknown'
               });
             
-            console.log(`📈 CSS Progression: ${previousStage} → ${patterns.currentStage}`);
+            console.log(`📈 CSS PROGRESSION RECORDED: ${previousStage} → ${patterns.currentStage}`);
+            console.log(`🎯 Trigger: "${triggerContent.substring(0, 100)}..."`);
+            
+            // Also store as therapeutic context
+            await storeSessionContext(
+              userId,
+              callId,
+              `Stage progression detected: ${previousStage} → ${patterns.currentStage}. Trigger: ${triggerContent}`,
+              'stage_progression'
+            );
+          } else {
+            console.log(`📊 No progression - user remains in ${patterns.currentStage} stage`);
           }
 
           // Store overall stage assessment
@@ -339,11 +366,15 @@ router.post('/webhook', async (req, res) => {
               pattern_type: 'STAGE_ASSESSMENT',
               content: `Stage: ${patterns.currentStage}. ${reasoning}`,
               css_stage: patterns.currentStage,
-              confidence: confidence
+              confidence: confidence,
+              detected_at: new Date().toISOString() // FIX: Add detected_at
             });
+          console.log(`💾 Stored stage assessment: ${patterns.currentStage}`);
+        } else {
+          console.log('⚠️ No transcript in end-of-call-report');
         }
 
-        console.log('✅ Session completed and stored');
+        console.log('✅ Session completed and analyzed');
         break;
 
       case 'conversation-update':
@@ -383,7 +414,7 @@ router.post('/webhook', async (req, res) => {
 
       case 'transcript':
         if (message?.transcript) {
-          console.log('📝 Real-time transcript:', message.transcript);
+          console.log('📝 Real-time transcript chunk received');
           
           // Store the real-time transcript chunk
           await supabase
@@ -395,71 +426,17 @@ router.post('/webhook', async (req, res) => {
               role: message.transcript.role || 'user'
             });
             
-          // If it's a user message, detect patterns immediately
-          if (message.transcript.role === 'user') {
-            const patterns = detectCSSPatterns(message.transcript.text);
-            const { confidence, reasoning } = assessPatternConfidence(patterns);
-            console.log('🔍 Real-time CSS detection:', patterns.currentStage);
+          // Optional: Real-time pattern detection for immediate feedback
+          // This could be used to guide the AI agent's responses
+          if (message.transcript.role === 'user' && DEBUG_MODE) {
+            const patterns = detectCSSPatterns(message.transcript.text || message.transcript, false);
+            if (patterns.cvdcPatterns.length > 0 || patterns.ibmPatterns.length > 0) {
+              console.log(`🔍 Real-time patterns detected in stage: ${patterns.currentStage}`);
+            }
             
-            // Store any CVDC patterns found
-            for (const cvdc of patterns.cvdcPatterns) {
-              await supabase
-                .from('css_patterns')
-                .insert({
-                  user_id: userId,
-                  call_id: callId,
-                  pattern_type: 'CVDC',
-                  content: cvdc,
-                  extracted_contradiction: cvdc.includes('but') 
-                    ? cvdc.split('but').map(s => s.trim()).join(' BUT ')
-                    : cvdc,
-                  css_stage: 'focus_bind',
-                  confidence: confidence
-                });
-            }
-
-            // Store any IBM patterns found
-            for (const ibm of patterns.ibmPatterns) {
-              await supabase
-                .from('css_patterns')
-                .insert({
-                  user_id: userId,
-                  call_id: callId,
-                  pattern_type: 'IBM',
-                  content: ibm,
-                  behavioral_gap: ibm,
-                  css_stage: 'focus_bind',
-                  confidence: confidence
-                });
-            }
-
-            // Store any Thend moments found
-            for (const thend of patterns.thendIndicators) {
-              await supabase
-                .from('css_patterns')
-                .insert({
-                  user_id: userId,
-                  call_id: callId,
-                  pattern_type: 'Thend',
-                  content: thend,
-                  css_stage: 'gesture_toward',
-                  confidence: confidence
-                });
-            }
-
-            // Store any CYVC achievements found
-            for (const cyvc of patterns.cyvcPatterns) {
-              await supabase
-                .from('css_patterns')
-                .insert({
-                  user_id: userId,
-                  call_id: callId,
-                  pattern_type: 'CYVC',
-                  content: cyvc,
-                  css_stage: 'completion',
-                  confidence: confidence
-                });
-            }
+            // Note: Removed pattern storage from transcript events
+            // Patterns are now only stored during end-of-call-report
+            // to avoid duplicates and ensure complete analysis
           }
         }
         break;
@@ -472,6 +449,45 @@ router.post('/webhook', async (req, res) => {
   } catch (error) {
     console.error('Webhook processing error:', error);
     res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+// Manual analysis endpoint for testing
+router.post('/analyze-transcript', async (req, res) => {
+  try {
+    const { transcript, userId, callId } = req.body;
+    
+    if (!transcript || !userId || !callId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    console.log('🔬 Manual transcript analysis requested');
+    
+    // Analyze with debug mode
+    const patterns = detectCSSPatterns(transcript, true);
+    const { confidence, reasoning } = assessPatternConfidence(patterns);
+    
+    res.json({
+      success: true,
+      patterns: {
+        cvdc: patterns.cvdcPatterns.length,
+        ibm: patterns.ibmPatterns.length,
+        thend: patterns.thendIndicators.length,
+        cyvc: patterns.cyvcPatterns.length
+      },
+      stage: patterns.currentStage,
+      confidence: confidence,
+      reasoning: reasoning,
+      samples: {
+        cvdc: patterns.cvdcPatterns[0] || null,
+        ibm: patterns.ibmPatterns[0] || null,
+        thend: patterns.thendIndicators[0] || null,
+        cyvc: patterns.cyvcPatterns[0] || null
+      }
+    });
+  } catch (error) {
+    console.error('Analysis error:', error);
+    res.status(500).json({ error: 'Analysis failed' });
   }
 });
 
