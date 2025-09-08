@@ -99,18 +99,54 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'end-of-call-report':
-        // Update session with end time and duration
-        const duration = message?.call?.duration || 0;
-        
-        await supabase
+        // Create session if it doesn't exist (VAPI doesn't send conversation-update)
+        const { data: existingSessionForReport } = await supabase
           .from('therapeutic_sessions')
-          .update({
-            status: 'completed',
-            end_time: new Date().toISOString(),
-            duration_seconds: duration,
-            metadata: message.call
-          })
-          .eq('call_id', callId);
+          .select('id')
+          .eq('call_id', callId)
+          .single();
+        
+        if (!existingSessionForReport) {
+          console.log('🚀 Creating session from end-of-call-report (no conversation-update received)');
+          
+          const agentNameFromReport = message?.call?.metadata?.agentName || 
+                                   message?.call?.assistant?.metadata?.agentName ||
+                                   message?.assistant?.metadata?.agentName ||
+                                   'Sarah';
+          
+          const { data: newSessionData, error: newSessionError } = await supabase
+            .from('therapeutic_sessions')
+            .insert({
+              call_id: callId,
+              user_id: userId,
+              agent_name: agentNameFromReport,
+              status: 'completed', // Already completed since this is end-of-call
+              start_time: new Date(Date.now() - (message?.call?.duration * 1000 || 0)).toISOString(),
+              end_time: new Date().toISOString(),
+              duration_seconds: message?.call?.duration || 0,
+              metadata: message.call
+            })
+            .select();
+          
+          if (newSessionError) {
+            console.error('❌ Session creation failed from end-of-call:', newSessionError);
+          } else {
+            console.log('✅ Session created from end-of-call:', newSessionData);
+          }
+        } else {
+          // Update existing session with end time and duration
+          const duration = message?.call?.duration || 0;
+          
+          await supabase
+            .from('therapeutic_sessions')
+            .update({
+              status: 'completed',
+              end_time: new Date().toISOString(),
+              duration_seconds: duration,
+              metadata: message.call
+            })
+            .eq('call_id', callId);
+        }
 
         // Store call summary as context
         if (message?.summary) {
