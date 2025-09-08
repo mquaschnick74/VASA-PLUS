@@ -1,187 +1,166 @@
-# VASA - File Structure Documentation
+# VASA - File Structure
 
-## Project Overview
-VASA is a therapeutic voice assistant application with a React frontend, Express backend, and PostgreSQL database integration. Features multi-agent support, persistent memory, user authentication, session analytics, and cascade delete functionality.
+## Overview
+Therapeutic voice assistant with React frontend, Express backend, PostgreSQL database. Features multi-agent support, persistent memory, CSS pattern detection, and real-time voice interactions.
 
-## Root Directory
-```
-├── attached_assets/          # User-uploaded assets and project documentation
-├── client/                   # Frontend React application
-├── server/                   # Backend Express server
-├── shared/                   # Shared types and schemas
-├── components.json           # shadcn/ui component configuration
-├── drizzle.config.ts         # Database ORM configuration
-├── file-structure.md         # Project file structure documentation
-├── memory-architecture.md    # Memory system architecture documentation
-├── package.json              # Node.js dependencies and scripts
-├── postcss.config.js         # CSS processing configuration
-├── replit.md                 # Project documentation and user preferences
-├── tailwind.config.ts        # Tailwind CSS configuration
-├── test-cascade-delete.js    # Test file for cascade delete functionality
-├── tsconfig.json             # TypeScript configuration
-└── vite.config.ts            # Vite build tool configuration
-```
-
-## Client Directory (`/client`)
-Frontend React application with TypeScript and modern tooling.
-
-### Source Structure (`/client/src`)
-```
-src/
-├── components/               # React components
-│   ├── ui/                   # shadcn/ui component library
-│   │   ├── accordion.tsx
-│   │   ├── alert-dialog.tsx
-│   │   ├── button.tsx
-│   │   ├── card.tsx
-│   │   ├── dialog.tsx
-│   │   ├── form.tsx
-│   │   ├── input.tsx
-│   │   ├── select.tsx
-│   │   ├── toast.tsx
-│   │   └── [35+ UI components...]
-│   ├── AgentSelector.tsx     # Multi-agent selection interface
-│   ├── authentication.tsx    # User authentication component
-│   ├── DeleteAccount.tsx     # Account deletion with confirmation dialog
-│   └── voice-interface.tsx   # Main voice interaction component
-├── config/
-│   └── agent-configs.ts      # Therapeutic agent configurations
-├── hooks/
-│   ├── use-mobile.tsx        # Mobile detection hook
-│   ├── use-toast.ts          # Toast notification hook
-│   └── use-vapi.ts           # Voice AI integration hook
-├── lib/
-│   ├── queryClient.ts        # TanStack Query configuration
-│   └── utils.ts              # Utility functions
-├── pages/
-│   ├── dashboard.tsx         # Main dashboard page
-│   └── not-found.tsx         # 404 error page
-├── App.tsx                   # Main application component
-├── index.css                 # Global styles and Tailwind imports
-└── main.tsx                  # Application entry point
-```
-
-### Key Frontend Files
-- **`App.tsx`** - Main application with routing and theme provider
-- **`voice-interface.tsx`** - Core voice interaction UI with session management
-- **`AgentSelector.tsx`** - Multi-agent selection with Sarah and Mathew
-- **`DeleteAccount.tsx`** - Account deletion component with confirmation dialog
-- **`use-vapi.ts`** - Voice AI Platform integration and session handling
-- **`agent-configs.ts`** - Therapeutic agent configurations and prompts
-- **`authentication.tsx`** - Email-based user identification system
-
-## Server Directory (`/server`)
-Backend Express server with TypeScript and modular architecture.
+## Directory Structure
 
 ```
-server/
-├── routes/                   # Modular route handlers
-│   ├── auth-routes.ts        # User authentication and management routes
-│   └── webhook-routes.ts     # VAPI webhook processing routes
-├── services/                 # Business logic services
-│   ├── css-pattern-service.ts # CSS pattern detection and analysis
-│   ├── memory-service.ts     # Therapeutic memory and context management
-│   ├── supabase-service.ts   # Database service interfaces
-│   └── user-service.ts       # User management and cascade delete utilities
-├── index.ts                  # Server entry point and configuration
-├── routes.ts                 # Main route registration and setup
-├── storage.ts                # Storage interface definitions
-└── vite.ts                   # Vite integration for frontend serving
+.
+├── client/                   # React frontend application
+│   └── src/
+│       ├── components/       # React components
+│       │   ├── ui/          # 47 shadcn/ui components
+│       │   ├── AgentSelector.tsx
+│       │   ├── authentication.tsx
+│       │   ├── DeleteAccount.tsx
+│       │   └── voice-interface.tsx
+│       ├── config/
+│       │   └── agent-configs.ts
+│       ├── hooks/
+│       │   ├── use-mobile.tsx
+│       │   ├── use-toast.ts
+│       │   └── use-vapi.ts
+│       ├── lib/
+│       │   ├── queryClient.ts
+│       │   └── utils.ts
+│       ├── pages/
+│       │   ├── dashboard.tsx
+│       │   └── not-found.tsx
+│       ├── App.tsx
+│       ├── index.css
+│       └── main.tsx
+│
+├── server/                   # Express backend server
+│   ├── routes/
+│   │   ├── auth-routes.ts   # User auth & cascade delete
+│   │   └── webhook-routes.ts # VAPI webhooks & CSS detection
+│   ├── services/
+│   │   ├── css-pattern-service.ts      # CSS pattern detection
+│   │   ├── distress-detection-service.ts # Crisis intervention
+│   │   ├── memory-service.ts           # Therapeutic memory
+│   │   ├── orchestration-service.ts    # Service coordination
+│   │   ├── supabase-service.ts        # Database interface
+│   │   └── user-service.ts            # User management
+│   ├── index.ts             # Server entry point
+│   ├── routes.ts            # Route registration
+│   ├── storage.ts           # Storage interface
+│   └── vite.ts             # Frontend serving
+│
+├── shared/
+│   └── schema.ts            # Database schema (Drizzle ORM)
+│
+├── attached_assets/         # User uploads & documentation
+├── *.config.*              # Configuration files
+├── package.json            # Dependencies & scripts
+└── test-*.js              # Test scripts
 ```
 
-### Key Backend Files
-- **`index.ts`** - Express server setup with middleware and error handling
-- **`routes.ts`** - Main route registration and modular route mounting
-- **`routes/auth-routes.ts`** - User authentication, context, and cascade delete endpoints
-- **`routes/webhook-routes.ts`** - VAPI webhook processing and session management
-- **`services/css-pattern-service.ts`** - CSS pattern detection and therapeutic analysis
-- **`services/memory-service.ts`** - Manages therapeutic context and session memory
-- **`services/supabase-service.ts`** - Database connection and type definitions
-- **`services/user-service.ts`** - User management utilities and cascade delete logic
-- **`storage.ts`** - Storage interface for database operations
+## Key Components
 
-## Shared Directory (`/shared`)
-Common types and schemas shared between frontend and backend.
+### Frontend (`/client/src`)
 
+**Core Components:**
+- `voice-interface.tsx` - Voice session UI with real-time status
+- `AgentSelector.tsx` - Multi-agent selection (Sarah, Mathew)
+- `authentication.tsx` - Email-based user identification
+- `DeleteAccount.tsx` - Account deletion with confirmation
+
+**Hooks:**
+- `use-vapi.ts` - Voice AI integration & session management
+- `use-toast.ts` - Notification system
+- `use-mobile.tsx` - Responsive detection
+
+**Configuration:**
+- `agent-configs.ts` - Therapeutic agent prompts & behaviors
+
+### Backend (`/server`)
+
+**Routes:**
+- `/api/auth/*` - User authentication, context, deletion
+- `/api/vapi/*` - Voice webhooks, pattern analysis
+
+**Services:**
+- `css-pattern-service.ts` - CVDC/IBM/Thend/CYVC pattern detection
+- `memory-service.ts` - Context building & retrieval
+- `distress-detection-service.ts` - Crisis grounding protocols
+- `orchestration-service.ts` - Service coordination layer
+- `user-service.ts` - Cascade delete & user management
+
+### Database Schema (`/shared/schema.ts`)
+
+**Tables:**
+- `users` - User profiles
+- `therapeutic_sessions` - Voice sessions
+- `therapeutic_context` - Persistent memory
+- `session_transcripts` - Conversation history
+- `css_patterns` - Detected patterns
+- `css_progressions` - Stage transitions
+
+## CSS Pattern Detection System
+
+**Pattern Types:**
+- **CVDC** - Contradictions ("I want X but Y")
+- **IBM** - Behavioral gaps ("I keep doing X even though")
+- **Thend** - Integration moments ("I realize both")
+- **CYVC** - Contextual choice ("Sometimes I X, other times Y")
+
+**Stages:**
+1. `pointed_origin` - Initial state
+2. `focus_bind` - Pattern identified
+3. `suspension` - Multiple patterns held
+4. `gesture_toward` - Integration attempts
+5. `completion` - Contextual variation
+6. `terminal` - Full integration
+
+## API Endpoints
+
+### Authentication
+- `GET /api/auth/check` - Session status
+- `POST /api/auth/identify` - User login
+- `GET /api/auth/user-context/:id` - User memory
+- `DELETE /api/auth/delete-account` - Cascade delete
+
+### VAPI Integration
+- `POST /api/vapi/webhook` - Voice event processing
+- `POST /api/vapi/analyze-transcript` - Manual CSS analysis
+
+## Key Features
+
+**Frontend:**
+- Real-time voice conversations
+- Multi-agent support
+- Glassmorphic purple UI
+- Session persistence
+- Responsive design
+
+**Backend:**
+- CSS pattern detection
+- Memory context building
+- Stage progression tracking
+- Cascade delete safety
+- Webhook processing
+
+**Database:**
+- User management
+- Session tracking
+- Pattern storage
+- Context persistence
+- Progression history
+
+## Development
+
+```bash
+npm run dev          # Start frontend & backend
+npm run db:push      # Update database schema
+npm run db:generate  # Generate migrations
 ```
-shared/
-└── schema.ts                 # Drizzle ORM database schema definitions
-```
-
-### Database Schema
-- **`users`** - User profiles with email and first name
-- **`therapeutic_sessions`** - Voice session tracking with agent information
-- **`therapeutic_context`** - Persistent memory and insights storage
-- **`session_transcripts`** - Conversation history and transcripts
-- **`css_patterns`** - CSS pattern detection with contradictions and behavioral gaps
-- **`css_progressions`** - Stage transition tracking across therapeutic sessions
 
 ## Configuration Files
 
-### Build & Development
-- **`vite.config.ts`** - Frontend build configuration with aliases and plugins
-- **`tailwind.config.ts`** - Custom styling with purple theme and glassmorphic design
-- **`tsconfig.json`** - TypeScript compilation settings
-- **`package.json`** - Dependencies and npm scripts
-
-### Database & ORM
-- **`drizzle.config.ts`** - Database migrations and schema management
-- **Database**: PostgreSQL via Supabase with Drizzle ORM
-
-### UI & Styling
-- **`components.json`** - shadcn/ui component library configuration
-- **`postcss.config.js`** - CSS processing with Tailwind and Autoprefixer
-- **`index.css`** - Global styles, custom CSS variables, and glassmorphic effects
-
-## Key Features by Directory
-
-### Frontend Features
-- **Voice Interface** - Real-time voice conversations with AI agents
-- **Multi-Agent Support** - Sarah (emotional support) and Mathew (analytical)
-- **Session Memory** - Persistent context across conversations
-- **Authentication** - Email-based user identification
-- **Account Management** - Account deletion with confirmation dialog
-- **Responsive UI** - Purple glassmorphic design with dark theme
-
-### Backend Features
-- **Modular Route Structure** - Organized authentication and webhook routes
-- **VAPI Integration** - Voice AI webhook processing and session management
-- **CSS Pattern Detection** - Real-time therapeutic pattern analysis (CVDC, IBM, Thend, CYVC)
-- **Memory System** - Therapeutic context building and retrieval with CSS awareness
-- **Stage Progression Tracking** - Six-stage CSS therapeutic progression monitoring
-- **Cascade Delete** - Complete user data removal with safety checks
-- **Database Operations** - User, session, transcript, and pattern management
-- **API Routes** - RESTful endpoints for frontend data access
-
-### Database Features
-- **User Management** - Profile storage and session tracking
-- **Session Persistence** - Call history and agent information
-- **Memory Context** - Therapeutic insights and conversation continuity
-- **Transcript Storage** - Complete conversation history
-- **CSS Pattern Storage** - Dedicated table for clean pattern storage with formatted contradictions
-- **Progression Tracking** - Stage transitions with trigger content and confidence scoring
-
-## Development Workflow
-
-### Running the Application
-```bash
-npm run dev                   # Starts both frontend and backend
-```
-
-### Database Management
-```bash
-npm run db:push              # Push schema changes to database
-npm run db:generate          # Generate migration files
-```
-
-### Testing
-```bash
-node test-cascade-delete.js  # Test cascade delete functionality
-```
-
-### File Organization Principles
-- **Separation of Concerns** - Clear frontend/backend/shared boundaries
-- **Component-Based** - Modular React components with single responsibilities
-- **Service Layer** - Business logic separated from API routes
-- **Type Safety** - Shared schemas ensure frontend/backend consistency
-- **Configuration Driven** - Agent behaviors and UI themes easily configurable
+- `vite.config.ts` - Build configuration
+- `tailwind.config.ts` - Styling theme
+- `drizzle.config.ts` - Database ORM
+- `components.json` - shadcn/ui setup
+- `tsconfig.json` - TypeScript config
+- `replit.md` - Project documentation
