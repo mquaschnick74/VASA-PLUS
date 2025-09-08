@@ -137,78 +137,71 @@ router.post('/webhook', async (req, res) => {
           // Store each CVDC pattern found
           for (const cvdc of patterns.cvdcPatterns) {
             await supabase
-              .from('therapeutic_context')
+              .from('css_patterns')
               .insert({
                 user_id: userId,
                 call_id: callId,
-                context_type: 'cvdc_identified',
-                content: cvdc,
-                css_stage: 'focus_bind',
                 pattern_type: 'CVDC',
-                contradiction_content: cvdc.includes('but') 
-                  ? cvdc.split('but').map(s => s.trim()).join(' BUT ') 
+                content: cvdc,
+                extracted_contradiction: cvdc.includes('but') 
+                  ? cvdc.split('but').map(s => s.trim()).join(' BUT ')
                   : cvdc,
-                confidence: confidence,
-                importance: 8
+                css_stage: 'focus_bind',
+                confidence: confidence
               });
           }
 
           // Store each IBM pattern found
           for (const ibm of patterns.ibmPatterns) {
             await supabase
-              .from('therapeutic_context')
+              .from('css_patterns')
               .insert({
                 user_id: userId,
                 call_id: callId,
-                context_type: 'ibm_pattern',
-                content: ibm,
-                css_stage: 'focus_bind',
                 pattern_type: 'IBM',
-                confidence: confidence,
-                importance: 7
+                content: ibm,
+                behavioral_gap: ibm,
+                css_stage: 'focus_bind',
+                confidence: confidence
               });
           }
 
           // Store Thend moments
           for (const thend of patterns.thendIndicators) {
             await supabase
-              .from('therapeutic_context')
+              .from('css_patterns')
               .insert({
                 user_id: userId,
                 call_id: callId,
-                context_type: 'thend_moment',
+                pattern_type: 'Thend',
                 content: thend,
                 css_stage: 'gesture_toward',
-                pattern_type: 'Thend',
-                confidence: confidence,
-                importance: 9
+                confidence: confidence
               });
           }
 
           // Store CYVC achievements
           for (const cyvc of patterns.cyvcPatterns) {
             await supabase
-              .from('therapeutic_context')
+              .from('css_patterns')
               .insert({
                 user_id: userId,
                 call_id: callId,
-                context_type: 'cyvc_achieved',
+                pattern_type: 'CYVC',
                 content: cyvc,
                 css_stage: 'completion',
-                pattern_type: 'CYVC',
-                confidence: confidence,
-                importance: 10
+                confidence: confidence
               });
           }
 
           // Track stage progression if changed
           // First get the user's last CSS stage
           const { data: lastContext } = await supabase
-            .from('therapeutic_context')
+            .from('css_patterns')
             .select('css_stage')
             .eq('user_id', userId)
             .not('css_stage', 'is', null)
-            .order('created_at', { ascending: false })
+            .order('detected_at', { ascending: false })
             .limit(1)
             .single();
 
@@ -232,15 +225,14 @@ router.post('/webhook', async (req, res) => {
 
           // Store overall stage assessment
           await supabase
-            .from('therapeutic_context')
+            .from('css_patterns')
             .insert({
               user_id: userId,
               call_id: callId,
-              context_type: 'css_stage_assessment',
+              pattern_type: 'STAGE_ASSESSMENT',
               content: `Stage: ${patterns.currentStage}. ${reasoning}`,
               css_stage: patterns.currentStage,
-              confidence: confidence,
-              importance: 6
+              confidence: confidence
             });
         }
 
@@ -270,67 +262,60 @@ router.post('/webhook', async (req, res) => {
             // Store any CVDC patterns found
             for (const cvdc of patterns.cvdcPatterns) {
               await supabase
-                .from('therapeutic_context')
+                .from('css_patterns')
                 .insert({
                   user_id: userId,
                   call_id: callId,
-                  context_type: 'cvdc_identified',
-                  content: cvdc,
-                  css_stage: 'focus_bind',
                   pattern_type: 'CVDC',
-                  contradiction_content: cvdc.includes('but') 
-                    ? cvdc.split('but').map(s => s.trim()).join(' BUT ') 
+                  content: cvdc,
+                  extracted_contradiction: cvdc.includes('but') 
+                    ? cvdc.split('but').map(s => s.trim()).join(' BUT ')
                     : cvdc,
-                  confidence: confidence,
-                  importance: 8
+                  css_stage: 'focus_bind',
+                  confidence: confidence
                 });
             }
 
             // Store any IBM patterns found
             for (const ibm of patterns.ibmPatterns) {
               await supabase
-                .from('therapeutic_context')
+                .from('css_patterns')
                 .insert({
                   user_id: userId,
                   call_id: callId,
-                  context_type: 'ibm_pattern',
-                  content: ibm,
-                  css_stage: 'focus_bind',
                   pattern_type: 'IBM',
-                  confidence: confidence,
-                  importance: 7
+                  content: ibm,
+                  behavioral_gap: ibm,
+                  css_stage: 'focus_bind',
+                  confidence: confidence
                 });
             }
 
             // Store any Thend moments found
             for (const thend of patterns.thendIndicators) {
               await supabase
-                .from('therapeutic_context')
+                .from('css_patterns')
                 .insert({
                   user_id: userId,
                   call_id: callId,
-                  context_type: 'thend_moment',
+                  pattern_type: 'Thend',
                   content: thend,
                   css_stage: 'gesture_toward',
-                  pattern_type: 'Thend',
-                  confidence: confidence,
-                  importance: 9
+                  confidence: confidence
                 });
             }
 
             // Store any CYVC achievements found
             for (const cyvc of patterns.cyvcPatterns) {
               await supabase
-                .from('therapeutic_context')
+                .from('css_patterns')
                 .insert({
                   user_id: userId,
                   call_id: callId,
-                  context_type: 'cyvc_achieved',
+                  pattern_type: 'CYVC',
                   content: cyvc,
                   css_stage: 'completion',
-                  pattern_type: 'CYVC',
-                  confidence: confidence,
-                  importance: 10
+                  confidence: confidence
                 });
             }
           }

@@ -64,6 +64,20 @@ export const cssProgressions = pgTable("css_progressions", {
   created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
+// CSS patterns table for clean pattern storage
+export const cssPatterns = pgTable("css_patterns", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  call_id: text("call_id").notNull(),
+  pattern_type: varchar("pattern_type", { length: 20 }).notNull(), // CVDC, IBM, Thend, CYVC
+  content: text("content").notNull(), // Full pattern text
+  extracted_contradiction: text("extracted_contradiction"), // For CVDC: "X BUT Y"
+  behavioral_gap: text("behavioral_gap"), // For IBM: "want X, do Y"
+  css_stage: varchar("css_stage", { length: 50 }),
+  confidence: real("confidence").default(0.8),
+  detected_at: timestamp("detected_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
@@ -91,6 +105,11 @@ export const insertCssProgressionSchema = createInsertSchema(cssProgressions).om
   created_at: true,
 });
 
+export const insertCssPatternsSchema = createInsertSchema(cssPatterns).omit({
+  id: true,
+  detected_at: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -102,3 +121,5 @@ export type SessionTranscript = typeof sessionTranscripts.$inferSelect;
 export type InsertSessionTranscript = z.infer<typeof insertSessionTranscriptSchema>;
 export type CssProgression = typeof cssProgressions.$inferSelect;
 export type InsertCssProgression = z.infer<typeof insertCssProgressionSchema>;
+export type CssPattern = typeof cssPatterns.$inferSelect;
+export type InsertCssPattern = z.infer<typeof insertCssPatternsSchema>;
