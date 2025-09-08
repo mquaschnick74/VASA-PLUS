@@ -15,8 +15,8 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
 }) => {
   return (
     <div className="agent-selector">
-      <div className="flex items-center gap-2">
-        <h3 className="agent-selector-title">Choose Your Guide</h3>
+      <div className="flex items-center justify-center gap-2 mb-6">
+        <h3 className="text-lg sm:text-xl font-semibold text-foreground">Choose Your Guide</h3>
         <AIDisclosureCard />
       </div>
       <div className="agent-grid">
