@@ -129,7 +129,7 @@ Track both register dominance AND CSS stage for precise interventions.`,
     },
     voice: {
       provider: '11labs',
-      voiceId: 'pNInz6obpgDQGcFmaJgB', // Adam - professional voice
+      voiceId: '2hsbsDeRu57rsKFAC7uE', // Mathew - custom professional voice
       stability: 0.8,
       speed: 1.0
     },
