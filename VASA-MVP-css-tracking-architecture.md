@@ -1,275 +1,328 @@
 # CSS (Conversational State Sensing) Tracking Architecture
 
 ## Overview
-CSS tracking detects psychological patterns in therapeutic conversations, categorizing users into six developmental stages based on their behavioral contradictions and linguistic patterns.
+Real-time detection of therapeutic patterns in voice conversations, tracking CSS stages (CVDC/IBM/Thend/CYVC) and register dominance (Symbolic/Imaginary/Real) through natural language processing and metadata extraction.
 
-## The Six CSS Stages
+## Core CSS Stages
 
-### 1. **Pointed Origin** (Initial Stage)
-- **Pattern:** Confusion between desires and actions
-- **Indicators:** "I want X BUT I do Y" contradictions
-- **Example:** "I want to be productive BUT I keep scrolling"
+### Pattern Types
+- **CVDC** (Contradiction) - Two opposing desires/pulls
+- **IBM** (Intention-Behavior Mismatch) - Gap between saying and doing  
+- **Thend** (Therapeutic End) - Shift or integration moment
+- **CYVC** (Contextual Variation) - Flexible choice/agency
 
-### 2. **Imaginary Capture**
-- **Pattern:** Living in fantasies, avoiding reality
-- **Indicators:** Excessive planning without execution
-- **Example:** "I imagine success BUT never start"
+### Register Dominance
+- **Symbolic** - Over-intellectualizing, abstract thinking
+- **Imaginary** - What-if scenarios, rumination
+- **Real** - Immediate sensation/affect, low symbolization
 
-### 3. **Symbolic Struggle**
-- **Pattern:** Overthinking and analysis paralysis
-- **Indicators:** Understanding without action
-- **Example:** "I know what to do BUT can't begin"
+## Agent System v3 Architecture
 
-### 4. **Mirror Crisis**
-- **Pattern:** Identity confusion and comparison
-- **Indicators:** Self-doubt and imposter syndrome
-- **Example:** "Others succeed BUT I always fail"
+### Natural Voice Separation
+```xml
+<speak>
+Natural therapeutic conversation without tracking codes
+</speak>
+<meta>
+{
+  "register": "symbolic|imaginary|real|mixed|undetermined",
+  "css": {
+    "stage": "CVDC|SUSPENSION|THEND|CYVC|NONE",
+    "evidence": ["user quotes"],
+    "confidence": 0.0-1.0
+  },
+  "safety": {
+    "flag": boolean,
+    "crisis": boolean,
+    "reason": "self_harm|harm_to_others|medical"
+  }
+}
+</meta>
+```
 
-### 5. **Real Confrontation**
-- **Pattern:** Facing actual limitations
-- **Indicators:** Reality-based challenges
-- **Example:** "I tried X BUT reality showed Y"
-
-### 6. **Terminal** (Resolution Stage)
-- **Pattern:** Integration and acceptance
-- **Indicators:** Balanced action and reflection
-- **Example:** Action without excessive contradiction
+### Processing Pipeline
+```javascript
+// server/utils/parseAssistantOutput.ts
+parseAssistantOutput(text) {
+  const speak = extractSpeak(text);    // For TTS
+  const meta = extractMeta(text);      // For tracking
+  return { speak, meta };
+}
+```
 
 ## Pattern Detection System
 
-### Contradiction Detection (CVDC)
+### CVDC Detection
 ```javascript
-// Pattern structure: "X BUT Y"
-const contradictionPattern = /\b(want|need|try|should|could|would|must|have to|supposed to|meant to|planning to|going to)\b[^.!?]*\b(but|however|yet|though|although|except|still)\b[^.!?]*/gi;
-```
-
-### Imaginary-Based Messaging (IBM)
-```javascript
-// Fantasy and avoidance patterns
-const imaginaryPatterns = [
-  /\b(imagine|dream|wish|hope|fantasy|visualize|picture)\b/gi,
-  /\b(if only|what if|maybe|perhaps|possibly|potentially)\b/gi,
-  /\b(perfect|ideal|amazing|incredible|ultimate)\b/gi
+// Flexible regex patterns
+const cvdcPatterns = [
+  /part of me.{0,50}(but|while|yet).{0,50}another part/gi,
+  /I want.{0,30}but.{0,30}I (also want|need)/gi,
+  /torn between/gi,
+  /contradiction between/gi
 ];
 ```
 
-## Database Structure
+### IBM Detection  
+```javascript
+const ibmPatterns = [
+  /I (say|tell myself).{0,30}but.{0,30}I (do|act|behave)/gi,
+  /I know.{0,30}but.{0,30}I still/gi,
+  /intention.{0,30}but.{0,30}action/gi
+];
+```
 
-### `css_patterns` Table
+### Thend Indicators
+```javascript
+const thendPatterns = [
+  /something.{0,20}(shifted|changed|different)/gi,
+  /I (realize|understand|see) now/gi,
+  /new perspective/gi
+];
+```
+
+### CYVC Patterns
+```javascript
+const cyvcPatterns = [
+  /sometimes.{0,30}other times/gi,
+  /depends on.{0,20}context/gi,
+  /I can choose/gi
+];
+```
+
+## Data Flow Architecture
+
+```
+User Speech → VAPI → Webhook → Pattern Detection → Database → Memory Context
+     ↑                                                              ↓
+     ←──────────────── Agent Response ←─────────────────────────────
+```
+
+### 1. Webhook Processing
+```typescript
+// server/routes/webhook-routes.ts
+POST /api/vapi/webhook
+├── conversation-update event
+├── Extract user transcript
+├── Extract assistant metadata
+├── Process CSS patterns
+└── Store in database
+```
+
+### 2. Pattern Analysis
+```typescript
+// server/services/css-pattern-service.ts
+detectCSSPatterns(transcript, isFullTranscript) {
+  // Run pattern detection
+  const cvdcMatches = detectCVDC(text);
+  const ibmMatches = detectIBM(text);
+  const thendIndicators = detectThend(text);
+  const cyvcPatterns = detectCYVC(text);
+  
+  // Determine stage and confidence
+  return {
+    currentStage,
+    cvdcPatterns,
+    ibmPatterns,
+    confidence,
+    reasoning
+  };
+}
+```
+
+### 3. Session Management
+```typescript
+// server/services/orchestration-service.ts
+class SessionState {
+  userId: string;
+  callId: string;
+  currentCSSStage: string;
+  processedTranscripts: Set<string>;  // Deduplication
+}
+
+// Two-tier cache system
+const activeSessions = new Map();     // In-memory cache
+const checkedSessions = new Set();    // DB lookup cache
+```
+
+## Database Schema
+
+### css_patterns Table
 ```sql
 CREATE TABLE css_patterns (
   id VARCHAR PRIMARY KEY,
-  user_id VARCHAR REFERENCES users(id),
   call_id VARCHAR,
-  detected_stage VARCHAR,
-  pattern_indicators JSONB,
-  cvdc_patterns TEXT[],
-  ibm_patterns TEXT[],
-  extracted_contradiction TEXT,
-  behavioral_gap TEXT,
-  confidence_score NUMERIC,
-  created_at TIMESTAMP DEFAULT NOW()
+  stage VARCHAR,              -- CVDC|IBM|THEND|CYVC
+  register VARCHAR,           -- symbolic|imaginary|real
+  confidence NUMERIC,         -- 0.0 to 1.0
+  safety_flag BOOLEAN,        -- Crisis detection
+  crisis_flag BOOLEAN,        -- Active crisis
+  hsfb_invoked BOOLEAN,       -- HSFB process used
+  detected_at TIMESTAMP
 );
 ```
 
-### Key Fields
-- **extracted_contradiction:** Preserves exact user wording (e.g., "want to be productive BUT keep scrolling")
-- **behavioral_gap:** Analyzes the disconnect between intention and action
-- **confidence_score:** 0.0-1.0 based on pattern clarity and frequency
-
-## Integration Flow
-
-### 1. **Webhook Reception**
-```javascript
-// server/routes/webhook-routes.ts
-POST /api/vapi/webhook
-├── Receives transcript from VAPI
-├── Detects CSS patterns
-└── Stores in css_patterns table
-```
-
-### 2. **Pattern Analysis**
-```javascript
-// server/services/css-pattern-service.ts
-detectCSSPatterns(transcript) {
-  // Extract CVDC contradictions
-  // Identify IBM patterns
-  // Calculate stage and confidence
-  // Return structured analysis
-}
-```
-
-### 3. **Memory Service Integration**
-```javascript
-// server/services/memory-service.ts
-buildTherapeuticContext(userId) {
-  // Query css_patterns for user
-  // Aggregate stage progression
-  // Include in agent context
-}
-```
-
-### 4. **Agent Context Injection**
-```javascript
-// Memory context sent to VAPI agent
-{
-  currentStage: "pointed_origin",
-  recentPatterns: [
-    "want to be productive BUT keep scrolling",
-    "know I should exercise BUT stay in bed"
-  ],
-  therapeuticProgress: "User shows persistent gap between intention and action"
-}
-```
-
-## Data Flow Sequence
-
-```mermaid
-graph TD
-    A[User Voice Session] -->|Transcript| B[VAPI Webhook]
-    B --> C[CSS Pattern Detection]
-    C --> D[Store in css_patterns]
-    D --> E[Memory Service Query]
-    E --> F[Build Context]
-    F --> G[Next Session Context]
-    G --> A
-```
-
-## Pattern Storage Examples
-
-### Supabase Record
-```json
-{
-  "id": "uuid",
-  "user_id": "user-123",
-  "call_id": "call-456",
-  "detected_stage": "pointed_origin",
-  "cvdc_patterns": [
-    "I want to be creative BUT I'm stuck scrolling",
-    "I should start projects BUT I doubt myself"
-  ],
-  "extracted_contradiction": "want to be creative BUT stuck scrolling",
-  "behavioral_gap": "Creative aspiration blocked by avoidance behavior",
-  "confidence_score": 0.85,
-  "created_at": "2025-09-08T12:00:00Z"
-}
-```
-
-## Therapeutic Context Building
-
-### Query Pattern History
+### session_transcripts Table
 ```sql
-SELECT 
-  detected_stage,
-  cvdc_patterns,
-  extracted_contradiction,
-  confidence_score
-FROM css_patterns
-WHERE user_id = $1
-ORDER BY created_at DESC
-LIMIT 10;
+CREATE TABLE session_transcripts (
+  id VARCHAR PRIMARY KEY,
+  user_id VARCHAR,
+  call_id VARCHAR,
+  text TEXT,
+  role VARCHAR,              -- 'complete' (end-of-call only)
+  created_at TIMESTAMP
+);
 ```
 
-### Aggregate Stage Progression
-```javascript
-const stageProgression = patterns.map(p => ({
-  stage: p.detected_stage,
-  confidence: p.confidence_score,
-  timestamp: p.created_at
-}));
-```
-
-### Context Generation
-```javascript
-const context = {
-  dominantStage: getMostFrequentStage(patterns),
-  recentContradictions: getTopContradictions(patterns, 3),
-  therapeuticInsight: generateInsight(patterns),
-  stageTransitions: detectStageChanges(patterns)
-};
-```
-
-## Memory Persistence
-
-### Therapeutic Context Table
+### therapeutic_context Table
 ```sql
 CREATE TABLE therapeutic_context (
   id VARCHAR PRIMARY KEY,
   user_id VARCHAR,
   call_id VARCHAR,
-  context_type VARCHAR,
+  context_type VARCHAR,      -- pattern_analysis|stage_transition
   content TEXT,
   metadata JSONB,
+  confidence NUMERIC,
   created_at TIMESTAMP
 );
 ```
 
-### Context Types
-- **call_summary:** Overall session summary
-- **css_analysis:** CSS pattern detection results
-- **therapeutic_insight:** Key behavioral observations
-- **stage_transition:** Movement between CSS stages
+## Memory Integration
 
-## Benefits
-
-1. **Pattern Recognition:** Identifies recurring behavioral contradictions
-2. **Stage Tracking:** Monitors therapeutic progress through CSS stages
-3. **Personalized Interventions:** Tailors responses to user's current stage
-4. **Memory Continuity:** Maintains context across sessions
-5. **Therapeutic Insights:** Provides data-driven understanding of user patterns
-
-## Usage in Sessions
-
-### Agent Receives Context
-```javascript
-"You have had 3 sessions with Jordan.
-Current CSS Stage: pointed_origin
-Recent pattern: 'want to be productive BUT keep scrolling'
-Therapeutic focus: Address gap between intention and action"
+### Context Building
+```typescript
+// server/services/memory-service.ts
+buildTherapeuticContext(userId) {
+  // Get recent patterns
+  const patterns = await getRecentPatterns(userId);
+  
+  // Build memory context
+  return {
+    dominantStage: getMostFrequentStage(patterns),
+    registerDominance: getRegisterPattern(patterns),
+    recentContradictions: extractContradictions(patterns),
+    therapeuticProgress: assessProgress(patterns)
+  };
+}
 ```
 
-### Agent Response Adaptation
-- **Pointed Origin:** Focus on awareness of contradictions
-- **Imaginary Capture:** Ground in concrete reality
-- **Symbolic Struggle:** Encourage action over analysis
-- **Mirror Crisis:** Build authentic self-perception
-- **Real Confrontation:** Support through challenges
-- **Terminal:** Reinforce integration
-
-## Technical Implementation
-
-### Pattern Detection Service
-- Location: `server/services/css-pattern-service.ts`
-- Functions: `detectCSSPatterns()`, `assessPatternConfidence()`
-
-### Database Operations
-- Insert patterns: Via webhook routes
-- Query patterns: Via memory service
-- Aggregate insights: During context building
-
-### Memory Integration
-- Build context: Before each session
-- Include CSS insights: In agent system prompt
-- Track progression: Across multiple sessions
+### Agent Context Injection
+```javascript
+// Context sent to VAPI agent
+{
+  memoryContext: `
+    Previous sessions detected:
+    - CVDC pattern: "want connection but need space"
+    - Register: Imaginary dominance
+    - Stage: Moving from CVDC to suspension
+  `
+}
+```
 
 ## Confidence Scoring
 
-### Factors
-- **Pattern Clarity:** How clearly contradictions are expressed
-- **Pattern Frequency:** Number of detected patterns
-- **Stage Alignment:** Consistency with stage indicators
-
-### Calculation
-```javascript
-confidence = (clarityScore * 0.4) + 
-             (frequencyScore * 0.3) + 
-             (alignmentScore * 0.3);
+### Assessment Factors
+```typescript
+assessPatternConfidence(patterns) {
+  let confidence = 0;
+  
+  // Pattern presence (40%)
+  if (patterns.cvdcPatterns.length > 0) confidence += 0.4;
+  if (patterns.ibmPatterns.length > 0) confidence += 0.4;
+  
+  // Stage indicators (30%)
+  if (patterns.thendIndicators.length > 0) confidence += 0.3;
+  
+  // Multiple confirmations (30%)
+  const totalPatterns = countAllPatterns(patterns);
+  if (totalPatterns >= 3) confidence += 0.3;
+  
+  return { confidence, reasoning };
+}
 ```
 
-## Future Enhancements
+## Processing Optimizations
 
-1. **Advanced Pattern Recognition:** ML-based pattern detection
-2. **Stage Prediction:** Anticipate stage transitions
-3. **Intervention Timing:** Optimal moments for specific interventions
-4. **Multi-Modal Analysis:** Include voice tone and pace
-5. **Progress Visualization:** User-facing progress tracking
+### Duplicate Prevention
+```typescript
+// Hash-based deduplication
+const transcriptHash = Buffer.from(transcript)
+  .toString('base64')
+  .substring(0, 50);
+  
+if (session.processedTranscripts.has(transcriptHash)) {
+  return; // Skip duplicate
+}
+```
+
+### Efficient Storage
+- Individual transcripts: Pattern detection only (not stored)
+- End-of-call: Complete transcript stored once
+- Patterns: Stored immediately when detected
+
+### Race Condition Protection
+```typescript
+// Promise-based initialization locks
+const initializationLocks = new Map<string, Promise<SessionState>>();
+
+async function ensureSession(callId) {
+  if (initializationLocks.has(callId)) {
+    return await initializationLocks.get(callId);
+  }
+  // Initialize with lock...
+}
+```
+
+## Real-time Pattern Examples
+
+### CVDC Detection
+```
+User: "I want to connect with people but I also need my space"
+→ Pattern: CVDC
+→ Register: Imaginary
+→ Evidence: ["want to connect", "need my space"]
+```
+
+### IBM Detection
+```
+User: "I tell myself I'll wake up early but I always hit snooze"
+→ Pattern: IBM
+→ Register: Symbolic
+→ Evidence: ["tell myself", "always hit snooze"]
+```
+
+### Thend Detection
+```
+User: "Something shifted when you said that - I see it differently now"
+→ Pattern: THEND
+→ Register: Real
+→ Evidence: ["something shifted", "see it differently"]
+```
+
+## Implementation Benefits
+
+1. **Natural Conversations** - Agents speak naturally without forced tracking phrases
+2. **Precise Detection** - Metadata tracking separate from speech
+3. **Session Resilience** - Two-tier cache survives server restarts
+4. **Efficient Storage** - Deduplication and end-of-call optimization
+5. **Real-time Analysis** - Patterns detected during conversation
+6. **Crisis Detection** - Automatic safety flag triggering
+
+## Files & Locations
+
+- **Pattern Detection**: `server/services/css-pattern-service.ts`
+- **Session Management**: `server/services/orchestration-service.ts`
+- **Memory Building**: `server/services/memory-service.ts`
+- **Output Parsing**: `server/utils/parseAssistantOutput.ts`
+- **Webhook Handler**: `server/routes/webhook-routes.ts`
+- **Agent Configs**: `client/src/config/agent-configs.ts`
+
+## Recent Improvements
+
+- ✅ Speak/meta tag separation for natural voice
+- ✅ Flexible regex patterns for better detection
+- ✅ Two-tier cache with race protection
+- ✅ End-of-call transcript optimization
+- ✅ Register dominance tracking
+- ✅ Safety/crisis flag integration
