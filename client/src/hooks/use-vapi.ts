@@ -156,19 +156,14 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       
       try {
         await vapi.start(assistantConfig);
+        // Since VAPI.start() succeeded, consider the session active
+        setIsSessionActive(true);
+        setConnectionStatus('connected');
+        setIsLoading(false);
       } catch (error) {
         console.error('❌ VAPI start failed:', error);
         throw error; // Re-throw to be caught by outer try-catch
       }
-
-      // Set timeout fallback if call doesn't start
-      setTimeout(() => {
-        if (!isSessionActive) {
-          console.warn('Call start timeout - resetting UI');
-          setIsLoading(false);
-          setConnectionStatus('disconnected');
-        }
-      }, 15000);
 
     } catch (error) {
       console.error('Failed to start VAPI session:', error);
