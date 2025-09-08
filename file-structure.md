@@ -12,6 +12,7 @@ VASA is a therapeutic voice assistant application with a React frontend, Express
 ├── components.json           # shadcn/ui component configuration
 ├── drizzle.config.ts         # Database ORM configuration
 ├── file-structure.md         # Project file structure documentation
+├── memory-architecture.md    # Memory system architecture documentation
 ├── package.json              # Node.js dependencies and scripts
 ├── postcss.config.js         # CSS processing configuration
 ├── replit.md                 # Project documentation and user preferences
@@ -78,6 +79,7 @@ server/
 │   ├── auth-routes.ts        # User authentication and management routes
 │   └── webhook-routes.ts     # VAPI webhook processing routes
 ├── services/                 # Business logic services
+│   ├── css-pattern-service.ts # CSS pattern detection and analysis
 │   ├── memory-service.ts     # Therapeutic memory and context management
 │   ├── supabase-service.ts   # Database service interfaces
 │   └── user-service.ts       # User management and cascade delete utilities
@@ -92,6 +94,7 @@ server/
 - **`routes.ts`** - Main route registration and modular route mounting
 - **`routes/auth-routes.ts`** - User authentication, context, and cascade delete endpoints
 - **`routes/webhook-routes.ts`** - VAPI webhook processing and session management
+- **`services/css-pattern-service.ts`** - CSS pattern detection and therapeutic analysis
 - **`services/memory-service.ts`** - Manages therapeutic context and session memory
 - **`services/supabase-service.ts`** - Database connection and type definitions
 - **`services/user-service.ts`** - User management utilities and cascade delete logic
@@ -110,6 +113,8 @@ shared/
 - **`therapeutic_sessions`** - Voice session tracking with agent information
 - **`therapeutic_context`** - Persistent memory and insights storage
 - **`session_transcripts`** - Conversation history and transcripts
+- **`css_patterns`** - CSS pattern detection with contradictions and behavioral gaps
+- **`css_progressions`** - Stage transition tracking across therapeutic sessions
 
 ## Configuration Files
 
@@ -141,9 +146,11 @@ shared/
 ### Backend Features
 - **Modular Route Structure** - Organized authentication and webhook routes
 - **VAPI Integration** - Voice AI webhook processing and session management
-- **Memory System** - Therapeutic context building and retrieval
+- **CSS Pattern Detection** - Real-time therapeutic pattern analysis (CVDC, IBM, Thend, CYVC)
+- **Memory System** - Therapeutic context building and retrieval with CSS awareness
+- **Stage Progression Tracking** - Six-stage CSS therapeutic progression monitoring
 - **Cascade Delete** - Complete user data removal with safety checks
-- **Database Operations** - User, session, and transcript management
+- **Database Operations** - User, session, transcript, and pattern management
 - **API Routes** - RESTful endpoints for frontend data access
 
 ### Database Features
@@ -151,6 +158,8 @@ shared/
 - **Session Persistence** - Call history and agent information
 - **Memory Context** - Therapeutic insights and conversation continuity
 - **Transcript Storage** - Complete conversation history
+- **CSS Pattern Storage** - Dedicated table for clean pattern storage with formatted contradictions
+- **Progression Tracking** - Stage transitions with trigger content and confidence scoring
 
 ## Development Workflow
 
