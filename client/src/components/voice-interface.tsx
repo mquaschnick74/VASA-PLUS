@@ -124,20 +124,20 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     <div className="min-h-screen gradient-bg">
       {/* Navigation Header */}
       <nav className="sticky top-0 z-50 glass-strong">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-10 h-10 rounded-full glass flex items-center justify-center">
-                  <i className="fas fa-microphone-alt text-accent"></i>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full glass flex items-center justify-center">
+                  <i className="fas fa-microphone-alt text-accent text-sm sm:text-base"></i>
                 </div>
-                <span className="text-xl font-semibold">VASA</span>
+                <span className="text-lg sm:text-xl font-semibold">VASA</span>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="glass rounded-full px-4 py-2">
-                <span className="text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="hidden sm:block glass rounded-full px-3 sm:px-4 py-1 sm:py-2">
+                <span className="text-xs sm:text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
               </div>
               <DeleteAccount 
                 userId={userId}
@@ -150,10 +150,10 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
               />
               <Button 
                 onClick={handleSignOut}
-                className="w-10 h-10 rounded-full glass hover:glass-strong transition-all duration-200 p-0"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full glass hover:glass-strong transition-all duration-200 p-0"
                 data-testid="button-signOut"
               >
-                <i className="fas fa-user text-muted-foreground"></i>
+                <i className="fas fa-user text-muted-foreground text-sm sm:text-base"></i>
               </Button>
             </div>
           </div>
@@ -161,11 +161,11 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
       </nav>
 
       {/* Main Dashboard Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           
           {/* Voice Assistant Interface - Main Column */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
             
             {/* Agent Selection */}
             <AgentSelector 
@@ -175,22 +175,22 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
             />
 
             {/* Voice Call Interface */}
-            <Card className="glass-strong rounded-3xl border-0">
-              <CardContent className="p-8">
-                <div className="text-center space-y-6">
+            <Card className="glass-strong rounded-2xl sm:rounded-3xl border-0">
+              <CardContent className="p-4 sm:p-6 lg:p-8">
+                <div className="text-center space-y-4 sm:space-y-6">
                   {/* Agent Avatar and Status */}
                   <div className="relative inline-block">
-                    <div className={`w-32 h-32 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 bg-gradient-to-br from-${selectedAgent?.color || 'primary'}/20 to-${selectedAgent?.color || 'primary'}/10 flex items-center justify-center text-6xl`}>
+                    <div className={`w-24 h-24 sm:w-32 sm:h-32 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 bg-gradient-to-br from-${selectedAgent?.color || 'primary'}/20 to-${selectedAgent?.color || 'primary'}/10 flex items-center justify-center text-4xl sm:text-6xl`}>
                       {selectedAgent?.icon || '💜'}
                     </div>
-                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-background flex items-center justify-center">
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <div className="absolute -bottom-2 -right-2 w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full border-4 border-background flex items-center justify-center">
+                      <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-full animate-pulse"></div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <h2 className="text-3xl font-bold">{selectedAgent?.name || 'Sarah'}</h2>
-                    <p className="text-muted-foreground">{selectedAgent?.description || 'Your Therapeutic Voice Assistant'}</p>
+                  <div className="space-y-1 sm:space-y-2">
+                    <h2 className="text-2xl sm:text-3xl font-bold">{selectedAgent?.name || 'Sarah'}</h2>
+                    <p className="text-sm sm:text-base text-muted-foreground px-4 sm:px-0">{selectedAgent?.description || 'Your Therapeutic Voice Assistant'}</p>
                     <div className="inline-flex items-center space-x-2 text-sm text-accent">
                       <div className={`w-2 h-2 rounded-full animate-pulse ${
                         isSessionActive ? 'bg-red-500' : 'bg-accent'
@@ -202,27 +202,27 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   </div>
 
                   {/* Voice Call Controls */}
-                  <div className="flex justify-center space-x-6">
+                  <div className="flex justify-center space-x-4 sm:space-x-6">
                     <Button
                       onClick={isSessionActive ? endSession : handleStartSession}
                       disabled={isLoading || memoryLoading}
-                      className={`group relative w-20 h-20 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
+                      className={`group relative w-16 h-16 sm:w-20 sm:h-20 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
                         isSessionActive 
                           ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
                           : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
                       }`}
                       data-testid="button-call"
                     >
-                      <i className={`text-2xl text-white group-hover:scale-110 transition-transform duration-200 ${
+                      <i className={`text-xl sm:text-2xl text-white group-hover:scale-110 transition-transform duration-200 ${
                         isSessionActive ? 'fas fa-phone-slash' : 'fas fa-phone'
                       }`}></i>
                     </Button>
 
-                    <Button className="w-16 h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
-                      <i className="fas fa-microphone text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
+                    <Button className="w-12 h-12 sm:w-16 sm:h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
+                      <i className="fas fa-microphone text-lg sm:text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
                     </Button>
 
-                    <Button className="w-16 h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
+                    <Button className="w-12 h-12 sm:w-16 sm:h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
                       <i className="fas fa-volume-up text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
                     </Button>
                   </div>
@@ -245,11 +245,11 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
             </Card>
 
             {/* Live Conversation Transcript */}
-            <Card className="glass rounded-2xl border-0">
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <i className="fas fa-comments text-accent"></i>
-                  <h3 className="text-xl font-semibold">Live Conversation</h3>
+            <Card className="glass rounded-xl sm:rounded-2xl border-0">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
+                  <i className="fas fa-comments text-accent text-sm sm:text-base"></i>
+                  <h3 className="text-lg sm:text-xl font-semibold">Live Conversation</h3>
                 </div>
                 
                 <div className="space-y-4 max-h-80 overflow-y-auto" data-testid="transcript-container">
@@ -283,13 +283,13 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           </div>
 
           {/* Sidebar - Session History and Insights */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             
             {/* Session Stats */}
-            <Card className="glass rounded-2xl border-0">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-                  <i className="fas fa-chart-bar text-accent"></i>
+            <Card className="glass rounded-xl sm:rounded-2xl border-0">
+              <CardContent className="p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center space-x-2">
+                  <i className="fas fa-chart-bar text-accent text-sm sm:text-base"></i>
                   <span>Your Progress</span>
                 </h3>
                 
@@ -331,10 +331,10 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
             </Card>
 
             {/* Memory Context */}
-            <Card className="glass rounded-2xl border-0">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-                  <i className="fas fa-brain text-accent"></i>
+            <Card className="glass rounded-xl sm:rounded-2xl border-0">
+              <CardContent className="p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center space-x-2">
+                  <i className="fas fa-brain text-accent text-sm sm:text-base"></i>
                   <span>Session Memory</span>
                 </h3>
                 
@@ -353,10 +353,10 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
             </Card>
 
             {/* Recent Sessions */}
-            <Card className="glass rounded-2xl border-0">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-                  <i className="fas fa-history text-accent"></i>
+            <Card className="glass rounded-xl sm:rounded-2xl border-0">
+              <CardContent className="p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center space-x-2">
+                  <i className="fas fa-history text-accent text-sm sm:text-base"></i>
                   <span>Recent Sessions</span>
                 </h3>
                 
