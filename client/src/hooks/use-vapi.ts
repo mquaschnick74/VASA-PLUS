@@ -148,8 +148,18 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         }
       };
 
-      console.log(`Starting session with ${selectedAgent.name}:`, assistantConfig);
-      await vapi.start(assistantConfig);
+      console.log('🔍 Starting VAPI call with:', {
+        assistant: assistantConfig,
+        hasPublicKey: !!import.meta.env.VITE_VAPI_PUBLIC_KEY,
+        metadata: { userId: userId, agentName: selectedAgent.name }
+      });
+      
+      try {
+        await vapi.start(assistantConfig);
+      } catch (error) {
+        console.error('❌ VAPI start failed:', error);
+        throw error; // Re-throw to be caught by outer try-catch
+      }
 
       // Set timeout fallback if call doesn't start
       setTimeout(() => {
