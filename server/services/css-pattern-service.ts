@@ -118,7 +118,7 @@ export function extractUserStatements(transcript: string, debug: boolean = false
   // Option 1: Return full transcript for analysis (less filtering)
   // This ensures we don't miss patterns due to aggressive filtering
   const USE_FULL_TRANSCRIPT = true;
-  
+
   if (USE_FULL_TRANSCRIPT) {
     if (debug) console.log('🔍 Using FULL transcript for pattern detection');
     return [transcript];
@@ -292,7 +292,8 @@ export function identifyCurrentStage(patterns: Omit<CSSPatterns, 'currentStage'>
   }
 
   if (thendCount > 0) {
-    // Suspension to Gesture toward: Pure integration moments
+    // Suspension: Pure integration moments without contradictions
+    // This is holding the integration in suspension
     return 'suspension';
   }
 

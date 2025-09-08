@@ -1,22 +1,21 @@
+// Lean Webhook Routes - Delegates to services
 import { Router } from 'express';
 import crypto from 'crypto';
-import { detectCSSPatterns, assessPatternConfidence } from '../services/css-pattern-service';
-import { supabase } from '../services/supabase-service';
-import { storeSessionContext } from '../services/memory-service';
+import { 
+  initializeSession, 
+  processTranscript, 
+  processEndOfCall,
+  completeIntervention 
+} from '../services/orchestration-service';
 
 const router = Router();
 
-// Enable debug mode for pattern detection
-const DEBUG_MODE = true;
-
 // VAPI webhook handler
 router.post('/webhook', async (req, res) => {
-  console.log('🚨🚨🚨 WEBHOOK RECEIVED 🚨🚨🚨');
-  console.log('📥 VAPI webhook received:', JSON.stringify(req.body, null, 2));
-  console.log('🔍 Event type:', req.body.message?.type);
-  console.log('🚨🚨🚨 END WEBHOOK LOG 🚨🚨🚨');
+  console.log('📥 VAPI webhook received:', req.body.message?.type);
+
   try {
-    // Verify webhook signature if in production
+    // Verify webhook signature in production
     if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
       const signature = req.headers['x-vapi-signature'] as string;
       const payload = JSON.stringify(req.body);
@@ -33,462 +32,118 @@ router.post('/webhook', async (req, res) => {
     const { message } = req.body;
     const eventType = message?.type;
 
-    console.log(`📥 Received VAPI webhook: ${eventType}`);
-
-    // Extract user ID from metadata - handle different webhook structures
-    const userId = message?.call?.metadata?.userId || 
-                  message?.metadata?.userId ||
-                  message?.call?.assistant?.metadata?.userId ||
-                  message?.assistant?.metadata?.userId;
-    const callId = message?.call?.id || message?.callId;
-    
-    console.log('🔍 Parsing webhook data:', {
-      foundUserId: userId,
-      foundCallId: callId,
-      path1: message?.call?.metadata?.userId,
-      path2: message?.metadata?.userId,
-      path3: message?.call?.assistant?.metadata?.userId,
-      path4: message?.assistant?.metadata?.userId
-    });
+    // Extract core identifiers
+    const userId = extractUserId(message);
+    const callId = extractCallId(message);
+    const agentName = extractAgentName(message);
 
     if (!userId || !callId) {
       console.warn('Missing userId or callId in webhook');
-      console.warn('Available data:', {
-        userId: userId,
-        callId: callId,
-        messageStructure: {
-          hasCall: !!message?.call,
-          hasCallMetadata: !!message?.call?.metadata,
-          hasCallAssistantMetadata: !!message?.call?.assistant?.metadata,
-          hasDirectMetadata: !!message?.metadata,
-          callKeys: message?.call ? Object.keys(message.call) : [],
-          metadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : []
-        }
-      });
       return res.status(200).json({ received: true });
     }
 
+    // Route to appropriate handler
     switch (eventType) {
       case 'call-started':
-        // Extract agent name from metadata
-        const agentName = message?.call?.metadata?.agentName || 
-                         message?.metadata?.agentName ||
-                         message?.call?.assistant?.metadata?.agentName ||
-                         message?.assistant?.metadata?.agentName ||
-                         'Sarah'; // Default fallback
-        
-        console.log('🚀 Creating session:', { userId, callId, agentName });
-        
-        // Create or update session
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('therapeutic_sessions')
-          .upsert({
-            call_id: callId,
-            user_id: userId,
-            agent_name: agentName,
-            status: 'active',
-            start_time: new Date().toISOString(),
-            metadata: message.call
-          }, {
-            onConflict: 'call_id'
-          })
-          .select(); // Add .select() to see what was inserted
-        
-        if (sessionError) {
-          console.error('❌ Session creation FAILED:', sessionError);
-        } else {
-          console.log('✅ Session created:', sessionData);
-        }
-        break;
-
-      case 'end-of-call-report':
-        console.log(`🔍 Checking for existing session with call_id: ${callId}`);
-        
-        // Create session if it doesn't exist (VAPI doesn't send conversation-update)
-        const { data: existingSessionForReport, error: checkError } = await supabase
-          .from('therapeutic_sessions')
-          .select('id')
-          .eq('call_id', callId)
-          .single();
-        
-        console.log(`🔍 Existing session check result:`, { 
-          found: !!existingSessionForReport, 
-          error: checkError?.message,
-          data: existingSessionForReport 
-        });
-        
-        if (!existingSessionForReport) {
-          console.log('🚀 Creating session from end-of-call-report (no conversation-update received)');
-          
-          const agentNameFromReport = message?.call?.metadata?.agentName || 
-                                   message?.call?.assistant?.metadata?.agentName ||
-                                   message?.assistant?.metadata?.agentName ||
-                                   'Sarah';
-          
-          // Handle missing or zero duration with calculation fallback
-          let duration = message?.call?.duration || 0;
-          if (!duration || duration === 0) {
-            // Try to calculate from timestamps if available
-            if (message?.call?.startedAt && message?.call?.endedAt) {
-              const startTime = new Date(message.call.startedAt).getTime();
-              const endTime = new Date(message.call.endedAt).getTime();
-              duration = Math.round((endTime - startTime) / 1000);
-              console.log(`📐 Calculated duration from timestamps: ${duration} seconds`);
-            } else {
-              console.warn('⚠️ No duration or timestamps available, using default 60 seconds');
-              duration = 60; // fallback duration
-            }
-          }
-          
-          const { data: newSessionData, error: newSessionError } = await supabase
-            .from('therapeutic_sessions')
-            .insert({
-              call_id: callId,
-              user_id: userId,
-              agent_name: agentNameFromReport,
-              status: 'completed', // Already completed since this is end-of-call
-              start_time: new Date(Date.now() - (duration * 1000)).toISOString(),
-              end_time: new Date().toISOString(),
-              duration_seconds: duration,
-              metadata: message.call
-            })
-            .select();
-          
-          if (newSessionError) {
-            console.error('❌ Session creation failed from end-of-call:', newSessionError);
-          } else {
-            console.log('✅ Session created from end-of-call:', newSessionData);
-          }
-        } else {
-          // Update existing session with end time and duration
-          let duration = message?.call?.duration || 0;
-          if (!duration || duration === 0) {
-            // Try to calculate from timestamps if available
-            if (message?.call?.startedAt && message?.call?.endedAt) {
-              const startTime = new Date(message.call.startedAt).getTime();
-              const endTime = new Date(message.call.endedAt).getTime();
-              duration = Math.round((endTime - startTime) / 1000);
-              console.log(`📐 Calculated duration from timestamps: ${duration} seconds`);
-            } else {
-              console.warn('⚠️ No duration or timestamps for update, using default 60 seconds');
-              duration = 60; // fallback duration
-            }
-          }
-          
-          const { error: updateError } = await supabase
-            .from('therapeutic_sessions')
-            .update({
-              status: 'completed',
-              end_time: new Date().toISOString(),
-              duration_seconds: duration,
-              metadata: message.call
-            })
-            .eq('call_id', callId);
-          
-          if (updateError) {
-            console.error('❌ Session update failed:', updateError);
-          } else {
-            console.log('✅ Session updated with duration:', duration);
-          }
-        }
-
-        // Store call summary as context
-        if (message?.summary) {
-          await storeSessionContext(
-            userId,
-            callId,
-            message.summary,
-            'call_summary'
-          );
-        }
-
-        // Store complete transcript and detect patterns
-        if (message?.transcript) {
-          console.log('📝 Transcript received, length:', message.transcript.length);
-          console.log('📝 Transcript preview:', message.transcript.substring(0, 200));
-          
-          await supabase
-            .from('session_transcripts')
-            .insert({
-              user_id: userId,
-              call_id: callId,
-              text: message.transcript,
-              role: 'complete'
-            });
-
-          // Detect CSS patterns in the transcript with debug logging
-          console.log('🎯 Starting CSS pattern detection...');
-          const patterns = detectCSSPatterns(message.transcript, DEBUG_MODE);
-          const { confidence, reasoning } = assessPatternConfidence(patterns);
-          
-          console.log(`🎯 CSS Detection Complete:`);
-          console.log(`  Stage: ${patterns.currentStage}`);
-          console.log(`  Confidence: ${confidence}`);
-          console.log(`  Reasoning: ${reasoning}`);
-          console.log(`📊 Pattern counts: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}, Thend=${patterns.thendIndicators.length}, CYVC=${patterns.cyvcPatterns.length}`);
-
-          // Store each CVDC pattern found with CORRECT stage
-          for (const cvdc of patterns.cvdcPatterns) {
-            await supabase
-              .from('css_patterns')
-              .insert({
-                user_id: userId,
-                call_id: callId,
-                pattern_type: 'CVDC',
-                content: cvdc,
-                extracted_contradiction: cvdc.includes('but') 
-                  ? cvdc.split('but').map(s => s.trim()).join(' BUT ')
-                  : cvdc,
-                css_stage: patterns.currentStage, // FIX: Use detected stage, not hardcoded
-                confidence: confidence,
-                detected_at: new Date().toISOString() // FIX: Add detected_at
-              });
-            console.log(`💾 Stored CVDC pattern with stage: ${patterns.currentStage}`);
-          }
-
-          // Store each IBM pattern found with CORRECT stage
-          for (const ibm of patterns.ibmPatterns) {
-            await supabase
-              .from('css_patterns')
-              .insert({
-                user_id: userId,
-                call_id: callId,
-                pattern_type: 'IBM',
-                content: ibm,
-                behavioral_gap: ibm,
-                css_stage: patterns.currentStage, // FIX: Use detected stage, not hardcoded
-                confidence: confidence,
-                detected_at: new Date().toISOString() // FIX: Add detected_at
-              });
-            console.log(`💾 Stored IBM pattern with stage: ${patterns.currentStage}`);
-          }
-
-          // Store Thend moments with CORRECT stage
-          for (const thend of patterns.thendIndicators) {
-            // Thend patterns might indicate a higher stage
-            const thendStage = patterns.currentStage === 'pointed_origin' ? 'suspension' : patterns.currentStage;
-            await supabase
-              .from('css_patterns')
-              .insert({
-                user_id: userId,
-                call_id: callId,
-                pattern_type: 'Thend',
-                content: thend,
-                css_stage: thendStage, // Use appropriate stage for Thend
-                confidence: confidence,
-                detected_at: new Date().toISOString() // FIX: Add detected_at
-              });
-            console.log(`💾 Stored Thend pattern with stage: ${thendStage}`);
-          }
-
-          // Store CYVC achievements with CORRECT stage
-          for (const cyvc of patterns.cyvcPatterns) {
-            // CYVC typically indicates completion or terminal stages
-            const cyvcStage = ['completion', 'terminal'].includes(patterns.currentStage) 
-              ? patterns.currentStage 
-              : 'completion';
-            await supabase
-              .from('css_patterns')
-              .insert({
-                user_id: userId,
-                call_id: callId,
-                pattern_type: 'CYVC',
-                content: cyvc,
-                css_stage: cyvcStage, // Use appropriate stage for CYVC
-                confidence: confidence,
-                detected_at: new Date().toISOString() // FIX: Add detected_at
-              });
-            console.log(`💾 Stored CYVC pattern with stage: ${cyvcStage}`);
-          }
-
-          // Track stage progression if changed
-          console.log('🔄 Checking for stage progression...');
-          
-          // Get the user's last CSS stage from previous sessions
-          const { data: previousPatterns, error: historyError } = await supabase
-            .from('css_patterns')
-            .select('css_stage, detected_at, call_id')
-            .eq('user_id', userId)
-            .neq('call_id', callId) // Exclude current call
-            .not('css_stage', 'is', null)
-            .order('detected_at', { ascending: false })
-            .limit(1);
-
-          if (historyError) {
-            console.error('❌ Error fetching previous patterns:', historyError);
-          } else {
-            console.log(`📜 Previous patterns found:`, previousPatterns);
-          }
-
-          const previousStage = previousPatterns?.[0]?.css_stage || 'pointed_origin';
-          console.log(`📊 Stage comparison: Previous="${previousStage}" → Current="${patterns.currentStage}"`);
-          
-          // If stage has changed, record progression
-          if (patterns.currentStage !== previousStage) {
-            // Determine trigger content
-            const triggerContent = patterns.cvdcPatterns[0] || 
-                                 patterns.ibmPatterns[0] || 
-                                 patterns.thendIndicators[0] || 
-                                 patterns.cyvcPatterns[0] || 
-                                 'Stage transition detected';
-            
-            await supabase
-              .from('css_progressions')
-              .insert({
-                user_id: userId,
-                call_id: callId,
-                from_stage: previousStage,
-                to_stage: patterns.currentStage,
-                trigger_content: triggerContent.substring(0, 200), // Limit length
-                agent_name: message?.call?.metadata?.agentName || 'Unknown'
-              });
-            
-            console.log(`📈 CSS PROGRESSION RECORDED: ${previousStage} → ${patterns.currentStage}`);
-            console.log(`🎯 Trigger: "${triggerContent.substring(0, 100)}..."`);
-            
-            // Also store as therapeutic context
-            await storeSessionContext(
-              userId,
-              callId,
-              `Stage progression detected: ${previousStage} → ${patterns.currentStage}. Trigger: ${triggerContent}`,
-              'stage_progression'
-            );
-          } else {
-            console.log(`📊 No progression - user remains in ${patterns.currentStage} stage`);
-          }
-
-          // Store overall stage assessment
-          await supabase
-            .from('css_patterns')
-            .insert({
-              user_id: userId,
-              call_id: callId,
-              pattern_type: 'STAGE_ASSESSMENT',
-              content: `Stage: ${patterns.currentStage}. ${reasoning}`,
-              css_stage: patterns.currentStage,
-              confidence: confidence,
-              detected_at: new Date().toISOString() // FIX: Add detected_at
-            });
-          console.log(`💾 Stored stage assessment: ${patterns.currentStage}`);
-        } else {
-          console.log('⚠️ No transcript in end-of-call-report');
-        }
-
-        console.log('✅ Session completed and analyzed');
-        break;
-
       case 'conversation-update':
-        // Create session if it doesn't exist (acts as call-started)
-        const { data: existingSession } = await supabase
-          .from('therapeutic_sessions')
-          .select('id')
-          .eq('call_id', callId)
-          .single();
-        
-        if (!existingSession) {
-          console.log('🚀 Creating session from conversation-update');
-          
-          const agentName = message?.assistant?.metadata?.agentName || 
-                           message?.assistant?.name || 
-                           'Sarah';
-          
-          const { data: sessionData, error: sessionError } = await supabase
-            .from('therapeutic_sessions')
-            .insert({
-              call_id: callId,
-              user_id: userId,
-              agent_name: agentName,
-              status: 'active',
-              start_time: new Date().toISOString(),
-              metadata: message.assistant
-            })
-            .select();
-          
-          if (sessionError) {
-            console.error('❌ Session creation failed:', sessionError);
-          } else {
-            console.log('✅ Session created:', sessionData);
-          }
-        }
+        await handleCallStart(userId, callId, agentName);
         break;
 
       case 'transcript':
-        if (message?.transcript) {
-          console.log('📝 Real-time transcript chunk received');
-          
-          // Store the real-time transcript chunk
-          await supabase
-            .from('session_transcripts')
-            .insert({
-              user_id: userId,
-              call_id: callId,
-              text: message.transcript.text || message.transcript,
-              role: message.transcript.role || 'user'
-            });
-            
-          // Optional: Real-time pattern detection for immediate feedback
-          // This could be used to guide the AI agent's responses
-          if (message.transcript.role === 'user' && DEBUG_MODE) {
-            const patterns = detectCSSPatterns(message.transcript.text || message.transcript, false);
-            if (patterns.cvdcPatterns.length > 0 || patterns.ibmPatterns.length > 0) {
-              console.log(`🔍 Real-time patterns detected in stage: ${patterns.currentStage}`);
-            }
-            
-            // Note: Removed pattern storage from transcript events
-            // Patterns are now only stored during end-of-call-report
-            // to avoid duplicates and ensure complete analysis
-          }
-        }
+        const response = await handleTranscript(userId, callId, message);
+        return res.status(200).json(response);
+
+      case 'end-of-call-report':
+        await handleEndOfCall(userId, callId, message);
         break;
 
       default:
-        console.log(`Unhandled event type: ${eventType}`);
+        console.log(`Unhandled event: ${eventType}`);
     }
 
     res.status(200).json({ received: true });
+
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    console.error('Webhook error:', error);
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
 
-// Manual analysis endpoint for testing
-router.post('/analyze-transcript', async (req, res) => {
+// HSFB intervention completion endpoint
+router.post('/hsfb/complete', async (req, res) => {
   try {
-    const { transcript, userId, callId } = req.body;
-    
-    if (!transcript || !userId || !callId) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    const { callId, postTranscript, duration } = req.body;
+
+    if (!callId) {
+      return res.status(400).json({ error: 'Missing call ID' });
     }
-    
-    console.log('🔬 Manual transcript analysis requested');
-    
-    // Analyze with debug mode
-    const patterns = detectCSSPatterns(transcript, true);
-    const { confidence, reasoning } = assessPatternConfidence(patterns);
-    
-    res.json({
-      success: true,
-      patterns: {
-        cvdc: patterns.cvdcPatterns.length,
-        ibm: patterns.ibmPatterns.length,
-        thend: patterns.thendIndicators.length,
-        cyvc: patterns.cyvcPatterns.length
-      },
-      stage: patterns.currentStage,
-      confidence: confidence,
-      reasoning: reasoning,
-      samples: {
-        cvdc: patterns.cvdcPatterns[0] || null,
-        ibm: patterns.ibmPatterns[0] || null,
-        thend: patterns.thendIndicators[0] || null,
-        cyvc: patterns.cyvcPatterns[0] || null
-      }
-    });
+
+    const result = await completeIntervention(callId, postTranscript, duration);
+    res.json(result);
+
   } catch (error) {
-    console.error('Analysis error:', error);
-    res.status(500).json({ error: 'Analysis failed' });
+    console.error('HSFB completion error:', error);
+    res.status(500).json({ error: 'Failed to complete intervention' });
   }
 });
+
+// Helper functions for extracting data from webhook
+function extractUserId(message: any): string | null {
+  return message?.call?.metadata?.userId || 
+         message?.metadata?.userId ||
+         message?.call?.assistant?.metadata?.userId ||
+         message?.assistant?.metadata?.userId ||
+         null;
+}
+
+function extractCallId(message: any): string | null {
+  return message?.call?.id || 
+         message?.callId || 
+         null;
+}
+
+function extractAgentName(message: any): string {
+  return message?.call?.metadata?.agentName || 
+         message?.metadata?.agentName ||
+         message?.call?.assistant?.metadata?.agentName ||
+         message?.assistant?.metadata?.agentName ||
+         'Sarah';
+}
+
+// Handler functions
+async function handleCallStart(userId: string, callId: string, agentName: string) {
+  console.log(`🚀 Initializing session: ${callId}`);
+  await initializeSession(userId, callId, agentName);
+}
+
+async function handleTranscript(userId: string, callId: string, message: any) {
+  const transcript = message?.transcript?.text || message?.transcript || '';
+  const role = message?.transcript?.role || 'user';
+
+  if (!transcript) {
+    return { received: true };
+  }
+
+  console.log(`📝 Processing ${role} transcript`);
+  const response = await processTranscript(callId, transcript, role);
+
+  // If HSFB intervention needed, return special response
+  if (response.action === 'trigger_hsfb') {
+    console.log('🚨 HSFB intervention triggered');
+    return response;
+  }
+
+  return { received: true };
+}
+
+async function handleEndOfCall(userId: string, callId: string, message: any) {
+  console.log(`📊 Processing end of call: ${callId}`);
+
+  const fullTranscript = message?.transcript;
+  const summary = message?.summary;
+  const callMetadata = message?.call; // Pass full call metadata for duration calculation
+
+  await processEndOfCall(callId, fullTranscript, summary, callMetadata);
+}
 
 export default router;
