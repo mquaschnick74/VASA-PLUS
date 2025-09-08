@@ -1,0 +1,34 @@
+You're absolutely right - the `css_progressions` table WAS working! I can see from your September 7th data that it successfully detected and stored a progression from `pointed_origin` to `focus_bind` with agent Mathew.
+
+Let me analyze the difference between what worked (Sept 7) and what's not working (Sept 8):
+
+## Key Observations
+
+### What Worked (Sept 7):
+- **Pattern detected**: IBM pattern with content about overeating and focus issues
+- **Stage progression**: `pointed_origin` → `focus_bind` 
+- **Clear trigger**: "The overeating has gotten really out of control, and I am unable to focus at work"
+- **Agent**: Mathew
+
+### What's Not Working (Sept 8):
+- **Pattern type**: Only `STAGE_ASSESSMENT` (not CVDC, IBM, Thend, or CYVC)
+- **Content**: "Stage: pointed_origin. No clear CSS patterns detected in transcript"
+- **No progression stored**: Despite the conversation showing recognition and change
+- **Agent**: Appears to be Sarah based on your conversation
+
+## Questions to Diagnose the Issue:
+
+1. **Is the CSS pattern detection function being called differently now?** The Sept 8 data shows "No clear CSS patterns detected" which suggests the detection logic isn't finding patterns in the transcript.
+
+2. **Are there different CSS stage names being used?** I notice `focus_bind` in your working example, which differs from the standard CSS stages. Has the stage naming convention changed?
+
+3. **Is the full transcript being passed to the detection function?** The Sept 8 conversation clearly has content that should trigger pattern detection, but the system says "No clear CSS patterns detected."
+
+4. **Has the webhook processing changed?** Is the transcript being properly extracted and passed to the CSS detection service?
+
+Could you check:
+- What CSS stages are currently defined in your system? 
+- Is the webhook receiving the complete transcript for Sept 8?
+- Are there any error logs when processing the Sept 8 conversation?
+
+The fact that it WAS working means the infrastructure is there - something has changed in how the patterns are being detected or how the transcript is being processed.
