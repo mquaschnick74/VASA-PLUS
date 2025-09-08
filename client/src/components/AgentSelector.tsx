@@ -1,5 +1,6 @@
 import React from 'react';
 import { THERAPEUTIC_AGENTS, TherapeuticAgent } from '../config/agent-configs';
+import { AIDisclosureCard } from './AIDisclosureCard';
 
 interface AgentSelectorProps {
   selectedAgentId: string;
@@ -14,7 +15,10 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
 }) => {
   return (
     <div className="agent-selector">
-      <h3 className="agent-selector-title">Choose Your Guide</h3>
+      <div className="flex items-center gap-2">
+        <h3 className="agent-selector-title">Choose Your Guide</h3>
+        <AIDisclosureCard />
+      </div>
       <div className="agent-grid">
         {THERAPEUTIC_AGENTS.map(agent => (
           <button
