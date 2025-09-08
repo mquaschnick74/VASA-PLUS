@@ -1,82 +1,120 @@
-# VASA - Therapeutic Voice Assistant
+# VASA - Therapeutic Voice Assistant MVP
 
 ## Overview
+AI-powered therapeutic voice assistant with real-time CSS (Conversational State Sensing) pattern detection, multi-agent support, and persistent memory across sessions. Features glassmorphic UI with purple theming and mobile-responsive design.
 
-VASA is a therapeutic voice assistant application that provides AI-powered mental health support through voice interactions. The system combines modern web technologies with AI voice processing capabilities to deliver a therapeutic conversational experience. It features persistent memory capabilities to maintain context across sessions, user authentication, and a modern glassmorphic UI with purple theming.
+## File Structure
+
+```
+vasa-mvp/
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ui/                    # shadcn/ui components
+│   │   │   ├── voice-interface.tsx    # Main voice UI with call controls
+│   │   │   ├── AgentSelector.tsx      # Multi-agent selection UI
+│   │   │   ├── authentication.tsx     # Email auth component
+│   │   │   ├── DeleteAccount.tsx      # Account deletion UI
+│   │   │   └── AIDisclosureCard.tsx   # AI limitations dropdown
+│   │   ├── config/
+│   │   │   └── agent-configs.ts       # Sarah/Mathew agent definitions v3
+│   │   ├── hooks/
+│   │   │   └── use-vapi.ts           # VAPI WebSocket management
+│   │   ├── pages/
+│   │   │   └── dashboard.tsx         # Main dashboard page
+│   │   ├── lib/
+│   │   │   ├── queryClient.ts        # TanStack Query setup
+│   │   │   └── utils.ts              # Utility functions
+│   │   ├── App.tsx                   # Root app component
+│   │   └── index.css                  # Tailwind + glassmorphic styles
+│   └── index.html                     # Entry HTML
+│
+├── server/
+│   ├── routes/
+│   │   ├── auth-routes.ts            # Authentication endpoints
+│   │   ├── vapi-routes.ts            # VAPI configuration endpoints
+│   │   └── webhook-routes.ts         # VAPI webhook handler
+│   ├── services/
+│   │   ├── orchestration-service.ts  # Session & transcript management
+│   │   ├── css-pattern-service.ts    # CSS stage detection (CVDC/IBM/Thend/CYVC)
+│   │   ├── memory-service.ts         # Context building & persistence
+│   │   ├── supabase-service.ts       # Database client
+│   │   └── auth-service.ts           # User authentication
+│   ├── utils/
+│   │   └── parseAssistantOutput.ts   # Speak/meta tag parser
+│   ├── storage.ts                     # Storage interfaces
+│   ├── index.ts                       # Express server entry
+│   └── vite.ts                        # Vite dev server integration
+│
+├── shared/
+│   └── schema.ts                      # Drizzle ORM schemas
+│
+├── drizzle/
+│   └── migrations/                    # Database migrations
+│
+└── attached_assets/                   # User-uploaded assets
+```
+
+## Key Features
+
+### CSS Pattern Detection
+- **CVDC**: Contradiction detection between opposing desires
+- **IBM**: Intention-behavior mismatch patterns  
+- **Thend**: Therapeutic shift moments
+- **CYVC**: Choice/flexibility emergence
+- **Register Tracking**: Symbolic/Imaginary/Real dominance
+
+### Agent System v3
+- **Natural Voice**: Separated `<speak>` and `<meta>` tags
+- **Sarah**: Warm emotional support, feeling-first approach
+- **Mathew**: Analytical pattern recognition, intention-action gaps
+- **Crisis Module**: Grounding techniques for acute distress
+- **HSFB Process**: Hearing/Seeing/Feeling/Breathing (sparse use)
+
+### Session Management
+- **Two-tier cache**: ActiveSessions Map + CheckedSessions Set
+- **Race protection**: Promise-based initialization locks
+- **Auto-cleanup**: 30-minute stale session removal
+- **Duplicate prevention**: Transcript hash tracking
+
+### Database Schema
+```sql
+therapeutic_sessions    # Voice session metadata
+therapeutic_context     # Persistent memory/insights
+session_transcripts     # Full conversation history (end-of-call only)
+css_patterns           # Detected therapeutic patterns
+users                  # User profiles
+```
+
+## Architecture
+
+### Frontend
+- **React 18** + TypeScript + Vite
+- **shadcn/ui** + Radix UI primitives
+- **Tailwind CSS** with glassmorphic design
+- **TanStack Query** for data fetching
+- **wouter** for routing
+
+### Backend  
+- **Express.js** + TypeScript
+- **PostgreSQL** + Drizzle ORM
+- **Supabase** for database services
+- **VAPI** webhook integration
+
+### Voice Integration
+- **VAPI Platform** for voice processing
+- **WebSocket** connection management
+- **Real-time** transcript processing
+- **Memory context** injection
 
 ## User Preferences
+- Simple, everyday language communication
+- Mobile-responsive design priority
+- Privacy-focused data handling
 
-Preferred communication style: Simple, everyday language.
-
-## System Architecture
-
-### Frontend Architecture
-The application uses a React-based frontend built with Vite for fast development and optimized builds. The UI is constructed using shadcn/ui components with Radix UI primitives, styled with Tailwind CSS featuring a custom dark theme with purple accents and glassmorphic design elements. The frontend follows a component-based architecture with shared UI components and custom hooks for state management.
-
-### Backend Architecture
-The backend is an Express.js server with TypeScript support. It follows a modular structure with separate route handlers and service layers. The server handles authentication, session management, and integrates with external AI services. The architecture separates concerns between API routes, business logic services, and data access layers.
-
-### Database Design
-The system uses PostgreSQL as the primary database with Drizzle ORM for type-safe database interactions. The schema includes:
-- **Users table**: Stores user profiles with email and basic information
-- **Therapeutic sessions**: Tracks voice interaction sessions with metadata
-- **Therapeutic context**: Maintains persistent memory and insights across sessions
-- **Session transcripts**: Stores conversation history for context building
-
-The database design prioritizes user privacy and therapeutic continuity through structured context storage.
-
-### Authentication & Session Management
-The application implements a simple email-based user identification system. Users are identified by email addresses and can provide optional first names. Session state is managed through localStorage on the client side and server-side session tracking for therapeutic continuity.
-
-### Voice Integration Architecture
-The system integrates with VAPI (Voice AI Platform) for voice processing capabilities. The voice interface supports:
-- Real-time voice conversations with AI agents
-- Dynamic agent configuration with user context
-- Session state management with connection status tracking
-- Memory context injection for personalized therapeutic experiences
-
-The voice integration uses a custom React hook (useVapi) that manages WebSocket connections, handles voice session lifecycle, and provides real-time status updates.
-
-### Memory & Context System
-A sophisticated memory management system builds therapeutic context by:
-- Analyzing previous session data and insights
-- Storing conversation summaries and key therapeutic points
-- Dynamically injecting relevant context into new voice sessions
-- Maintaining conversation continuity across multiple interactions
-
-The memory service processes session data to extract meaningful insights and maintains a confidence-scored context system for relevant information retrieval.
-
-## External Dependencies
-
-### Core Technologies
-- **React 18** with TypeScript for frontend development
-- **Express.js** for backend API server
-- **PostgreSQL** with Drizzle ORM for data persistence
-- **Vite** for frontend build tooling and development server
-
-### UI Framework
-- **shadcn/ui** component library built on Radix UI primitives
-- **Tailwind CSS** for styling with custom design system
-- **Radix UI** primitives for accessible component foundations
-
-### Voice AI Integration
-- **VAPI (Voice AI Platform)** for voice processing and AI agent interactions
-- **@vapi-ai/web** SDK for client-side voice interface management
-
-### Database & Storage
-- **Neon Database** (@neondatabase/serverless) for serverless PostgreSQL hosting
-- **Supabase** (@supabase/supabase-js) for additional database services and real-time features
-- **Drizzle Kit** for database migrations and schema management
-
-### Development & Build Tools
-- **TypeScript** for type safety across the full stack
-- **ESBuild** for production server bundling
-- **PostCSS** with Autoprefixer for CSS processing
-- **Replit** integration tools for development environment
-
-### Additional Libraries
-- **TanStack Query** for client-side data fetching and caching
-- **React Hook Form** with Zod resolvers for form management
-- **date-fns** for date manipulation
-- **clsx** and **class-variance-authority** for conditional styling
-- **wouter** for client-side routing
+## Recent Updates
+- Natural voice configuration (v3) with speak/meta separation
+- Mobile-responsive UI with dropdown positioning fixes
+- AI disclosure card with crisis hotline info
+- Efficient transcript storage (end-of-call only)
+- CSS pattern detection with flexible regex patterns
