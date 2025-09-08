@@ -122,11 +122,19 @@ router.post('/webhook', async (req, res) => {
                                    message?.assistant?.metadata?.agentName ||
                                    'Sarah';
           
-          // Handle missing or zero duration with fallback
+          // Handle missing or zero duration with calculation fallback
           let duration = message?.call?.duration || 0;
           if (!duration || duration === 0) {
-            console.warn('⚠️ No duration or zero duration provided, using default 60 seconds');
-            duration = 60; // fallback duration
+            // Try to calculate from timestamps if available
+            if (message?.call?.startedAt && message?.call?.endedAt) {
+              const startTime = new Date(message.call.startedAt).getTime();
+              const endTime = new Date(message.call.endedAt).getTime();
+              duration = Math.round((endTime - startTime) / 1000);
+              console.log(`📐 Calculated duration from timestamps: ${duration} seconds`);
+            } else {
+              console.warn('⚠️ No duration or timestamps available, using default 60 seconds');
+              duration = 60; // fallback duration
+            }
           }
           
           const { data: newSessionData, error: newSessionError } = await supabase
@@ -152,8 +160,16 @@ router.post('/webhook', async (req, res) => {
           // Update existing session with end time and duration
           let duration = message?.call?.duration || 0;
           if (!duration || duration === 0) {
-            console.warn('⚠️ No duration or zero duration for update, using default 60 seconds');
-            duration = 60; // fallback duration
+            // Try to calculate from timestamps if available
+            if (message?.call?.startedAt && message?.call?.endedAt) {
+              const startTime = new Date(message.call.startedAt).getTime();
+              const endTime = new Date(message.call.endedAt).getTime();
+              duration = Math.round((endTime - startTime) / 1000);
+              console.log(`📐 Calculated duration from timestamps: ${duration} seconds`);
+            } else {
+              console.warn('⚠️ No duration or timestamps for update, using default 60 seconds');
+              duration = 60; // fallback duration
+            }
           }
           
           const { error: updateError } = await supabase
