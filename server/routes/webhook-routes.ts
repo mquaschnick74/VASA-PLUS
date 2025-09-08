@@ -245,6 +245,41 @@ router.post('/webhook', async (req, res) => {
         console.log('✅ Session completed and stored');
         break;
 
+      case 'conversation-update':
+        // Create session if it doesn't exist (acts as call-started)
+        const { data: existingSession } = await supabase
+          .from('therapeutic_sessions')
+          .select('id')
+          .eq('call_id', callId)
+          .single();
+        
+        if (!existingSession) {
+          console.log('🚀 Creating session from conversation-update');
+          
+          const agentName = message?.assistant?.metadata?.agentName || 
+                           message?.assistant?.name || 
+                           'Sarah';
+          
+          const { data: sessionData, error: sessionError } = await supabase
+            .from('therapeutic_sessions')
+            .insert({
+              call_id: callId,
+              user_id: userId,
+              agent_name: agentName,
+              status: 'active',
+              start_time: new Date().toISOString(),
+              metadata: message.assistant
+            })
+            .select();
+          
+          if (sessionError) {
+            console.error('❌ Session creation failed:', sessionError);
+          } else {
+            console.log('✅ Session created:', sessionData);
+          }
+        }
+        break;
+
       case 'transcript':
         if (message?.transcript) {
           console.log('📝 Real-time transcript:', message.transcript);
