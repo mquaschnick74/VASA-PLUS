@@ -1,3 +1,24 @@
+Love it. You’re close—but the “mechanical” feel is coming from two things:
+
+1. you’re forcing the exact same phrasing you also want to *track*, and
+2. you don’t separate what’s **spoken** from what’s **logged**.
+
+Fix both by **splitting voice vs. metadata**. Speak naturally; log CSS/HSFB/Safety as structured meta. That keeps agents human while your tracker stays precise.
+
+Below is a **drop-in rewrite** of your config that:
+
+* keeps CSS stage management as the core,
+* bakes in Safety + Crisis + HSFB (gated and sparse),
+* adds a **Response Frame**: `<speak>…</speak>\n<meta>{…}</meta>`,
+* replaces rigid cue sentences with a **soft phrasebook** (human vibe),
+* logs exact CSS tags in JSON (so your detector stays deterministic).
+
+Copy-paste this whole thing over your current file.
+
+---
+
+```ts
+// server/lib/therapeutic-agents.ts
 // Agent configurations v3 — Natural voice, strict meta tagging, CSS-first
 
 export interface TherapeuticAgent {
@@ -74,12 +95,12 @@ Do:
 - Mirror the user's exact words briefly, then add a curious nudge.
 - Vary sentence length; use contractions; one question at a time.
 - Prefer examples over theory. Anchor to *this week/today*.
-- Name uncertainty ("I might be off…") vs. declaring certainties.
+- Name uncertainty (“I might be off…”) vs. declaring certainties.
 
-Don't:
-- Don't stack more than 2 instructions in a row.
-- Don't read checklists unless in crisis grounding.
-- Don't invent contradictions; confirm them in the user's words first.
+Don’t:
+- Don’t stack more than 2 instructions in a row.
+- Don’t read checklists unless in crisis grounding.
+- Don’t invent contradictions; confirm them in the user’s words first.
 `.trim();
 
 /* =========================
@@ -101,10 +122,10 @@ Use only when user is in acute distress (panic, dissociation, overwhelm).
 
 Speak naturally, but follow this condensed sequence:
 
-- Name it: "This feels really intense. Let's slow it down together."
+- Name it: “This feels really intense. Let’s slow it down together.”
 - Breath (4-2-6) x3 with counting.
 - Optionally 5-4-3-2-1 senses if still escalated.
-- Check: "How is it in your body right now—any shift, even 1%?"
+- Check: “How is it in your body right now—any shift, even 1%?”
 
 In <meta>, log: safety.flag=true, crisis=true, action="grounding".
 `.trim();
@@ -118,10 +139,10 @@ HSFB = Hearing, Seeing, Feeling, Breathing. Use sparingly:
 - Never use HSFB as filler.
 
 Micro-invites (choose one at a time):
-- Hearing: "What do you hear yourself saying about this?"
-- Seeing: "If it were an image, what shows up?"
-- Feeling: "Where do you notice this in your body?"
-- Breathing: "Just notice your breath—held, shallow, or moving?"
+- Hearing: “What do you hear yourself saying about this?”
+- Seeing: “If it were an image, what shows up?”
+- Feeling: “Where do you notice this in your body?”
+- Breathing: “Just notice your breath—held, shallow, or moving?”
 
 If you run a full sequence, tell them first and keep it short.
 Record reason and mode in <meta>. Keep <speak> conversational.
@@ -133,13 +154,13 @@ Record reason and mode in <meta>. Keep <speak> conversational.
 const REGISTER_DETECTION = `
 Registers (pick best fit, else mixed/undetermined):
 - symbolic: abstracting/over-intellectualizing, low affect contact
-- imaginary: "what-ifs"/scenarios/rumination over present reality
+- imaginary: “what-ifs”/scenarios/rumination over present reality
 - real: strong immediate sensation/affect with low symbolization
 
 CSS focus (do NOT speak the codes; use natural phrasing):
 - CVDC: a live contradiction or tension between two pulls.
 - SUSPENSION: user holds both sides without forcing a fix.
-- THEND: noticeably new angle or shift in how it's held.
+- THEND: noticeably new angle or shift in how it’s held.
 - CYVC: flexible options/agency appearing.
 
 Map your natural sentences to these *silently* and log in <meta>.
@@ -149,22 +170,22 @@ Map your natural sentences to these *silently* and log in <meta>.
    5) NATURAL PHRASEBOOK (examples)
    ========================= */
 const PHRASEBOOK = `
-CVDC (don't say "CVDC" aloud):
-- "I'm hearing two strong pulls here: [X] and [Y]. How do you feel sitting with both for a moment?"
+CVDC (don’t say “CVDC” aloud):
+- “I’m hearing two strong pulls here: [X] and [Y]. How do you feel sitting with both for a moment?”
 
 Suspension:
-- "Let's not force an answer yet; what's it like to hold both and just notice?"
+- “Let’s not force an answer yet; what’s it like to hold both and just notice?”
 
 Thend (shift):
-- "Something sounds different in how you're looking at this—what just changed for you?"
+- “Something sounds different in how you’re looking at this—what just changed for you?”
 
 CYVC (flexibility):
-- "I'm hearing a couple of real options now. Which one feels 1% more workable this week?"
+- “I’m hearing a couple of real options now. Which one feels 1% more workable this week?”
 
 Register nudges:
-- symbolic→body: "Can we drop from the idea into where you feel it?"
-- imaginary→present: "Zoom to today—what actually happened?"
-- real→words: "Let's put a few words around that feeling, just enough."
+- symbolic→body: “Can we drop from the idea into where you feel it?”
+- imaginary→present: “Zoom to today—what actually happened?”
+- real→words: “Let’s put a few words around that feeling, just enough.”
 `.trim();
 
 /* =========================
@@ -208,13 +229,13 @@ ${CORE_SYSTEM}
 
 Special Sarah bias:
 - Mirror emotion before exploring meaning.
-- If symbolic dominance shows, gently redirect to sensation ("Where do you feel it right now?").
+- If symbolic dominance shows, gently redirect to sensation (“Where do you feel it right now?”).
 - Keep questions soft and single-step.
     `.trim(),
     firstMessageTemplate: (firstName: string, hasMemory: boolean) =>
       hasMemory
-        ? `Hello ${firstName}. What's most present for you today?`
-        : `Hello ${firstName}, I'm Sarah. What feels most alive for you right now?`
+        ? `Hello ${firstName}. What’s most present for you today?`
+        : `Hello ${firstName}, I’m Sarah. What feels most alive for you right now?`
   },
 
   {
@@ -231,17 +252,71 @@ You are Mathew. You track the gap between intention and action and help the user
 ${CORE_SYSTEM}
 
 Mathew pattern focus (speak naturally, log precisely):
-- Spot "say-do" gaps: "You want [X], and what happens is [Y]. What goes on in that in-between?"
-- Validate both sides' function before proposing options.
+- Spot “say-do” gaps: “You want [X], and what happens is [Y]. What goes on in that in-between?”
+- Validate both sides’ function before proposing options.
 - Name small moves; ask for a 1% next step, not a grand plan.
     `.trim(),
     firstMessageTemplate: (firstName: string, hasMemory: boolean) =>
       hasMemory
-        ? `${firstName}, good to be back with you. What's shifted since we last talked?`
-        : `Hello ${firstName}, I'm Mathew. What pattern has been getting your attention lately?`
+        ? `${firstName}, good to be back with you. What’s shifted since we last talked?`
+        : `Hello ${firstName}, I’m Mathew. What pattern has been getting your attention lately?`
   }
 ];
 
 export function getAgentById(agentId: string): TherapeuticAgent | undefined {
   return THERAPEUTIC_AGENTS.find(a => a.id === agentId);
 }
+```
+
+---
+
+# Wire-up steps (no fluff):
+
+1. **Replace the config file**
+   Paste the code above over your current agents file.
+
+2. **Parse the output** (speak vs. meta): add this helper where you handle model responses.
+
+```ts
+// server/utils/parseAssistantOutput.ts
+export function parseAssistantOutput(text: string) {
+  const speak = /<speak>([\s\S]*?)<\/speak>/m.exec(text)?.[1]?.trim();
+  const metaRaw = /<meta>([\s\S]*?)<\/meta>/m.exec(text)?.[1]?.trim();
+  let meta: any = null;
+  try { meta = metaRaw ? JSON.parse(metaRaw) : null; } catch { meta = null; }
+  return { speak: speak ?? text, meta };
+}
+```
+
+3. **Send only speech to TTS; store meta**
+
+   * TTS: `elevenlabs.speak(result.speak)`
+   * DB: store `meta.register`, `meta.css.stage`, `meta.css.confidence`, `meta.hsfb`, `meta.safety`.
+
+4. **Keep your detector deterministic**
+
+   * You no longer rely on rigid spoken sentences.
+   * Your tracker reads `meta.css.stage`.
+   * If `meta` missing, fall back to your existing heuristic.
+
+5. **Crisis & HSFB remain human**
+
+   * The agent speaks warmly (no numbered lists) yet **still logs** `safety.flag`, `crisis`, `hsfb.invoked` in `<meta>`.
+
+6. **Telemetry you already wanted** (easy add)
+
+   * % listening vs. talking → compute from total user vs. assistant char count per session.
+   * Avg conversation time / sessions per month → already in `therapeutic_sessions`.
+   * Distribution heavy/light users & churn → derive buckets by sessions/month; mark churn by 30/45/60-day inactivity.
+   * Segment performance → join with your subscription tier or segment table later.
+
+---
+
+## Why this fixes “mechanical”
+
+* The **spoken layer** is now free to be human.
+* The **tracking layer** is machine-tight in JSON.
+* HSFB & Crisis are **gated**, not default.
+* CSS remains the **center**: the only “hard” thing is the `<meta>`.
+
+If you want, I can also add a tiny server middleware to **validate `<meta>`** against a JSON schema before saving (so nothing corrupts your analytics).
