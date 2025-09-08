@@ -34,7 +34,6 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 ├── server/                          # Express backend
 │   ├── routes/
 │   │   ├── auth-routes.ts          # User auth & context
-│   │   ├── vapi-routes.ts          # VAPI config endpoints
 │   │   └── webhook-routes.ts       # VAPI webhook handler
 │   ├── services/
 │   │   ├── orchestration-service.ts # Session management + meta parsing
