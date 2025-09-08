@@ -11,6 +11,19 @@ const router = Router();
 
 router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI webhook received:', req.body.message?.type);
+  
+  // ADD THIS DEBUG BLOCK
+  console.log('🔍 Available imports check:');
+  try {
+    const { initializeSession, processTranscript, processEndOfCall } = await import('../services/orchestration-service');
+    console.log('✅ Orchestration service imported successfully');
+    console.log('✅ Functions available:', { 
+      initializeSession: typeof initializeSession, 
+      processTranscript: typeof processTranscript 
+    });
+  } catch (error) {
+    console.error('❌ Failed to import orchestration service:', error);
+  }
 
   try {
     if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
@@ -44,14 +57,21 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'conversation-update':
+        console.log('🔍 ENTERING conversation-update case'); // ADD THIS
+        console.log('📝 Message conversation length:', message?.conversation?.length);
+        
         // Process latest user message for CSS patterns
         if (message?.conversation) {
           const lastUserMessage = message.conversation
             .filter((m: any) => m.role === 'user')
             .pop();
 
+          console.log('👤 Last user message found:', !!lastUserMessage?.content);
+
           if (lastUserMessage?.content) {
+            console.log('🚀 Calling processTranscript with:', lastUserMessage.content.substring(0, 50));
             await processTranscript(callId, lastUserMessage.content, 'user');
+            console.log('✅ processTranscript completed');
           }
         }
         break;
