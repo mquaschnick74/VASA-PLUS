@@ -8,8 +8,10 @@ const router = Router();
 
 // VAPI webhook handler
 router.post('/webhook', async (req, res) => {
+  console.log('🚨🚨🚨 WEBHOOK RECEIVED 🚨🚨🚨');
   console.log('📥 VAPI webhook received:', JSON.stringify(req.body, null, 2));
   console.log('🔍 Event type:', req.body.message?.type);
+  console.log('🚨🚨🚨 END WEBHOOK LOG 🚨🚨🚨');
   try {
     // Verify webhook signature if in production
     if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
