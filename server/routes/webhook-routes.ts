@@ -122,10 +122,10 @@ router.post('/webhook', async (req, res) => {
                                    message?.assistant?.metadata?.agentName ||
                                    'Sarah';
           
-          // Handle missing duration with fallback
+          // Handle missing or zero duration with fallback
           let duration = message?.call?.duration || 0;
-          if (!message?.call?.duration) {
-            console.warn('⚠️ No duration provided, using default 60 seconds');
+          if (!duration || duration === 0) {
+            console.warn('⚠️ No duration or zero duration provided, using default 60 seconds');
             duration = 60; // fallback duration
           }
           
@@ -150,9 +150,13 @@ router.post('/webhook', async (req, res) => {
           }
         } else {
           // Update existing session with end time and duration
-          const duration = message?.call?.duration || 0;
+          let duration = message?.call?.duration || 0;
+          if (!duration || duration === 0) {
+            console.warn('⚠️ No duration or zero duration for update, using default 60 seconds');
+            duration = 60; // fallback duration
+          }
           
-          await supabase
+          const { error: updateError } = await supabase
             .from('therapeutic_sessions')
             .update({
               status: 'completed',
@@ -161,6 +165,12 @@ router.post('/webhook', async (req, res) => {
               metadata: message.call
             })
             .eq('call_id', callId);
+          
+          if (updateError) {
+            console.error('❌ Session update failed:', updateError);
+          } else {
+            console.log('✅ Session updated with duration:', duration);
+          }
         }
 
         // Store call summary as context
