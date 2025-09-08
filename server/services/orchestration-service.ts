@@ -2,6 +2,7 @@
 import { detectCSSPatterns, assessPatternConfidence } from './css-pattern-service';
 import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
+import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
 
 interface SessionState {
   userId: string;
@@ -162,10 +163,50 @@ export async function processTranscript(
     session = ensuredSession || undefined;
   }
   
-  if (!session || role !== 'user') {
-    if (!session) {
-      console.log(`⚠️ Cannot process transcript: no session for ${callId}`);
+  if (!session) {
+    console.log(`⚠️ Cannot process transcript: no session for ${callId}`);
+    return;
+  }
+  
+  // Handle assistant messages with new speak/meta parsing
+  if (role === 'assistant') {
+    const parsed = parseAssistantOutput(transcript);
+    
+    // Extract CSS stage from metadata if available
+    const metaStage = extractCSSStage(parsed.meta);
+    if (metaStage && metaStage !== 'NONE') {
+      session.currentCSSStage = metaStage.toLowerCase();
+      console.log(`📊 Assistant meta CSS stage: ${metaStage}`);
     }
+    
+    // Store metadata in database if present
+    if (parsed.meta) {
+      await supabase
+        .from('css_patterns')
+        .insert({
+          call_id: callId,
+          stage: parsed.meta.css?.stage || 'NONE',
+          register: parsed.meta.register || 'undetermined',
+          confidence: parsed.meta.css?.confidence || 0,
+          safety_flag: parsed.meta.safety?.flag || false,
+          crisis_flag: parsed.meta.safety?.crisis || false,
+          hsfb_invoked: parsed.meta.hsfb?.invoked || false,
+          detected_at: new Date().toISOString()
+        });
+        
+      // Check for safety interventions
+      if (needsSafetyIntervention(parsed.meta)) {
+        console.log(`🚨 Safety intervention triggered: ${parsed.meta.safety?.reason}`);
+        // TODO: Trigger safety protocol workflow
+      }
+    }
+    
+    // Don't store assistant transcripts individually
+    return;
+  }
+  
+  // Process user transcripts as before
+  if (role !== 'user') {
     return;
   }
 

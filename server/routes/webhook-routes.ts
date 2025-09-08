@@ -54,14 +54,24 @@ router.post('/webhook', async (req, res) => {
           break;
         }
         
-        // Process latest user message for CSS patterns
+        // Process both user and assistant messages for CSS patterns
         if (message?.conversation) {
+          // Process the last user message
           const lastUserMessage = message.conversation
             .filter((m: any) => m.role === 'user')
             .pop();
 
           if (lastUserMessage?.content) {
             await processTranscript(callId, lastUserMessage.content, 'user', userId, agentName);
+          }
+          
+          // Also process the last assistant message for metadata
+          const lastAssistantMessage = message.conversation
+            .filter((m: any) => m.role === 'assistant')
+            .pop();
+            
+          if (lastAssistantMessage?.content) {
+            await processTranscript(callId, lastAssistantMessage.content, 'assistant', userId, agentName);
           }
         }
         break;
