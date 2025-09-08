@@ -9,6 +9,7 @@ const router = Router();
 // VAPI webhook handler
 router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI webhook received:', JSON.stringify(req.body, null, 2));
+  console.log('🔍 Event type:', req.body.message?.type);
   try {
     // Verify webhook signature if in production
     if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
@@ -71,6 +72,8 @@ router.post('/webhook', async (req, res) => {
                          message?.assistant?.metadata?.agentName ||
                          'Sarah'; // Default fallback
         
+        console.log('🚀 Creating session:', { userId, callId, agentName });
+        
         // Create or update session
         const { data: sessionData, error: sessionError } = await supabase
           .from('therapeutic_sessions')
@@ -83,12 +86,13 @@ router.post('/webhook', async (req, res) => {
             metadata: message.call
           }, {
             onConflict: 'call_id'
-          });
+          })
+          .select(); // Add .select() to see what was inserted
         
         if (sessionError) {
-          console.error('❌ Session creation failed:', sessionError);
+          console.error('❌ Session creation FAILED:', sessionError);
         } else {
-          console.log('✅ Session started:', sessionData);
+          console.log('✅ Session created:', sessionData);
         }
         break;
 
