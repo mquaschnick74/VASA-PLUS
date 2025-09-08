@@ -145,6 +145,9 @@ router.post('/webhook', async (req, res) => {
                 content: cvdc,
                 css_stage: 'focus_bind',
                 pattern_type: 'CVDC',
+                contradiction_content: cvdc.includes('but') 
+                  ? cvdc.split('but').map(s => s.trim()).join(' BUT ') 
+                  : cvdc,
                 confidence: confidence,
                 importance: 8
               });
@@ -275,6 +278,9 @@ router.post('/webhook', async (req, res) => {
                   content: cvdc,
                   css_stage: 'focus_bind',
                   pattern_type: 'CVDC',
+                  contradiction_content: cvdc.includes('but') 
+                    ? cvdc.split('but').map(s => s.trim()).join(' BUT ') 
+                    : cvdc,
                   confidence: confidence,
                   importance: 8
                 });

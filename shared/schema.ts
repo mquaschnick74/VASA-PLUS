@@ -36,6 +36,7 @@ export const therapeuticContext = pgTable("therapeutic_context", {
   content: text("content").notNull(),
   css_stage: text("css_stage"),
   pattern_type: text("pattern_type"),
+  contradiction_content: text("contradiction_content"),
   confidence: real("confidence").default(0.8),
   importance: integer("importance").default(5),
   created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
