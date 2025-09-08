@@ -30,11 +30,10 @@ export async function buildMemoryContext(userId: string): Promise<string> {
 
     // Get CSS-specific patterns
     const { data: cssPatterns } = await supabase
-      .from('therapeutic_context')
-      .select('css_stage, pattern_type, content')
+      .from('css_patterns')
+      .select('css_stage, pattern_type, content, extracted_contradiction')
       .eq('user_id', userId)
-      .not('pattern_type', 'is', null)
-      .order('created_at', { ascending: false })
+      .order('detected_at', { ascending: false })
       .limit(3);
 
     // Format memory context
@@ -66,7 +65,8 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       
       const cvdcPattern = cssPatterns.find(p => p.pattern_type === 'CVDC');
       if (cvdcPattern) {
-        memoryContext += `Key contradiction: "${cvdcPattern.content}" `;
+        const contradiction = cvdcPattern.extracted_contradiction || cvdcPattern.content;
+        memoryContext += `Key contradiction: "${contradiction}" `;
       }
     }
 
