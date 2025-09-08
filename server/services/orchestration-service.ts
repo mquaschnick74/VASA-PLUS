@@ -9,6 +9,7 @@ interface SessionState {
   agentName: string;
   currentCSSStage: string;
   sessionStartTime: Date;
+  processedTranscripts: Set<string>; // Track processed transcript hashes
 }
 
 // Two-tier cache system
@@ -94,7 +95,8 @@ async function ensureSessionInternal(
       callId,
       agentName: existing.agent_name,
       currentCSSStage: 'pointed_origin',
-      sessionStartTime: new Date(existing.start_time)
+      sessionStartTime: new Date(existing.start_time),
+      processedTranscripts: new Set()
     };
     activeSessions.set(callId, session);
     return session;
@@ -121,7 +123,8 @@ export async function initializeSession(
     callId,
     agentName,
     currentCSSStage: 'pointed_origin',
-    sessionStartTime: new Date()
+    sessionStartTime: new Date(),
+    processedTranscripts: new Set()
   };
 
   activeSessions.set(callId, session);
@@ -166,7 +169,15 @@ export async function processTranscript(
     return;
   }
 
-  // Store transcript
+  // Check if we've already processed this exact transcript
+  const transcriptHash = Buffer.from(transcript).toString('base64').substring(0, 50);
+  if (session.processedTranscripts.has(transcriptHash)) {
+    console.log(`⏭️ Skipping duplicate transcript for ${callId}`);
+    return;
+  }
+  session.processedTranscripts.add(transcriptHash);
+
+  // Store transcript (only new ones)
   await supabase
     .from('session_transcripts')
     .insert({
@@ -241,7 +252,8 @@ export async function processEndOfCall(
         callId,
         agentName,
         currentCSSStage: 'pointed_origin',
-        sessionStartTime: new Date(Date.now() - (duration * 1000))
+        sessionStartTime: new Date(Date.now() - (duration * 1000)),
+        processedTranscripts: new Set()
       };
     } else {
       session = {
@@ -249,7 +261,8 @@ export async function processEndOfCall(
         callId,
         agentName: dbSession.agent_name,
         currentCSSStage: 'pointed_origin',
-        sessionStartTime: new Date()
+        sessionStartTime: new Date(),
+        processedTranscripts: new Set()
       };
     }
   }

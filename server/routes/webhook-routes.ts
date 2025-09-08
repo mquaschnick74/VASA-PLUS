@@ -12,20 +12,6 @@ const router = Router();
 
 router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI webhook received:', req.body.message?.type);
-  
-  // ADD THIS DEBUG BLOCK
-  console.log('🔍 Available imports check:');
-  try {
-    const { initializeSession, processTranscript, processEndOfCall, ensureSession } = await import('../services/orchestration-service');
-    console.log('✅ Orchestration service imported successfully');
-    console.log('✅ Functions available:', { 
-      initializeSession: typeof initializeSession, 
-      processTranscript: typeof processTranscript,
-      ensureSession: typeof ensureSession 
-    });
-  } catch (error) {
-    console.error('❌ Failed to import orchestration service:', error);
-  }
 
   try {
     if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
@@ -59,8 +45,7 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'conversation-update':
-        console.log('🔍 ENTERING conversation-update case');
-        console.log('📝 Message conversation length:', message?.conversation?.length);
+        // Process conversation update
         
         // Ensure session exists (handles missing call-started events)
         const session = await ensureSession(callId, userId, agentName);
@@ -68,7 +53,6 @@ router.post('/webhook', async (req, res) => {
           console.warn(`⚠️ Cannot process conversation-update: failed to ensure session for ${callId}`);
           break;
         }
-        console.log(`✔️ Session ensured for ${callId}`);
         
         // Process latest user message for CSS patterns
         if (message?.conversation) {
@@ -76,12 +60,8 @@ router.post('/webhook', async (req, res) => {
             .filter((m: any) => m.role === 'user')
             .pop();
 
-          console.log('👤 Last user message found:', !!lastUserMessage?.content);
-
           if (lastUserMessage?.content) {
-            console.log('🚀 Calling processTranscript with:', lastUserMessage.content.substring(0, 50));
             await processTranscript(callId, lastUserMessage.content, 'user', userId, agentName);
-            console.log('✅ processTranscript completed');
           }
         }
         break;
