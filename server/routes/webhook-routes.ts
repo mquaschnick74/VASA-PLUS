@@ -114,6 +114,13 @@ router.post('/webhook', async (req, res) => {
                                    message?.assistant?.metadata?.agentName ||
                                    'Sarah';
           
+          // Handle missing duration with fallback
+          let duration = message?.call?.duration || 0;
+          if (!message?.call?.duration) {
+            console.warn('⚠️ No duration provided, using default 60 seconds');
+            duration = 60; // fallback duration
+          }
+          
           const { data: newSessionData, error: newSessionError } = await supabase
             .from('therapeutic_sessions')
             .insert({
@@ -121,9 +128,9 @@ router.post('/webhook', async (req, res) => {
               user_id: userId,
               agent_name: agentNameFromReport,
               status: 'completed', // Already completed since this is end-of-call
-              start_time: new Date(Date.now() - (message?.call?.duration * 1000 || 0)).toISOString(),
+              start_time: new Date(Date.now() - (duration * 1000)).toISOString(),
               end_time: new Date().toISOString(),
-              duration_seconds: message?.call?.duration || 0,
+              duration_seconds: duration,
               metadata: message.call
             })
             .select();
