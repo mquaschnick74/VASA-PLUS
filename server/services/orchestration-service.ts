@@ -177,16 +177,9 @@ export async function processTranscript(
   }
   session.processedTranscripts.add(transcriptHash);
 
-  // Store transcript (only new ones)
-  await supabase
-    .from('session_transcripts')
-    .insert({
-      user_id: session.userId,
-      call_id: callId,
-      text: transcript,
-      role: role
-    });
-
+  // Don't store individual transcripts - only detect patterns
+  // Full transcript will be stored at end-of-call
+  
   // Always detect CSS patterns regardless of emotional state
   const patterns = detectCSSPatterns(transcript, false);
 
@@ -301,6 +294,7 @@ async function processFullTranscript(session: SessionState, transcript: string):
   console.log(`  CSS Stage: ${patterns.currentStage}`);
   console.log(`  Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}`);
 
+  // Store the complete transcript (this is the only transcript we store)
   await supabase
     .from('session_transcripts')
     .insert({
