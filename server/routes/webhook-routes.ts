@@ -4,7 +4,8 @@ import crypto from 'crypto';
 import { 
   initializeSession, 
   processTranscript, 
-  processEndOfCall
+  processEndOfCall,
+  ensureSession
 } from '../services/orchestration-service';
 
 const router = Router();
@@ -15,11 +16,12 @@ router.post('/webhook', async (req, res) => {
   // ADD THIS DEBUG BLOCK
   console.log('🔍 Available imports check:');
   try {
-    const { initializeSession, processTranscript, processEndOfCall } = await import('../services/orchestration-service');
+    const { initializeSession, processTranscript, processEndOfCall, ensureSession } = await import('../services/orchestration-service');
     console.log('✅ Orchestration service imported successfully');
     console.log('✅ Functions available:', { 
       initializeSession: typeof initializeSession, 
-      processTranscript: typeof processTranscript 
+      processTranscript: typeof processTranscript,
+      ensureSession: typeof ensureSession 
     });
   } catch (error) {
     console.error('❌ Failed to import orchestration service:', error);
@@ -57,8 +59,16 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'conversation-update':
-        console.log('🔍 ENTERING conversation-update case'); // ADD THIS
+        console.log('🔍 ENTERING conversation-update case');
         console.log('📝 Message conversation length:', message?.conversation?.length);
+        
+        // Ensure session exists (handles missing call-started events)
+        const session = await ensureSession(callId, userId, agentName);
+        if (!session) {
+          console.warn(`⚠️ Cannot process conversation-update: failed to ensure session for ${callId}`);
+          break;
+        }
+        console.log(`✔️ Session ensured for ${callId}`);
         
         // Process latest user message for CSS patterns
         if (message?.conversation) {
@@ -70,7 +80,7 @@ router.post('/webhook', async (req, res) => {
 
           if (lastUserMessage?.content) {
             console.log('🚀 Calling processTranscript with:', lastUserMessage.content.substring(0, 50));
-            await processTranscript(callId, lastUserMessage.content, 'user');
+            await processTranscript(callId, lastUserMessage.content, 'user', userId, agentName);
             console.log('✅ processTranscript completed');
           }
         }
@@ -81,7 +91,9 @@ router.post('/webhook', async (req, res) => {
         const role = message?.transcript?.role || 'user';
 
         if (transcript) {
-          await processTranscript(callId, transcript, role);
+          // Ensure session exists before processing
+          await ensureSession(callId, userId, agentName);
+          await processTranscript(callId, transcript, role, userId, agentName);
         }
         break;
 

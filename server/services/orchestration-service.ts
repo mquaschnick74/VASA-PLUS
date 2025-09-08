@@ -11,7 +11,105 @@ interface SessionState {
   sessionStartTime: Date;
 }
 
+// Two-tier cache system
 const activeSessions = new Map<string, SessionState>();
+const checkedSessions = new Set<string>(); // Track which sessions we've already checked in DB
+const initializationLocks = new Map<string, Promise<SessionState | null>>(); // Prevent race conditions
+
+// Cleanup stale sessions every 30 minutes
+setInterval(() => {
+  const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+  const staleCallIds: string[] = [];
+  
+  activeSessions.forEach((session, callId) => {
+    if (session.sessionStartTime.getTime() < twoHoursAgo) {
+      staleCallIds.push(callId);
+    }
+  });
+  
+  staleCallIds.forEach(callId => {
+    console.log(`🧹 Cleaning up stale session: ${callId}`);
+    activeSessions.delete(callId);
+    checkedSessions.delete(callId);
+  });
+}, 30 * 60 * 1000);
+
+/**
+ * Ensures a session exists, initializing if necessary
+ * Handles server restarts and missing call-started events efficiently
+ */
+export async function ensureSession(
+  callId: string,
+  userId?: string,
+  agentName?: string
+): Promise<SessionState | null> {
+  // Fast path: already active
+  if (activeSessions.has(callId)) {
+    return activeSessions.get(callId)!;
+  }
+  
+  // If initialization is already in progress, wait for it
+  if (initializationLocks.has(callId)) {
+    return await initializationLocks.get(callId)!;
+  }
+  
+  // Start initialization with lock
+  const initPromise = ensureSessionInternal(callId, userId, agentName);
+  initializationLocks.set(callId, initPromise);
+  
+  try {
+    const result = await initPromise;
+    return result;
+  } finally {
+    initializationLocks.delete(callId);
+  }
+}
+
+async function ensureSessionInternal(
+  callId: string,
+  userId?: string,
+  agentName?: string
+): Promise<SessionState | null> {
+  // Avoid repeated DB checks for non-existent sessions
+  if (checkedSessions.has(callId)) {
+    console.log(`⚠️ Session ${callId} already checked, not found in DB`);
+    return null;
+  }
+  
+  // Mark as checked
+  checkedSessions.add(callId);
+  
+  // Check database once
+  const { data: existing } = await supabase
+    .from('therapeutic_sessions')
+    .select('user_id, agent_name, start_time')
+    .eq('call_id', callId)
+    .single();
+  
+  if (existing) {
+    console.log(`♻️ Restored session from DB: ${callId}`);
+    // Restore to active sessions
+    const session: SessionState = {
+      userId: existing.user_id,
+      callId,
+      agentName: existing.agent_name,
+      currentCSSStage: 'pointed_origin',
+      sessionStartTime: new Date(existing.start_time)
+    };
+    activeSessions.set(callId, session);
+    return session;
+  }
+  
+  // Need userId to create new session
+  if (!userId) {
+    console.warn(`❌ Cannot create session ${callId}: no userId provided`);
+    return null;
+  }
+  
+  // Initialize new session
+  console.log(`🆕 Creating new session: ${callId}`);
+  return await initializeSession(userId, callId, agentName || 'Unknown');
+}
 
 export async function initializeSession(
   userId: string,
@@ -27,6 +125,7 @@ export async function initializeSession(
   };
 
   activeSessions.set(callId, session);
+  checkedSessions.add(callId); // Mark as checked/exists
 
   await supabase
     .from('therapeutic_sessions')
@@ -40,17 +139,32 @@ export async function initializeSession(
       onConflict: 'call_id'
     });
 
-  console.log(`Session initialized: ${callId}`);
+  console.log(`✅ Session initialized: ${callId} for user ${userId}`);
   return session;
 }
 
 export async function processTranscript(
   callId: string,
   transcript: string,
-  role: string
+  role: string,
+  userId?: string,
+  agentName?: string
 ): Promise<void> {
-  const session = activeSessions.get(callId);
-  if (!session || role !== 'user') return;
+  // Try to ensure session exists (defensive programming)
+  let session = activeSessions.get(callId);
+  
+  if (!session && userId) {
+    console.log(`🔧 Auto-initializing session from processTranscript for ${callId}`);
+    const ensuredSession = await ensureSession(callId, userId, agentName);
+    session = ensuredSession || undefined;
+  }
+  
+  if (!session || role !== 'user') {
+    if (!session) {
+      console.log(`⚠️ Cannot process transcript: no session for ${callId}`);
+    }
+    return;
+  }
 
   // Store transcript
   await supabase
@@ -66,7 +180,9 @@ export async function processTranscript(
   const patterns = detectCSSPatterns(transcript, false);
 
   if (patterns.currentStage !== session.currentCSSStage) {
-    console.log(`CSS Stage progression: ${session.currentCSSStage} → ${patterns.currentStage}`);
+    console.log(`🎯 CSS Stage progression: ${session.currentCSSStage} → ${patterns.currentStage}`);
+    
+    const previousStage = session.currentCSSStage;
     session.currentCSSStage = patterns.currentStage;
 
     await supabase
@@ -74,7 +190,7 @@ export async function processTranscript(
       .insert({
         user_id: session.userId,
         call_id: callId,
-        from_stage: session.currentCSSStage,
+        from_stage: previousStage,
         to_stage: patterns.currentStage,
         trigger_content: transcript.substring(0, 200),
         agent_name: session.agentName
@@ -158,15 +274,17 @@ export async function processEndOfCall(
     await storeSessionContext(session.userId, callId, summary, 'call_summary');
   }
 
+  // Cleanup from both caches
   activeSessions.delete(callId);
-  console.log(`Session completed: ${callId}`);
+  checkedSessions.delete(callId);
+  console.log(`✅ Session completed and cleaned up: ${callId}`);
 }
 
 async function processFullTranscript(session: SessionState, transcript: string): Promise<void> {
   const patterns = detectCSSPatterns(transcript, true);
   const { confidence, reasoning } = assessPatternConfidence(patterns);
 
-  console.log(`Full transcript analysis:`);
+  console.log(`📊 Full transcript analysis:`);
   console.log(`  CSS Stage: ${patterns.currentStage}`);
   console.log(`  Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}`);
 
@@ -251,5 +369,6 @@ async function storeCSSPatterns(session: SessionState, patterns: any): Promise<v
 
   if (patternInserts.length > 0) {
     await supabase.from('css_patterns').insert(patternInserts);
+    console.log(`💾 Stored ${patternInserts.length} CSS patterns`);
   }
 }
