@@ -1,0 +1,63 @@
+**Yes**, you need to modify these files to implement the `css_patterns` table:
+
+## 1. Add to schema.ts (Drizzle definition):
+```typescript
+// CSS patterns table for clean pattern storage
+export const cssPatterns = pgTable("css_patterns", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  call_id: text("call_id").notNull(),
+  pattern_type: varchar("pattern_type", { length: 20 }).notNull(), // CVDC, IBM, Thend, CYVC
+  content: text("content").notNull(), // Full pattern text
+  extracted_contradiction: text("extracted_contradiction"), // For CVDC: "X BUT Y"
+  behavioral_gap: text("behavioral_gap"), // For IBM: "want X, do Y"
+  css_stage: varchar("css_stage", { length: 50 }),
+  confidence: real("confidence").default(0.8),
+  detected_at: timestamp("detected_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+});
+
+export const insertCssPatternsSchema = createInsertSchema(cssPatterns).omit({
+  id: true,
+  detected_at: true,
+});
+```
+
+## 2. Modify webhook-routes.ts:
+Change all pattern inserts from `therapeutic_context` to `css_patterns` table with proper fields:
+```typescript
+// Instead of therapeutic_context, insert into css_patterns
+await supabase
+  .from('css_patterns')
+  .insert({
+    user_id: userId,
+    call_id: callId,
+    pattern_type: 'CVDC',
+    content: cvdc,
+    extracted_contradiction: cvdc.includes('but') 
+      ? cvdc.split('but').map(s => s.trim()).join(' BUT ')
+      : cvdc,
+    css_stage: 'focus_bind',
+    confidence: confidence
+  });
+```
+
+## 3. Update memory-service.ts:
+Query from `css_patterns` instead of `therapeutic_context` for pattern data.
+
+## 4. Run Drizzle migration or SQL directly in Supabase:
+```sql
+CREATE TABLE css_patterns (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  call_id TEXT NOT NULL,
+  pattern_type VARCHAR(20) NOT NULL,
+  content TEXT NOT NULL,
+  extracted_contradiction TEXT,
+  behavioral_gap TEXT,
+  css_stage VARCHAR(50),
+  confidence REAL DEFAULT 0.8,
+  detected_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+```
+
+This separates patterns from general context, eliminating null fields and making the data model cleaner.
