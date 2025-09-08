@@ -99,12 +99,20 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'end-of-call-report':
+        console.log(`🔍 Checking for existing session with call_id: ${callId}`);
+        
         // Create session if it doesn't exist (VAPI doesn't send conversation-update)
-        const { data: existingSessionForReport } = await supabase
+        const { data: existingSessionForReport, error: checkError } = await supabase
           .from('therapeutic_sessions')
           .select('id')
           .eq('call_id', callId)
           .single();
+        
+        console.log(`🔍 Existing session check result:`, { 
+          found: !!existingSessionForReport, 
+          error: checkError?.message,
+          data: existingSessionForReport 
+        });
         
         if (!existingSessionForReport) {
           console.log('🚀 Creating session from end-of-call-report (no conversation-update received)');
