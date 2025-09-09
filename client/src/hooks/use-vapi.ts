@@ -49,11 +49,36 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         setVapi(vapiInstance);
 
         vapiInstance.on('call-start', (event?: any) => {
-          console.log('✅ Call started');
+          console.log('✅ Call started - FULL EVENT:', event);
+          
+          // Try multiple paths to extract call ID
+          const possiblePaths = [
+            event?.call?.id,
+            event?.callId,
+            event?.id,
+            event?.data?.callId,
+            event?.data?.call?.id,
+            event?.metadata?.callId
+          ];
+          
+          console.log('📞 Possible call ID paths:', possiblePaths);
+          
+          const extractedCallId = possiblePaths.find(id => id && typeof id === 'string') || '';
+          
+          if (!extractedCallId) {
+            console.error('❌ NO CALL ID FOUND IN EVENT!', event);
+            // Generate a temporary ID if none found
+            const tempId = `temp-${Date.now()}`;
+            console.warn('⚠️ Using temporary call ID:', tempId);
+            setCallId(tempId);
+          } else {
+            console.log('✅ Call ID extracted:', extractedCallId);
+            setCallId(extractedCallId);
+          }
+          
           setIsSessionActive(true);
           setConnectionStatus('connected');
           setIsLoading(false);
-          setCallId(event?.call?.id || '');
         });
 
         vapiInstance.on('call-end', () => {
@@ -62,6 +87,8 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
           setConnectionStatus('disconnected');
           setCallId('');
           setActiveMethodology(selectedAgent.id);
+          // Clear applied guidance on call end
+          appliedGuidanceRef.current.clear();
         });
 
         vapiInstance.on('error', (error: any) => {
@@ -69,6 +96,15 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
           setIsLoading(false);
           setConnectionStatus('disconnected');
         });
+        
+        // Also listen for message events which might contain call ID
+        vapiInstance.on('message', (message: any) => {
+          if (message?.call?.id && !callId) {
+            console.log('📞 Call ID found in message event:', message.call.id);
+            setCallId(message.call.id);
+          }
+        });
+        
       } catch (error) {
         console.error('Failed to initialize VAPI:', error);
         setConnectionStatus('disconnected');
