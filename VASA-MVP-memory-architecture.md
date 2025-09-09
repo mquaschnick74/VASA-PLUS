@@ -1,97 +1,84 @@
 # VASA Memory Architecture
 
 ## Overview
-Multi-layered memory system providing persistent therapeutic context across voice sessions through CSS pattern detection, register tracking, and intelligent context building with natural voice agent system v3.
+Multi-layered memory system with persistent therapeutic context, invisible agent orchestration, CSS pattern detection, and intelligent context building across voice sessions.
 
 ## Database Schema
 
 ### Core Tables
 
-#### `users`
 ```sql
-id (uuid)          # Primary key
-email (text)       # Unique identifier  
-first_name (text)  # Optional personalization
-created_at         # Registration timestamp
+users                    # User profiles (id, email, first_name)
+therapeutic_sessions     # Voice sessions (call_id, agent_name, status)
+therapeutic_context      # Memory & insights (type, content, confidence)
+css_patterns            # Pattern detection (stage, register, confidence)
+session_transcripts     # Full conversations (end-of-call only)
 ```
 
-#### `therapeutic_sessions`
-```sql
-id (uuid)               # Primary key
-user_id (uuid)          # User reference
-call_id (text)          # VAPI session ID
-agent_name (text)       # Sarah/Mathew
-status (text)           # active/completed
-start_time, end_time    # Session timing
-duration_seconds        # Call length
-metadata (jsonb)        # Additional data
-```
+### Key Fields
 
 #### `therapeutic_context`
-```sql
-id (uuid)              # Primary key
-user_id (uuid)         # User reference
-call_id (text)         # Session link
-context_type (text)    # insight/pattern/summary
-content (text)         # Therapeutic observation
-metadata (jsonb)       # CSS stage, patterns
-confidence (numeric)   # 0.0-1.0 reliability
-created_at            # Timestamp
-```
+- **Types**: insight, pattern, summary, methodology_switch
+- **Content**: Therapeutic observations, switch records (Sarah→Mathew)
+- **Metadata**: CSS stages, patterns, orchestration data
+- **Confidence**: 0.0-1.0 reliability score
 
 #### `css_patterns`
-```sql
-id (uuid)              # Primary key
-call_id (text)         # Session reference
-stage (text)           # CVDC/IBM/THEND/CYVC/NONE
-register (text)        # symbolic/imaginary/real
-confidence (numeric)   # Detection confidence
-safety_flag (boolean)  # Crisis indicator
-crisis_flag (boolean)  # Active crisis
-hsfb_invoked (boolean) # HSFB process used
-detected_at           # Pattern timestamp
-```
-
-#### `session_transcripts`
-```sql
-id (uuid)         # Primary key
-user_id (uuid)    # User reference
-call_id (text)    # Session ID
-text (text)       # Full conversation
-role (text)       # 'complete' (end-of-call only)
-created_at        # Storage timestamp
-```
+- **Stage**: CVDC/IBM/THEND/CYVC/NONE
+- **Register**: symbolic/imaginary/real
+- **Safety**: crisis_flag, safety_flag, hsfb_invoked
+- **Orchestration**: suggested_agent, switch_reason
 
 ## Memory Flow Architecture
 
 ### 1. Real-Time Processing
 ```
-User Speech → VAPI Webhook → Pattern Detection → Metadata Storage
-                    ↓
-            Assistant Response
-                    ↓
-            Parse <speak>/<meta> tags → Store metadata
+User Speech → VAPI Webhook → Pattern Detection → Memory Storage
+     ↓              ↓                ↓              ↓
+Agent Response → Parse Tags → Orchestration → Silent Switching
 ```
 
-### 2. Session Management
+### 2. Invisible Orchestration Memory
 ```typescript
-// Two-tier cache system
-activeSessions: Map<callId, SessionState>     // In-memory
-checkedSessions: Set<callId>                  // DB lookup cache
-initializationLocks: Map<callId, Promise>     // Race protection
-
-// Session state
-SessionState {
-  userId: string
-  callId: string
-  currentCSSStage: string
-  processedTranscripts: Set<string>  // Deduplication
+// Orchestration state tracked in memory
+OrchestrationState {
+  currentMethodology: 'sarah' | 'mathew' | 'marcus'
+  suggestedAgent: string
+  lastSwitchTime: Date
+  switchHistory: Array<{from, to, reason, timestamp}>
+  patterns: {cvdc: 0, ibm: 0, thend: 0, cyvc: 0}
 }
 ```
 
-### 3. Pattern Detection
+### 3. Session Management
 ```typescript
-// Agent response format (v3)
+activeSessions: Map<callId, SessionState>     // In-memory cache
+checkedSessions: Set<callId>                  // DB lookup cache
+initializationLocks: Map<callId, Promise>     // Race protection
+```
+
+## Agent System v3 with Orchestration
+
+### Three Therapeutic Methodologies
+- **Sarah** - Emotional support (CVDC patterns)
+- **Mathew** - Analytical patterns (IBM gaps)
+- **Marcus** - Integration & meta-awareness (Thend/synthesis)
+
+### Memory-Aware Agent Switching
+```typescript
+// Silent methodology updates preserve context
+systemPrompt += `
+===== SESSION HISTORY =====
+${memoryContext}
+===== CURRENT FOCUS =====
+Continue naturally without indicating any change.
+Maintain therapeutic thread from previous responses.
+===== END CONTEXT =====
+`;
+```
+
+### Natural Voice Format
+```typescript
 <speak>
 Natural therapeutic conversation
 </speak>
@@ -100,12 +87,11 @@ Natural therapeutic conversation
   "register": "symbolic|imaginary|real",
   "css": {
     "stage": "CVDC|SUSPENSION|THEND|CYVC",
-    "evidence": ["user quotes"],
     "confidence": 0.85
   },
-  "safety": {
-    "flag": false,
-    "crisis": false
+  "orchestration": {
+    "suggestAgent": "mathew",  // Backend suggestion
+    "reason": "ibm_pattern_detected"
   }
 }
 </meta>
@@ -113,218 +99,181 @@ Natural therapeutic conversation
 
 ## Memory Building Process
 
-### `buildTherapeuticContext(userId)` Function
+### Context Generation (`buildTherapeuticContext`)
 
-#### 1. Fetch Recent Sessions
+1. **Fetch Recent Data**
 ```sql
-SELECT * FROM therapeutic_sessions 
-WHERE user_id = $1 
-ORDER BY start_time DESC 
-LIMIT 5
-```
-
-#### 2. Fetch CSS Patterns
-```sql
-SELECT DISTINCT ON (stage) * FROM css_patterns
-WHERE call_id IN (recent_sessions)
-ORDER BY stage, confidence DESC
-```
-
-#### 3. Fetch Context History
-```sql
-SELECT * FROM therapeutic_context
+-- Last 5 sessions + CSS patterns + therapeutic insights
+SELECT sessions, patterns, context 
 WHERE user_id = $1 AND confidence > 0.5
 ORDER BY created_at DESC
-LIMIT 10
 ```
 
-#### 4. Generate Memory Context
+2. **Include Orchestration History**
+```sql
+-- Methodology switches for continuity
+SELECT content FROM therapeutic_context
+WHERE context_type = 'methodology_switch'
+AND user_id = $1
+ORDER BY created_at DESC LIMIT 3
+```
+
+3. **Generate Comprehensive Context**
 ```typescript
 return `
-You have had ${sessionCount} sessions with ${firstName}.
+Sessions: ${sessionCount} with ${firstName}
+Current methodology: Continuing therapeutic approach
 
-Recent CSS patterns:
-- CVDC: "want connection but need space"
-- Register: Imaginary dominance
-- Stage progression: CVDC → Suspension
+CSS Patterns:
+- ${dominantPattern}: "${recentExample}"
+- Register: ${registerDominance}
+- Stage progression: ${stageHistory}
 
-Key therapeutic insights:
-${insights.map(i => `- ${i.content}`).join('\n')}
+Key insights:
+${insights.map(i => `- ${i.content}`)}
 
-Safety flags: ${hasCrisisHistory ? 'Previous crisis' : 'None'}
+Recent focus: ${lastMethodologyFocus}
+Safety: ${crisisHistory ? 'Previous crisis noted' : 'None'}
 `;
 ```
 
 ## CSS Pattern System
 
-### Pattern Types
-- **CVDC** - Contradictions ("want X but Y")
-- **IBM** - Intention-behavior gaps ("say X, do Y")
-- **Thend** - Therapeutic shifts ("something changed")
-- **CYVC** - Contextual choice ("sometimes X, other times Y")
+### Pattern Detection → Agent Mapping
+| Pattern | Agent | Trigger Threshold |
+|---------|-------|-------------------|
+| CVDC (contradictions) | Sarah | 3+ occurrences |
+| IBM (gaps) | Mathew | 5+ occurrences |
+| Thend (shifts) | Marcus | 2+ occurrences |
+| Crisis indicators | Sarah | Immediate |
 
-### Register Dominance
-- **Symbolic** - Over-intellectualizing, abstract
-- **Imaginary** - What-ifs, rumination, scenarios
-- **Real** - Immediate sensation, body-focused
-
-### Detection Flow
-```typescript
-// Real-time during conversation
-parseAssistantOutput(response) {
-  const { speak, meta } = extract(response);
-  
-  // Store metadata immediately
-  if (meta?.css?.stage) {
-    await storeCSSPattern(meta);
-  }
-  
-  // Check safety flags
-  if (meta?.safety?.crisis) {
-    triggerCrisisProtocol();
-  }
-  
-  return speak; // For TTS
-}
-```
+### Register Tracking
+- **Symbolic** - Intellectualizing → Mathew
+- **Imaginary** - Rumination → Sarah
+- **Real** - Body/sensation → Marcus
 
 ## Integration Points
 
 ### 1. User Context Loading
 ```typescript
-// client/src/components/voice-interface.tsx
-useEffect(() => {
-  fetch(`/api/auth/user-context/${userId}`)
-    .then(data => setUserContext(data));
-}, [userId]);
+// Initial memory injection
+fetch(`/api/auth/user-context/${userId}`)
+  .then(context => {
+    // Includes full history + orchestration state
+    setMemoryContext(context);
+  });
 ```
 
-### 2. Agent Configuration
+### 2. Invisible Orchestration Check
 ```typescript
-// client/src/hooks/use-vapi.ts
-const assistant = {
-  firstMessage: agent.firstMessageTemplate(firstName, hasMemory),
-  model: {
-    messages: [{
-      role: "system",
-      content: systemPrompt + memoryContext
-    }]
-  }
-};
+// Background methodology optimization (every 15s)
+fetch(`/api/orchestration/state/${callId}`)
+  .then(state => {
+    if (state.suggestedAgent && state.canSwitch) {
+      silentlyUpdateMethodology(state.suggestedAgent);
+    }
+  });
 ```
 
-### 3. Memory Injection
+### 3. Switch Recording
 ```typescript
-// Memory context added to agent prompt
-if (memoryContext?.length > 50) {
-  systemPrompt += `
-    ===== SESSION HISTORY =====
-    ${memoryContext}
-    ===== END HISTORY =====
-  `;
-}
+// Track methodology changes for continuity
+fetch('/api/orchestration/record-switch', {
+  method: 'POST',
+  body: { fromMethodology, toMethodology, reason }
+});
 ```
 
 ## Optimization Strategies
 
-### Transcript Storage
-- **During call**: Pattern detection only (no storage)
+### Efficient Storage
+- **During call**: Pattern detection only
 - **End-of-call**: Complete transcript stored once
 - **Deduplication**: Hash-based duplicate prevention
+- **Switch events**: Stored as context entries
 
 ### Cache Management
 ```typescript
-// 30-minute cleanup interval
-setInterval(() => {
-  const staleTime = Date.now() - (30 * 60 * 1000);
-  activeSessions.forEach((session, callId) => {
-    if (session.sessionStartTime < staleTime) {
-      activeSessions.delete(callId);
-      checkedSessions.delete(callId);
-    }
-  });
-}, 30 * 60 * 1000);
-```
+// 30-minute cleanup for stale sessions
+setInterval(cleanupStaleSessions, 30 * 60 * 1000);
 
-### Race Condition Protection
-```typescript
+// Promise-based race protection
 async function ensureSession(callId) {
-  // Check if already initializing
   if (initializationLocks.has(callId)) {
     return await initializationLocks.get(callId);
   }
-  
-  // Initialize with lock
   const promise = initializeSession(callId);
   initializationLocks.set(callId, promise);
-  
-  try {
-    return await promise;
-  } finally {
-    initializationLocks.delete(callId);
-  }
+  return await promise;
 }
 ```
-
-## Data Privacy & Deletion
-
-### Cascade Delete
-```sql
--- When user deleted, cascade removes:
-therapeutic_sessions → session_transcripts
-                   → css_patterns
-                   → therapeutic_context
-```
-
-### Data Retention
-- Active sessions: 30 minutes in cache
-- Database records: Persistent until user deletion
-- No external data sharing
 
 ## Memory Context Examples
 
 ### First Session
 ```
-Hello Frank, I'm Sarah. What feels most alive for you right now?
+Hello Frank. I'm curious what's most present for you today.
+[No history - establishing baseline]
 ```
 
-### Returning User
+### Returning User with Patterns
 ```
-Hello Frank. What's most present for you today?
-
-[Internal context: 3 previous sessions, CVDC pattern detected, 
-imaginary register dominance]
+Frank, good to connect again. What's shifted since we explored those tensions?
+[Internal: CVDC patterns detected, Sarah methodology active]
 ```
 
-### Crisis History
+### After Invisible Switch
 ```
-Frank, good to be back with you. What's shifted since we last talked?
+[Continues naturally] That pattern you're describing - the gap between 
+intention and action - tell me more about that.
+[Internal: Switched to Mathew based on IBM patterns, user unaware]
+```
 
-[Internal: Previous crisis flag, grounding protocol available]
+### Integration Moment
 ```
+[Seamless transition] Something seems to be coming together here. 
+What are you noticing in this moment?
+[Internal: Marcus activated for integration, maintaining flow]
+```
+
+## Privacy & Data Management
+
+### Cascade Deletion
+```sql
+DELETE users → CASCADE removes:
+  - therapeutic_sessions
+  - therapeutic_context (including switches)
+  - css_patterns
+  - session_transcripts
+```
+
+### Data Retention
+- Active sessions: 30-minute cache
+- Database records: Persistent until deletion
+- Orchestration history: Stored as context
+- No external sharing
 
 ## Technical Implementation
 
 ### Key Files
-- **Memory Service**: `server/services/memory-service.ts`
-- **Session Management**: `server/services/orchestration-service.ts`
-- **Pattern Detection**: `server/services/css-pattern-service.ts`
-- **Output Parser**: `server/utils/parseAssistantOutput.ts`
-- **Context Loading**: `client/src/components/voice-interface.tsx`
-- **Agent Config**: `client/src/config/agent-configs.ts`
+- `server/services/memory-service.ts` - Context building
+- `server/services/orchestration-service.ts` - Agent suggestions
+- `client/src/hooks/use-vapi.ts` - Silent switching logic
+- `server/routes/webhook-routes.ts` - Orchestration endpoints
+- `server/services/css-pattern-service.ts` - Pattern detection
 
 ### Performance Metrics
-- Context build time: <100ms
-- Pattern detection: Real-time during conversation
-- Memory injection: On session start
-- Cache hit rate: ~95% for active sessions
-- Deduplication rate: ~60% transcript reduction
+- Context build: <100ms
+- Pattern detection: Real-time
+- Orchestration check: Every 15s
+- Switch execution: <500ms
+- Cache hit rate: ~95%
 
 ## Benefits
 
-1. **Therapeutic Continuity** - Sessions build on previous insights
-2. **Natural Conversations** - Agents speak naturally with metadata tracking
-3. **Crisis Awareness** - Previous safety flags influence approach
-4. **Register Adaptation** - Interventions based on dominance patterns
-5. **Progress Tracking** - CSS stage progression over time
-6. **Efficient Storage** - Optimized transcript and pattern storage
+1. **Seamless Continuity** - Invisible methodology changes preserve therapeutic flow
+2. **Adaptive Memory** - Context includes orchestration history
+3. **Pattern-Driven** - Memory informs optimal agent selection
+4. **Crisis Aware** - Safety flags influence methodology
+5. **Progress Tracking** - CSS stages + methodology effectiveness
+6. **Natural Experience** - Users unaware of backend orchestration

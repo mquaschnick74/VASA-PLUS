@@ -1,148 +1,150 @@
 # CSS (Conversational State Sensing) Tracking Architecture
 
 ## Overview
-Real-time detection of therapeutic patterns in voice conversations, tracking CSS stages (CVDC/IBM/Thend/CYVC) and register dominance (Symbolic/Imaginary/Real) through natural language processing and metadata extraction.
+Real-time detection of therapeutic patterns that triggers invisible agent orchestration. Tracks CSS stages (CVDC/IBM/Thend/CYVC) and register dominance to optimize therapeutic methodology without user awareness.
 
-## Core CSS Stages
+## Core CSS Patterns
 
-### Pattern Types
-- **CVDC** (Contradiction) - Two opposing desires/pulls
-- **IBM** (Intention-Behavior Mismatch) - Gap between saying and doing  
-- **Thend** (Therapeutic End) - Shift or integration moment
-- **CYVC** (Contextual Variation) - Flexible choice/agency
+### Pattern Types & Agent Mapping
+| Pattern | Description | Triggers Agent | Threshold |
+|---------|-------------|----------------|-----------|
+| **CVDC** | Contradicting desires | Sarah | 3+ occurrences |
+| **IBM** | Intention-behavior gap | Mathew | 5+ occurrences |
+| **Thend** | Therapeutic shifts | Marcus | 2+ occurrences |
+| **CYVC** | Contextual flexibility | Marcus | 2+ occurrences |
 
 ### Register Dominance
-- **Symbolic** - Over-intellectualizing, abstract thinking
-- **Imaginary** - What-if scenarios, rumination
-- **Real** - Immediate sensation/affect, low symbolization
+- **Symbolic** - Over-intellectualizing → Mathew
+- **Imaginary** - Rumination/what-ifs → Sarah
+- **Real** - Body/sensation focus → Marcus
 
-## Agent System v3 Architecture
+## Agent System v3 with Orchestration
 
-### Natural Voice Separation
+### Natural Voice Format
 ```xml
 <speak>
-Natural therapeutic conversation without tracking codes
+Natural therapeutic conversation
 </speak>
 <meta>
 {
-  "register": "symbolic|imaginary|real|mixed|undetermined",
+  "register": "symbolic|imaginary|real",
   "css": {
-    "stage": "CVDC|SUSPENSION|THEND|CYVC|NONE",
-    "evidence": ["user quotes"],
-    "confidence": 0.0-1.0
+    "stage": "CVDC|SUSPENSION|THEND|CYVC",
+    "confidence": 0.85
   },
-  "safety": {
-    "flag": boolean,
-    "crisis": boolean,
-    "reason": "self_harm|harm_to_others|medical"
+  "orchestration": {
+    "suggestAgent": "mathew",
+    "reason": "ibm_pattern_detected"
   }
 }
 </meta>
 ```
 
 ### Processing Pipeline
-```javascript
-// server/utils/parseAssistantOutput.ts
-parseAssistantOutput(text) {
-  const speak = extractSpeak(text);    // For TTS
-  const meta = extractMeta(text);      // For tracking
-  return { speak, meta };
-}
+```
+User Speech → Pattern Detection → Agent Suggestion → Silent Switch
+     ↓              ↓                    ↓                ↓
+Transcript → CSS Analysis → Orchestration → Methodology Update
 ```
 
 ## Pattern Detection System
 
-### CVDC Detection
+### CVDC Detection (Contradictions)
 ```javascript
-// Flexible regex patterns
-const cvdcPatterns = [
-  /part of me.{0,50}(but|while|yet).{0,50}another part/gi,
-  /I want.{0,30}but.{0,30}I (also want|need)/gi,
-  /torn between/gi,
-  /contradiction between/gi
-];
+// Flexible patterns for natural language
+/part of me.{0,50}(but|while|yet).{0,50}another part/gi
+/I want.{0,30}but.{0,30}I (also want|need)/gi
+/torn between/gi
 ```
 
-### IBM Detection  
+### IBM Detection (Gaps)
 ```javascript
-const ibmPatterns = [
-  /I (say|tell myself).{0,30}but.{0,30}I (do|act|behave)/gi,
-  /I know.{0,30}but.{0,30}I still/gi,
-  /intention.{0,30}but.{0,30}action/gi
-];
+/I (say|tell myself).{0,30}but.{0,30}I (do|act)/gi
+/I know.{0,30}but.{0,30}I still/gi
+/intention.{0,30}but.{0,30}action/gi
 ```
 
-### Thend Indicators
+### Thend Detection (Shifts)
 ```javascript
-const thendPatterns = [
-  /something.{0,20}(shifted|changed|different)/gi,
-  /I (realize|understand|see) now/gi,
-  /new perspective/gi
-];
+/something.{0,20}(shifted|changed|different)/gi
+/I (realize|understand|see) now/gi
+/new perspective/gi
 ```
 
-### CYVC Patterns
+### CYVC Detection (Choice)
 ```javascript
-const cyvcPatterns = [
-  /sometimes.{0,30}other times/gi,
-  /depends on.{0,20}context/gi,
-  /I can choose/gi
-];
+/sometimes.{0,30}other times/gi
+/depends on.{0,20}context/gi
+/I can choose/gi
+```
+
+## Orchestration Integration
+
+### Pattern-Driven Agent Switching
+```typescript
+// server/services/orchestration-service.ts
+function suggestAgentBasedOnPatterns(patterns) {
+  // Analyze pattern counts
+  if (patterns.cvdc >= 3 && patterns.cvdc > patterns.ibm) {
+    return { agent: 'sarah', reason: 'cvdc_dominance' };
+  }
+  if (patterns.ibm >= 5) {
+    return { agent: 'mathew', reason: 'ibm_patterns' };
+  }
+  if (patterns.thend >= 2 || patterns.cyvc >= 2) {
+    return { agent: 'marcus', reason: 'integration_moment' };
+  }
+  return null; // No switch needed
+}
+```
+
+### Silent Methodology Updates
+```typescript
+// client/src/hooks/use-vapi.ts
+// Check every 15 seconds for pattern-based suggestions
+setInterval(async () => {
+  const state = await fetch(`/api/orchestration/state/${callId}`);
+  if (state.suggestedAgent && state.canSwitch) {
+    // Silently update therapeutic approach
+    await vapi.setAssistant({
+      model: { messages: [{ 
+        role: 'system', 
+        content: newAgentPrompt + continuityInstructions 
+      }]}
+    });
+  }
+}, 15000);
 ```
 
 ## Data Flow Architecture
 
-```
-User Speech → VAPI → Webhook → Pattern Detection → Database → Memory Context
-     ↑                                                              ↓
-     ←──────────────── Agent Response ←─────────────────────────────
-```
-
-### 1. Webhook Processing
+### Real-Time Processing
 ```typescript
-// server/routes/webhook-routes.ts
+// Webhook → Pattern Detection → Orchestration
 POST /api/vapi/webhook
-├── conversation-update event
-├── Extract user transcript
-├── Extract assistant metadata
-├── Process CSS patterns
+├── Extract transcript
+├── Detect CSS patterns
+├── Update orchestration state
+├── Suggest agent if patterns match
 └── Store in database
 ```
 
-### 2. Pattern Analysis
+### Session Management
 ```typescript
-// server/services/css-pattern-service.ts
-detectCSSPatterns(transcript, isFullTranscript) {
-  // Run pattern detection
-  const cvdcMatches = detectCVDC(text);
-  const ibmMatches = detectIBM(text);
-  const thendIndicators = detectThend(text);
-  const cyvcPatterns = detectCYVC(text);
-  
-  // Determine stage and confidence
-  return {
-    currentStage,
-    cvdcPatterns,
-    ibmPatterns,
-    confidence,
-    reasoning
-  };
-}
-```
-
-### 3. Session Management
-```typescript
-// server/services/orchestration-service.ts
 class SessionState {
+  // Core tracking
   userId: string;
   callId: string;
   currentCSSStage: string;
-  processedTranscripts: Set<string>;  // Deduplication
+  
+  // Orchestration data
+  activeMethodology: string;
+  patternCounts: { cvdc: 0, ibm: 0, thend: 0, cyvc: 0 };
+  lastSuggestion: Date;
+  
+  // Deduplication
+  processedTranscripts: Set<string>;
 }
-
-// Two-tier cache system
-const activeSessions = new Map();     // In-memory cache
-const checkedSessions = new Set();    // DB lookup cache
 ```
 
 ## Database Schema
@@ -154,175 +156,148 @@ CREATE TABLE css_patterns (
   call_id VARCHAR,
   stage VARCHAR,              -- CVDC|IBM|THEND|CYVC
   register VARCHAR,           -- symbolic|imaginary|real
-  confidence NUMERIC,         -- 0.0 to 1.0
-  safety_flag BOOLEAN,        -- Crisis detection
-  crisis_flag BOOLEAN,        -- Active crisis
-  hsfb_invoked BOOLEAN,       -- HSFB process used
+  confidence NUMERIC,
+  suggested_agent VARCHAR,    -- Orchestration suggestion
+  switch_triggered BOOLEAN,   -- If pattern caused switch
   detected_at TIMESTAMP
-);
-```
-
-### session_transcripts Table
-```sql
-CREATE TABLE session_transcripts (
-  id VARCHAR PRIMARY KEY,
-  user_id VARCHAR,
-  call_id VARCHAR,
-  text TEXT,
-  role VARCHAR,              -- 'complete' (end-of-call only)
-  created_at TIMESTAMP
 );
 ```
 
 ### therapeutic_context Table
 ```sql
+-- Stores pattern insights and methodology switches
 CREATE TABLE therapeutic_context (
-  id VARCHAR PRIMARY KEY,
-  user_id VARCHAR,
-  call_id VARCHAR,
-  context_type VARCHAR,      -- pattern_analysis|stage_transition
-  content TEXT,
-  metadata JSONB,
-  confidence NUMERIC,
-  created_at TIMESTAMP
+  context_type VARCHAR,      -- pattern_analysis|methodology_switch
+  content TEXT,              -- Pattern details or switch record
+  metadata JSONB,            -- CSS data, orchestration state
 );
 ```
 
 ## Memory Integration
 
-### Context Building
+### Pattern-Aware Context
 ```typescript
-// server/services/memory-service.ts
 buildTherapeuticContext(userId) {
-  // Get recent patterns
   const patterns = await getRecentPatterns(userId);
+  const switches = await getMethodologySwitches(userId);
   
-  // Build memory context
   return {
-    dominantStage: getMostFrequentStage(patterns),
-    registerDominance: getRegisterPattern(patterns),
-    recentContradictions: extractContradictions(patterns),
-    therapeuticProgress: assessProgress(patterns)
+    dominantPattern: getMostFrequent(patterns),
+    currentMethodology: switches[0]?.to || 'sarah',
+    patternProgression: analyzeProgression(patterns),
+    switchHistory: switches.map(s => `${s.from}→${s.to}`)
   };
 }
 ```
 
-### Agent Context Injection
-```javascript
-// Context sent to VAPI agent
-{
-  memoryContext: `
-    Previous sessions detected:
-    - CVDC pattern: "want connection but need space"
-    - Register: Imaginary dominance
-    - Stage: Moving from CVDC to suspension
-  `
+### Orchestration State
+```typescript
+getOrchestrationState(callId) {
+  return {
+    suggestedAgent: determineBestAgent(patterns),
+    confidence: calculateConfidence(patterns),
+    canSwitch: checkCooldown(lastSwitch),
+    patterns: currentPatternCounts,
+    reasoning: explainSuggestion(patterns)
+  };
 }
 ```
 
 ## Confidence Scoring
 
-### Assessment Factors
+### Pattern Confidence
 ```typescript
-assessPatternConfidence(patterns) {
-  let confidence = 0;
+function assessConfidence(patterns) {
+  let score = 0;
   
-  // Pattern presence (40%)
-  if (patterns.cvdcPatterns.length > 0) confidence += 0.4;
-  if (patterns.ibmPatterns.length > 0) confidence += 0.4;
+  // Pattern clarity (40%)
+  if (patterns.dominantPattern) score += 0.4;
   
-  // Stage indicators (30%)
-  if (patterns.thendIndicators.length > 0) confidence += 0.3;
+  // Pattern frequency (30%)
+  const totalPatterns = sum(Object.values(patterns));
+  if (totalPatterns >= 5) score += 0.3;
   
-  // Multiple confirmations (30%)
-  const totalPatterns = countAllPatterns(patterns);
-  if (totalPatterns >= 3) confidence += 0.3;
+  // Consistency (30%)
+  if (patterns.registerConsistent) score += 0.3;
   
-  return { confidence, reasoning };
+  return { confidence: score, threshold: 0.7 };
 }
 ```
 
-## Processing Optimizations
+## Optimization Strategies
 
-### Duplicate Prevention
+### Efficient Processing
+- **Pattern Detection**: Real-time during conversation
+- **Orchestration Checks**: Every 15 seconds
+- **Transcript Storage**: End-of-call only
+- **Deduplication**: Hash-based prevention
+
+### Cache Management
 ```typescript
-// Hash-based deduplication
-const transcriptHash = Buffer.from(transcript)
-  .toString('base64')
-  .substring(0, 50);
-  
-if (session.processedTranscripts.has(transcriptHash)) {
-  return; // Skip duplicate
-}
+// Two-tier cache system
+activeSessions: Map<callId, SessionState>     // Memory
+checkedSessions: Set<callId>                  // DB cache
+initializationLocks: Map<callId, Promise>     // Race protection
+
+// 30-minute cleanup
+setInterval(cleanupStaleSessions, 30 * 60 * 1000);
 ```
 
-### Efficient Storage
-- Individual transcripts: Pattern detection only (not stored)
-- End-of-call: Complete transcript stored once
-- Patterns: Stored immediately when detected
+## Pattern Examples with Orchestration
 
-### Race Condition Protection
-```typescript
-// Promise-based initialization locks
-const initializationLocks = new Map<string, Promise<SessionState>>();
-
-async function ensureSession(callId) {
-  if (initializationLocks.has(callId)) {
-    return await initializationLocks.get(callId);
-  }
-  // Initialize with lock...
-}
+### CVDC → Sarah Activation
+```
+User: "I want closeness but I also push people away"
+Pattern: CVDC detected
+Action: Suggest Sarah for emotional support
+Result: Silent switch to feeling-first approach
 ```
 
-## Real-time Pattern Examples
-
-### CVDC Detection
+### IBM → Mathew Activation  
 ```
-User: "I want to connect with people but I also need my space"
-→ Pattern: CVDC
-→ Register: Imaginary
-→ Evidence: ["want to connect", "need my space"]
+User: "I know I should exercise but I never do it"
+Pattern: IBM detected (5th occurrence)
+Action: Suggest Mathew for analytical approach
+Result: Invisible shift to pattern analysis
 ```
 
-### IBM Detection
+### Thend → Marcus Activation
 ```
-User: "I tell myself I'll wake up early but I always hit snooze"
-→ Pattern: IBM
-→ Register: Symbolic
-→ Evidence: ["tell myself", "always hit snooze"]
-```
-
-### Thend Detection
-```
-User: "Something shifted when you said that - I see it differently now"
-→ Pattern: THEND
-→ Register: Real
-→ Evidence: ["something shifted", "see it differently"]
+User: "Something just clicked - I see the pattern now"
+Pattern: THEND detected
+Action: Suggest Marcus for integration
+Result: Seamless transition to meta-awareness
 ```
 
 ## Implementation Benefits
 
-1. **Natural Conversations** - Agents speak naturally without forced tracking phrases
-2. **Precise Detection** - Metadata tracking separate from speech
-3. **Session Resilience** - Two-tier cache survives server restarts
-4. **Efficient Storage** - Deduplication and end-of-call optimization
-5. **Real-time Analysis** - Patterns detected during conversation
-6. **Crisis Detection** - Automatic safety flag triggering
+1. **Invisible Optimization** - Methodology adapts without user awareness
+2. **Pattern-Driven** - CSS patterns directly inform therapeutic approach
+3. **Natural Conversation** - No tracking phrases in speech
+4. **Real-Time Analysis** - Immediate pattern detection
+5. **Seamless Switching** - Continuous therapeutic flow
+6. **Crisis Response** - Instant Sarah activation for safety
 
-## Files & Locations
+## Key Files
 
-- **Pattern Detection**: `server/services/css-pattern-service.ts`
-- **Session Management**: `server/services/orchestration-service.ts`
-- **Memory Building**: `server/services/memory-service.ts`
-- **Output Parsing**: `server/utils/parseAssistantOutput.ts`
-- **Webhook Handler**: `server/routes/webhook-routes.ts`
-- **Agent Configs**: `client/src/config/agent-configs.ts`
+### Pattern Detection
+- `server/services/css-pattern-service.ts` - CSS analysis
+- `server/utils/parseAssistantOutput.ts` - Tag parsing
+
+### Orchestration
+- `server/services/orchestration-service.ts` - Agent suggestions
+- `client/src/hooks/use-vapi.ts` - Silent switching
+- `server/routes/webhook-routes.ts` - Orchestration endpoints
+
+### Configuration
+- `client/src/config/agent-configs.ts` - Agent definitions
+- `server/services/memory-service.ts` - Context building
 
 ## Recent Improvements
 
-- ✅ Speak/meta tag separation for natural voice
-- ✅ Flexible regex patterns for better detection
+- ✅ Invisible agent orchestration based on CSS patterns
+- ✅ Pattern-to-agent mapping with thresholds
+- ✅ Silent methodology switching every 15 seconds
+- ✅ Marcus agent for integration moments
 - ✅ Two-tier cache with race protection
-- ✅ End-of-call transcript optimization
-- ✅ Register dominance tracking
-- ✅ Safety/crisis flag integration
+- ✅ Natural voice with speak/meta separation
