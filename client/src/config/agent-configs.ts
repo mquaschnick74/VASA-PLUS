@@ -372,7 +372,7 @@ Your goal is to help them understand themselves better while feeling truly heard
     },
     voice: {
       provider: '11labs',
-      voiceId: 'FJe1e4YLcnPEL6T2R6TJ',
+      voiceId: 'ErXwobaYiN019PkySvjV',
       stability: 0.7,
       speed: 0.9
     },

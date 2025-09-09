@@ -7,7 +7,8 @@ import {
   processEndOfCall,
   ensureSession,
   getOrchestrationState,
-  markGuidanceApplied
+  markGuidanceApplied,
+  getActiveCallIdForUser
 } from '../services/orchestration-service';
 import { supabase } from '../services/supabase-service';
 
@@ -185,6 +186,18 @@ router.get('/orchestration/state/:callId', async (req, res) => {
     console.error('Failed to get orchestration state:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// GET endpoint to retrieve active call ID for a user
+router.get('/orchestration/active-call/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const result = getActiveCallIdForUser(userId);
+  
+  if (result.success) {
+    console.log(`📞 Providing active call ID ${result.callId} for user ${userId}`);
+  }
+  
+  res.json(result);
 });
 
 // POST to record methodology switch (analytics only)

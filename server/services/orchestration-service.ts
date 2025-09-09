@@ -1066,3 +1066,29 @@ export async function markGuidanceApplied(callId: string, guidanceKeys: string[]
   session.guidanceApplied.push(...guidanceKeys);
   session.lastGuidanceTime = new Date();
 }
+
+// Get active call ID for a user
+export function getActiveCallIdForUser(userId: string): {
+  success: boolean;
+  callId?: string;
+  agentName?: string;
+  cssStage?: string;
+} {
+  const sessions = Array.from(activeSessions.entries());
+  const userSession = sessions.find(([_, session]) => 
+    session.userId === userId && 
+    (Date.now() - session.sessionStartTime.getTime()) < 60000 // Active within last minute
+  );
+  
+  if (userSession) {
+    const [callId, session] = userSession;
+    return {
+      success: true,
+      callId,
+      agentName: session.agentName,
+      cssStage: session.currentCSSStage
+    };
+  }
+  
+  return { success: false };
+}

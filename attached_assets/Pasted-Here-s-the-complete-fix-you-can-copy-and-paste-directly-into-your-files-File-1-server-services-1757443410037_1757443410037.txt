@@ -1,0 +1,252 @@
+Here's the complete fix you can copy and paste directly into your files:
+
+## File 1: server/services/orchestration-service.ts
+
+Add this function at the end of the file (before the final export statement):
+
+```typescript
+// Get active call ID for a user
+export function getActiveCallIdForUser(userId: string): {
+  success: boolean;
+  callId?: string;
+  agentName?: string;
+  cssStage?: string;
+} {
+  const sessions = Array.from(activeSessions.entries());
+  const userSession = sessions.find(([_, session]) => 
+    session.userId === userId && 
+    (Date.now() - session.sessionStartTime.getTime()) < 60000 // Active within last minute
+  );
+  
+  if (userSession) {
+    const [callId, session] = userSession;
+    return {
+      success: true,
+      callId,
+      agentName: session.agentName,
+      cssStage: session.currentCSSStage
+    };
+  }
+  
+  return { success: false };
+}
+```
+
+## File 2: server/routes/webhook-routes.ts
+
+Update the import statement at the top (around line 5) to include the new function:
+
+```typescript
+import { 
+  initializeSession, 
+  processTranscript, 
+  processEndOfCall,
+  ensureSession,
+  getOrchestrationState,
+  markGuidanceApplied,
+  getActiveCallIdForUser  // Add this
+} from '../services/orchestration-service';
+```
+
+Then add this new route after line 187 (after the `/orchestration/state/:callId` route):
+
+```typescript
+// GET endpoint to retrieve active call ID for a user
+router.get('/orchestration/active-call/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const result = getActiveCallIdForUser(userId);
+  
+  if (result.success) {
+    console.log(`📞 Providing active call ID ${result.callId} for user ${userId}`);
+  }
+  
+  res.json(result);
+});
+```
+
+## File 3: client/src/hooks/use-vapi.ts
+
+Replace the ENTIRE polling useEffect (lines 120-250 approximately) with this:
+
+```typescript
+// Enhanced orchestration with server-side call ID retrieval
+useEffect(() => {
+  if (!isSessionActive || !vapi) return;
+
+  let isActive = true;
+  let pollingCallId: string | null = null;
+  
+  const fetchCallIdAndStartPolling = async () => {
+    // Try to get call ID from server
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (isActive && !pollingCallId && attempts < maxAttempts) {
+      try {
+        const response = await fetch(`/api/orchestration/active-call/${userId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log(`✅ Got call ID from server: ${data.callId}`);
+          pollingCallId = data.callId;
+          setCallId(data.callId); // Update state for diagnostics
+          break;
+        } else {
+          console.log(`⏳ Waiting for server session... (attempt ${attempts + 1}/${maxAttempts})`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        }
+      } catch (error) {
+        console.error('Failed to fetch call ID:', error);
+      }
+      attempts++;
+    }
+    
+    if (!pollingCallId) {
+      console.error('❌ Could not retrieve call ID after', maxAttempts, 'attempts');
+      return;
+    }
+    
+    // Now start polling with the retrieved call ID
+    const checkPatternsAndOrchestration = async () => {
+      if (!isActive || !pollingCallId) return;
+      
+      try {
+        const response = await fetch(`/api/orchestration/state/${pollingCallId}`);
+        if (!response.ok) {
+          console.error('Failed to fetch orchestration state');
+          return;
+        }
+        
+        const state = await response.json();
+        console.log('📊 Orchestration state received:', state);
+        
+        // Log current patterns
+        const totalPatterns = Object.values(state.patternCounts || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+        if (totalPatterns > 0) {
+          console.log(`📊 Active patterns: CVDC=${state.patternCounts.cvdc}, IBM=${state.patternCounts.ibm}, Thend=${state.patternCounts.thend}`);
+        }
+        
+        // Determine polling interval based on pattern activity
+        if (state.patternGuidance?.some((g: any) => g.priority === 'high')) {
+          pollIntervalRef.current = 3000; // 3 seconds for high priority
+        } else if (totalPatterns > 0) {
+          pollIntervalRef.current = 5000; // 5 seconds for active patterns
+        } else {
+          pollIntervalRef.current = 15000; // 15 seconds default
+        }
+        
+        // Apply pattern guidance if available
+        if (state.needsGuidanceUpdate && state.patternGuidance?.length > 0) {
+          const newGuidance = state.patternGuidance.filter((g: any) => 
+            !appliedGuidanceRef.current.has(`${g.pattern}_${g.count}`)
+          );
+          
+          if (newGuidance.length > 0) {
+            console.log(`🎯 Injecting ${newGuidance.length} pattern guidance items`);
+            
+            // Build enhanced prompt
+            let enhancedPrompt = selectedAgent.systemPrompt;
+            
+            if (memoryContext && memoryContext.length > 50) {
+              enhancedPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====\n${memoryContext}\n===== END CONTEXT =====`;
+            }
+            
+            enhancedPrompt += `\n\nThe user's name is ${firstName}.`;
+            enhancedPrompt += '\n\n===== ACTIVE PATTERNS REQUIRING ATTENTION =====\n';
+            enhancedPrompt += 'Address these patterns naturally in the conversation:\n\n';
+            
+            newGuidance.forEach((g: any) => {
+              enhancedPrompt += `• [${g.priority.toUpperCase()}] ${g.suggestion}\n`;
+            });
+            
+            enhancedPrompt += '\n===== END PATTERNS =====\n';
+            enhancedPrompt += 'IMPORTANT: Address these patterns gently and naturally.';
+            
+            try {
+              // Update assistant with pattern awareness
+              await vapi.setAssistant({
+                model: {
+                  provider: 'openai',
+                  model: selectedAgent.model.model,
+                  temperature: selectedAgent.model.temperature,
+                  messages: [{
+                    role: 'system',
+                    content: enhancedPrompt
+                  }]
+                });
+              
+              // Mark as applied using ref
+              newGuidance.forEach((g: any) => {
+                appliedGuidanceRef.current.add(`${g.pattern}_${g.count}`);
+              });
+              
+              // Notify backend
+              await fetch('/api/orchestration/guidance-applied', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  callId: pollingCallId,
+                  userId,
+                  guidanceKeys: newGuidance.map((g: any) => `${g.pattern}_${g.count}`)
+                })
+              });
+              
+              console.log('✅ Pattern guidance successfully injected');
+            } catch (error) {
+              console.error('Failed to inject pattern guidance:', error);
+            }
+          }
+        }
+        
+        // Handle agent switching (existing logic)
+        if (state.suggestedAgent && state.suggestedAgent !== activeMethodology && state.canSwitch) {
+          console.log(`🔄 Switching methodology: ${activeMethodology} → ${state.suggestedAgent}`);
+          await updateMethodology(state.suggestedAgent);
+        }
+        
+      } catch (error) {
+        console.error('Orchestration check error:', error);
+      }
+      
+      // Schedule next check if still active
+      if (isActive) {
+        setTimeout(() => {
+          if (isActive) {
+            checkPatternsAndOrchestration();
+          }
+        }, pollIntervalRef.current);
+      }
+    };
+    
+    // Start polling once we have the call ID
+    console.log('🚀 Starting orchestration polling with call ID:', pollingCallId);
+    checkPatternsAndOrchestration();
+  };
+  
+  // Start the process
+  fetchCallIdAndStartPolling();
+  
+  return () => {
+    isActive = false;
+    console.log('🛑 Stopping orchestration polling');
+  };
+}, [isSessionActive, vapi, userId, selectedAgent, memoryContext, firstName, activeMethodology]);
+```
+
+## What This Does
+
+1. When a call starts, the client waits for the server to create the session
+2. Client fetches the real call ID from the server using the userId
+3. Client starts polling with the correct call ID
+4. Pattern detection and real-time awareness work properly
+
+## Testing After Implementation
+
+You should see in the console:
+1. "⏳ Waiting for server session... (attempt 1/10)"
+2. "✅ Got call ID from server: [actual-call-id]"
+3. "🚀 Starting orchestration polling with call ID: [actual-call-id]"
+4. "📊 Orchestration state received: [data]"
+5. Pattern guidance being injected when patterns are detected
+
+That's it - copy these three changes into your files and the real-time pattern awareness will finally work!
