@@ -6,7 +6,8 @@ import {
   processTranscript, 
   processEndOfCall,
   ensureSession,
-  getOrchestrationState
+  getOrchestrationState,
+  markGuidanceApplied
 } from '../services/orchestration-service';
 import { supabase } from '../services/supabase-service';
 
@@ -206,6 +207,37 @@ router.post('/orchestration/record-switch', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Failed to record switch:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST to mark pattern guidance as applied
+router.post('/orchestration/guidance-applied', async (req, res) => {
+  try {
+    const { callId, guidanceKeys, userId } = req.body;
+    
+    if (!callId || !guidanceKeys) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Mark guidance as applied in session
+    await markGuidanceApplied(callId, guidanceKeys);
+    
+    // Store in database for analytics
+    await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: userId || 'unknown',
+        call_id: callId,
+        context_type: 'guidance_applied',
+        content: `Pattern guidance applied: ${guidanceKeys.join(', ')}`,
+        confidence: 1.0,
+        importance: 5
+      });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to mark guidance as applied:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
