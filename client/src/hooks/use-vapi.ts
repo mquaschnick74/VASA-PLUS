@@ -90,6 +90,9 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         if (response.ok) {
           const state = await response.json();
           
+          // Log contextual data for debugging
+          console.log(`📊 Orchestration state: CSS Stage=${state.currentCSSStage}, Agent=${state.currentAgent}`);
+          
           // If backend suggests different methodology, update silently
           if (state.suggestedAgent && state.suggestedAgent !== activeMethodology && state.canSwitch) {
             console.log(`🔄 Silently switching methodology: ${activeMethodology} → ${state.suggestedAgent}`);

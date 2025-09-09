@@ -429,6 +429,9 @@ export function getOrchestrationState(callId: string): {
   suggestedAgent: string | null;
   agentSwitches: Array<{timestamp: Date; fromAgent: string; toAgent: string; reason: string}>;
   canSwitch: boolean;
+  currentCSSStage: string;
+  sessionStartTime: Date;
+  userId: string;
 } | null {
   const session = activeSessions.get(callId);
   if (!session) return null;
@@ -438,7 +441,10 @@ export function getOrchestrationState(callId: string): {
     suggestedAgent: session.suggestedAgent,
     agentSwitches: session.agentSwitches,
     canSwitch: !session.lastSuggestionTime || 
-                (Date.now() - session.lastSuggestionTime.getTime()) > 60000 // 1 minute cooldown
+                (Date.now() - session.lastSuggestionTime.getTime()) > 60000, // 1 minute cooldown
+    currentCSSStage: session.currentCSSStage,
+    sessionStartTime: session.sessionStartTime,
+    userId: session.userId
   };
 }
 
