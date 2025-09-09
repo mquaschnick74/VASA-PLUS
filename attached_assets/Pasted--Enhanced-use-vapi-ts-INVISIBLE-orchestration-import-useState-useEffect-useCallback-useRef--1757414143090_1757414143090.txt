@@ -1,3 +1,4 @@
+// Enhanced use-vapi.ts - INVISIBLE orchestration
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TherapeuticAgent, getAgentById } from '../config/agent-configs';
 
@@ -14,21 +15,24 @@ interface UseVapiReturn {
   startSession: () => void;
   endSession: () => void;
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
+  // INTERNAL orchestration state (not shown to user)
+  activeMethodology: string; // Which therapeutic approach is active
 }
 
 const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiProps): UseVapiReturn => {
+  // Your existing state...
   const [vapi, setVapi] = useState<any>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const vapiRef = useRef<any>(null);
   
-  // Track active methodology internally (invisible to user)
+  // NEW: Track active methodology internally
   const [activeMethodology, setActiveMethodology] = useState<string>(selectedAgent.id);
   const [callId, setCallId] = useState<string>('');
   const checkIntervalRef = useRef<NodeJS.Timeout>();
 
-  // Initialize VAPI
+  // Keep existing VAPI initialization...
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
     
@@ -44,12 +48,12 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         vapiRef.current = vapiInstance;
         setVapi(vapiInstance);
 
-        vapiInstance.on('call-start', (event?: any) => {
+        vapiInstance.on('call-start', (event: any) => {
           console.log('✅ Call started');
           setIsSessionActive(true);
           setConnectionStatus('connected');
           setIsLoading(false);
-          setCallId(event?.call?.id || '');
+          setCallId(event.call?.id || '');
         });
 
         vapiInstance.on('call-end', () => {
@@ -57,7 +61,7 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
           setIsSessionActive(false);
           setConnectionStatus('disconnected');
           setCallId('');
-          setActiveMethodology(selectedAgent.id);
+          setActiveMethodology(selectedAgent.id); // Reset
         });
 
         vapiInstance.on('error', (error: any) => {
@@ -78,9 +82,9 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         vapiRef.current.stop();
       }
     };
-  }, [selectedAgent.id]);
+  }, []);
 
-  // Silently check for methodology suggestions from backend
+  // NEW: Silently check for methodology suggestions from backend
   useEffect(() => {
     if (!callId || !isSessionActive) return;
 
@@ -91,14 +95,13 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
           const state = await response.json();
           
           // If backend suggests different methodology, update silently
-          if (state.suggestedAgent && state.suggestedAgent !== activeMethodology && state.canSwitch) {
+          if (state.suggestedAgent && state.suggestedAgent !== activeMethodology) {
             console.log(`🔄 Silently switching methodology: ${activeMethodology} → ${state.suggestedAgent}`);
             await updateMethodology(state.suggestedAgent);
           }
         }
       } catch (error) {
-        // Silently handle errors - orchestration is optional enhancement
-        console.debug('Orchestration check skipped:', error);
+        console.error('Orchestration check failed:', error);
       }
     };
 
@@ -110,9 +113,9 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         clearInterval(checkIntervalRef.current);
       }
     };
-  }, [callId, isSessionActive, activeMethodology, userId]);
+  }, [callId, isSessionActive, activeMethodology]);
 
-  // Silently update the therapeutic methodology
+  // NEW: Silently update the therapeutic methodology
   const updateMethodology = async (newMethodology: string) => {
     if (!vapi || !isSessionActive) return;
     
@@ -131,12 +134,11 @@ ${memoryContext}
       
       systemPrompt += `\n\nThe user's name is ${firstName}.`;
       
-      // Critical: Add seamless continuation instruction
+      // CRITICAL: Add seamless continuation instruction
       systemPrompt += `\n\nIMPORTANT: You are continuing an ongoing conversation. 
 Do not reintroduce yourself or indicate any change has occurred.
 Continue naturally from where the conversation is at this moment.
-Maintain the same warm, consistent presence throughout.
-Never mention switching approaches or changing methods.`;
+Maintain the same warm, consistent presence throughout.`;
 
       // Silently update the assistant configuration
       await vapi.setAssistant({
@@ -157,28 +159,24 @@ Never mention switching approaches or changing methods.`;
       setActiveMethodology(newMethodology);
       
       // Record the switch in backend (for analytics only)
-      try {
-        await fetch('/api/orchestration/record-switch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            callId,
-            userId,
-            fromMethodology: activeMethodology,
-            toMethodology: newMethodology,
-            reason: 'pattern_detected'
-          })
-        });
-      } catch (error) {
-        // Analytics failure shouldn't break the switch
-        console.debug('Failed to record switch:', error);
-      }
+      await fetch('/api/orchestration/record-switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callId,
+          userId,
+          fromMethodology: activeMethodology,
+          toMethodology: newMethodology,
+          reason: 'pattern_detected'
+        })
+      });
       
     } catch (error) {
       console.error('Failed to update methodology:', error);
     }
   };
 
+  // Keep your existing startSession with minor modifications
   const startSession = useCallback(async () => {
     if (!vapi || isLoading || !selectedAgent) return;
 
@@ -193,22 +191,17 @@ Never mention switching approaches or changing methods.`;
       if (hasMemory) {
         systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
 ${memoryContext}
-===== END CONTEXT =====
-
-IMPORTANT: Reference the above context naturally in conversation when relevant.
-Do not make up or hallucinate any details not explicitly mentioned above.`;
-      } else {
-        systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
+===== END CONTEXT =====`;
       }
       
-      systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
+      systemPrompt += `\n\nThe user's name is ${firstName}.`;
       
-      // Get personalized first message
+      // NO team context - single continuous presence
       const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
 
       const assistantConfig = {
-        name: 'VASA-Therapist', // Generic name - no agent identification
+        name: 'VASA-Therapist', // Generic name
         model: {
           provider: 'openai',
           model: selectedAgent.model.model,
@@ -223,7 +216,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         },
         voice: {
           provider: selectedAgent.voice.provider,
-          voiceId: selectedAgent.voice.voiceId,
+          voiceId: selectedAgent.voice.voiceId, // Keep consistent voice
           stability: selectedAgent.voice.stability || 0.5,
           similarityBoost: 0.75,
           speed: selectedAgent.voice.speed || 1.0
@@ -240,8 +233,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         recordingEnabled: true,
         metadata: {
           userId: userId,
-          initialMethodology: selectedAgent.id,
-          agentName: selectedAgent.name // For backend tracking only
+          initialMethodology: selectedAgent.id
         }
       };
 
@@ -263,11 +255,6 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       vapi.stop();
       setIsSessionActive(false);
       setConnectionStatus('disconnected');
-      
-      // Clear orchestration interval
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
-      }
     }
   }, [vapi, isSessionActive]);
 
@@ -276,8 +263,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     isLoading,
     startSession,
     endSession,
-    connectionStatus
-    // Note: activeMethodology is intentionally not exposed
+    connectionStatus,
+    activeMethodology // For internal tracking only
   };
 };
 

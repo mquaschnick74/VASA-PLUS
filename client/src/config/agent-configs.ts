@@ -421,81 +421,11 @@ Your role is to help people recognize and stabilize moments of integration, supp
       if (hasMemory) {
         return `${firstName}, I'm sensing you're ready for some deeper integration work. What's been shifting for you lately?`;
       }
-      return `Hello ${firstName}, I'm Marcus. I work with those moments when something shifts—when you see things differently. What brought you to this threshold today?`;
+      return `Hello ${firstName}, I'm Marcus. I work with those moments when something shifts—when you see things differently. What brought you here today?`;
     }
   }
 ];
 
 export function getAgentById(agentId: string): TherapeuticAgent | undefined {
   return THERAPEUTIC_AGENTS.find(agent => agent.id === agentId);
-}
-
-// Function to suggest agent based on content patterns
-export function analyzeForAgentSuggestion(transcript: string, currentAgent: string): {
-  suggestedAgent: string | null;
-  reason: string | null;
-  confidence: number;
-} {
-  const text = transcript.toLowerCase();
-  
-  // Look for contradiction patterns (suggest Sarah)
-  const contradictionPatterns = [
-    /part of me.*but.*part/,
-    /i want.*but.*i (also|really)/,
-    /i love.*but.*i/,
-    /i need.*and.*i need/,
-    /torn between/,
-    /on one hand.*on the other/
-  ];
-  
-  if (contradictionPatterns.some(pattern => pattern.test(text)) && currentAgent !== 'sarah') {
-    return {
-      suggestedAgent: 'sarah',
-      reason: 'contradiction_detected',
-      confidence: 0.8
-    };
-  }
-
-  // Look for behavior gap patterns (suggest Mathew)
-  const behaviorGapPatterns = [
-    /i want to.*but i.*don['']?t/,
-    /i should.*but i/,
-    /i keep.*even though/,
-    /i know.*but i still/,
-    /say.*do/,
-    /intention.*action/
-  ];
-  
-  if (behaviorGapPatterns.some(pattern => pattern.test(text)) && currentAgent !== 'mathew') {
-    return {
-      suggestedAgent: 'mathew',
-      reason: 'behavior_gap_detected', 
-      confidence: 0.8
-    };
-  }
-
-  // Look for integration/shift patterns (suggest Marcus)
-  const integrationPatterns = [
-    /something.*shift/,
-    /i see.*differently/,
-    /both.*can be true/,
-    /i notice.*noticing/,
-    /perspective.*changed/,
-    /integration/,
-    /meta.*awareness/
-  ];
-  
-  if (integrationPatterns.some(pattern => pattern.test(text)) && currentAgent !== 'marcus') {
-    return {
-      suggestedAgent: 'marcus',
-      reason: 'integration_detected',
-      confidence: 0.8
-    };
-  }
-
-  return {
-    suggestedAgent: null,
-    reason: null,
-    confidence: 0
-  };
 }

@@ -1,12 +1,14 @@
-// Simplified Webhook - CSS pattern tracking only
+// Webhook routes with orchestration support
 import { Router } from 'express';
 import crypto from 'crypto';
 import { 
   initializeSession, 
   processTranscript, 
   processEndOfCall,
-  ensureSession
+  ensureSession,
+  getOrchestrationState
 } from '../services/orchestration-service';
+import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
@@ -166,5 +168,46 @@ function extractAgentName(message: any): string {
          message?.assistant?.metadata?.agentName ||
          'Sarah';
 }
+
+// GET orchestration state for a call
+router.get('/orchestration/state/:callId', async (req, res) => {
+  try {
+    const { callId } = req.params;
+    const state = getOrchestrationState(callId);
+    
+    if (!state) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    res.json(state);
+  } catch (error) {
+    console.error('Failed to get orchestration state:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST to record methodology switch (analytics only)
+router.post('/orchestration/record-switch', async (req, res) => {
+  try {
+    const { callId, userId, fromMethodology, toMethodology, reason } = req.body;
+    
+    // Just record the switch for analytics - the actual switch happens client-side
+    await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: userId,
+        call_id: callId,
+        context_type: 'methodology_switch',
+        content: `Methodology switch: ${fromMethodology} → ${toMethodology} (${reason})`,
+        confidence: 1.0,
+        importance: 7
+      });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to record switch:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default router;
