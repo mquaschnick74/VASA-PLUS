@@ -11,6 +11,14 @@ import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
 
+// Pattern guidance interface for real-time awareness
+interface PatternGuidance {
+  pattern: string;
+  count: number;
+  suggestion: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
 interface SessionState {
   userId: string;
   callId: string;
@@ -40,6 +48,9 @@ interface EnhancedSessionState extends SessionState {
     thend: number;
     cyvc: number;
   };
+  // NEW: Real-time guidance tracking
+  guidanceApplied: string[];
+  lastGuidanceTime: Date | null;
 }
 
 // Two-tier cache system with enhanced state
@@ -139,7 +150,9 @@ async function ensureSessionInternal(
         ibm: 0,
         thend: 0,
         cyvc: 0
-      }
+      },
+      guidanceApplied: [],
+      lastGuidanceTime: null
     };
     activeSessions.set(callId, session);
     return session;
@@ -180,7 +193,9 @@ export async function initializeSession(
       ibm: 0,
       thend: 0,
       cyvc: 0
-    }
+    },
+    guidanceApplied: [],
+    lastGuidanceTime: null
   };
 
   activeSessions.set(callId, session);
@@ -194,12 +209,14 @@ export async function initializeSession(
       agent_name: agentName,
       status: 'active',
       start_time: new Date().toISOString()
-    }, {
-      onConflict: 'call_id'
     });
 
-  console.log(`✅ Enhanced session initialized: ${callId} for user ${userId} with ${agentName}`);
+  console.log(`✅ Session initialized: ${callId} for user ${userId}`);
   return session;
+}
+
+export async function getSession(callId: string): Promise<EnhancedSessionState | undefined> {
+  return activeSessions.get(callId);
 }
 
 export async function processTranscript(
@@ -337,82 +354,101 @@ function analyzeForAgentSuggestion(transcript: string, currentAgent: string): {
     /part of me.*but.*part/,
     /i want.*but.*i (also|really)/,
     /i love.*but.*i/,
-    /i need.*and.*i need/,
-    /torn between/,
-    /on one hand.*on the other/
+    /on one hand.*on the other/,
+    /sometimes.*other times/
   ];
   
-  if (contradictionPatterns.some(pattern => pattern.test(text)) && currentAgent !== 'sarah') {
-    return {
-      suggestedAgent: 'sarah',
-      reason: 'contradiction_detected',
-      confidence: 0.8
-    };
-  }
-
-  // Look for behavior gap patterns (suggest Mathew)
-  const behaviorGapPatterns = [
-    /i want to.*but i.*don['']?t/,
-    /i should.*but i/,
-    /i keep.*even though/,
-    /i know.*but i still/,
-    /say.*do/,
-    /intention.*action/
+  // Look for intention-behavior gaps (suggest Mathew)
+  const ibmPatterns = [
+    /should.*but.*don't/,
+    /want to.*but.*can't/,
+    /need to.*but.*haven't/,
+    /meant to.*but/,
+    /supposed to.*but/
   ];
   
-  if (behaviorGapPatterns.some(pattern => pattern.test(text)) && currentAgent !== 'mathew') {
-    return {
-      suggestedAgent: 'mathew',
-      reason: 'behavior_gap_detected', 
-      confidence: 0.8
-    };
-  }
-
-  // Look for integration/shift patterns (suggest Marcus)
-  const integrationPatterns = [
-    /something.*shift/,
-    /i see.*differently/,
-    /both.*can be true/,
-    /i notice.*noticing/,
-    /perspective.*changed/,
-    /integration/,
-    /meta.*awareness/
+  // Look for philosophical or pattern-seeking (suggest Marcus)
+  const marcusPatterns = [
+    /why is it that/,
+    /pattern.*my life/,
+    /always seems to/,
+    /every time.*happens/,
+    /deeper meaning/
   ];
   
-  if (integrationPatterns.some(pattern => pattern.test(text)) && currentAgent !== 'marcus') {
-    return {
-      suggestedAgent: 'marcus',
-      reason: 'integration_detected',
-      confidence: 0.8
-    };
+  let sarahScore = 0;
+  let mathewScore = 0;
+  let marcusScore = 0;
+  
+  // Score for Sarah
+  for (const pattern of contradictionPatterns) {
+    if (pattern.test(text)) sarahScore += 2;
   }
-
+  if (text.includes('feel') || text.includes('emotion')) sarahScore += 1;
+  if (text.includes('confused') || text.includes('torn')) sarahScore += 1;
+  
+  // Score for Mathew
+  for (const pattern of ibmPatterns) {
+    if (pattern.test(text)) mathewScore += 2;
+  }
+  if (text.includes('procrastin') || text.includes('avoid')) mathewScore += 1;
+  if (text.includes('goal') || text.includes('plan')) mathewScore += 1;
+  
+  // Score for Marcus
+  for (const pattern of marcusPatterns) {
+    if (pattern.test(text)) marcusScore += 2;
+  }
+  if (text.includes('meaning') || text.includes('purpose')) marcusScore += 1;
+  if (text.includes('pattern') || text.includes('cycle')) marcusScore += 1;
+  
+  // Determine suggestion
+  const scores = {
+    sarah: sarahScore,
+    mathew: mathewScore,
+    marcus: marcusScore
+  };
+  
+  const maxScore = Math.max(sarahScore, mathewScore, marcusScore);
+  
+  if (maxScore < 2) {
+    return { suggestedAgent: null, reason: null, confidence: 0 };
+  }
+  
+  const suggestedAgent = Object.entries(scores)
+    .find(([_, score]) => score === maxScore)?.[0] || null;
+  
+  if (suggestedAgent === currentAgent.toLowerCase()) {
+    return { suggestedAgent: null, reason: null, confidence: 0 };
+  }
+  
+  const reasons = {
+    sarah: 'Strong contradictory feelings detected',
+    mathew: 'Intention-behavior gap identified',
+    marcus: 'Pattern-seeking or philosophical exploration'
+  };
+  
   return {
-    suggestedAgent: null,
-    reason: null,
-    confidence: 0
+    suggestedAgent,
+    reason: reasons[suggestedAgent as keyof typeof reasons] || null,
+    confidence: Math.min(maxScore / 5, 1) // Normalize to 0-1
   };
 }
 
-// Orchestration analysis function
-async function analyzeForOrchestration(
-  session: EnhancedSessionState, 
-  transcript: string
-): Promise<void> {
-  // Don't spam suggestions - wait at least 2 minutes between suggestions
+async function analyzeForOrchestration(session: EnhancedSessionState, transcript: string): Promise<void> {
   const now = new Date();
+  
+  // Respect cooldown period
   if (session.lastSuggestionTime && 
-      (now.getTime() - session.lastSuggestionTime.getTime()) < 120000) {
+      (now.getTime() - session.lastSuggestionTime.getTime()) < 120000) { // 2 minute cooldown
     return;
   }
-
-  // Analyze transcript for agent suggestions
+  
   const suggestion = analyzeForAgentSuggestion(transcript, session.agentName);
   
-  if (suggestion.suggestedAgent && suggestion.confidence > 0.7) {
-    console.log(`🔄 Agent suggestion: ${session.agentName} → ${suggestion.suggestedAgent} (${suggestion.reason})`);
+  if (suggestion.suggestedAgent && suggestion.confidence > 0.6) {
+    console.log(`🔄 Agent suggestion: ${session.agentName} → ${suggestion.suggestedAgent}`);
+    console.log(`   Reason: ${suggestion.reason}, Confidence: ${suggestion.confidence}`);
     
-    // Update session state
     session.suggestedAgent = suggestion.suggestedAgent;
     session.lastSuggestionTime = now;
     
@@ -423,62 +459,14 @@ async function analyzeForOrchestration(
         user_id: session.userId,
         call_id: session.callId,
         context_type: 'agent_suggestion',
-        content: `Agent routing suggestion: ${session.agentName} → ${suggestion.suggestedAgent} for ${suggestion.reason}`,
+        content: `Agent routing: ${session.agentName} → ${suggestion.suggestedAgent} (${suggestion.reason})`,
         confidence: suggestion.confidence,
         importance: 6
       });
   }
 }
 
-// Critical situation handler
-async function handleCriticalSituation(
-  session: EnhancedSessionState,
-  patterns: CSSPatterns
-): Promise<void> {
-  // Lock to Sarah immediately
-  if (session.agentName !== 'sarah') {
-    session.suggestedAgent = 'sarah';
-    session.lastSuggestionTime = new Date();
-    
-    console.log(`🚨 Critical situation - suggesting immediate switch to Sarah`);
-    
-    await supabase
-      .from('therapeutic_context')
-      .insert({
-        user_id: session.userId,
-        call_id: session.callId,
-        context_type: 'crisis_intervention',
-        content: `CRITICAL: Safety concerns detected. Immediate switch to Sarah recommended.`,
-        confidence: 1.0,
-        importance: 10 // Maximum importance
-      });
-  }
-  
-  // Store warning patterns for review
-  const warningPatterns = [
-    ...patterns.cvdcPatterns,
-    ...patterns.ibmPatterns
-  ].filter(p => p.hasWarningFlag);
-  
-  for (const pattern of warningPatterns) {
-    await supabase
-      .from('css_patterns')
-      .insert({
-        user_id: session.userId,
-        call_id: session.callId,
-        pattern_type: 'WARNING',
-        content: pattern.text,
-        css_stage: patterns.currentStage,
-        confidence: 1.0,
-        safety_flag: true,
-        crisis_flag: true,
-        emotional_intensity: 'critical',
-        detected_at: new Date().toISOString()
-      });
-  }
-}
-
-// Enhanced orchestration analysis
+// NEW: Enhanced orchestration with safety checks
 async function analyzeForOrchestrationEnhanced(
   session: EnhancedSessionState,
   transcript: string,
@@ -533,139 +521,187 @@ function analyzeForAgentSuggestionEnhanced(
   patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number }
 ): {
   suggestedAgent: string | null;
-  reason: string;
+  reason: string | null;
   confidence: number;
 } {
-  // Crisis override - always Sarah
-  if (patterns.hasWarningFlags || patterns.emotionalIntensity === 'critical') {
+  // High intensity or crisis → Sarah
+  if (patterns.emotionalIntensity === 'high' || patterns.hasWarningFlags) {
+    if (currentAgent.toLowerCase() !== 'sarah') {
+      return {
+        suggestedAgent: 'sarah',
+        reason: 'High emotional intensity requires warm support',
+        confidence: 0.95
+      };
+    }
+  }
+  
+  // Many contradictions → Sarah
+  if (patternCounts.cvdc >= 3 && currentAgent.toLowerCase() !== 'sarah') {
     return {
       suggestedAgent: 'sarah',
-      reason: 'crisis_detected',
-      confidence: 1.0
+      reason: 'Multiple contradictions need emotional exploration',
+      confidence: 0.85
     };
   }
   
-  // Count high-intensity patterns
-  const highIntensityCVDC = patterns.cvdcPatterns.filter(p => p.intensity === 'high').length;
-  const highIntensityIBM = patterns.ibmPatterns.filter(p => p.intensity === 'high').length;
-  
-  // Sarah for emotional contradictions (especially high intensity)
-  if ((patternCounts.cvdc >= 3 || highIntensityCVDC >= 1) && currentAgent !== 'sarah') {
-    return {
-      suggestedAgent: 'sarah',
-      reason: highIntensityCVDC > 0 ? 'high_intensity_contradictions' : 'contradiction_patterns',
-      confidence: highIntensityCVDC > 0 ? 0.9 : 0.8
-    };
-  }
-  
-  // Mathew for behavioral gaps (especially persistent ones)
-  if ((patternCounts.ibm >= 5 || highIntensityIBM >= 2) && currentAgent !== 'mathew') {
+  // Behavioral gaps → Mathew
+  if (patternCounts.ibm >= 2 && currentAgent.toLowerCase() !== 'mathew') {
     return {
       suggestedAgent: 'mathew',
-      reason: highIntensityIBM > 0 ? 'urgent_behavioral_gaps' : 'behavior_gap_patterns',
-      confidence: highIntensityIBM > 0 ? 0.9 : 0.8
-    };
-  }
-  
-  // Marcus for integration (but only if emotionally stable)
-  if (patternCounts.thend >= 2 && 
-      patterns.emotionalIntensity !== 'high' && 
-      currentAgent !== 'marcus') {
-    return {
-      suggestedAgent: 'marcus',
-      reason: 'integration_opportunity',
+      reason: 'Intention-behavior gaps need analytical approach',
       confidence: 0.8
     };
   }
   
-  return {
-    suggestedAgent: null,
-    reason: 'no_change_needed',
-    confidence: 0
-  };
+  // Integration moments → Marcus (only if emotionally stable)
+  if (patternCounts.thend >= 2 && 
+      patterns.emotionalIntensity !== 'high' &&
+      currentAgent.toLowerCase() !== 'marcus') {
+    return {
+      suggestedAgent: 'marcus',
+      reason: 'Integration opportunities for pattern recognition',
+      confidence: 0.75
+    };
+  }
+  
+  // Use original analysis as fallback
+  return analyzeForAgentSuggestion(transcript, currentAgent);
 }
 
-// Enhanced storage with intensity data
+// Critical situation handler
+async function handleCriticalSituation(
+  session: EnhancedSessionState,
+  patterns: CSSPatterns
+): Promise<void> {
+  // Lock to Sarah immediately
+  if (session.agentName.toLowerCase() !== 'sarah') {
+    session.suggestedAgent = 'sarah';
+    session.lastSuggestionTime = new Date();
+    
+    console.log(`🚨 CRITICAL: Switching to Sarah for crisis support`);
+    
+    await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: session.userId,
+        call_id: session.callId,
+        context_type: 'crisis_intervention',
+        content: `CRITICAL: Safety flags detected. Switching to Sarah for crisis support.`,
+        confidence: 1.0,
+        importance: 10 // Maximum importance
+      });
+  }
+  
+  // Store critical patterns with high priority
+  for (const pattern of patterns.cvdcPatterns) {
+    if (pattern.text.toLowerCase().includes('kill') || 
+        pattern.text.toLowerCase().includes('hurt') ||
+        pattern.text.toLowerCase().includes('end it')) {
+      await supabase
+        .from('css_patterns')
+        .insert({
+          user_id: session.userId,
+          call_id: session.callId,
+          pattern_type: 'CRISIS',
+          content: pattern.text,
+          css_stage: patterns.currentStage,
+          confidence: 1.0,
+          detected_at: new Date().toISOString(),
+          emotional_intensity: 'critical',
+          safety_flag: true,
+          crisis_flag: true
+        });
+    }
+  }
+}
+
+// Enhanced CSS pattern storage
 async function storeCSSPatternsEnhanced(
-  session: EnhancedSessionState, 
+  session: EnhancedSessionState,
   patterns: CSSPatterns
 ): Promise<void> {
   const patternInserts = [];
-
+  
   // Store CVDC patterns with intensity
-  for (const pattern of patterns.cvdcPatterns) {
+  for (const cvdc of patterns.cvdcPatterns) {
+    const intensity = cvdc.text.toLowerCase().includes('sorry') || 
+                     cvdc.text.toLowerCase().includes('apologize') ? 
+                     (patterns.cvdcPatterns.length > 2 ? 'medium' : 'low') : 
+                     patterns.emotionalIntensity;
+    
     patternInserts.push({
       user_id: session.userId,
       call_id: session.callId,
       pattern_type: 'CVDC',
-      content: pattern.text,
+      content: cvdc.text,
       css_stage: patterns.currentStage,
-      confidence: 0.5 + (pattern.intensity === 'high' ? 0.3 : pattern.intensity === 'medium' ? 0.15 : 0),
-      emotional_intensity: pattern.intensity,
-      safety_flag: pattern.hasWarningFlag,
-      detected_at: new Date().toISOString()
+      confidence: 0.5 + (patterns.cvdcPatterns.length * 0.15), // Increase confidence with more patterns
+      detected_at: new Date().toISOString(),
+      emotional_intensity: intensity,
+      safety_flag: patterns.hasWarningFlags,
+      crisis_flag: false
     });
   }
-
-  // Store IBM patterns with intensity
-  for (const pattern of patterns.ibmPatterns) {
+  
+  // Store IBM patterns
+  for (const ibm of patterns.ibmPatterns) {
     patternInserts.push({
       user_id: session.userId,
       call_id: session.callId,
       pattern_type: 'IBM',
-      content: pattern.text,
+      content: ibm.text,
       css_stage: patterns.currentStage,
-      confidence: 0.5 + (pattern.intensity === 'high' ? 0.3 : pattern.intensity === 'medium' ? 0.15 : 0),
-      emotional_intensity: pattern.intensity,
-      safety_flag: pattern.hasWarningFlag,
-      detected_at: new Date().toISOString()
+      confidence: 0.5,
+      detected_at: new Date().toISOString(),
+      emotional_intensity: patterns.emotionalIntensity,
+      safety_flag: false,
+      crisis_flag: false
     });
   }
-
-  // Store Thend and CYVC patterns (simplified - they're usually lower intensity)
-  for (const pattern of patterns.thendIndicators) {
+  
+  // Store Thend indicators
+  for (const thend of patterns.thendIndicators) {
     patternInserts.push({
       user_id: session.userId,
       call_id: session.callId,
       pattern_type: 'Thend',
-      content: pattern.text,
+      content: thend.text,
       css_stage: patterns.currentStage,
-      confidence: 0.7,
-      emotional_intensity: pattern.intensity,
-      detected_at: new Date().toISOString()
+      confidence: 0.6,
+      detected_at: new Date().toISOString(),
+      emotional_intensity: patterns.emotionalIntensity,
+      safety_flag: false,
+      crisis_flag: false
     });
   }
-
+  
   if (patternInserts.length > 0) {
     await supabase.from('css_patterns').insert(patternInserts);
     console.log(`💾 Stored ${patternInserts.length} enhanced CSS patterns`);
   }
 }
 
-// Execute agent switch
-export async function executeAgentSwitch(
+export async function switchAgent(
   callId: string,
   newAgent: string,
-  reason: string = 'manual_switch'
+  reason: string = 'manual'
 ): Promise<boolean> {
   const session = activeSessions.get(callId);
   if (!session) {
-    console.warn(`Cannot switch agent: session ${callId} not found`);
+    console.log(`❌ Cannot switch agent: session ${callId} not found`);
     return false;
   }
 
   const previousAgent = session.agentName;
-  
-  // Update session state
   session.agentName = newAgent;
+  session.suggestedAgent = null; // Clear suggestion after switch
   session.agentSwitches.push({
     timestamp: new Date(),
     fromAgent: previousAgent,
     toAgent: newAgent,
     reason
   });
-  session.suggestedAgent = null; // Clear suggestion
-  
+
   // Update database
   await supabase
     .from('therapeutic_sessions')
@@ -693,7 +729,7 @@ export async function executeAgentSwitch(
   return true;
 }
 
-// Get current orchestration state
+// Get current orchestration state with pattern guidance
 export function getOrchestrationState(callId: string): {
   currentAgent: string;
   suggestedAgent: string | null;
@@ -707,9 +743,58 @@ export function getOrchestrationState(callId: string): {
   hasActiveWarnings: boolean;
   patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number };
   therapeuticPriority: { priority: string; recommendation: string };
+  // NEW: Pattern guidance fields
+  patternGuidance: PatternGuidance[];
+  needsGuidanceUpdate: boolean;
 } | null {
   const session = activeSessions.get(callId);
   if (!session) return null;
+
+  // Generate pattern-specific guidance
+  const guidance: PatternGuidance[] = [];
+  
+  // Check for apologizing patterns (CVDC)
+  if (session.recentPatternCounts.cvdc >= 2) {
+    const guidanceKey = `cvdc_apology_${session.recentPatternCounts.cvdc}`;
+    if (!session.guidanceApplied.includes(guidanceKey)) {
+      guidance.push({
+        pattern: 'excessive_apologizing',
+        count: session.recentPatternCounts.cvdc,
+        suggestion: `User has apologized ${session.recentPatternCounts.cvdc} times. Address with: "I notice you've apologized several times, Frank. What's behind that for you?"`,
+        priority: session.recentPatternCounts.cvdc >= 3 ? 'high' : 'medium'
+      });
+    }
+  }
+  
+  // Check for self-care patterns (IBM)
+  if (session.recentPatternCounts.ibm > 0) {
+    const guidanceKey = `ibm_selfcare_${session.recentPatternCounts.ibm}`;
+    if (!session.guidanceApplied.includes(guidanceKey)) {
+      guidance.push({
+        pattern: 'self_care_deficit',
+        count: session.recentPatternCounts.ibm,
+        suggestion: `User mentioned self-care struggles. Explore: "It sounds like taking care of yourself has been difficult. What makes it hard right now?"`,
+        priority: 'medium'
+      });
+    }
+  }
+  
+  // Check for integration opportunities (Thend)
+  if (session.recentPatternCounts.thend >= 2) {
+    const guidanceKey = `thend_integration_${session.recentPatternCounts.thend}`;
+    if (!session.guidanceApplied.includes(guidanceKey)) {
+      guidance.push({
+        pattern: 'integration_moment',
+        count: session.recentPatternCounts.thend,
+        suggestion: `Integration moment detected. Support with: "Something seems to be shifting for you. What are you noticing?"`,
+        priority: 'low'
+      });
+    }
+  }
+
+  const needsUpdate = guidance.length > 0 && 
+    (!session.lastGuidanceTime || 
+     (Date.now() - session.lastGuidanceTime.getTime()) > 5000);
 
   // Get therapeutic priority
   const priority = getTherapeuticPriority({
@@ -735,7 +820,10 @@ export function getOrchestrationState(callId: string): {
     emotionalIntensity: session.emotionalIntensity,
     hasActiveWarnings: session.hasActiveWarnings,
     patternCounts: session.recentPatternCounts,
-    therapeuticPriority: priority
+    therapeuticPriority: priority,
+    // Pattern guidance
+    patternGuidance: guidance,
+    needsGuidanceUpdate: needsUpdate
   };
 }
 
@@ -793,7 +881,9 @@ export async function processEndOfCall(
           ibm: 0,
           thend: 0,
           cyvc: 0
-        }
+        },
+        guidanceApplied: [],
+        lastGuidanceTime: null
       };
     } else {
       session = {
@@ -814,7 +904,9 @@ export async function processEndOfCall(
           ibm: 0,
           thend: 0,
           cyvc: 0
-        }
+        },
+        guidanceApplied: [],
+        lastGuidanceTime: null
       };
     }
   }
@@ -888,7 +980,7 @@ async function storeCSSPatterns(session: EnhancedSessionState, patterns: any): P
       user_id: session.userId,
       call_id: session.callId,
       pattern_type: 'CVDC',
-      content: cvdc,
+      content: cvdc.text,
       extracted_contradiction: cvdc.includes('but') 
         ? cvdc.split('but').map((s: string) => s.trim()).join(' BUT ')
         : cvdc,
@@ -903,7 +995,7 @@ async function storeCSSPatterns(session: EnhancedSessionState, patterns: any): P
       user_id: session.userId,
       call_id: session.callId,
       pattern_type: 'IBM',
-      content: ibm,
+      content: ibm.text,
       behavioral_gap: ibm,
       css_stage: patterns.currentStage,
       confidence: patterns.confidence || 0.5,
@@ -916,7 +1008,7 @@ async function storeCSSPatterns(session: EnhancedSessionState, patterns: any): P
       user_id: session.userId,
       call_id: session.callId,
       pattern_type: 'Thend',
-      content: thend,
+      content: thend.text,
       css_stage: patterns.currentStage,
       confidence: patterns.confidence || 0.5,
       detected_at: new Date().toISOString()
@@ -939,4 +1031,13 @@ async function storeCSSPatterns(session: EnhancedSessionState, patterns: any): P
     await supabase.from('css_patterns').insert(patternInserts);
     console.log(`💾 Stored ${patternInserts.length} CSS patterns`);
   }
+}
+
+// NEW: Mark guidance as applied
+export async function markGuidanceApplied(callId: string, guidanceKeys: string[]): Promise<void> {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+  
+  session.guidanceApplied.push(...guidanceKeys);
+  session.lastGuidanceTime = new Date();
 }

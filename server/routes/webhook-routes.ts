@@ -118,9 +118,9 @@ router.post('/analyze-transcript', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const { detectCSSPatterns, assessPatternConfidence } = await import('../services/css-pattern-service');
+    const { detectEnhancedCSSPatterns, assessPatternConfidence } = await import('../services/css-pattern-service');
 
-    const patterns = detectCSSPatterns(transcript, true);
+    const patterns = detectEnhancedCSSPatterns(transcript, true);
     const { confidence, reasoning } = assessPatternConfidence(patterns);
 
     res.json({

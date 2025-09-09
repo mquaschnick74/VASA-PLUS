@@ -1,0 +1,357 @@
+## Replit Prompt: Real-Time Pattern Awareness for VASA Therapeutic Assistant
+
+### Context
+You're working on VASA, a therapeutic voice assistant that uses invisible agent orchestration. The system detects therapeutic patterns (CVDC, IBM, Thend, CYVC) in real-time but the agents are blind to these patterns during conversation. Patterns are detected in the webhook but never communicated back to the active VAPI agent, causing the agent to miss critical therapeutic opportunities.
+
+### Problem Statement
+When Frank says "Sorry" multiple times or mentions "haven't showered", the patterns are detected and stored in the database, but Sarah (the agent) never addresses them because she doesn't know about them in real-time. The orchestration suggests agent switches that never happen. Pattern detection works but pattern awareness doesn't.
+
+### Solution Requirements
+Implement real-time pattern awareness so agents can respond to detected patterns within 5-10 seconds. Use the existing polling infrastructure and `vapi.setAssistant()` capability to inject pattern guidance into the active conversation.
+
+### Implementation Phase 1: Enhanced Orchestration State
+
+**File: `server/services/orchestration-service.ts`**
+
+Modify the `getOrchestrationState()` function to include pattern guidance:
+
+```typescript
+// Add these interfaces at the top of the file
+interface PatternGuidance {
+  pattern: string;
+  count: number;
+  suggestion: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
+// Modify the EnhancedSessionState interface to add:
+interface EnhancedSessionState extends SessionState {
+  // ... existing fields ...
+  guidanceApplied: string[]; // Track which guidance has been sent
+  lastGuidanceTime: Date | null;
+}
+
+// Replace the existing getOrchestrationState function with:
+export function getOrchestrationState(callId: string): {
+  currentAgent: string;
+  suggestedAgent: string | null;
+  agentSwitches: Array<{timestamp: Date; fromAgent: string; toAgent: string; reason: string}>;
+  canSwitch: boolean;
+  currentCSSStage: string;
+  sessionStartTime: Date;
+  userId: string;
+  emotionalIntensity: 'low' | 'medium' | 'high' | 'critical';
+  hasActiveWarnings: boolean;
+  patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number };
+  therapeuticPriority: { priority: string; recommendation: string };
+  // NEW FIELDS
+  patternGuidance: PatternGuidance[];
+  needsGuidanceUpdate: boolean;
+} | null {
+  const session = activeSessions.get(callId);
+  if (!session) return null;
+
+  // Generate pattern-specific guidance
+  const guidance: PatternGuidance[] = [];
+  
+  // Check for apologizing patterns (CVDC)
+  if (session.recentPatternCounts.cvdc >= 2) {
+    const guidanceKey = `cvdc_apology_${session.recentPatternCounts.cvdc}`;
+    if (!session.guidanceApplied.includes(guidanceKey)) {
+      guidance.push({
+        pattern: 'excessive_apologizing',
+        count: session.recentPatternCounts.cvdc,
+        suggestion: `User has apologized ${session.recentPatternCounts.cvdc} times. Address with: "I notice you've apologized several times, Frank. What's behind that for you?"`,
+        priority: session.recentPatternCounts.cvdc >= 3 ? 'high' : 'medium'
+      });
+    }
+  }
+  
+  // Check for self-care patterns (IBM)
+  if (session.recentPatternCounts.ibm > 0) {
+    const guidanceKey = `ibm_selfcare_${session.recentPatternCounts.ibm}`;
+    if (!session.guidanceApplied.includes(guidanceKey)) {
+      guidance.push({
+        pattern: 'self_care_deficit',
+        count: session.recentPatternCounts.ibm,
+        suggestion: `User mentioned self-care struggles. Explore: "It sounds like taking care of yourself has been difficult. What makes it hard right now?"`,
+        priority: 'medium'
+      });
+    }
+  }
+  
+  // Check for integration opportunities (Thend)
+  if (session.recentPatternCounts.thend >= 2) {
+    const guidanceKey = `thend_integration_${session.recentPatternCounts.thend}`;
+    if (!session.guidanceApplied.includes(guidanceKey)) {
+      guidance.push({
+        pattern: 'integration_moment',
+        count: session.recentPatternCounts.thend,
+        suggestion: `Integration moment detected. Support with: "Something seems to be shifting for you. What are you noticing?"`,
+        priority: 'low'
+      });
+    }
+  }
+
+  const needsUpdate = guidance.length > 0 && 
+    (!session.lastGuidanceTime || 
+     (Date.now() - session.lastGuidanceTime.getTime()) > 5000);
+
+  // Get therapeutic priority (existing code)
+  const priority = getTherapeuticPriority({
+    cvdcPatterns: [],
+    ibmPatterns: [],
+    thendIndicators: [],
+    cyvcPatterns: [],
+    currentStage: session.currentCSSStage as CSSStage,
+    hasWarningFlags: session.hasActiveWarnings,
+    emotionalIntensity: session.emotionalIntensity
+  });
+
+  return {
+    currentAgent: session.agentName,
+    suggestedAgent: session.suggestedAgent,
+    agentSwitches: session.agentSwitches,
+    canSwitch: !session.lastSuggestionTime || 
+                (Date.now() - session.lastSuggestionTime.getTime()) > 60000,
+    currentCSSStage: session.currentCSSStage,
+    sessionStartTime: session.sessionStartTime,
+    userId: session.userId,
+    emotionalIntensity: session.emotionalIntensity,
+    hasActiveWarnings: session.hasActiveWarnings,
+    patternCounts: session.recentPatternCounts,
+    therapeuticPriority: priority,
+    patternGuidance: guidance,
+    needsGuidanceUpdate: needsUpdate
+  };
+}
+
+// Add new endpoint to mark guidance as applied
+export async function markGuidanceApplied(callId: string, guidanceKeys: string[]): Promise<void> {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+  
+  session.guidanceApplied.push(...guidanceKeys);
+  session.lastGuidanceTime = new Date();
+}
+```
+
+### Implementation Phase 2: Dynamic Client-Side Pattern Injection
+
+**File: `client/src/hooks/use-vapi.ts`**
+
+Add pattern awareness to the VAPI hook:
+
+```typescript
+// Add these to the imports
+import { useRef, useState } from 'react';
+
+// Inside the useVapi function, add after existing state declarations:
+const [appliedGuidance, setAppliedGuidance] = useState<Set<string>>(new Set());
+const [currentPollInterval, setCurrentPollInterval] = useState<number>(15000);
+const patternCheckRef = useRef<NodeJS.Timeout>();
+
+// Replace the existing orchestration check useEffect with:
+useEffect(() => {
+  if (!callId || !isSessionActive) return;
+
+  const checkPatternsAndOrchestration = async () => {
+    try {
+      const response = await fetch(`/api/orchestration/state/${callId}`);
+      if (!response.ok) return;
+      
+      const state = await response.json();
+      
+      // Log current patterns for debugging
+      const totalPatterns = Object.values(state.patternCounts).reduce((a: number, b: number) => a + b, 0);
+      if (totalPatterns > 0) {
+        console.log(`📊 Active patterns: CVDC=${state.patternCounts.cvdc}, IBM=${state.patternCounts.ibm}, Thend=${state.patternCounts.thend}`);
+      }
+      
+      // Dynamic polling interval based on pattern activity
+      const hasActivePatterns = totalPatterns > 0;
+      const hasHighPriorityGuidance = state.patternGuidance?.some((g: any) => g.priority === 'high');
+      
+      let nextInterval = 15000; // Default
+      if (hasHighPriorityGuidance) {
+        nextInterval = 3000; // 3 seconds for high priority
+      } else if (hasActivePatterns) {
+        nextInterval = 5000; // 5 seconds for active patterns
+      } else if (state.emotionalIntensity === 'low') {
+        nextInterval = 20000; // 20 seconds when calm
+      }
+      
+      setCurrentPollInterval(nextInterval);
+      
+      // Apply pattern guidance if needed
+      if (state.needsGuidanceUpdate && state.patternGuidance?.length > 0) {
+        const newGuidance = state.patternGuidance.filter((g: any) => 
+          !appliedGuidance.has(`${g.pattern}_${g.count}`)
+        );
+        
+        if (newGuidance.length > 0 && vapi && isSessionActive) {
+          console.log(`🎯 Injecting ${newGuidance.length} pattern guidance items`);
+          
+          // Build enhanced system prompt with pattern awareness
+          let enhancedPrompt = selectedAgent.systemPrompt;
+          
+          // Add memory context if exists
+          if (memoryContext && memoryContext.length > 50) {
+            enhancedPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====\n${memoryContext}\n===== END CONTEXT =====`;
+          }
+          
+          // Add user name
+          enhancedPrompt += `\n\nThe user's name is ${firstName}.`;
+          
+          // Add pattern guidance
+          enhancedPrompt += '\n\n===== ACTIVE PATTERNS REQUIRING ATTENTION =====\n';
+          enhancedPrompt += 'Address these patterns naturally in the conversation:\n\n';
+          
+          newGuidance.forEach((g: any) => {
+            enhancedPrompt += `• [${g.priority.toUpperCase()}] ${g.suggestion}\n`;
+          });
+          
+          enhancedPrompt += '\n===== END PATTERNS =====\n';
+          enhancedPrompt += 'IMPORTANT: Address these patterns gently and naturally. Do not suddenly change topic.\n';
+          enhancedPrompt += 'Continue the conversation flow while weaving in exploration of these patterns.';
+          
+          try {
+            // Update the assistant with pattern awareness
+            await vapi.setAssistant({
+              model: {
+                provider: 'openai',
+                model: selectedAgent.model.model,
+                temperature: selectedAgent.model.temperature,
+                messages: [{
+                  role: 'system',
+                  content: enhancedPrompt
+                }]
+              }
+            });
+            
+            // Mark guidance as applied
+            const newAppliedSet = new Set(appliedGuidance);
+            newGuidance.forEach((g: any) => {
+              newAppliedSet.add(`${g.pattern}_${g.count}`);
+            });
+            setAppliedGuidance(newAppliedSet);
+            
+            // Notify backend that guidance was applied
+            await fetch('/api/orchestration/guidance-applied', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                callId,
+                guidanceKeys: newGuidance.map((g: any) => `${g.pattern}_${g.count}`)
+              })
+            });
+            
+            console.log('✅ Pattern guidance successfully injected into conversation');
+          } catch (error) {
+            console.error('Failed to inject pattern guidance:', error);
+          }
+        }
+      }
+      
+      // Existing agent switching logic (keep as is)
+      if (state.suggestedAgent && state.suggestedAgent !== activeMethodology && state.canSwitch) {
+        console.log(`🔄 Switching methodology: ${activeMethodology} → ${state.suggestedAgent}`);
+        await updateMethodology(state.suggestedAgent);
+      }
+      
+    } catch (error) {
+      console.debug('Orchestration check error:', error);
+    }
+  };
+
+  // Initial check
+  checkPatternsAndOrchestration();
+  
+  // Set up recurring checks with dynamic interval
+  const scheduleNextCheck = () => {
+    patternCheckRef.current = setTimeout(() => {
+      checkPatternsAndOrchestration();
+      scheduleNextCheck();
+    }, currentPollInterval);
+  };
+  
+  scheduleNextCheck();
+  
+  return () => {
+    if (patternCheckRef.current) {
+      clearTimeout(patternCheckRef.current);
+    }
+  };
+}, [callId, isSessionActive, activeMethodology, userId, vapi, selectedAgent, memoryContext, firstName, currentPollInterval]);
+```
+
+### Implementation Phase 3: Add Guidance Applied Endpoint
+
+**File: `server/routes/webhook-routes.ts`**
+
+Add new endpoint to track applied guidance:
+
+```typescript
+// Add this route after the existing /orchestration/record-switch endpoint
+
+// POST to mark pattern guidance as applied
+router.post('/orchestration/guidance-applied', async (req, res) => {
+  try {
+    const { callId, guidanceKeys } = req.body;
+    
+    if (!callId || !guidanceKeys) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Mark guidance as applied in session
+    await markGuidanceApplied(callId, guidanceKeys);
+    
+    // Store in database for analytics
+    await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: req.body.userId || 'unknown',
+        call_id: callId,
+        context_type: 'guidance_applied',
+        content: `Pattern guidance applied: ${guidanceKeys.join(', ')}`,
+        confidence: 1.0,
+        importance: 5
+      });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to mark guidance as applied:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+```
+
+### Implementation Phase 4: Initialize guidanceApplied Array
+
+**File: `server/services/orchestration-service.ts`**
+
+Update the `initializeSession` function to include the new field:
+
+```typescript
+// In initializeSession function, add to the session object:
+guidanceApplied: [],
+lastGuidanceTime: null,
+
+// In ensureSessionInternal function where session is restored from DB, add:
+guidanceApplied: [],
+lastGuidanceTime: null,
+```
+
+### Deployment Instructions
+
+1. Update the three files in order: orchestration-service.ts, webhook-routes.ts, use-vapi.ts
+2. No database migrations needed (uses existing tables)
+3. Deploy and monitor logs for pattern injection confirmations
+4. Patterns should now be addressed within 3-5 seconds of detection
+
+The system will now:
+- Detect patterns in real-time (existing)
+- Generate therapeutic guidance based on patterns (new)
+- Inject guidance into active conversation via setAssistant (new)
+- Track what guidance has been applied (new)
+- Use dynamic polling intervals based on pattern urgency (new)
