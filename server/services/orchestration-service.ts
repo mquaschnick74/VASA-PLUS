@@ -58,6 +58,9 @@ const activeSessions = new Map<string, EnhancedSessionState>();
 const checkedSessions = new Set<string>(); // Track which sessions we've already checked in DB
 const initializationLocks = new Map<string, Promise<EnhancedSessionState | null>>(); // Prevent race conditions
 
+// Map temporary IDs to real call IDs
+const tempIdMapping = new Map<string, string>();
+
 // Cleanup stale sessions every 30 minutes
 setInterval(() => {
   const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
@@ -747,6 +750,28 @@ export function getOrchestrationState(callId: string): {
   patternGuidance: PatternGuidance[];
   needsGuidanceUpdate: boolean;
 } | null {
+  // Check if this is a temp ID
+  if (callId.startsWith('temp-')) {
+    // Look for any session that might match this temp pattern
+    for (const [realCallId, session] of activeSessions) {
+      // If we find a session for this user around the same time, use it
+      if (Math.abs(Date.now() - session.sessionStartTime.getTime()) < 10000) {
+        console.log(`📌 Mapping temp ID ${callId} to real session ${realCallId}`);
+        tempIdMapping.set(callId, realCallId);
+        callId = realCallId; // Use the real ID
+        break;
+      }
+    }
+    
+    // If still no match, return waiting state
+    if (!activeSessions.has(callId)) {
+      return {
+        waiting: true,
+        message: 'Session initializing...'
+      } as any;
+    }
+  }
+  
   const session = activeSessions.get(callId);
   if (!session) return null;
 

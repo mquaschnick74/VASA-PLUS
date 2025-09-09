@@ -152,6 +152,13 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         }
         
         const state = await response.json();
+        
+        // Skip if we're in waiting state
+        if (state.waiting) {
+          console.log('⏳ Waiting for session initialization...');
+          return; // Try again next cycle
+        }
+        
         console.log('📊 Orchestration state received:', state);
         
         // Log current patterns

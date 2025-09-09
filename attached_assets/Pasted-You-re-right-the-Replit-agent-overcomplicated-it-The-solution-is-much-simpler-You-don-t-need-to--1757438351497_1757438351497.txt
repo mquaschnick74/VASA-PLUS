@@ -1,0 +1,73 @@
+You're right - the Replit agent overcomplicated it! The solution is much simpler. You don't need to pass temp IDs through metadata or combine them with userIds. Here's the minimal fix:
+
+## Simple Fix - Just 2 Changes
+
+### 1. Update `orchestration-service.ts` - Handle Temp IDs
+
+Add this at the top (line 49, after the cache declarations):
+```typescript
+// Map temporary IDs to real call IDs
+const tempIdMapping = new Map<string, string>();
+```
+
+Modify `getOrchestrationState` function (around line 689) to handle temp IDs:
+```typescript
+export function getOrchestrationState(callId: string): any {
+  // Check if this is a temp ID
+  if (callId.startsWith('temp-')) {
+    // Look for any session that might match this temp pattern
+    for (const [realCallId, session] of activeSessions) {
+      // If we find a session for this user around the same time, use it
+      if (Math.abs(Date.now() - session.sessionStartTime.getTime()) < 10000) {
+        console.log(`📌 Mapping temp ID ${callId} to real session ${realCallId}`);
+        tempIdMapping.set(callId, realCallId);
+        callId = realCallId; // Use the real ID
+        break;
+      }
+    }
+    
+    // If still no match, return waiting state
+    if (!activeSessions.has(callId)) {
+      return {
+        waiting: true,
+        message: 'Session initializing...'
+      };
+    }
+  }
+  
+  const session = activeSessions.get(callId);
+  if (!session) return null;
+
+  // ... rest of existing getOrchestrationState code ...
+```
+
+### 2. Update `use-vapi.ts` - Skip When Waiting
+
+In the `checkPatternsAndOrchestration` function (around line 137), add this after parsing the JSON:
+```typescript
+const state = await response.json();
+
+// Skip if we're in waiting state
+if (state.waiting) {
+  console.log('⏳ Waiting for session initialization...');
+  return; // Try again next cycle
+}
+
+console.log('📊 Orchestration state received:', state);
+```
+
+## That's It!
+
+This simple approach:
+1. When client polls with temp ID, server checks if a recent real session exists
+2. If found, it uses that session's data
+3. If not found yet, returns "waiting" state
+4. Client keeps polling until session is ready
+
+No need for:
+- Passing temp IDs through metadata
+- Modifying webhook routes
+- Complex userId concatenation
+- Changing how sessions are initialized
+
+The Replit agent made it way more complex than needed. Would you like me to provide the complete updated files with just these minimal changes?
