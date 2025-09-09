@@ -84,8 +84,23 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
     };
   }, [selectedAgent.id]);
 
+  // DIAGNOSTIC: Check why polling doesn't start
+  console.log('DIAGNOSTIC:', {
+    callId,
+    isSessionActive, 
+    vapi: !!vapi,
+    willPoll: !(!callId || !isSessionActive || !vapi)
+  });
+
   // Enhanced orchestration with pattern awareness
   useEffect(() => {
+    console.log('🔍 POLLING EFFECT CHECK:', {
+      callId: callId || 'MISSING',
+      isSessionActive,
+      hasVapi: !!vapi,
+      willStartPolling: !(!callId || !isSessionActive || !vapi)
+    });
+    
     if (!callId || !isSessionActive || !vapi) return;
 
     let isActive = true; // Track if effect is still mounted
