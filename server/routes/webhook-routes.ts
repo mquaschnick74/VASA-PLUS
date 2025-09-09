@@ -35,7 +35,6 @@ router.post('/webhook', async (req, res) => {
 
     const userId = extractUserId(message);
     const callId = extractCallId(message);
-    const tempCallId = extractTempCallId(message);
     const agentName = extractAgentName(message);
 
     if (!userId || !callId) {
@@ -45,9 +44,7 @@ router.post('/webhook', async (req, res) => {
 
     switch (eventType) {
       case 'call-started':
-        // Pass temp ID info through userId if it exists
-        const userIdWithTemp = tempCallId ? `${userId}|temp-${tempCallId}` : userId;
-        await initializeSession(userIdWithTemp, callId, agentName);
+        await initializeSession(userId, callId, agentName);
         break;
 
       case 'conversation-update':
@@ -162,14 +159,6 @@ function extractUserId(message: any): string | null {
 function extractCallId(message: any): string | null {
   return message?.call?.id || 
          message?.callId || 
-         null;
-}
-
-function extractTempCallId(message: any): string | null {
-  return message?.call?.metadata?.tempCallId || 
-         message?.metadata?.tempCallId ||
-         message?.call?.assistant?.metadata?.tempCallId ||
-         message?.assistant?.metadata?.tempCallId ||
          null;
 }
 

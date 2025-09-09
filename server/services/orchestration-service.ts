@@ -58,9 +58,6 @@ const activeSessions = new Map<string, EnhancedSessionState>();
 const checkedSessions = new Set<string>(); // Track which sessions we've already checked in DB
 const initializationLocks = new Map<string, Promise<EnhancedSessionState | null>>(); // Prevent race conditions
 
-// Map temporary IDs to real call IDs for client-server sync
-const tempIdMapping = new Map<string, string>();
-
 // Cleanup stale sessions every 30 minutes
 setInterval(() => {
   const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
@@ -177,21 +174,8 @@ export async function initializeSession(
   callId: string,
   agentName: string
 ): Promise<EnhancedSessionState> {
-  // Extract real userId and temp ID if present
-  let realUserId = userId;
-  if (userId && userId.includes('|temp-')) {
-    const parts = userId.split('|');
-    realUserId = parts[0];
-    const tempId = parts[1]; // This will be "temp-xxxxx"
-    
-    if (tempId) {
-      tempIdMapping.set(tempId, callId);
-      console.log(`📌 Mapped temp ID ${tempId} to real call ID ${callId}`);
-    }
-  }
-  
   const session: EnhancedSessionState = {
-    userId: realUserId,
+    userId,
     callId,
     agentName,
     currentCSSStage: 'pointed_origin',
@@ -221,13 +205,13 @@ export async function initializeSession(
     .from('therapeutic_sessions')
     .upsert({
       call_id: callId,
-      user_id: realUserId,
+      user_id: userId,
       agent_name: agentName,
       status: 'active',
       start_time: new Date().toISOString()
     });
 
-  console.log(`✅ Session initialized: ${callId} for user ${realUserId}`);
+  console.log(`✅ Session initialized: ${callId} for user ${userId}`);
   return session;
 }
 
@@ -762,44 +746,9 @@ export function getOrchestrationState(callId: string): {
   // NEW: Pattern guidance fields
   patternGuidance: PatternGuidance[];
   needsGuidanceUpdate: boolean;
-  // NEW: Real call ID for temp ID mapping
-  realCallId?: string;
-  waiting?: boolean;
-  message?: string;
 } | null {
-  // Check if this is a temp ID that we have a mapping for
-  const realCallId = tempIdMapping.get(callId) || callId;
-  
-  if (realCallId !== callId) {
-    console.log(`🔄 Translating temp ID ${callId} to real ID ${realCallId}`);
-  }
-  
-  const session = activeSessions.get(realCallId);
-  
-  if (!session) {
-    // If using temp ID and no session found, return a waiting state
-    if (callId.startsWith('temp-')) {
-      return {
-        waiting: true,
-        realCallId: tempIdMapping.get(callId) || null,
-        message: 'Waiting for session initialization',
-        currentAgent: 'sarah',
-        suggestedAgent: null,
-        agentSwitches: [],
-        canSwitch: false,
-        currentCSSStage: 'pointed_origin',
-        sessionStartTime: new Date(),
-        userId: '',
-        emotionalIntensity: 'low',
-        hasActiveWarnings: false,
-        patternCounts: { cvdc: 0, ibm: 0, thend: 0, cyvc: 0 },
-        therapeuticPriority: { priority: 'low', recommendation: 'Waiting for session' },
-        patternGuidance: [],
-        needsGuidanceUpdate: false
-      };
-    }
-    return null;
-  }
+  const session = activeSessions.get(callId);
+  if (!session) return null;
 
   // Generate pattern-specific guidance
   const guidance: PatternGuidance[] = [];
@@ -874,9 +823,7 @@ export function getOrchestrationState(callId: string): {
     therapeuticPriority: priority,
     // Pattern guidance
     patternGuidance: guidance,
-    needsGuidanceUpdate: needsUpdate,
-    // Include real call ID if different from requested
-    realCallId: realCallId !== callId ? realCallId : undefined
+    needsGuidanceUpdate: needsUpdate
   };
 }
 
