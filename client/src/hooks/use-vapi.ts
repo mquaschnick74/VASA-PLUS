@@ -49,7 +49,7 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         setVapi(vapiInstance);
 
         vapiInstance.on('call-start', (event?: any) => {
-          console.log('✅ Call started - FULL EVENT:', event);
+          console.log('✅ Call started');
           
           // Try multiple paths to extract call ID
           const possiblePaths = [
@@ -61,15 +61,12 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
             event?.metadata?.callId
           ];
           
-          console.log('📞 Possible call ID paths:', possiblePaths);
-          
           const extractedCallId = possiblePaths.find(id => id && typeof id === 'string') || '';
           
           if (!extractedCallId) {
-            console.error('❌ NO CALL ID FOUND IN EVENT!', event);
             // Generate a temporary ID if none found
             const tempId = `temp-${Date.now()}`;
-            console.warn('⚠️ Using temporary call ID:', tempId);
+            console.log('📌 Using temporary call ID:', tempId);
             setCallId(tempId);
           } else {
             console.log('✅ Call ID extracted:', extractedCallId);
@@ -120,22 +117,8 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
     };
   }, [selectedAgent.id]);
 
-  // DIAGNOSTIC: Check why polling doesn't start
-  console.log('DIAGNOSTIC:', {
-    callId,
-    isSessionActive, 
-    vapi: !!vapi,
-    willPoll: !(!callId || !isSessionActive || !vapi)
-  });
-
   // Enhanced orchestration with pattern awareness
   useEffect(() => {
-    console.log('🔍 POLLING EFFECT CHECK:', {
-      callId: callId || 'MISSING',
-      isSessionActive,
-      hasVapi: !!vapi,
-      willStartPolling: !(!callId || !isSessionActive || !vapi)
-    });
     
     if (!callId || !isSessionActive || !vapi) return;
 
@@ -152,6 +135,20 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         }
         
         const state = await response.json();
+        
+        // If we get a real call ID back, update our local callId
+        if (state.realCallId && callId.startsWith('temp-')) {
+          console.log(`📞 Received real call ID from server: ${state.realCallId}`);
+          setCallId(state.realCallId);
+          return; // Will re-run with real ID on next cycle
+        }
+        
+        // Skip if we're in waiting state
+        if (state.waiting) {
+          console.log('⏳ Waiting for session initialization...');
+          return;
+        }
+        
         console.log('📊 Orchestration state received:', state);
         
         // Log current patterns
@@ -393,7 +390,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         metadata: {
           userId: userId,
           initialMethodology: selectedAgent.id,
-          agentName: selectedAgent.name // For backend tracking only
+          agentName: selectedAgent.name, // For backend tracking only
+          tempCallId: callId.startsWith('temp-') ? callId : undefined // Include temp ID if we have one
         }
       };
 
