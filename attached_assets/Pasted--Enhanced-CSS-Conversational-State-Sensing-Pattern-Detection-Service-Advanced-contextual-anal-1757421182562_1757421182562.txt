@@ -1,0 +1,792 @@
+// Enhanced CSS (Conversational State Sensing) Pattern Detection Service
+// Advanced contextual analysis with nuanced pattern recognition
+
+export interface CSSPatterns {
+  cvdcPatterns: PatternMatch[];
+  ibmPatterns: PatternMatch[];
+  thendIndicators: PatternMatch[];
+  cyvcPatterns: PatternMatch[];
+  currentStage: CSSStage;
+  confidence: number;
+  emotionalIntensity: number;
+  conversationFlow: ConversationFlow;
+  therapeuticContext: TherapeuticContext;
+}
+
+export interface PatternMatch {
+  text: string;
+  type: string;
+  confidence: number;
+  intensity: number;
+  context: string;
+  position: number;
+  relatedPatterns: string[];
+}
+
+export interface ConversationFlow {
+  momentum: 'building' | 'stable' | 'declining';
+  depth: number; // 0-1 scale
+  openness: number; // 0-1 scale
+  resistance: number; // 0-1 scale
+}
+
+export interface TherapeuticContext {
+  primaryTheme: string;
+  emotionalTone: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  suggestedApproach: string;
+  warningFlags: string[];
+}
+
+export type CSSStage = 
+  | 'pointed_origin'
+  | 'focus_bind' 
+  | 'suspension'
+  | 'gesture_toward'
+  | 'completion'
+  | 'terminal';
+
+// Pattern definitions with contextual metadata
+interface PatternDefinition {
+  regex: RegExp;
+  type: string;
+  baseIntensity: number;
+  contextBoost: string[];
+  diminishers: string[];
+}
+
+// Enhanced pattern definitions with nuance
+const CVDC_PATTERNS: PatternDefinition[] = [
+  // Contradiction patterns with intensity
+  {
+    regex: /I want[^.!?]*but[^.!?]*/gi,
+    type: 'desire_conflict',
+    baseIntensity: 0.7,
+    contextBoost: ['need', 'desperate', 'really'],
+    diminishers: ['maybe', 'kind of', 'sort of']
+  },
+  {
+    regex: /part of me[^.!?]*while another part[^.!?]*/gi,
+    type: 'internal_split',
+    baseIntensity: 0.8,
+    contextBoost: ['torn', 'fighting', 'battle'],
+    diminishers: ['small', 'tiny', 'little']
+  },
+  {
+    regex: /sorry(?:\s+I'm|\s+if|\s+for)?/gi,
+    type: 'apologizing',
+    baseIntensity: 0.5,
+    contextBoost: ['always', 'constantly', 'keep'],
+    diminishers: []
+  },
+  {
+    regex: /I'm worthless|useless|a burden/gi,
+    type: 'self_deprecation',
+    baseIntensity: 0.9,
+    contextBoost: ['totally', 'completely', 'such'],
+    diminishers: ['feeling', 'sometimes']
+  },
+  {
+    regex: /I don't deserve/gi,
+    type: 'unworthiness',
+    baseIntensity: 0.85,
+    contextBoost: ['never', 'really'],
+    diminishers: ['maybe', 'probably']
+  }
+];
+
+const IBM_PATTERNS: PatternDefinition[] = [
+  {
+    regex: /I should[^.!?]*but I don't/gi,
+    type: 'action_gap',
+    baseIntensity: 0.6,
+    contextBoost: ['know', 'really', 'definitely'],
+    diminishers: ['probably', 'maybe']
+  },
+  {
+    regex: /can't make myself/gi,
+    type: 'executive_dysfunction',
+    baseIntensity: 0.8,
+    contextBoost: ['just', 'even', 'literally'],
+    diminishers: []
+  },
+  {
+    regex: /haven't showered|apartment's a mess|room's a mess/gi,
+    type: 'self_care_deficit',
+    baseIntensity: 0.75,
+    contextBoost: ['days', 'weeks', 'disaster'],
+    diminishers: ['bit', 'little']
+  },
+  {
+    regex: /exhausted but can't sleep/gi,
+    type: 'dysregulation',
+    baseIntensity: 0.8,
+    contextBoost: ['completely', 'totally'],
+    diminishers: []
+  }
+];
+
+const THEND_PATTERNS: PatternDefinition[] = [
+  {
+    regex: /I realize both/gi,
+    type: 'integration_explicit',
+    baseIntensity: 0.7,
+    contextBoost: ['now', 'finally', 'starting'],
+    diminishers: ['maybe', 'might']
+  },
+  {
+    regex: /both[^.!?]*are true/gi,
+    type: 'paradox_acceptance',
+    baseIntensity: 0.8,
+    contextBoost: ['can be', 'actually'],
+    diminishers: []
+  },
+  {
+    regex: /starting to see/gi,
+    type: 'emerging_awareness',
+    baseIntensity: 0.6,
+    contextBoost: ['really', 'finally'],
+    diminishers: ['maybe', 'might']
+  }
+];
+
+const CYVC_PATTERNS: PatternDefinition[] = [
+  {
+    regex: /sometimes I[^.!?]*other times I/gi,
+    type: 'contextual_flexibility',
+    baseIntensity: 0.7,
+    contextBoost: ['choose', 'decide'],
+    diminishers: []
+  },
+  {
+    regex: /it depends on/gi,
+    type: 'situational_awareness',
+    baseIntensity: 0.6,
+    contextBoost: ['really', 'actually'],
+    diminishers: []
+  },
+  {
+    regex: /I can choose when to/gi,
+    type: 'agency',
+    baseIntensity: 0.8,
+    contextBoost: ['now', 'finally'],
+    diminishers: ['try to', 'hope to']
+  }
+];
+
+/**
+ * Analyzes surrounding context for intensity modifiers
+ */
+function analyzeContextualIntensity(
+  text: string, 
+  match: string, 
+  pattern: PatternDefinition,
+  position: number
+): number {
+  let intensity = pattern.baseIntensity;
+  
+  // Get surrounding context (100 chars before and after)
+  const contextStart = Math.max(0, position - 100);
+  const contextEnd = Math.min(text.length, position + match.length + 100);
+  const context = text.substring(contextStart, contextEnd).toLowerCase();
+  
+  // Check for intensity boosters
+  for (const booster of pattern.contextBoost) {
+    if (context.includes(booster)) {
+      intensity = Math.min(1.0, intensity + 0.1);
+    }
+  }
+  
+  // Check for diminishers
+  for (const diminisher of pattern.diminishers) {
+    if (context.includes(diminisher)) {
+      intensity = Math.max(0.3, intensity - 0.2);
+    }
+  }
+  
+  // Check for emotional intensifiers
+  const emotionalIntensifiers = ['really', 'so', 'very', 'extremely', 'totally', 'completely'];
+  const intensifierCount = emotionalIntensifiers.filter(word => context.includes(word)).length;
+  intensity = Math.min(1.0, intensity + (intensifierCount * 0.05));
+  
+  // Check for repetition (person emphasizing through repetition)
+  const words = match.split(' ');
+  const uniqueWords = new Set(words);
+  if (words.length > uniqueWords.size * 1.5) {
+    intensity = Math.min(1.0, intensity + 0.1);
+  }
+  
+  return intensity;
+}
+
+/**
+ * Analyzes conversation flow dynamics
+ */
+function analyzeConversationFlow(transcript: string): ConversationFlow {
+  const sentences = transcript.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const totalSentences = sentences.length;
+  
+  if (totalSentences === 0) {
+    return {
+      momentum: 'stable',
+      depth: 0,
+      openness: 0,
+      resistance: 0
+    };
+  }
+  
+  // Analyze sentence length progression (longer = more open)
+  const sentenceLengths = sentences.map(s => s.trim().split(' ').length);
+  const avgFirstHalf = sentenceLengths.slice(0, Math.floor(totalSentences / 2))
+    .reduce((a, b) => a + b, 0) / Math.max(1, Math.floor(totalSentences / 2));
+  const avgSecondHalf = sentenceLengths.slice(Math.floor(totalSentences / 2))
+    .reduce((a, b) => a + b, 0) / Math.max(1, Math.ceil(totalSentences / 2));
+  
+  let momentum: 'building' | 'stable' | 'declining' = 'stable';
+  if (avgSecondHalf > avgFirstHalf * 1.2) momentum = 'building';
+  else if (avgSecondHalf < avgFirstHalf * 0.8) momentum = 'declining';
+  
+  // Calculate depth (emotional/vulnerable words)
+  const deepWords = ['feel', 'felt', 'hurt', 'pain', 'scared', 'afraid', 'love', 'hate', 'shame', 'guilt'];
+  const deepWordCount = deepWords.reduce((count, word) => 
+    count + (transcript.toLowerCase().match(new RegExp(word, 'g'))?.length || 0), 0
+  );
+  const depth = Math.min(1, deepWordCount / (totalSentences * 2));
+  
+  // Calculate openness (I-statements and personal disclosure)
+  const iStatements = (transcript.match(/\bI\s+\w+/gi) || []).length;
+  const openness = Math.min(1, iStatements / (totalSentences * 3));
+  
+  // Calculate resistance (but, however, deflection)
+  const resistanceWords = ['but', 'however', 'although', 'fine', 'okay', 'whatever', 'nevermind'];
+  const resistanceCount = resistanceWords.reduce((count, word) =>
+    count + (transcript.toLowerCase().match(new RegExp(`\\b${word}\\b`, 'g'))?.length || 0), 0
+  );
+  const resistance = Math.min(1, resistanceCount / totalSentences);
+  
+  return { momentum, depth, openness, resistance };
+}
+
+/**
+ * Find related patterns across categories
+ */
+function findRelatedPatterns(
+  currentPattern: string,
+  allPatterns: Map<string, PatternMatch[]>
+): string[] {
+  const related: string[] = [];
+  const currentWords = new Set(currentPattern.toLowerCase().split(' '));
+  
+  for (const [category, patterns] of allPatterns) {
+    for (const pattern of patterns) {
+      if (pattern.text === currentPattern) continue;
+      
+      const patternWords = new Set(pattern.text.toLowerCase().split(' '));
+      const intersection = new Set([...currentWords].filter(x => patternWords.has(x)));
+      
+      // If shares significant words, consider related
+      if (intersection.size >= 2 || intersection.size / currentWords.size > 0.3) {
+        related.push(`${category}: "${pattern.text.substring(0, 30)}..."`);
+      }
+    }
+  }
+  
+  return related.slice(0, 3); // Limit to top 3 related
+}
+
+/**
+ * Determine therapeutic context from patterns
+ */
+function determineTherapeuticContext(
+  patterns: Map<string, PatternMatch[]>,
+  flow: ConversationFlow
+): TherapeuticContext {
+  const warningFlags: string[] = [];
+  let urgency: 'low' | 'medium' | 'high' | 'critical' = 'low';
+  let primaryTheme = 'General exploration';
+  let emotionalTone = 'neutral';
+  let suggestedApproach = 'Continue building rapport and exploring';
+  
+  // Check for self-harm indicators
+  const selfHarmWords = ['hurt myself', 'end it', 'not worth living', 'better off without me'];
+  const cvdcPatterns = patterns.get('cvdc') || [];
+  const ibmPatterns = patterns.get('ibm') || [];
+  
+  for (const pattern of [...cvdcPatterns, ...ibmPatterns]) {
+    for (const harmWord of selfHarmWords) {
+      if (pattern.text.toLowerCase().includes(harmWord)) {
+        warningFlags.push('Potential self-harm ideation');
+        urgency = 'critical';
+        break;
+      }
+    }
+  }
+  
+  // Analyze pattern intensity
+  const allPatterns = [...cvdcPatterns, ...ibmPatterns];
+  const avgIntensity = allPatterns.length > 0
+    ? allPatterns.reduce((sum, p) => sum + p.intensity, 0) / allPatterns.length
+    : 0;
+  
+  // Determine primary theme based on dominant pattern types
+  const patternTypeCounts = new Map<string, number>();
+  for (const pattern of allPatterns) {
+    patternTypeCounts.set(pattern.type, (patternTypeCounts.get(pattern.type) || 0) + 1);
+  }
+  
+  const dominantType = Array.from(patternTypeCounts.entries())
+    .sort((a, b) => b[1] - a[1])[0];
+  
+  if (dominantType) {
+    switch (dominantType[0]) {
+      case 'self_deprecation':
+      case 'unworthiness':
+        primaryTheme = 'Self-worth and shame patterns';
+        emotionalTone = 'self-critical';
+        suggestedApproach = 'Gentle validation while exploring self-concept';
+        if (avgIntensity > 0.7) urgency = 'high';
+        break;
+      case 'executive_dysfunction':
+      case 'self_care_deficit':
+        primaryTheme = 'Depression and functional impairment';
+        emotionalTone = 'depleted';
+        suggestedApproach = 'Focus on small achievable steps and self-compassion';
+        if (avgIntensity > 0.7) urgency = 'high';
+        break;
+      case 'desire_conflict':
+      case 'internal_split':
+        primaryTheme = 'Internal conflict and ambivalence';
+        emotionalTone = 'conflicted';
+        suggestedApproach = 'Explore both sides of the conflict with curiosity';
+        urgency = 'medium';
+        break;
+    }
+  }
+  
+  // Adjust based on conversation flow
+  if (flow.resistance > 0.6) {
+    warningFlags.push('High resistance detected');
+    suggestedApproach = 'Back off pressure, increase validation';
+  }
+  
+  if (flow.depth > 0.7 && flow.openness > 0.7) {
+    emotionalTone = 'vulnerable';
+    suggestedApproach += '; Client is opening up - maintain safe space';
+  }
+  
+  return {
+    primaryTheme,
+    emotionalTone,
+    urgency,
+    suggestedApproach,
+    warningFlags
+  };
+}
+
+/**
+ * Main enhanced pattern detection with contextual analysis
+ */
+export function detectEnhancedCSSPatterns(
+  transcript: string,
+  previousPatterns?: CSSPatterns,
+  debug: boolean = true
+): CSSPatterns {
+  if (!transcript || transcript.trim().length === 0) {
+    console.log('⚠️ Empty transcript provided');
+    return {
+      cvdcPatterns: [],
+      ibmPatterns: [],
+      thendIndicators: [],
+      cyvcPatterns: [],
+      currentStage: 'pointed_origin',
+      confidence: 0,
+      emotionalIntensity: 0,
+      conversationFlow: {
+        momentum: 'stable',
+        depth: 0,
+        openness: 0,
+        resistance: 0
+      },
+      therapeuticContext: {
+        primaryTheme: 'No content to analyze',
+        emotionalTone: 'neutral',
+        urgency: 'low',
+        suggestedApproach: 'Encourage client to share',
+        warningFlags: []
+      }
+    };
+  }
+
+  if (debug) {
+    console.log('🧠 Starting enhanced CSS pattern detection with contextual analysis');
+    console.log('📝 Analyzing transcript of length:', transcript.length);
+  }
+
+  // Initialize pattern storage
+  const patternMatches = new Map<string, PatternMatch[]>();
+  patternMatches.set('cvdc', []);
+  patternMatches.set('ibm', []);
+  patternMatches.set('thend', []);
+  patternMatches.set('cyvc', []);
+
+  // Process each pattern category with context
+  const processPatterns = (
+    patterns: PatternDefinition[],
+    category: string
+  ) => {
+    const matches: PatternMatch[] = [];
+    const seen = new Set<string>();
+
+    for (const patternDef of patterns) {
+      let match;
+      const regex = new RegExp(patternDef.regex.source, patternDef.regex.flags);
+      
+      while ((match = regex.exec(transcript)) !== null) {
+        const matchText = match[0].trim();
+        const matchKey = matchText.toLowerCase();
+        
+        if (seen.has(matchKey)) continue;
+        seen.add(matchKey);
+
+        const intensity = analyzeContextualIntensity(
+          transcript,
+          matchText,
+          patternDef,
+          match.index
+        );
+
+        // Extract surrounding context
+        const contextStart = Math.max(0, match.index - 50);
+        const contextEnd = Math.min(transcript.length, match.index + matchText.length + 50);
+        const context = transcript.substring(contextStart, contextEnd);
+
+        matches.push({
+          text: matchText,
+          type: patternDef.type,
+          confidence: 0.7 + (intensity * 0.3), // Base confidence + intensity boost
+          intensity,
+          context,
+          position: match.index,
+          relatedPatterns: [] // Will be filled later
+        });
+      }
+    }
+
+    return matches;
+  };
+
+  // Detect patterns for each category
+  const cvdcMatches = processPatterns(CVDC_PATTERNS, 'cvdc');
+  const ibmMatches = processPatterns(IBM_PATTERNS, 'ibm');
+  const thendMatches = processPatterns(THEND_PATTERNS, 'thend');
+  const cyvcMatches = processPatterns(CYVC_PATTERNS, 'cyvc');
+
+  // Store in map
+  patternMatches.set('cvdc', cvdcMatches);
+  patternMatches.set('ibm', ibmMatches);
+  patternMatches.set('thend', thendMatches);
+  patternMatches.set('cyvc', cyvcMatches);
+
+  // Find related patterns across categories
+  for (const [category, patterns] of patternMatches) {
+    for (const pattern of patterns) {
+      pattern.relatedPatterns = findRelatedPatterns(pattern.text, patternMatches);
+    }
+  }
+
+  // Analyze conversation flow
+  const conversationFlow = analyzeConversationFlow(transcript);
+
+  // Calculate overall emotional intensity
+  const allMatches = [...cvdcMatches, ...ibmMatches, ...thendMatches, ...cyvcMatches];
+  const emotionalIntensity = allMatches.length > 0
+    ? allMatches.reduce((sum, p) => sum + p.intensity, 0) / allMatches.length
+    : 0;
+
+  // Determine therapeutic context
+  const therapeuticContext = determineTherapeuticContext(patternMatches, conversationFlow);
+
+  // Identify current stage with nuanced logic
+  const currentStage = identifyEnhancedStage(
+    cvdcMatches,
+    ibmMatches,
+    thendMatches,
+    cyvcMatches,
+    conversationFlow,
+    previousPatterns
+  );
+
+  // Calculate confidence based on multiple factors
+  const confidence = calculateNuancedConfidence(
+    allMatches,
+    conversationFlow,
+    currentStage
+  );
+
+  if (debug) {
+    console.log('📊 Enhanced Pattern Analysis Complete:');
+    console.log(`  Stage: ${currentStage} (${Math.round(confidence * 100)}% confidence)`);
+    console.log(`  Emotional Intensity: ${Math.round(emotionalIntensity * 100)}%`);
+    console.log(`  Conversation Flow: ${conversationFlow.momentum}, Depth: ${Math.round(conversationFlow.depth * 100)}%`);
+    console.log(`  Therapeutic Context: ${therapeuticContext.primaryTheme} [${therapeuticContext.urgency}]`);
+    console.log(`  Pattern Counts: CVDC=${cvdcMatches.length}, IBM=${ibmMatches.length}, Thend=${thendMatches.length}, CYVC=${cyvcMatches.length}`);
+    
+    if (therapeuticContext.warningFlags.length > 0) {
+      console.log(`  ⚠️ Warning Flags:`, therapeuticContext.warningFlags);
+    }
+  }
+
+  return {
+    cvdcPatterns: cvdcMatches,
+    ibmPatterns: ibmMatches,
+    thendIndicators: thendMatches,
+    cyvcPatterns: cyvcMatches,
+    currentStage,
+    confidence,
+    emotionalIntensity,
+    conversationFlow,
+    therapeuticContext
+  };
+}
+
+/**
+ * Enhanced stage identification with progression tracking
+ */
+function identifyEnhancedStage(
+  cvdcPatterns: PatternMatch[],
+  ibmPatterns: PatternMatch[],
+  thendPatterns: PatternMatch[],
+  cyvcPatterns: PatternMatch[],
+  flow: ConversationFlow,
+  previousPatterns?: CSSPatterns
+): CSSStage {
+  // Consider previous stage for progression continuity
+  const previousStage = previousPatterns?.currentStage || 'pointed_origin';
+  
+  // Calculate weighted scores for each stage
+  const scores = {
+    pointed_origin: 0,
+    focus_bind: 0,
+    suspension: 0,
+    gesture_toward: 0,
+    completion: 0,
+    terminal: 0
+  };
+
+  // Weight patterns by intensity and confidence
+  const cvdcScore = cvdcPatterns.reduce((sum, p) => sum + (p.intensity * p.confidence), 0);
+  const ibmScore = ibmPatterns.reduce((sum, p) => sum + (p.intensity * p.confidence), 0);
+  const thendScore = thendPatterns.reduce((sum, p) => sum + (p.intensity * p.confidence), 0);
+  const cyvcScore = cyvcPatterns.reduce((sum, p) => sum + (p.intensity * p.confidence), 0);
+
+  // Pointed origin: Low engagement, minimal patterns
+  if (cvdcScore < 0.5 && ibmScore < 0.5 && flow.openness < 0.3) {
+    scores.pointed_origin = 1.0;
+  }
+
+  // Focus bind: Clear contradictions emerging
+  if (cvdcScore > 0.5 || ibmScore > 0.5) {
+    scores.focus_bind = (cvdcScore + ibmScore) / 2;
+  }
+
+  // Suspension: Multiple contradictions, high engagement
+  if (cvdcPatterns.length >= 2 || ibmPatterns.length >= 2) {
+    scores.suspension = Math.min(1.0, (cvdcScore + ibmScore) / 3 + flow.depth);
+  }
+
+  // Gesture toward: Integration beginning
+  if (thendScore > 0 && (cvdcScore > 0 || ibmScore > 0)) {
+    scores.gesture_toward = thendScore + (flow.momentum === 'building' ? 0.2 : 0);
+  }
+
+  // Completion: Contextual awareness emerging
+  if (cyvcScore > 0) {
+    scores.completion = cyvcScore + (flow.openness * 0.3);
+  }
+
+  // Terminal: Full integration and choice
+  if (cyvcScore > 0.5 && thendScore > 0.5) {
+    scores.terminal = (cyvcScore + thendScore) / 2 + 0.2;
+  }
+
+  // Consider stage progression continuity
+  const stageOrder = ['pointed_origin', 'focus_bind', 'suspension', 'gesture_toward', 'completion', 'terminal'];
+  const previousIndex = stageOrder.indexOf(previousStage);
+  
+  // Boost scores for natural progression
+  stageOrder.forEach((stage, index) => {
+    if (Math.abs(index - previousIndex) <= 1) {
+      scores[stage as CSSStage] *= 1.2; // Boost adjacent stages
+    }
+  });
+
+  // Find highest scoring stage
+  const bestStage = Object.entries(scores)
+    .sort((a, b) => b[1] - a[1])[0][0] as CSSStage;
+
+  return bestStage;
+}
+
+/**
+ * Calculate nuanced confidence score
+ */
+function calculateNuancedConfidence(
+  patterns: PatternMatch[],
+  flow: ConversationFlow,
+  stage: CSSStage
+): number {
+  if (patterns.length === 0) {
+    return 0.3; // Low confidence with no patterns
+  }
+
+  // Base confidence from pattern quality
+  const avgPatternConfidence = patterns.reduce((sum, p) => sum + p.confidence, 0) / patterns.length;
+  
+  // Adjust for conversation flow
+  let flowMultiplier = 1.0;
+  if (flow.momentum === 'building') flowMultiplier = 1.1;
+  if (flow.momentum === 'declining') flowMultiplier = 0.9;
+  
+  // Adjust for depth and openness
+  const engagementBonus = (flow.depth + flow.openness) / 4;
+  
+  // Penalize high resistance
+  const resistancePenalty = flow.resistance * 0.2;
+  
+  // Calculate final confidence
+  let confidence = (avgPatternConfidence * flowMultiplier) + engagementBonus - resistancePenalty;
+  
+  // Ensure within bounds
+  confidence = Math.max(0.2, Math.min(0.95, confidence));
+  
+  return confidence;
+}
+
+/**
+ * Generate therapeutic insights from patterns
+ */
+export function generateTherapeuticInsights(patterns: CSSPatterns): {
+  insights: string[];
+  recommendations: string[];
+  cautionFlags: string[];
+} {
+  const insights: string[] = [];
+  const recommendations: string[] = [];
+  const cautionFlags: string[] = [];
+
+  // Analyze pattern relationships
+  const cvdcIntensity = patterns.cvdcPatterns.reduce((sum, p) => sum + p.intensity, 0) / Math.max(1, patterns.cvdcPatterns.length);
+  const ibmIntensity = patterns.ibmPatterns.reduce((sum, p) => sum + p.intensity, 0) / Math.max(1, patterns.ibmPatterns.length);
+
+  // Generate insights based on patterns
+  if (patterns.emotionalIntensity > 0.7) {
+    insights.push('High emotional activation present - client is deeply engaged with material');
+  }
+
+  if (patterns.conversationFlow.resistance > 0.6) {
+    insights.push('Significant resistance detected - may need to adjust approach');
+    recommendations.push('Consider backing off direct exploration and increasing validation');
+  }
+
+  if (patterns.conversationFlow.depth > 0.7) {
+    insights.push('Client showing significant depth and vulnerability');
+    recommendations.push('Maintain current approach - client is opening up productively');
+  }
+
+  // Check for concerning patterns
+  const hasApologyPattern = patterns.cvdcPatterns.some(p => p.type === 'apologizing');
+  const apologyCount = patterns.cvdcPatterns.filter(p => p.type === 'apologizing').length;
+  
+  if (hasApologyPattern && apologyCount > 3) {
+    insights.push(`Excessive apologizing detected (${apologyCount} instances) - indicates shame/worth issues`);
+    recommendations.push('Address self-worth directly; normalize taking up space in therapy');
+  }
+
+  // Stage-specific recommendations
+  switch (patterns.currentStage) {
+    case 'focus_bind':
+      recommendations.push('Help client articulate contradictions more clearly');
+      break;
+    case 'suspension':
+      recommendations.push('Hold space for multiple truths without rushing to resolve');
+      break;
+    case 'gesture_toward':
+      recommendations.push('Reinforce emerging integration; celebrate both-and thinking');
+      break;
+    case 'completion':
+      recommendations.push('Explore how contextual awareness can be applied to daily life');
+      break;
+  }
+
+  // Add caution flags
+  if (patterns.therapeuticContext.warningFlags.length > 0) {
+    cautionFlags.push(...patterns.therapeuticContext.warningFlags);
+  }
+
+  if (patterns.emotionalIntensity > 0.85 && patterns.conversationFlow.momentum === 'declining') {
+    cautionFlags.push('High distress with declining engagement - check for overwhelm');
+  }
+
+  return { insights, recommendations, cautionFlags };
+}
+
+/**
+ * Track pattern evolution across sessions
+ */
+export function trackPatternEvolution(
+  currentPatterns: CSSPatterns,
+  sessionHistory: CSSPatterns[]
+): {
+  trend: 'improving' | 'stable' | 'declining';
+  progressMarkers: string[];
+  concernAreas: string[];
+} {
+  if (sessionHistory.length === 0) {
+    return {
+      trend: 'stable',
+      progressMarkers: ['First session - establishing baseline'],
+      concernAreas: []
+    };
+  }
+
+  const progressMarkers: string[] = [];
+  const concernAreas: string[] = [];
+  
+  // Compare to recent sessions
+  const recentSessions = sessionHistory.slice(-3);
+  const avgRecentIntensity = recentSessions.reduce((sum, s) => sum + s.emotionalIntensity, 0) / recentSessions.length;
+  
+  // Determine trend
+  let trend: 'improving' | 'stable' | 'declining' = 'stable';
+  
+  // Check stage progression
+  const stageOrder = ['pointed_origin', 'focus_bind', 'suspension', 'gesture_toward', 'completion', 'terminal'];
+  const currentStageIndex = stageOrder.indexOf(currentPatterns.currentStage);
+  const previousStageIndex = stageOrder.indexOf(sessionHistory[sessionHistory.length - 1].currentStage);
+  
+  if (currentStageIndex > previousStageIndex) {
+    trend = 'improving';
+    progressMarkers.push(`Progressed from ${sessionHistory[sessionHistory.length - 1].currentStage} to ${currentPatterns.currentStage}`);
+  } else if (currentStageIndex < previousStageIndex) {
+    trend = 'declining';
+    concernAreas.push('Regression in CSS stage progression');
+  }
+  
+  // Check pattern evolution
+  if (currentPatterns.thendIndicators.length > 0 && 
+      recentSessions.every(s => s.thendIndicators.length === 0)) {
+    progressMarkers.push('New integration patterns emerging');
+    trend = 'improving';
+  }
+  
+  if (currentPatterns.emotionalIntensity < avgRecentIntensity * 0.5) {
+    concernAreas.push('Significant drop in emotional engagement');
+  }
+  
+  if (currentPatterns.conversationFlow.resistance > 0.7 &&
+      recentSessions.every(s => s.conversationFlow.resistance < 0.5)) {
+    concernAreas.push('Increased resistance compared to recent sessions');
+  }
+  
+  return { trend, progressMarkers, concernAreas };
+}
