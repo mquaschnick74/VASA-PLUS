@@ -27,6 +27,11 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
   const [activeMethodology, setActiveMethodology] = useState<string>(selectedAgent.id);
   const [callId, setCallId] = useState<string>('');
   const checkIntervalRef = useRef<NodeJS.Timeout>();
+  
+  // Pattern guidance tracking
+  const [appliedGuidance, setAppliedGuidance] = useState<Set<string>>(new Set());
+  const [currentPollInterval, setCurrentPollInterval] = useState<number>(15000);
+  const patternCheckRef = useRef<NodeJS.Timeout>();
 
   // Initialize VAPI
   useEffect(() => {
@@ -80,40 +85,139 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
     };
   }, [selectedAgent.id]);
 
-  // Silently check for methodology suggestions from backend
+  // Enhanced orchestration with pattern awareness
   useEffect(() => {
     if (!callId || !isSessionActive) return;
 
-    const checkMethodology = async () => {
+    const checkPatternsAndOrchestration = async () => {
       try {
         const response = await fetch(`/api/orchestration/state/${callId}`);
-        if (response.ok) {
-          const state = await response.json();
+        if (!response.ok) return;
+        
+        const state = await response.json();
+        
+        // Log current patterns for debugging
+        const totalPatterns = Object.values(state.patternCounts || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+        if (totalPatterns > 0) {
+          console.log(`📊 Active patterns: CVDC=${state.patternCounts.cvdc}, IBM=${state.patternCounts.ibm}, Thend=${state.patternCounts.thend}`);
+        }
+        
+        // Dynamic polling interval based on pattern activity
+        const hasActivePatterns = totalPatterns > 0;
+        const hasHighPriorityGuidance = state.patternGuidance?.some((g: any) => g.priority === 'high');
+        
+        let nextInterval = 15000; // Default
+        if (hasHighPriorityGuidance) {
+          nextInterval = 3000; // 3 seconds for high priority
+        } else if (hasActivePatterns) {
+          nextInterval = 5000; // 5 seconds for active patterns
+        } else if (state.emotionalIntensity === 'low') {
+          nextInterval = 20000; // 20 seconds when calm
+        }
+        
+        setCurrentPollInterval(nextInterval);
+        
+        // Apply pattern guidance if needed
+        if (state.needsGuidanceUpdate && state.patternGuidance?.length > 0) {
+          const newGuidance = state.patternGuidance.filter((g: any) => 
+            !appliedGuidance.has(`${g.pattern}_${g.count}`)
+          );
           
-          // Log contextual data for debugging
-          console.log(`📊 Orchestration state: CSS Stage=${state.currentCSSStage}, Agent=${state.currentAgent}`);
-          
-          // If backend suggests different methodology, update silently
-          if (state.suggestedAgent && state.suggestedAgent !== activeMethodology && state.canSwitch) {
-            console.log(`🔄 Silently switching methodology: ${activeMethodology} → ${state.suggestedAgent}`);
-            await updateMethodology(state.suggestedAgent);
+          if (newGuidance.length > 0 && vapi && isSessionActive) {
+            console.log(`🎯 Injecting ${newGuidance.length} pattern guidance items`);
+            
+            // Build enhanced system prompt with pattern awareness
+            let enhancedPrompt = selectedAgent.systemPrompt;
+            
+            // Add memory context if exists
+            if (memoryContext && memoryContext.length > 50) {
+              enhancedPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====\n${memoryContext}\n===== END CONTEXT =====`;
+            }
+            
+            // Add user name
+            enhancedPrompt += `\n\nThe user's name is ${firstName}.`;
+            
+            // Add pattern guidance
+            enhancedPrompt += '\n\n===== ACTIVE PATTERNS REQUIRING ATTENTION =====\n';
+            enhancedPrompt += 'Address these patterns naturally in the conversation:\n\n';
+            
+            newGuidance.forEach((g: any) => {
+              enhancedPrompt += `• [${g.priority.toUpperCase()}] ${g.suggestion}\n`;
+            });
+            
+            enhancedPrompt += '\n===== END PATTERNS =====\n';
+            enhancedPrompt += 'IMPORTANT: Address these patterns gently and naturally. Do not suddenly change topic.\n';
+            enhancedPrompt += 'Continue the conversation flow while weaving in exploration of these patterns.';
+            
+            try {
+              // Update the assistant with pattern awareness
+              await vapi.setAssistant({
+                model: {
+                  provider: 'openai',
+                  model: selectedAgent.model.model,
+                  temperature: selectedAgent.model.temperature,
+                  messages: [{
+                    role: 'system',
+                    content: enhancedPrompt
+                  }]
+                }
+              });
+              
+              // Mark guidance as applied
+              const newAppliedSet = new Set(appliedGuidance);
+              newGuidance.forEach((g: any) => {
+                newAppliedSet.add(`${g.pattern}_${g.count}`);
+              });
+              setAppliedGuidance(newAppliedSet);
+              
+              // Notify backend that guidance was applied
+              await fetch('/api/orchestration/guidance-applied', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  callId,
+                  userId,
+                  guidanceKeys: newGuidance.map((g: any) => `${g.pattern}_${g.count}`)
+                })
+              });
+              
+              console.log('✅ Pattern guidance successfully injected into conversation');
+            } catch (error) {
+              console.error('Failed to inject pattern guidance:', error);
+            }
           }
         }
+        
+        // Existing agent switching logic
+        if (state.suggestedAgent && state.suggestedAgent !== activeMethodology && state.canSwitch) {
+          console.log(`🔄 Switching methodology: ${activeMethodology} → ${state.suggestedAgent}`);
+          await updateMethodology(state.suggestedAgent);
+        }
+        
       } catch (error) {
-        // Silently handle errors - orchestration is optional enhancement
-        console.debug('Orchestration check skipped:', error);
+        console.debug('Orchestration check error:', error);
       }
     };
 
-    // Check every 15 seconds for methodology suggestions
-    checkIntervalRef.current = setInterval(checkMethodology, 15000);
+    // Initial check
+    checkPatternsAndOrchestration();
+    
+    // Set up recurring checks with dynamic interval
+    const scheduleNextCheck = () => {
+      patternCheckRef.current = setTimeout(() => {
+        checkPatternsAndOrchestration();
+        scheduleNextCheck();
+      }, currentPollInterval);
+    };
+    
+    scheduleNextCheck();
     
     return () => {
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
+      if (patternCheckRef.current) {
+        clearTimeout(patternCheckRef.current);
       }
     };
-  }, [callId, isSessionActive, activeMethodology, userId]);
+  }, [callId, isSessionActive, activeMethodology, userId, vapi, selectedAgent, memoryContext, firstName, currentPollInterval, appliedGuidance]);
 
   // Silently update the therapeutic methodology
   const updateMethodology = async (newMethodology: string) => {
