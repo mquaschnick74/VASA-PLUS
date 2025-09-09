@@ -1,0 +1,95 @@
+Perfect! The VAPI documentation confirms the issue and provides a much simpler solution than my server-side sync approach. **Don't implement my previous suggestion** - this is much cleaner.
+
+## The Solution: Listen to `conversation-update` for Call ID
+
+The VAPI docs confirm that `call-start` doesn't provide the call ID. Instead, the first `conversation-update` event contains it.
+
+### Single File Fix: client/src/hooks/use-vapi.ts
+
+Replace the VAPI initialization section (lines 35-95) with this updated version that listens to `conversation-update`:
+
+```typescript
+// Initialize VAPI
+useEffect(() => {
+  const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
+  
+  if (!publicKey) {
+    console.error('VAPI public key not found');
+    return;
+  }
+
+  const initializeVapi = async () => {
+    try {
+      const { default: Vapi } = await import('@vapi-ai/web');
+      const vapiInstance = new Vapi(publicKey);
+      vapiRef.current = vapiInstance;
+      setVapi(vapiInstance);
+
+      // Listen for call-start (won't have ID yet)
+      vapiInstance.on('call-start', () => {
+        console.log('✅ Call started (waiting for call ID...)');
+        setIsSessionActive(true);
+        setConnectionStatus('connected');
+        setIsLoading(false);
+      });
+
+      // NEW: Listen for conversation-update to get the actual call ID
+      vapiInstance.on('conversation-update', (event: any) => {
+        // Only process if we don't have a call ID yet
+        if (!callId && event?.call?.id) {
+          console.log('📞 Got call ID from conversation-update:', event.call.id);
+          setCallId(event.call.id);
+        }
+      });
+
+      vapiInstance.on('call-end', () => {
+        console.log('📴 Call ended');
+        setIsSessionActive(false);
+        setConnectionStatus('disconnected');
+        setCallId('');
+        setActiveMethodology(selectedAgent.id);
+        appliedGuidanceRef.current.clear();
+      });
+
+      vapiInstance.on('error', (error: any) => {
+        console.error('VAPI error:', error);
+        setIsLoading(false);
+        setConnectionStatus('disconnected');
+      });
+      
+      // Debug: Log all events to see what's available
+      if (process.env.NODE_ENV === 'development') {
+        vapiInstance.on('*', (event: any) => {
+          console.debug('VAPI Event:', event?.type, event);
+        });
+      }
+      
+    } catch (error) {
+      console.error('Failed to initialize VAPI:', error);
+      setConnectionStatus('disconnected');
+    }
+  };
+
+  initializeVapi();
+
+  return () => {
+    if (vapiRef.current) {
+      vapiRef.current.stop();
+    }
+  };
+}, [selectedAgent.id]);
+```
+
+That's it! No server-side changes needed. The client will now:
+1. Get `call-start` event (no ID yet)
+2. Get first `conversation-update` event with the real call ID
+3. Start polling with the correct call ID
+
+## Testing
+After this change, you should see in the console:
+1. "✅ Call started (waiting for call ID...)"
+2. "📞 Got call ID from conversation-update: [actual-call-id]"
+3. "🚀 Starting orchestration polling for call: [actual-call-id]"
+4. Pattern detection working properly
+
+This is much simpler than my previous solution - no server sync needed, just proper event listening!
