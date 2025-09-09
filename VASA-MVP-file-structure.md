@@ -1,7 +1,7 @@
 # VASA MVP - File Structure
 
 ## Overview
-AI-powered therapeutic voice assistant with real-time CSS pattern detection, natural voice agents (v3), persistent memory, and mobile-responsive glassmorphic UI.
+AI-powered therapeutic voice assistant with invisible agent orchestration, real-time CSS pattern detection, persistent memory, and mobile-responsive glassmorphic UI.
 
 ## Directory Structure
 
@@ -12,14 +12,14 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 │       ├── components/
 │       │   ├── ui/                  # 47 shadcn/ui components
 │       │   ├── voice-interface.tsx  # Main voice UI with controls
-│       │   ├── AgentSelector.tsx    # Multi-agent selection
+│       │   ├── AgentSelector.tsx    # Multi-agent selection UI
 │       │   ├── authentication.tsx   # Email auth flow
 │       │   ├── DeleteAccount.tsx    # Account deletion
-│       │   └── AIDisclosureCard.tsx # AI limitations dropdown (NEW)
+│       │   └── AIDisclosureCard.tsx # AI limitations dropdown
 │       ├── config/
-│       │   └── agent-configs.ts     # Agent v3: speak/meta separation
+│       │   └── agent-configs.ts     # Sarah/Mathew/Marcus agents v3
 │       ├── hooks/
-│       │   ├── use-vapi.ts         # VAPI WebSocket management
+│       │   ├── use-vapi.ts         # VAPI + invisible orchestration
 │       │   ├── use-toast.ts        # Notification system
 │       │   └── use-mobile.tsx      # Responsive detection
 │       ├── lib/
@@ -30,47 +30,52 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 │       │   └── not-found.tsx       # 404 page
 │       ├── App.tsx                 # Root component
 │       └── index.css               # Tailwind + glassmorphic styles
-│
+
 ├── server/                          # Express backend
 │   ├── routes/
 │   │   ├── auth-routes.ts          # User auth & context
-│   │   └── webhook-routes.ts       # VAPI webhook handler
+│   │   └── webhook-routes.ts       # VAPI webhook + orchestration
 │   ├── services/
-│   │   ├── orchestration-service.ts # Session management + meta parsing
+│   │   ├── orchestration-service.ts # Invisible agent switching
 │   │   ├── css-pattern-service.ts   # CSS stage detection
 │   │   ├── memory-service.ts        # Context persistence
 │   │   ├── auth-service.ts          # User authentication
 │   │   └── supabase-service.ts      # Database client
 │   ├── utils/
-│   │   └── parseAssistantOutput.ts  # Speak/meta tag parser (NEW)
+│   │   └── parseAssistantOutput.ts  # Speak/meta tag parser
 │   ├── index.ts                     # Server entry
 │   ├── routes.ts                    # Route registration
 │   ├── storage.ts                   # Storage interfaces
 │   └── vite.ts                      # Frontend serving
-│
+
 ├── shared/
 │   └── schema.ts                    # Drizzle ORM schemas
-│
+
 ├── drizzle/
 │   └── migrations/                  # Database migrations
-│
-└── attached_assets/                 # User uploads
 
+└── attached_assets/                 # User uploads
 ```
 
 ## Key Components
 
 ### Frontend Features
 - **Voice Interface** - Real-time call controls, status display
-- **Agent Selector** - Sarah (emotional) & Mathew (analytical)
+- **Agent Selector** - Initial agent choice (Sarah/Mathew/Marcus)
+- **Invisible Orchestration** - Silent methodology switching via `use-vapi.ts`
 - **AI Disclosure** - Red alert dropdown with limitations & crisis info
 - **Mobile Responsive** - Full mobile optimization with scaling UI
 
 ### Backend Services
 
+**Orchestration System:**
+- `orchestration-service.ts` - Pattern analysis, agent suggestions, session management
+- Silent methodology switching based on conversation patterns
+- 15-second background checks for optimal therapeutic approach
+- 2-minute cooldowns between suggestions
+
 **Core Services:**
-- `orchestration-service.ts` - Session state, transcript processing, metadata extraction
-- `css-pattern-service.ts` - CVDC/IBM/Thend/CYVC detection with flexible regex
+- `css-pattern-service.ts` - CVDC/IBM/Thend/CYVC detection
 - `memory-service.ts` - Context building, therapeutic insights
 - `parseAssistantOutput.ts` - Separates `<speak>` from `<meta>` tags
 
@@ -85,12 +90,17 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 ```sql
 users                    # User profiles with email
 therapeutic_sessions     # Voice session metadata
-therapeutic_context      # Persistent memory/insights
-session_transcripts      # Full conversations (end-of-call only)
+therapeutic_context      # Persistent memory + switch records
+session_transcripts      # Full conversations (end-of-call)
 css_patterns            # Detected patterns + metadata
 ```
 
 ## Agent System v3
+
+### Three Therapeutic Methodologies
+- **Sarah** - Emotional support, feeling-first (contradictions)
+- **Mathew** - Analytical patterns (behavioral gaps)
+- **Marcus** - Integration & meta-awareness (synthesis)
 
 ### Natural Voice Configuration
 ```typescript
@@ -112,22 +122,19 @@ Natural conversation without tracking phrases
 </meta>
 ```
 
-### Agents
-- **Sarah** - Warm, feeling-first, gentle guidance
-- **Mathew** - Pattern recognition, intention-action gaps
+## Invisible Orchestration
 
-## CSS Pattern Detection
+### Pattern-to-Agent Mapping
+- **CVDC patterns** → Sarah (emotional support)
+- **IBM patterns** → Mathew (analytical approach)
+- **Integration moments** → Marcus (meta-awareness)
+- **Crisis indicators** → Sarah (immediate grounding)
 
-### Pattern Types
-- **CVDC** - Contradictions between desires
-- **IBM** - Intention-behavior mismatches
-- **Thend** - Therapeutic shifts/integration
-- **CYVC** - Contextual flexibility/choice
-
-### Register Tracking
-- **Symbolic** - Over-intellectualizing
-- **Imaginary** - What-if scenarios
-- **Real** - Immediate sensation/affect
+### Seamless Switching
+- Same voice throughout conversation
+- No user awareness of methodology changes
+- Continuous therapeutic presence
+- Analytics tracking for improvements
 
 ## API Endpoints
 
@@ -142,8 +149,27 @@ DELETE /api/auth/delete-account      # Cascade delete
 ### VAPI Integration
 ```
 POST   /api/vapi/webhook             # Event processing
-GET    /api/vapi/config              # Agent configuration
+POST   /api/vapi/analyze-transcript  # Manual analysis
 ```
+
+### Orchestration
+```
+GET    /api/orchestration/state/:id  # Current state & suggestions
+POST   /api/orchestration/record-switch # Analytics tracking
+```
+
+## CSS Pattern Detection
+
+### Pattern Types
+- **CVDC** - Contradictions between desires
+- **IBM** - Intention-behavior mismatches
+- **Thend** - Therapeutic shifts/integration
+- **CYVC** - Contextual flexibility/choice
+
+### Register Tracking
+- **Symbolic** - Over-intellectualizing
+- **Imaginary** - What-if scenarios
+- **Real** - Immediate sensation/affect
 
 ## Tech Stack
 
@@ -160,11 +186,11 @@ GET    /api/vapi/config              # Agent configuration
 - Supabase client
 - VAPI webhooks
 
-### Voice
-- VAPI Platform
-- WebSocket management
+### Voice Platform
+- VAPI WebSocket management
 - Real-time transcripts
-- Memory injection
+- Memory context injection
+- Silent agent switching
 
 ## Development
 
@@ -175,9 +201,11 @@ npm run db:generate  # Generate migrations
 ```
 
 ## Recent Updates
-- ✅ Natural voice agents v3 with speak/meta separation
-- ✅ Mobile-responsive UI with proper dropdown positioning
-- ✅ AI disclosure card with crisis hotline info
-- ✅ Efficient transcript storage (end-of-call only)
-- ✅ Fixed CSS pattern detection with flexible regex
-- ✅ Two-tier cache system with race protection
+- ✅ Invisible agent orchestration (15-second checks)
+- ✅ Marcus agent for integration moments
+- ✅ Pattern-based methodology switching
+- ✅ Natural voice agents v3 with speak/meta
+- ✅ Mobile-responsive UI with proper dropdowns
+- ✅ AI disclosure card with crisis hotlines
+- ✅ Efficient transcript storage (end-of-call)
+- ✅ Two-tier cache with race protection
