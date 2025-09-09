@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, real, jsonb, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, real, jsonb, uuid, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -57,10 +57,12 @@ export const cssProgressions = pgTable("css_progressions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   call_id: text("call_id").notNull(),
-  from_stage: text("from_stage").notNull(),
-  to_stage: text("to_stage").notNull(),
-  trigger_content: text("trigger_content"),
+  from_stage: varchar("from_stage", { length: 50 }),
+  to_stage: varchar("to_stage", { length: 50 }).notNull(),
+  trigger_content: text("trigger_content").notNull(),
+  transition_time: timestamp("transition_time", { withTimezone: true }).default(sql`timezone('utc', now())`),
   agent_name: text("agent_name"),
+  emotional_intensity: varchar("emotional_intensity", { length: 10 }),
   created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
@@ -74,8 +76,11 @@ export const cssPatterns = pgTable("css_patterns", {
   extracted_contradiction: text("extracted_contradiction"), // For CVDC: "X BUT Y"
   behavioral_gap: text("behavioral_gap"), // For IBM: "want X, do Y"
   css_stage: varchar("css_stage", { length: 50 }),
-  confidence: real("confidence").default(0.8),
-  detected_at: timestamp("detected_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+  confidence: real("confidence"),
+  detected_at: timestamp("detected_at"),
+  emotional_intensity: varchar("emotional_intensity", { length: 10 }),
+  safety_flag: boolean("safety_flag").default(false),
+  crisis_flag: boolean("crisis_flag").default(false),
 });
 
 // Insert schemas
