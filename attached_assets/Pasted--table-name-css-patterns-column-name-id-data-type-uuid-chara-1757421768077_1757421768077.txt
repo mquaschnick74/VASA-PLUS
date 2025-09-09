@@ -1,0 +1,450 @@
+[
+  {
+    "table_name": "css_patterns",
+    "column_name": "id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "call_id",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "pattern_type",
+    "data_type": "character varying",
+    "character_maximum_length": 20,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "content",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "extracted_contradiction",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "behavioral_gap",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "css_stage",
+    "data_type": "character varying",
+    "character_maximum_length": 50,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "confidence",
+    "data_type": "real",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "detected_at",
+    "data_type": "timestamp without time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "emotional_intensity",
+    "data_type": "character varying",
+    "character_maximum_length": 10,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "safety_flag",
+    "data_type": "boolean",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_name": "css_patterns",
+    "column_name": "crisis_flag",
+    "data_type": "boolean",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "call_id",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "from_stage",
+    "data_type": "character varying",
+    "character_maximum_length": 50,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "to_stage",
+    "data_type": "character varying",
+    "character_maximum_length": 50,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "trigger_content",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "transition_time",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "agent_name",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "css_progressions",
+    "column_name": "emotional_intensity",
+    "data_type": "character varying",
+    "character_maximum_length": 10,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "session_transcripts",
+    "column_name": "id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "table_name": "session_transcripts",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "session_transcripts",
+    "column_name": "call_id",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "session_transcripts",
+    "column_name": "text",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "session_transcripts",
+    "column_name": "role",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "'complete'::text"
+  },
+  {
+    "table_name": "session_transcripts",
+    "column_name": "timestamp",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "call_id",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "context_type",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "'session_insight'::text"
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "content",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "confidence",
+    "data_type": "real",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "0.8"
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "importance",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "5"
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "css_stage",
+    "data_type": "character varying",
+    "character_maximum_length": 50,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "contradiction_content",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_context",
+    "column_name": "pattern_type",
+    "data_type": "character varying",
+    "character_maximum_length": 20,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "call_id",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "agent_name",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "'Sarah'::text"
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "status",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "'active'::text"
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "start_time",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "end_time",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "duration_seconds",
+    "data_type": "integer",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "metadata",
+    "data_type": "jsonb",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "therapeutic_sessions",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "first_name",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "users",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "is_nullable": "YES",
+    "column_default": "timezone('utc'::text, now())"
+  }
+]
