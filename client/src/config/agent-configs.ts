@@ -96,7 +96,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
   {
     id: 'sarah',
     name: 'Sarah',
-    description: 'CVDC specialist - living paradoxes and contradictions',
+    description: 'Living in paradox and contradiction specialist',
     icon: '👱🏽‍♀️',
     color: 'purple',
     model: {
@@ -206,7 +206,7 @@ Never mention crisis protocols, grounding exercises, or HSFB - if distress emerg
   {
     id: 'mathew',
     name: 'Mathew',
-    description: 'Behavioral patterns and intention-action gaps',
+    description: 'Behavioral patterns and intention-action gaps specialist',
     icon: '👨🏻‍💼',
     color: 'blue',
     model: {
