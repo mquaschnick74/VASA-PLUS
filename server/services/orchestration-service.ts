@@ -197,7 +197,8 @@ export async function initializeSession(
       cvdc: 0,
       ibm: 0,
       thend: 0,
-      cyvc: 0
+      cyvc: 0,
+      grief: 0
     },
     guidanceApplied: [],
     lastGuidanceTime: null
@@ -1147,7 +1148,8 @@ export async function processEndOfCall(
           cvdc: 0,
           ibm: 0,
           thend: 0,
-          cyvc: 0
+          cyvc: 0,
+          grief: 0
         },
         guidanceApplied: [],
         lastGuidanceTime: null
@@ -1170,7 +1172,8 @@ export async function processEndOfCall(
           cvdc: 0,
           ibm: 0,
           thend: 0,
-          cyvc: 0
+          cyvc: 0,
+          grief: 0
         },
         guidanceApplied: [],
         lastGuidanceTime: null
