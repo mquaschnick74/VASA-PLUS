@@ -305,7 +305,17 @@ function aggregatePatterns(
         [PatternCategory.MORAL_TORMENT]: 0,
         [PatternCategory.EPISTEMIC_DOUBT]: 0,
         [PatternCategory.KAFKA_ALIENATION]: 0,
-        [PatternCategory.SOCIAL_MASKING]: 0
+        [PatternCategory.SOCIAL_MASKING]: 0,
+        [PatternCategory.DOUBLE_CONSCIOUSNESS]: 0,
+        [PatternCategory.REDEMPTION_SEEKING]: 0,
+        [PatternCategory.SPIRITUAL_CRISIS]: 0,
+        [PatternCategory.APORIA]: 0,
+        [PatternCategory.VIRTUE_SEEKING]: 0,
+        [PatternCategory.TRANSFORMATION_ARC]: 0,
+        [PatternCategory.AUTHENTIC_LIVING]: 0,
+        [PatternCategory.IDENTITY_CRISIS]: 0,
+        [PatternCategory.AMBITION_GUILT]: 0,
+        [PatternCategory.SELF_DECEPTION]: 0
       },
       recentPatterns: [],
       criticalEvents: [],
@@ -317,23 +327,27 @@ function aggregatePatterns(
   
   // Update pattern counts
   patterns.forEach(pattern => {
-    state!.patternCounts[pattern.category]++;
-    state!.recentPatterns.push(pattern);
-    
-    // Check for warning flags
-    if (pattern.hasWarningFlag) {
-      state!.hasWarningFlags = true;
+    if (state) {
+      state.patternCounts[pattern.category]++;
+      state.recentPatterns.push(pattern);
+      
+      // Check for warning flags
+      if (pattern.hasWarningFlag) {
+        state.hasWarningFlags = true;
+      }
     }
   });
   
   // Keep only recent patterns (last 50)
-  if (state.recentPatterns.length > 50) {
+  if (state && state.recentPatterns.length > 50) {
     state.recentPatterns = state.recentPatterns.slice(-50);
   }
   
   // Update emotional intensity
-  state.emotionalIntensity = calculateEmotionalIntensity(state);
-  state.lastAnalysisTime = new Date();
+  if (state) {
+    state.emotionalIntensity = calculateEmotionalIntensity(state);
+    state.lastAnalysisTime = new Date();
+  }
   
   return state;
 }
