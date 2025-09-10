@@ -527,12 +527,61 @@ function analyzeForAgentSuggestionEnhanced(
   reason: string | null;
   confidence: number;
 } {
-  // High intensity or crisis → Sarah
-  if (patterns.emotionalIntensity === 'high' || patterns.hasWarningFlags) {
-    if (currentAgent.toLowerCase() !== 'sarah') {
+  // CRITICAL: Crisis detection FIRST - Check for crisis patterns or high distress
+  const crisisPattern = patterns.patterns?.find((p: any) => 
+    p.metadata?.crisis_flag || 
+    p.metadata?.distress_level >= 7 ||
+    p.stage === 'CRISIS'
+  );
+  
+  if (crisisPattern && currentAgent.toLowerCase() !== 'zhanna') {
+    console.log('🚨 Crisis detected - suggesting Zhanna');
+    return {
+      suggestedAgent: 'zhanna',
+      reason: 'Crisis indicators detected - immediate grounding needed',
+      confidence: 1.0
+    };
+  }
+  
+  // If currently with Zhanna, check if stable for handoff
+  if (currentAgent.toLowerCase() === 'zhanna') {
+    const latestDistress = patterns.patterns?.[patterns.patterns.length - 1]?.metadata?.distress_level || 10;
+    if (latestDistress >= 5) {
       return {
-        suggestedAgent: 'sarah',
-        reason: 'High emotional intensity requires warm support',
+        suggestedAgent: null,
+        reason: null,
+        confidence: 0
+      }; // Stay with Zhanna
+    }
+    // Ready for handoff - determine next agent
+    if (patternCounts.thend > 0) return {
+      suggestedAgent: 'marcus',
+      reason: 'Crisis resolved - integration work ready',
+      confidence: 0.85
+    };
+    if (patternCounts.ibm > patternCounts.cvdc) return {
+      suggestedAgent: 'mathew',
+      reason: 'Crisis resolved - behavioral patterns to explore',
+      confidence: 0.85
+    };
+    if (patternCounts.cvdc > 0) return {
+      suggestedAgent: 'sarah',
+      reason: 'Crisis resolved - contradictions to explore',
+      confidence: 0.85
+    };
+    return {
+      suggestedAgent: null,
+      reason: null,
+      confidence: 0
+    }; // Let user choose
+  }
+  
+  // High intensity or crisis → Zhanna (not Sarah anymore)
+  if (patterns.emotionalIntensity === 'high' || patterns.hasWarningFlags) {
+    if (currentAgent.toLowerCase() !== 'zhanna') {
+      return {
+        suggestedAgent: 'zhanna',
+        reason: 'High emotional intensity requires grounding support',
         confidence: 0.95
       };
     }
@@ -576,12 +625,12 @@ async function handleCriticalSituation(
   session: EnhancedSessionState,
   patterns: CSSPatterns
 ): Promise<void> {
-  // Lock to Sarah immediately
-  if (session.agentName.toLowerCase() !== 'sarah') {
-    session.suggestedAgent = 'sarah';
+  // Lock to Zhanna immediately for crisis support
+  if (session.agentName.toLowerCase() !== 'zhanna') {
+    session.suggestedAgent = 'zhanna';
     session.lastSuggestionTime = new Date();
     
-    console.log(`🚨 CRITICAL: Switching to Sarah for crisis support`);
+    console.log(`🚨 CRITICAL: Switching to Zhanna for crisis support`);
     
     await supabase
       .from('therapeutic_context')
@@ -589,7 +638,7 @@ async function handleCriticalSituation(
         user_id: session.userId,
         call_id: session.callId,
         context_type: 'crisis_intervention',
-        content: `CRITICAL: Safety flags detected. Switching to Sarah for crisis support.`,
+        content: `CRITICAL: Safety flags detected. Switching to Zhanna for crisis grounding and support.`,
         confidence: 1.0,
         importance: 10 // Maximum importance
       });
