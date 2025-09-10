@@ -144,9 +144,25 @@ const CYVC_PATTERNS = [
 
 // Somatic/distress patterns that suggest need for Zhanna
 const SOMATIC_PATTERNS = [
+  // Anxiety patterns
+  /anxious/gi,
+  /anxiety/gi,
+  /nervous/gi,
+  /worried/gi,
+  /stress(ed|ing)/gi,
+  /overwhelm(ed|ing)/gi,
+  
+  // Body escape/dissociation
+  /jump out of (my )?body/gi,
+  /leave (my )?body/gi,
+  /escape (my )?body/gi,
+  /out of (my )?body/gi,
+  /can't be in (my )?body/gi,
+  
+  // Physical sensations
   /can't breathe/gi,
-  /chest (is )?tight/gi,
-  /heart (is )?racing/gi,
+  /chest (is |feels )?(tight|heavy)/gi,
+  /heart (is )?(racing|pounding|beating)/gi,
   /feel(ing)? dizzy/gi,
   /feel(ing)? unreal/gi,
   /feel(ing)? disconnected/gi,
@@ -154,16 +170,24 @@ const SOMATIC_PATTERNS = [
   /panic/gi,
   /hyperventilat/gi,
   /can't feel my body/gi,
-  /numb all over/gi,
+  /numb/gi,
   /shaking/gi,
   /trembling/gi,
   /frozen/gi,
+  /stuck/gi,
   /can't move/gi,
-  /overwhelming sensation/gi,
+  /overwhelming/gi,
   /body feels/gi,
-  /breathing (is )?hard/gi,
-  /breathing (is )?difficult/gi,
-  /short of breath/gi
+  /breathing (is |feels )?(hard|difficult)/gi,
+  /short of breath/gi,
+  
+  // Movement impulses
+  /want to run/gi,
+  /need to escape/gi,
+  /want to flee/gi,
+  /feet (want|need)/gi,
+  /restless/gi,
+  /can't sit still/gi
 ];
 
 /**

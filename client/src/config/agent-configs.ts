@@ -126,7 +126,7 @@ Never mention crisis protocols, grounding exercises, or HSFB - if distress emerg
   {
     id: 'mathew',
     name: 'Mathew',
-    description: 'IBM specialist - behavioral patterns and intention-action gaps',
+    description: 'Behavioral patterns and intention-action gaps',
     icon: '👨🏻‍💼',
     color: 'blue',
     model: {
@@ -246,7 +246,7 @@ If acute distress emerges, note the behavioral response: "I notice you're pullin
   {
     id: 'marcus',
     name: 'Marcus',
-    description: 'Integration specialist - Thend states and CYVC emergence',
+    description: 'Integration specialist',
     icon: '🧔🏾‍♂️',
     color: 'emerald',
     model: {

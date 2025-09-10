@@ -299,6 +299,18 @@ export async function processTranscript(
   // Use enhanced pattern detection
   const patterns = detectEnhancedCSSPatterns(transcript, false);
   
+  // Log detected patterns for debugging
+  const totalPatterns = patterns.cvdcPatterns.length + patterns.ibmPatterns.length + 
+                        patterns.thendIndicators.length + patterns.cyvcPatterns.length + 
+                        (patterns.somaticPatterns?.length || 0);
+  
+  if (totalPatterns > 0) {
+    console.log(`📊 Patterns detected in transcript:`);
+    console.log(`   CVDC: ${patterns.cvdcPatterns.length}, IBM: ${patterns.ibmPatterns.length}`);
+    console.log(`   Thend: ${patterns.thendIndicators.length}, CYVC: ${patterns.cyvcPatterns.length}`);
+    console.log(`   Somatic: ${patterns.somaticPatterns?.length || 0}, Distress: ${patterns.distressLevel || 0}`);
+  }
+  
   // Update session with enhanced data
   session.emotionalIntensity = patterns.emotionalIntensity;
   session.hasActiveWarnings = patterns.hasWarningFlags;
@@ -496,7 +508,8 @@ async function analyzeForOrchestrationEnhanced(
     session.recentPatternCounts
   );
   
-  if (suggestion.suggestedAgent && suggestion.confidence > 0.7) {
+  // Lowered confidence threshold to 0.6 for more responsive switching
+  if (suggestion.suggestedAgent && suggestion.confidence > 0.6) {
     console.log(`🔄 Agent suggestion: ${session.agentName} → ${suggestion.suggestedAgent}`);
     console.log(`   Reason: ${suggestion.reason}, Confidence: ${suggestion.confidence}`);
     
@@ -531,11 +544,13 @@ function analyzeForAgentSuggestionEnhanced(
   const distressLevel = patterns.distressLevel || 0;
   const somaticCount = patterns.somaticPatterns?.length || 0;
   
-  if ((distressLevel >= 7 || somaticCount >= 2) && currentAgent.toLowerCase() !== 'zhanna') {
+  // Lower threshold: Even 1 somatic pattern or distress >= 5 triggers Zhanna
+  if ((distressLevel >= 5 || somaticCount >= 1) && currentAgent.toLowerCase() !== 'zhanna') {
+    console.log(`🔄 Suggesting Zhanna: distress=${distressLevel}, somatic=${somaticCount}`);
     return {
       suggestedAgent: 'zhanna',
       reason: 'Somatic awareness and grounding needed',
-      confidence: 0.95
+      confidence: 0.9
     };
   }
   
@@ -576,8 +591,9 @@ function analyzeForAgentSuggestionEnhanced(
     }
   }
   
-  // Many contradictions → Sarah
-  if (patternCounts.cvdc >= 3 && currentAgent.toLowerCase() !== 'sarah') {
+  // Many contradictions → Sarah (lowered threshold)
+  if (patternCounts.cvdc >= 2 && currentAgent.toLowerCase() !== 'sarah') {
+    console.log(`🔄 Suggesting Sarah: cvdc=${patternCounts.cvdc}`);
     return {
       suggestedAgent: 'sarah',
       reason: 'Multiple contradictions need emotional exploration',
@@ -585,8 +601,9 @@ function analyzeForAgentSuggestionEnhanced(
     };
   }
   
-  // Behavioral gaps → Mathew
-  if (patternCounts.ibm >= 2 && currentAgent.toLowerCase() !== 'mathew') {
+  // Behavioral gaps → Mathew (lowered threshold)
+  if (patternCounts.ibm >= 1 && currentAgent.toLowerCase() !== 'mathew') {
+    console.log(`🔄 Suggesting Mathew: ibm=${patternCounts.ibm}`);
     return {
       suggestedAgent: 'mathew',
       reason: 'Intention-behavior gaps need analytical approach',
@@ -594,10 +611,11 @@ function analyzeForAgentSuggestionEnhanced(
     };
   }
   
-  // Integration moments → Marcus (only if emotionally stable)
-  if (patternCounts.thend >= 2 && 
+  // Integration moments → Marcus (lowered threshold)
+  if (patternCounts.thend >= 1 && 
       patterns.emotionalIntensity !== 'high' &&
       currentAgent.toLowerCase() !== 'marcus') {
+    console.log(`🔄 Suggesting Marcus: thend=${patternCounts.thend}`);
     return {
       suggestedAgent: 'marcus',
       reason: 'Integration opportunities for pattern recognition',
