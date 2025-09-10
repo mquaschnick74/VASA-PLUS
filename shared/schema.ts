@@ -1,13 +1,17 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, real, jsonb, uuid, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, real, jsonb, uuid, boolean, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table
+// Users table - Updated with enterprise auth fields
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  auth_user_id: uuid("auth_user_id").unique(), // Links to Supabase auth.users
   email: text("email").notNull().unique(),
   first_name: text("first_name"),
+  role: text("role").default("client"), // client, therapist, admin
+  subscription_type: text("subscription_type").default("free"), // free, premium, enterprise
+  subscription_status: text("subscription_status").default("active"), // active, cancelled, expired
   created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
   updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
@@ -27,15 +31,15 @@ export const therapeuticSessions = pgTable("therapeutic_sessions", {
   updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
-// Therapeutic context table for memory
+// Therapeutic context table for memory - Extended with CSS tracking
 export const therapeuticContext = pgTable("therapeutic_context", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   call_id: text("call_id"),
   context_type: text("context_type").default("session_insight"),
   content: text("content").notNull(),
-  css_stage: text("css_stage"),
-  pattern_type: text("pattern_type"),
+  css_stage: varchar("css_stage", { length: 50 }),
+  pattern_type: varchar("pattern_type", { length: 20 }),
   contradiction_content: text("contradiction_content"),
   confidence: real("confidence").default(0.8),
   importance: integer("importance").default(5),
@@ -87,10 +91,12 @@ export const cssPatterns = pgTable("css_patterns", {
   temporal_orientation: varchar("temporal_orientation", { length: 10 }),
 });
 
-// Insert schemas
+// Insert schemas - Updated for enterprise auth
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   first_name: true,
+  auth_user_id: true,
+  role: true,
 });
 
 export const insertTherapeuticSessionSchema = createInsertSchema(therapeuticSessions).omit({
@@ -228,7 +234,45 @@ export interface PatternDetectionResult {
   guidanceRecommendations?: string[];
 }
 
-// Types
+// ===== ENTERPRISE AUTH TYPES =====
+
+// User role types for enterprise auth
+export type UserRole = 'client' | 'therapist' | 'admin';
+export type SubscriptionType = 'free' | 'premium' | 'enterprise';
+export type SubscriptionStatus = 'active' | 'cancelled' | 'expired';
+
+// Enhanced User type with enterprise auth fields
+export interface EnterpriseUser {
+  id: string;
+  auth_user_id: string;
+  email: string;
+  first_name: string | null;
+  role: UserRole;
+  subscription_type: SubscriptionType;
+  subscription_status: SubscriptionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// Authentication context interface
+export interface AuthContext {
+  user: EnterpriseUser | null;
+  session: any | null;
+  loading: boolean;
+  error: string | null;
+}
+
+// Session metadata for VAPI integration
+export interface SessionMetadata {
+  userId: string;           // Supabase auth user ID
+  internalUserId: string;   // Internal users table ID
+  agentName: string;
+  sessionType: 'therapeutic' | 'assessment' | 'crisis';
+  userFirstName: string;
+  subscriptionType: SubscriptionType;
+}
+
+// Types - Updated with enterprise auth
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type TherapeuticSession = typeof therapeuticSessions.$inferSelect;
@@ -241,3 +285,21 @@ export type CssProgression = typeof cssProgressions.$inferSelect;
 export type InsertCssProgression = z.infer<typeof insertCssProgressionSchema>;
 export type CssPattern = typeof cssPatterns.$inferSelect;
 export type InsertCssPattern = z.infer<typeof insertCssPatternsSchema>;
+
+// Export enhanced user type
+export type { EnterpriseUser };
+
+// Validation schemas for enterprise auth
+export const userRoleSchema = z.enum(['client', 'therapist', 'admin']);
+export const subscriptionTypeSchema = z.enum(['free', 'premium', 'enterprise']);
+export const subscriptionStatusSchema = z.enum(['active', 'cancelled', 'expired']);
+
+// Enhanced insert schema with validation
+export const enterpriseUserSchema = z.object({
+  email: z.string().email(),
+  first_name: z.string().optional(),
+  auth_user_id: z.string().uuid(),
+  role: userRoleSchema.default('client'),
+  subscription_type: subscriptionTypeSchema.default('free'),
+  subscription_status: subscriptionStatusSchema.default('active'),
+});
