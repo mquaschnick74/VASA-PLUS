@@ -78,6 +78,31 @@ export async function buildEnhancedMemoryContext(userId: string): Promise<string
         }
       });
     }
+    
+    // Add critical life events (pets, deaths, major life changes)
+    const { data: criticalEvents } = await supabase
+      .from('therapeutic_context')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('pattern_type', 'CRITICAL_LIFE_EVENT')
+      .order('importance', { ascending: false })
+      .limit(5);
+    
+    if (criticalEvents && criticalEvents.length > 0) {
+      context += '\n\nCRITICAL LIFE EVENTS (MUST ACKNOWLEDGE):';
+      criticalEvents.forEach(event => {
+        if (event.context_type === 'pet_loss') {
+          context += ` Pet loss: ${event.content}.`;
+        } else if (event.context_type === 'grief_event') {
+          context += ` Grief/loss: ${event.content}.`;
+        } else if (event.context_type === 'critical_event') {
+          context += ` Major event: ${event.content}.`;
+        } else {
+          context += ` ${event.content}.`;
+        }
+      });
+      context += '\nAlways acknowledge these specific names and events with compassion.';
+    }
 
     // Add CSS pattern evolution in narrative terms
     const { data: cssPatterns } = await supabase

@@ -9,6 +9,8 @@ import {
 } from './css-pattern-service';
 import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
+import { processTranscriptEvent, flushAndCleanup } from './css-tracker';
+import { PatternCategory, CSSStage as UnifiedCSSStage, EmotionalIntensity } from '../../shared/schema';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
 
 // Pattern guidance interface for real-time awareness

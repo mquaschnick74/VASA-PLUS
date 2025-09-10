@@ -119,6 +119,98 @@ export const insertCssPatternsSchema = createInsertSchema(cssPatterns).omit({
   detected_at: true,
 });
 
+// ===== CSS TRACKING ARCHITECTURE TYPES =====
+
+// Pattern Categories Enum
+export enum PatternCategory {
+  CVDC = 'CVDC',        // Constant Variably Determined Contradiction
+  IBM = 'IBM',          // Intention-Behavior Mismatch
+  THEND = 'THEND',      // Therapeutic Ending
+  CYVC = 'CYVC',        // Constant Yet Variable Conclusion
+  GRIEF = 'GRIEF',      // Grief and Loss Patterns
+  SOMATIC = 'SOMATIC',  // Somatic/Body Patterns
+  SAFETY = 'SAFETY',    // Safety/Crisis Patterns
+  NARRATIVE = 'NARRATIVE' // Narrative Fragmentation
+}
+
+// CSS Stage Enum with transitions
+export enum CSSStage {
+  POINTED_ORIGIN = 'pointed_origin',
+  FOCUS_BIND = 'focus_bind',
+  SUSPENSION = 'suspension',
+  GESTURE_TOWARD = 'gesture_toward',
+  COMPLETION = 'completion',
+  TERMINAL = 'terminal'
+}
+
+// Emotional Intensity Levels
+export type EmotionalIntensity = 'low' | 'medium' | 'high' | 'critical';
+
+// Pattern Event - Unified model for all pattern detections
+export interface PatternEvent {
+  category: PatternCategory;
+  text: string;
+  intensity: EmotionalIntensity;
+  confidence: number;
+  timestamp: Date;
+  source: 'heuristic' | 'assistant_meta' | 'combined';
+  metadata?: {
+    contradiction?: string;      // For CVDC
+    behaviorGap?: string;        // For IBM
+    somaticLocation?: string;    // For SOMATIC
+    petName?: string;           // For GRIEF
+    narrativeFragmentation?: number;
+    symbolicDensity?: number;
+    temporalOrientation?: 'past' | 'present' | 'future';
+  };
+  hasWarningFlag?: boolean;
+  contentHash?: string;
+}
+
+// Critical Life Event - For storing important life events
+export interface CriticalLifeEvent {
+  type: 'pet_loss' | 'death' | 'divorce' | 'job_loss' | 'health_crisis' | 'other';
+  entityName?: string;  // e.g., "Pickle" for pet
+  content: string;
+  importance: number;   // 1-10 scale
+  detectedAt: Date;
+  userId: string;
+  callId?: string;
+}
+
+// CSS Session State - Enhanced with unified tracking
+export interface CSSSessionState {
+  currentStage: CSSStage;
+  previousStage?: CSSStage;
+  stageTransitionTime?: Date;
+  stageEvidenceCount: number;  // For hysteresis
+  emotionalIntensity: EmotionalIntensity;
+  patternCounts: Record<PatternCategory, number>;
+  recentPatterns: PatternEvent[];
+  criticalEvents: CriticalLifeEvent[];
+  hasWarningFlags: boolean;
+  lastAnalysisTime: Date;
+}
+
+// Stage Transition Rule
+export interface StageTransitionRule {
+  from: CSSStage;
+  to: CSSStage;
+  requiredEvidence: number;  // Number of patterns needed
+  dwellTime?: number;        // Minimum seconds in stage
+  priority: number;          // Higher priority overrides
+  condition: (state: CSSSessionState) => boolean;
+}
+
+// Pattern Detection Result - What comes from css-pattern-service
+export interface PatternDetectionResult {
+  patterns: PatternEvent[];
+  sessionState: CSSSessionState;
+  suggestedAgent?: string;
+  agentSwitchConfidence?: number;
+  guidanceRecommendations?: string[];
+}
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
