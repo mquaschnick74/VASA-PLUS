@@ -190,6 +190,46 @@ const SOMATIC_PATTERNS = [
   /can't sit still/gi
 ];
 
+// Grief and loss patterns - Critical for detecting pet loss, death, bereavement
+const GRIEF_PATTERNS = [
+  // Direct mentions of death/dying
+  /\b(dying|die|died|death|dead|passing away|passed away)\b/gi,
+  /\bnot doing (so )?(well|good)\b/gi,
+  /\bgoing to lose\b/gi,
+  /\bdon't have (much|long)\b.*\bleft\b/gi,
+  /\bend is (near|coming|close)\b/gi,
+  /\bsaying goodbye\b/gi,
+  /\bfinal (days|weeks|months)\b/gi,
+  /\bwon't be (here|around)\b.*\b(much )?longer\b/gi,
+  
+  // Grief emotions
+  /\b(grief|grieving|mourning|bereaved|bereavement)\b/gi,
+  /\bheartbroken\b/gi,
+  /\bdevastated\b/gi,
+  /\bcan't imagine life without\b/gi,
+  /\bmiss (them|him|her|my)\b.*\b(so much|terribly)\b/gi,
+  /\bgone forever\b/gi,
+  /\bnever see.*again\b/gi,
+  
+  // Pet-specific grief
+  /\bput (down|to sleep)\b/gi,
+  /\beuthanize\b/gi,
+  /\bvet said.*\b(nothing|can't|won't)\b/gi,
+  /\b(tumor|cancer|kidney|liver|heart)\b.*\b(failure|disease)\b/gi,
+  /\bquality of life\b/gi,
+  /\bsuffering\b/gi,
+  /\bin pain\b/gi,
+  /\bwon't eat\b/gi,
+  /\bcan't walk\b/gi,
+  
+  // Loss and emptiness
+  /\bfeel(s)? (so )?empty\b/gi,
+  /\bhole in my (heart|life)\b/gi,
+  /\bpart of me.*\b(died|dying|gone)\b/gi,
+  /\bnothing will.*\bsame\b/gi,
+  /\bcan't go on without\b/gi
+];
+
 // Narrative-specific pattern detection
 const NARRATIVE_PATTERNS = {
   STORY_CONTRADICTION: [
@@ -418,6 +458,7 @@ function calculateNarrativeFragmentation(transcript: string, debug: boolean = fa
 
 export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = false): CSSPatterns & { 
   somaticPatterns?: PatternMatch[], 
+  griefPatterns?: PatternMatch[],
   distressLevel?: number,
   narrativeFragmentation?: number,
   symbolicDensity?: number,
@@ -448,6 +489,7 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
   const thendIndicators = detectPatternCategory(transcript, THEND_PATTERNS, debug);
   const cyvcPatterns = detectPatternCategory(transcript, CYVC_PATTERNS, debug);
   const somaticPatterns = detectPatternCategory(transcript, SOMATIC_PATTERNS, debug);
+  const griefPatterns = detectPatternCategory(transcript, GRIEF_PATTERNS, debug);
 
   // Check for any warning flags or somatic distress
   const hasWarningFlags = [
@@ -455,16 +497,18 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     ...ibmPatterns,
     ...thendIndicators,
     ...cyvcPatterns,
-    ...somaticPatterns
+    ...somaticPatterns,
+    ...griefPatterns
   ].some(p => p.hasWarningFlag);
 
-  // Assess overall emotional intensity
+  // Assess overall emotional intensity (including grief)
   const emotionalIntensity = assessOverallIntensity(
     cvdcPatterns,
     ibmPatterns,
     thendIndicators,
     cyvcPatterns,
-    hasWarningFlags
+    hasWarningFlags,
+    griefPatterns
   );
 
   // Determine current stage (unchanged logic)
@@ -486,6 +530,17 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     else if (medSomatic >= 2) distressLevel = 6;
     else if (medSomatic >= 1) distressLevel = 5;
     else distressLevel = 4;
+  }
+  
+  // Grief patterns significantly increase distress
+  if (griefPatterns.length > 0) {
+    const highGrief = griefPatterns.filter(p => p.intensity === 'high').length;
+    const medGrief = griefPatterns.filter(p => p.intensity === 'medium').length;
+    
+    if (highGrief >= 2) distressLevel = Math.max(distressLevel, 9);
+    else if (highGrief >= 1) distressLevel = Math.max(distressLevel, 8);
+    else if (medGrief >= 1) distressLevel = Math.max(distressLevel, 7);
+    else distressLevel = Math.max(distressLevel, 6);
   }
   
   // Adjust for warning flags
@@ -510,6 +565,7 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     console.log(`  - Thend: ${thendIndicators.length} patterns`);
     console.log(`  - CYVC: ${cyvcPatterns.length} patterns`);
     console.log(`  - Somatic: ${somaticPatterns.length} patterns`);
+    console.log(`  - Grief: ${griefPatterns.length} patterns`);
     console.log(`  - Stage: ${currentStage}`);
     console.log(`  - Emotional Intensity: ${emotionalIntensity}`);
     console.log(`  - Distress Level: ${distressLevel}`);
@@ -525,6 +581,7 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     thendIndicators,
     cyvcPatterns,
     somaticPatterns,
+    griefPatterns,
     currentStage,
     hasWarningFlags,
     emotionalIntensity,
@@ -543,10 +600,18 @@ function assessOverallIntensity(
   ibm: PatternMatch[],
   thend: PatternMatch[],
   cyvc: PatternMatch[],
-  hasWarnings: boolean
+  hasWarnings: boolean,
+  grief?: PatternMatch[]
 ): 'low' | 'medium' | 'high' | 'critical' {
   // Critical if any warnings
   if (hasWarnings) return 'critical';
+  
+  // Grief patterns automatically elevate intensity
+  if (grief && grief.length > 0) {
+    const highGrief = grief.filter(p => p.intensity === 'high').length;
+    if (highGrief > 0) return 'critical';
+    return 'high';
+  }
 
   // Count high intensity patterns
   const allPatterns = [...cvdc, ...ibm, ...thend, ...cyvc];
