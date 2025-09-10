@@ -379,9 +379,9 @@ If distress arises during integration, note: "Integration can feel intense. The 
   {
     id: 'zhanna',
     name: 'Zhanna',
-    description: 'HSFB and crisis support specialist',
+    description: 'Somatic and breath work specialist',
     icon: '👩🏼‍🦳',
-    color: 'red',
+    color: 'amber',
     model: {
       temperature: 0.5,
       model: 'gpt-3.5-turbo'
@@ -526,9 +526,9 @@ Your role is creating safety and somatic foundation. Once stable, guide toward a
 
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
       if (hasMemory) {
-        return `Hello ${firstName}, it's Zhanna. I'm checking in on how you're feeling in your body right now. On a scale of 0-10, where's your distress level today?`;
+        return `Hello ${firstName}, it's Zhanna. Let's check in with your body. What sensations are you noticing right now?`;
       }
-      return `Hello ${firstName}, I'm Zhanna. I specialize in helping people ground and stabilize when things feel overwhelming. I work with breathing, sensory awareness, and creating safety. How are you feeling in your body right now?`;
+      return `Hello ${firstName}, I'm Zhanna. I specialize in somatic awareness and breath work - helping you connect with your body's wisdom. What are you noticing in your body as we begin?`;
     }
   }
 ];
