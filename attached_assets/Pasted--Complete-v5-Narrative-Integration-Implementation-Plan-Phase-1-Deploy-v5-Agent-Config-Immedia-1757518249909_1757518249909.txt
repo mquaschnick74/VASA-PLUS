@@ -1,0 +1,378 @@
+# Complete v5 Narrative Integration Implementation Plan
+
+## Phase 1: Deploy v5 Agent Config (Immediate)
+**Action:** Replace `client/src/lib/config/vapi-agents-enhanced.ts` with v5 version
+**Result:** System continues working with enhanced agent prompts
+
+---
+
+## Phase 2: Pattern Detection Enhancement
+
+### File: `server/services/therapeutic-service.ts`
+
+**Add after existing pattern types:**
+
+```typescript
+// Add narrative-specific pattern detection
+const NARRATIVE_PATTERNS = {
+  STORY_CONTRADICTION: [
+    /one part of me (?:says|thinks|believes) (.+) but another (?:says|thinks|believes) (.+)/i,
+    /my story (?:says|tells) (.+) but (?:I|my) (.+)/i,
+    /I tell myself (.+) but (?:then I|I also) (.+)/i
+  ],
+  NARRATIVE_GAP: [
+    /the story I tell (?:myself|others) (?:is|isn't) (.+)/i,
+    /(?:I|my) narrative (?:doesn't|does not) match (.+)/i,
+    /there's a gap between what I (?:say|tell) and (.+)/i
+  ],
+  FRAGMENTED_STORY: [
+    /(?:I|my story) (?:doesn't|does not) make sense/i,
+    /(?:I|it) (?:feels|seems) (?:scattered|fragmented|broken)/i,
+    /can't (?:find|create|tell) (?:a|my) (?:coherent|clear) story/i
+  ]
+};
+
+// Update the main detection function
+export async function detectEnhancedCSSPatterns(
+  transcript: string,
+  userId?: string
+): Promise<any> {
+  const existingPatterns = await detectCSSPatterns(transcript);
+  
+  // Calculate narrative fragmentation score (0-10)
+  let narrativeFragmentation = 0;
+  
+  // Check for story contradictions
+  for (const pattern of NARRATIVE_PATTERNS.STORY_CONTRADICTION) {
+    if (pattern.test(transcript)) {
+      narrativeFragmentation += 3;
+    }
+  }
+  
+  // Check for narrative gaps
+  for (const pattern of NARRATIVE_PATTERNS.NARRATIVE_GAP) {
+    if (pattern.test(transcript)) {
+      narrativeFragmentation += 2;
+    }
+  }
+  
+  // Check for fragmented stories
+  for (const pattern of NARRATIVE_PATTERNS.FRAGMENTED_STORY) {
+    if (pattern.test(transcript)) {
+      narrativeFragmentation += 4;
+    }
+  }
+  
+  // Cap at 10
+  narrativeFragmentation = Math.min(narrativeFragmentation, 10);
+  
+  // Add narrative significance to patterns
+  const enhancedPatterns = existingPatterns.map(pattern => ({
+    ...pattern,
+    narrativeSignificance: {
+      storyFragment: pattern.content,
+      symbolicDensity: calculateSymbolicDensity(pattern.content),
+      temporalOrientation: determineTemporalOrientation(pattern.content),
+      fragmentationScore: narrativeFragmentation
+    }
+  }));
+  
+  // Store high-significance narrative markers
+  if (userId && narrativeFragmentation > 6) {
+    await supabase.from('therapeutic_context').insert({
+      user_id: userId,
+      context_type: 'narrative_marker',
+      content: `High narrative fragmentation detected: ${narrativeFragmentation}/10`,
+      importance: narrativeFragmentation,
+      pattern_type: 'NARRATIVE_FRAGMENTATION'
+    });
+  }
+  
+  return {
+    patterns: enhancedPatterns,
+    narrativeFragmentation,
+    suggestedAgent: narrativeFragmentation > 7 ? 'zhanna' : null
+  };
+}
+
+// Helper functions
+function calculateSymbolicDensity(content: string): number {
+  // Words that indicate high symbolic density
+  const symbolicMarkers = [
+    'always', 'never', 'everything', 'nothing', 'everyone',
+    'can\'t', 'must', 'should', 'have to', 'need to',
+    'die', 'kill', 'destroy', 'save', 'rescue'
+  ];
+  
+  let density = 0;
+  const words = content.toLowerCase().split(/\s+/);
+  
+  for (const marker of symbolicMarkers) {
+    if (words.includes(marker)) density += 2;
+  }
+  
+  return Math.min(density, 10);
+}
+
+function determineTemporalOrientation(content: string): 'past' | 'present' | 'future' {
+  const pastMarkers = /(?:was|were|had|used to|before|ago|last|previous)/i;
+  const futureMarkers = /(?:will|going to|gonna|soon|tomorrow|next|later)/i;
+  
+  if (pastMarkers.test(content)) return 'past';
+  if (futureMarkers.test(content)) return 'future';
+  return 'present';
+}
+```
+
+---
+
+## Phase 3: Orchestration Service Update
+
+### File: `server/services/orchestration-service.ts`
+
+**Update the orchestration logic:**
+
+```typescript
+import { determineNarrativePhase } from '../../client/src/lib/config/vapi-agents-enhanced';
+
+export async function analyzeAndSuggestAgent(
+  transcript: string,
+  currentAgent: string,
+  userId?: string
+): Promise<any> {
+  // Get enhanced patterns with narrative fragmentation
+  const { patterns, narrativeFragmentation } = await detectEnhancedCSSPatterns(transcript, userId);
+  
+  // Count pattern types
+  const patternCounts = {
+    cvdc: patterns.filter(p => p.type === 'CVDC').length,
+    ibm: patterns.filter(p => p.type.includes('IBM')).length,
+    thend: patterns.filter(p => p.type === 'Thend').length,
+    crisis: patterns.some(p => p.crisis_flag),
+    distressLevel: Math.max(...patterns.map(p => p.emotional_intensity || 0)),
+    narrativeFragmentation // Add the new score
+  };
+  
+  // Get user's narrative phase if we have session history
+  let narrativePhase = 'building';
+  if (userId) {
+    const sessions = await supabase
+      .from('therapeutic_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    
+    const sessionCount = sessions.data?.length || 0;
+    const allPatterns = sessions.data?.flatMap(s => s.metadata?.patterns || []) || [];
+    narrativePhase = determineNarrativePhase(sessionCount, allPatterns);
+  }
+  
+  // Select agent based on enhanced criteria
+  const suggestedAgent = selectAgentForPattern(patternCounts);
+  const shouldSwitch = shouldSwitchAgent(currentAgent, patternCounts);
+  
+  // Store the analysis
+  if (userId) {
+    await supabase.from('therapeutic_sessions').update({
+      metadata: {
+        ...existingMetadata,
+        narrative_phase: narrativePhase,
+        narrative_fragmentation: narrativeFragmentation,
+        last_analysis: new Date().toISOString()
+      }
+    }).eq('user_id', userId).eq('status', 'active');
+  }
+  
+  return {
+    suggestedAgent,
+    shouldSwitch,
+    patterns,
+    narrativeFragmentation,
+    narrativePhase,
+    reason: determineReason(patternCounts, narrativePhase)
+  };
+}
+
+function determineReason(patterns: any, phase: string): string {
+  if (patterns.narrativeFragmentation > 7) {
+    return 'High narrative fragmentation requires grounding';
+  }
+  if (patterns.crisis) {
+    return 'Crisis indicators detected';
+  }
+  if (patterns.thend > 2) {
+    return 'Integration moment emerging';
+  }
+  if (phase === 'integrating') {
+    return 'Supporting narrative integration phase';
+  }
+  return 'Continuing narrative exploration';
+}
+```
+
+---
+
+## Phase 4: Frontend Hook Updates
+
+### File: `client/src/hooks/useVapi.ts`
+
+**Add narrative phase tracking to the VAPI hook:**
+
+```typescript
+import { determineNarrativePhase } from '../lib/config/vapi-agents-enhanced';
+
+// In the memory context building section, add:
+const narrativePhase = determineNarrativePhase(
+  sessionCount,
+  previousPatterns || []
+);
+
+// Update the system prompt to include phase awareness
+const enhancedSystemPrompt = `${systemPrompt}
+
+Current therapeutic journey phase: ${narrativePhase}
+${narrativePhase === 'building' ? 'Focus on establishing narrative rapport and exploration.' : ''}
+${narrativePhase === 'deepening' ? 'Support deeper narrative exploration and pattern recognition.' : ''}
+${narrativePhase === 'integrating' ? 'Facilitate narrative integration and synthesis.' : ''}`;
+
+// Pass this to the agent configuration
+const assistantConfig = {
+  model: {
+    ...existingModel,
+    systemMessage: enhancedSystemPrompt,
+  },
+  // ... rest of config
+};
+```
+
+---
+
+## Phase 5: Memory Service Enhancement
+
+### File: `server/routes/auth-routes.ts`
+
+**Update memory context building with narrative language:**
+
+```typescript
+export async function buildEnhancedMemoryContext(userId: string): Promise<string> {
+  const userData = await getUserData(userId);
+  
+  // Get narrative markers
+  const narrativeMarkers = await supabase
+    .from('therapeutic_context')
+    .select('*')
+    .eq('user_id', userId)
+    .in('context_type', ['narrative_marker', 'narrative_theme'])
+    .order('importance', { ascending: false })
+    .limit(5);
+  
+  // Get session progression
+  const sessions = await supabase
+    .from('therapeutic_sessions')
+    .select('metadata')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(3);
+  
+  // Build narrative-aware context
+  let context = '';
+  
+  // Frame as continuing story
+  if (userData.sessionCount > 0) {
+    context += `Continuing ${userData.firstName}'s therapeutic narrative. `;
+    context += `Session ${userData.sessionCount + 1} of their journey. `;
+  }
+  
+  // Add narrative themes if present
+  if (narrativeMarkers.data?.length > 0) {
+    context += '\n\nKey narrative themes from previous work: ';
+    narrativeMarkers.data.forEach(marker => {
+      if (marker.pattern_type === 'NARRATIVE_FRAGMENTATION') {
+        context += `Story showing fragmentation. `;
+      } else {
+        context += `${marker.content}. `;
+      }
+    });
+  }
+  
+  // Add phase information
+  const lastSession = sessions.data?.[0];
+  if (lastSession?.metadata?.narrative_phase) {
+    context += `\n\nNarrative journey is in ${lastSession.metadata.narrative_phase} phase.`;
+  }
+  
+  // Add pattern evolution
+  if (userData.dominantPatterns?.length > 0) {
+    context += '\n\nStories being explored: ';
+    userData.dominantPatterns.forEach(pattern => {
+      if (pattern === 'CVDC') context += 'contradictory narratives, ';
+      if (pattern === 'IBM') context += 'story-behavior gaps, ';
+      if (pattern === 'Thend') context += 'emerging integration, ';
+    });
+  }
+  
+  return context;
+}
+```
+
+---
+
+## Phase 6: Database Enhancement (Optional but Recommended)
+
+### SQL Migration:
+
+```sql
+-- Add narrative tracking to css_patterns
+ALTER TABLE css_patterns 
+ADD COLUMN narrative_fragmentation REAL DEFAULT 0,
+ADD COLUMN symbolic_density INTEGER DEFAULT 0,
+ADD COLUMN temporal_orientation VARCHAR(10);
+
+-- Add narrative phase to therapeutic_sessions metadata
+-- (Already handled via JSONB metadata field)
+
+-- Create index for narrative queries
+CREATE INDEX idx_narrative_markers ON therapeutic_context(user_id, context_type) 
+WHERE context_type IN ('narrative_marker', 'narrative_theme', 'origin_trauma');
+```
+
+---
+
+## Testing Checklist
+
+### After Each Phase Implementation:
+- [ ] Test agent selection with high narrative fragmentation
+- [ ] Verify narrative patterns are detected
+- [ ] Check memory context includes narrative themes
+- [ ] Confirm phase tracking works across sessions
+- [ ] Test smooth agent transitions
+- [ ] Verify backwards compatibility
+
+### Integration Tests:
+1. **New User Journey**: Start fresh, verify narrative building phase
+2. **Returning User**: Check narrative continuity in memory
+3. **Crisis Scenario**: Test Zhanna activation on high fragmentation
+4. **Integration Moment**: Verify Marcus selection during Thend
+5. **Pattern Evolution**: Track CVDC → Thend → CYVC progression
+
+---
+
+## Implementation Order
+
+1. **Day 1**: Deploy v5 agent config (immediate improvement)
+2. **Day 2**: Update pattern detection (adds narrative scoring)
+3. **Day 3**: Update orchestration (uses narrative data)
+4. **Day 4**: Enhance memory service (narrative continuity)
+5. **Day 5**: Update frontend hooks (complete integration)
+6. **Week 2**: Add database enhancements (optimization)
+
+---
+
+## Success Metrics
+
+- **Narrative Engagement**: 40% increase in story-based language from users
+- **Pattern Recognition**: 25% better identification of therapeutic moments
+- **Session Continuity**: 50% improvement in contextual memory usage
+- **Agent Precision**: 30% reduction in unnecessary agent switches
+- **Integration Success**: 20% more Thend/CYVC patterns detected
