@@ -367,6 +367,166 @@ export function normalizeLiteraryPatterns(
     });
   });
   
+  // Process double consciousness patterns
+  patterns.doubleConsciousnessPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.DOUBLE_CONSCIOUSNESS,
+      text: match.pattern,
+      intensity: 'high' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.8,
+        temporalOrientation: 'present'
+      }
+    });
+  });
+  
+  // Process redemption seeking patterns
+  patterns.redemptionSeekingPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.REDEMPTION_SEEKING,
+      text: match.pattern,
+      intensity: 'high' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.5,
+        temporalOrientation: 'future'
+      }
+    });
+  });
+  
+  // Process spiritual crisis patterns
+  patterns.spiritualCrisisPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.SPIRITUAL_CRISIS,
+      text: match.pattern,
+      intensity: 'critical' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.9,
+        temporalOrientation: 'present'
+      }
+    });
+  });
+  
+  // Process aporia patterns
+  patterns.aporiaPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.APORIA,
+      text: match.pattern,
+      intensity: 'medium' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.6,
+        symbolicDensity: 6
+      }
+    });
+  });
+  
+  // Process virtue seeking patterns
+  patterns.virtueSeekingPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.VIRTUE_SEEKING,
+      text: match.pattern,
+      intensity: 'medium' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.4,
+        temporalOrientation: 'future'
+      }
+    });
+  });
+  
+  // Process transformation arc patterns
+  patterns.transformationArcPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.TRANSFORMATION_ARC,
+      text: match.pattern,
+      intensity: 'high' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.3,
+        temporalOrientation: 'future'
+      }
+    });
+  });
+  
+  // Process authentic living patterns
+  patterns.authenticLivingPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.AUTHENTIC_LIVING,
+      text: match.pattern,
+      intensity: 'high' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.7,
+        temporalOrientation: 'present'
+      }
+    });
+  });
+  
+  // Process identity crisis patterns
+  patterns.identityCrisisPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.IDENTITY_CRISIS,
+      text: match.pattern,
+      intensity: 'high' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.85,
+        temporalOrientation: 'present'
+      }
+    });
+  });
+  
+  // Process ambition guilt patterns
+  patterns.ambitionGuiltPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.AMBITION_GUILT,
+      text: match.pattern,
+      intensity: 'critical' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.8,
+        temporalOrientation: 'past'
+      }
+    });
+  });
+  
+  // Process self deception patterns
+  patterns.selfDeceptionPatterns?.forEach(match => {
+    events.push({
+      category: PatternCategory.SELF_DECEPTION,
+      text: match.pattern,
+      intensity: 'medium' as EmotionalIntensity,
+      confidence: match.confidence,
+      timestamp,
+      source: 'heuristic',
+      metadata: {
+        narrativeFragmentation: 0.6,
+        temporalOrientation: 'past'
+      }
+    });
+  });
+  
   return events;
 }
 
