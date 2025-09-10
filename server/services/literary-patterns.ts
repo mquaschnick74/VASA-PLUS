@@ -101,6 +101,120 @@ export const SOCIAL_MASKING_PATTERNS = [
   /I('?m| am) (fragmented|split|divided) into (pieces|parts)/gi
 ];
 
+// Double Consciousness - Dostoevsky's split psyche themes
+export const DOUBLE_CONSCIOUSNESS_PATTERNS = [
+  /there are (multiple|different) voices in my head/gi,
+  /I don't know which (me|self|version) is real/gi,
+  /part of me (says|thinks|wants) one thing.*(while|but) another/gi,
+  /I('?m| am) at war with myself/gi,
+  /I('?m| am) (split|divided|torn) in two/gi,
+  /which voice should I listen to/gi,
+  /I('?m| am) having an argument with myself/gi,
+  /I can('?t| not) reconcile these parts of me/gi,
+  /one side of me.*the other side/gi
+];
+
+// Redemption Seeking - Dostoevsky's transformation through suffering
+export const REDEMPTION_SEEKING_PATTERNS = [
+  /I('?m| am) ready to (change|transform|become different)/gi,
+  /this (pain|suffering) (has to|must) mean something/gi,
+  /I want to make amends/gi,
+  /I need to (atone|make up) for/gi,
+  /maybe I can be (saved|redeemed|forgiven)/gi,
+  /I want to become a (better|different|new) person/gi,
+  /through this suffering I('?ll| will) (grow|change|transform)/gi,
+  /I('?m| am) ready to face (my demons|the truth|myself)/gi
+];
+
+// Spiritual Crisis - Brothers Karamazov themes
+export const SPIRITUAL_CRISIS_PATTERNS = [
+  /if (god doesn't exist|there's no god).*(then|why)/gi,
+  /I('?ve| have) lost my faith/gi,
+  /where is (god|divine justice) in all this/gi,
+  /why do (innocent|good) people suffer/gi,
+  /I can('?t| not) (believe|have faith) anymore/gi,
+  /everything I believed in is (gone|shattered|lost)/gi,
+  /there('?s| is) no (divine|cosmic) justice/gi,
+  /I('?m| am) spiritually (empty|lost|dead)/gi
+];
+
+// Aporia - Socratic productive confusion
+export const APORIA_PATTERNS = [
+  /I('?m| am) confused (but|and) that('?s| is) (okay|good|interesting)/gi,
+  /the more I explore.*the more confused I (get|become)/gi,
+  /this confusion (might be|is) (important|meaningful|significant)/gi,
+  /I('?m| am) (comfortable|okay) with not knowing/gi,
+  /maybe confusion is the (beginning|start) of wisdom/gi,
+  /I need to sit with this (confusion|uncertainty)/gi,
+  /not knowing is (difficult but|strangely) (liberating|freeing)/gi
+];
+
+// Virtue Seeking - Socratic ethical exploration
+export const VIRTUE_SEEKING_PATTERNS = [
+  /what does it (really |truly )?mean to be (good|virtuous|ethical)/gi,
+  /am I living according to my values/gi,
+  /what kind of person do I want to be/gi,
+  /I('?m| am) (questioning|examining) my (ethics|morals|values)/gi,
+  /what is the (right|ethical|moral) thing to do/gi,
+  /how should I live/gi,
+  /what makes a life worth living/gi
+];
+
+// Transformation Arc - Scrooge/redemption patterns
+export const TRANSFORMATION_ARC_PATTERNS = [
+  /I('?ve| have) been (selfish|cold|cruel|blind)/gi,
+  /I see how I('?ve| have) (hurt|damaged|affected) others/gi,
+  /it('?s| is) not too late to change/gi,
+  /I was wrong about everything/gi,
+  /I('?m| am) seeing (myself|things) clearly for the first time/gi,
+  /I want to make things right/gi,
+  /there('?s| is) still time to (change|make amends)/gi
+];
+
+// Authentic Living - Tolstoy's Death of Ivan Ilyich themes
+export const AUTHENTIC_LIVING_PATTERNS = [
+  /I('?ve| have) been living (someone else's|the wrong) life/gi,
+  /this isn('?t| is not) (my|the) life I wanted/gi,
+  /I('?ve| have) wasted (my life|so much time)/gi,
+  /time is running out and I haven('?t| have not) (lived|been authentic)/gi,
+  /I need to live (authentically|truly|honestly)/gi,
+  /I('?ve| have) been (pretending|lying to myself) all along/gi,
+  /what if I('?ve| have) been wrong about what matters/gi
+];
+
+// Identity Crisis - Hamlet themes
+export const IDENTITY_CRISIS_PATTERNS = [
+  /to be or not to be/gi,
+  /I don('?t| do not) know who I (am|should be)/gi,
+  /everyone expects me to be (someone|something) I('?m| am) not/gi,
+  /I('?m| am) paralyzed by (indecision|doubt|uncertainty)/gi,
+  /should I (act|speak|reveal) or (stay silent|do nothing)/gi,
+  /I('?m| am) (trapped|stuck) between (action and inaction|choices)/gi,
+  /I('?m| am) (playing|performing) a role I didn('?t| did not) choose/gi
+];
+
+// Ambition Guilt Cycle - Macbeth themes
+export const AMBITION_GUILT_PATTERNS = [
+  /I('?ve| have) gone too far to (stop|turn back) now/gi,
+  /the (guilt|shame) (drives|pushes) me to do more/gi,
+  /I (achieved|got) what I wanted but at what cost/gi,
+  /each (step|action) makes it worse/gi,
+  /I('?m| am) (trapped|caught) in a cycle of my own making/gi,
+  /my ambition has (destroyed|ruined) everything/gi,
+  /I can('?t| not) (sleep|rest) because of what I('?ve| have) done/gi
+];
+
+// Self Deception - Austen themes
+export const SELF_DECEPTION_PATTERNS = [
+  /my first impressions were (wrong|mistaken)/gi,
+  /I('?ve| have) been (deceiving|fooling|lying to) myself/gi,
+  /I thought I knew but I was (wrong|blind|mistaken)/gi,
+  /I('?ve| have) been too (proud|prejudiced) to see/gi,
+  /I misjudged (everything|the situation|them)/gi,
+  /I couldn('?t| could not) see my own (biases|blindness|faults)/gi,
+  /I was so certain but so wrong/gi
+];
+
 /**
  * Detect a specific category of literary patterns
  */
@@ -141,7 +255,18 @@ export function detectLiteraryPatterns(
     moralTormentPatterns: detectPatternCategory(transcript, MORAL_TORMENT_PATTERNS, debug),
     epistemicPatterns: detectPatternCategory(transcript, EPISTEMIC_DOUBT_PATTERNS, debug),
     kafkaPatterns: detectPatternCategory(transcript, KAFKA_ALIENATION_PATTERNS, debug),
-    socialMaskingPatterns: detectPatternCategory(transcript, SOCIAL_MASKING_PATTERNS, debug)
+    socialMaskingPatterns: detectPatternCategory(transcript, SOCIAL_MASKING_PATTERNS, debug),
+    // New patterns
+    doubleConsciousnessPatterns: detectPatternCategory(transcript, DOUBLE_CONSCIOUSNESS_PATTERNS, debug),
+    redemptionSeekingPatterns: detectPatternCategory(transcript, REDEMPTION_SEEKING_PATTERNS, debug),
+    spiritualCrisisPatterns: detectPatternCategory(transcript, SPIRITUAL_CRISIS_PATTERNS, debug),
+    aporiaPatterns: detectPatternCategory(transcript, APORIA_PATTERNS, debug),
+    virtueSeekingPatterns: detectPatternCategory(transcript, VIRTUE_SEEKING_PATTERNS, debug),
+    transformationArcPatterns: detectPatternCategory(transcript, TRANSFORMATION_ARC_PATTERNS, debug),
+    authenticLivingPatterns: detectPatternCategory(transcript, AUTHENTIC_LIVING_PATTERNS, debug),
+    identityCrisisPatterns: detectPatternCategory(transcript, IDENTITY_CRISIS_PATTERNS, debug),
+    ambitionGuiltPatterns: detectPatternCategory(transcript, AMBITION_GUILT_PATTERNS, debug),
+    selfDeceptionPatterns: detectPatternCategory(transcript, SELF_DECEPTION_PATTERNS, debug)
   };
   
   if (debug) {

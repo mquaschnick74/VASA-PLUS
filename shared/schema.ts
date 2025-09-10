@@ -136,7 +136,18 @@ export enum PatternCategory {
   MORAL_TORMENT = 'MORAL_TORMENT',   // Moral Torment - Dostoevsky
   EPISTEMIC_DOUBT = 'EPISTEMIC_DOUBT', // Epistemic Doubt - Hume/Descartes
   KAFKA_ALIENATION = 'KAFKA_ALIENATION', // Alienation - Kafka
-  SOCIAL_MASKING = 'SOCIAL_MASKING'    // Social Masking - Pessoa
+  SOCIAL_MASKING = 'SOCIAL_MASKING',    // Social Masking - Pessoa
+  // Additional Literary Patterns
+  DOUBLE_CONSCIOUSNESS = 'DOUBLE_CONSCIOUSNESS', // Split psyche - Dostoevsky
+  REDEMPTION_SEEKING = 'REDEMPTION_SEEKING',     // Transformation through suffering
+  SPIRITUAL_CRISIS = 'SPIRITUAL_CRISIS',         // Brothers Karamazov themes
+  APORIA = 'APORIA',                             // Socratic productive confusion
+  VIRTUE_SEEKING = 'VIRTUE_SEEKING',             // Socratic ethical exploration
+  TRANSFORMATION_ARC = 'TRANSFORMATION_ARC',     // Scrooge/redemption patterns
+  AUTHENTIC_LIVING = 'AUTHENTIC_LIVING',         // Tolstoy's Ivan Ilyich themes
+  IDENTITY_CRISIS = 'IDENTITY_CRISIS',           // Hamlet themes
+  AMBITION_GUILT = 'AMBITION_GUILT',             // Macbeth themes
+  SELF_DECEPTION = 'SELF_DECEPTION'              // Austen themes
 }
 
 // CSS Stage Enum with transitions
