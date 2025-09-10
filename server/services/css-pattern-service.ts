@@ -142,6 +142,30 @@ const CYVC_PATTERNS = [
   /don't get as[^.!?]*anymore/gi
 ];
 
+// Somatic/distress patterns that suggest need for Zhanna
+const SOMATIC_PATTERNS = [
+  /can't breathe/gi,
+  /chest (is )?tight/gi,
+  /heart (is )?racing/gi,
+  /feel(ing)? dizzy/gi,
+  /feel(ing)? unreal/gi,
+  /feel(ing)? disconnected/gi,
+  /feel(ing)? floating/gi,
+  /panic/gi,
+  /hyperventilat/gi,
+  /can't feel my body/gi,
+  /numb all over/gi,
+  /shaking/gi,
+  /trembling/gi,
+  /frozen/gi,
+  /can't move/gi,
+  /overwhelming sensation/gi,
+  /body feels/gi,
+  /breathing (is )?hard/gi,
+  /breathing (is )?difficult/gi,
+  /short of breath/gi
+];
+
 /**
  * Check for safety warning flags
  */
@@ -229,16 +253,18 @@ function detectPatternCategory(
 /**
  * Main pattern detection with safety enhancements
  */
-export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = false): CSSPatterns {
+export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = false): CSSPatterns & { somaticPatterns?: PatternMatch[], distressLevel?: number } {
   if (!transcript || transcript.trim().length === 0) {
     return {
       cvdcPatterns: [],
       ibmPatterns: [],
       thendIndicators: [],
       cyvcPatterns: [],
+      somaticPatterns: [],
       currentStage: 'pointed_origin',
       hasWarningFlags: false,
-      emotionalIntensity: 'low'
+      emotionalIntensity: 'low',
+      distressLevel: 0
     };
   }
 
@@ -252,13 +278,15 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
   const ibmPatterns = detectPatternCategory(transcript, IBM_PATTERNS, debug);
   const thendIndicators = detectPatternCategory(transcript, THEND_PATTERNS, debug);
   const cyvcPatterns = detectPatternCategory(transcript, CYVC_PATTERNS, debug);
+  const somaticPatterns = detectPatternCategory(transcript, SOMATIC_PATTERNS, debug);
 
-  // Check for any warning flags
+  // Check for any warning flags or somatic distress
   const hasWarningFlags = [
     ...cvdcPatterns,
     ...ibmPatterns,
     ...thendIndicators,
-    ...cyvcPatterns
+    ...cyvcPatterns,
+    ...somaticPatterns
   ].some(p => p.hasWarningFlag);
 
   // Assess overall emotional intensity
@@ -278,14 +306,34 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     cyvcPatterns: cyvcPatterns.map(p => p.text)
   });
 
+  // Calculate distress level based on somatic patterns and intensity
+  let distressLevel = 0;
+  if (somaticPatterns.length > 0) {
+    const highSomatic = somaticPatterns.filter(p => p.intensity === 'high').length;
+    const medSomatic = somaticPatterns.filter(p => p.intensity === 'medium').length;
+    
+    if (highSomatic >= 2) distressLevel = 8;
+    else if (highSomatic >= 1) distressLevel = 7;
+    else if (medSomatic >= 2) distressLevel = 6;
+    else if (medSomatic >= 1) distressLevel = 5;
+    else distressLevel = 4;
+  }
+  
+  // Adjust for warning flags
+  if (hasWarningFlags) {
+    distressLevel = Math.max(distressLevel, 7);
+  }
+
   if (debug) {
     console.log('📊 Enhanced Pattern Detection Summary:');
     console.log(`  - CVDC: ${cvdcPatterns.length} patterns`);
     console.log(`  - IBM: ${ibmPatterns.length} patterns`);
     console.log(`  - Thend: ${thendIndicators.length} patterns`);
     console.log(`  - CYVC: ${cyvcPatterns.length} patterns`);
+    console.log(`  - Somatic: ${somaticPatterns.length} patterns`);
     console.log(`  - Stage: ${currentStage}`);
     console.log(`  - Emotional Intensity: ${emotionalIntensity}`);
+    console.log(`  - Distress Level: ${distressLevel}`);
     console.log(`  - Warning Flags: ${hasWarningFlags}`);
   }
 
@@ -294,9 +342,11 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     ibmPatterns,
     thendIndicators,
     cyvcPatterns,
+    somaticPatterns,
     currentStage,
     hasWarningFlags,
-    emotionalIntensity
+    emotionalIntensity,
+    distressLevel
   };
 }
 
