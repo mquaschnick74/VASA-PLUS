@@ -1,0 +1,163 @@
+# Integration Instructions: v4 Agent Configurations with Zhanna
+
+## Overview
+Integrating enhanced 4-agent system with pure PCP/PCA specializations. Each agent now has a focused role with Zhanna handling all crisis/HSFB work.
+
+## Agent Specializations
+- **Sarah**: CVDC (contradictions/paradoxes)
+- **Mathew**: IBM (intention-action gaps)  
+- **Marcus**: Thend/CYVC (integration)
+- **Zhanna**: HSFB/Crisis (grounding) - NEW
+
+## File Changes Required
+
+### 1. **orchestration-service.ts**
+Update the `suggestAgentBasedOnPatterns()` function:
+
+```typescript
+// Add crisis detection at the TOP of the function
+if (patterns.some(p => 
+  p.metadata?.crisis_flag || 
+  p.metadata?.distress_level >= 7 ||
+  p.content?.toLowerCase().includes('panic') ||
+  p.content?.toLowerCase().includes('can\'t breathe')
+)) {
+  return 'zhanna'; // Crisis always goes to Zhanna
+}
+
+// Then existing pattern logic
+if (cvdcCount > 3) return 'sarah';
+if (ibmCount > 5) return 'mathew';
+if (thendCount > 2) return 'marcus';
+
+// Default
+return 'sarah';
+```
+
+### 2. **client/src/components/agent-selector.tsx** (or equivalent)
+Add Zhanna to the agent selection UI:
+
+```typescript
+const agents = [
+  { id: 'sarah', name: 'Sarah', icon: '👱🏽‍♀️', description: 'Emotional support' },
+  { id: 'mathew', name: 'Mathew', icon: '👨🏻‍💼', description: 'Pattern analysis' },
+  { id: 'marcus', name: 'Marcus', icon: '🧔🏾‍♂️', description: 'Integration work' },
+  { id: 'zhanna', name: 'Zhanna', icon: '👩🏼‍🦳', description: 'Crisis support' } // NEW
+];
+```
+
+### 3. **css-pattern-service.ts**
+Add crisis detection to pattern metadata:
+
+```typescript
+// In detectEnhancedCSSPatterns function, add:
+const crisisIndicators = [
+  'panic', 'can\'t breathe', 'chest tight', 'dizzy',
+  'unreal', 'floating', 'hurt myself', 'unsafe'
+];
+
+const hasCrisis = crisisIndicators.some(indicator => 
+  content.toLowerCase().includes(indicator)
+);
+
+if (hasCrisis) {
+  patterns.push({
+    stage: 'CRISIS',
+    confidence: 1.0,
+    metadata: {
+      crisis_flag: true,
+      suggested_agent: 'zhanna'
+    }
+  });
+}
+```
+
+### 4. **use-vapi.ts** 
+Ensure Zhanna is included in agent switching logic:
+
+```typescript
+// In handleOrchestrationCheck function
+// No changes needed - should work with existing getAgentById()
+// Just verify the switching works with 4 agents
+```
+
+### 5. **webhook-routes.ts**
+Ensure pattern detection includes crisis flags:
+
+```typescript
+// In the transcript processing, check for crisis
+if (enhancedPatterns.some(p => p.metadata?.crisis_flag)) {
+  // Store crisis event in therapeutic_context
+  await insertTherapeuticContext({
+    user_id: userId,
+    session_id: sessionId,
+    context_type: 'crisis_detected',
+    content: 'Crisis indicators detected - switching to Zhanna',
+    confidence: 1.0
+  });
+}
+```
+
+## Database Considerations
+No schema changes needed. The existing tables support 4 agents:
+- `therapeutic_sessions.agent_name` - accepts 'zhanna'
+- `css_patterns.metadata` - can store crisis_flag
+- `therapeutic_context` - tracks agent switches
+
+## Testing Checklist
+
+### 1. Initial Selection
+- [ ] Zhanna appears in agent selector
+- [ ] Can start conversation with Zhanna
+- [ ] Voice works (11labs ID: Qggl4b0xRMiqOwhPtVWT)
+
+### 2. Crisis Detection
+- [ ] Say "I'm panicking" → switches to Zhanna
+- [ ] Say "can't breathe" → switches to Zhanna
+- [ ] Distress level 7+ → switches to Zhanna
+
+### 3. Pattern-Based Switching
+- [ ] CVDC patterns → Sarah
+- [ ] IBM patterns → Mathew
+- [ ] Integration moments → Marcus
+- [ ] Crisis → Zhanna
+
+### 4. Seamless Transitions
+- [ ] No introduction on switch
+- [ ] Context preserved
+- [ ] Same voice maintained
+- [ ] Memory includes switch history
+
+### 5. Zhanna-Specific Features
+- [ ] HSFB protocol works
+- [ ] 5-4-3-2-1 grounding executes
+- [ ] Breathing assessment functions
+- [ ] Transitions to appropriate agent after stabilization
+
+## Deployment Steps
+
+1. **Update agent-configs.ts** with the v4 configuration
+2. **Update orchestration-service.ts** pattern mapping
+3. **Update UI components** to show Zhanna
+4. **Update pattern detection** for crisis
+5. **Test locally** with all scenarios
+6. **Deploy** with monitoring
+
+## Rollback Plan
+If issues arise:
+1. Keep v4 agent-configs.ts but set Zhanna as inactive
+2. Route crisis patterns back to Sarah temporarily
+3. Debug specific integration points
+4. Re-enable when fixed
+
+## Notes
+- The system already supports dynamic agent switching
+- No VAPI configuration changes needed (uses same structure)
+- Orchestration service already has cooldowns and safety checks
+- Memory system already tracks methodology switches
+
+## Success Metrics
+- Crisis response time < 2 seconds
+- Appropriate agent selection > 90% accuracy
+- User unaware of switches (seamless)
+- Reduced prompt complexity by 40% per specialist
