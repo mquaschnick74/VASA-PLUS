@@ -15,7 +15,7 @@ import {
   PatternDetectionResult
 } from '../../shared/schema';
 import { detectEnhancedCSSPatterns } from './css-pattern-service';
-import { detectLiteraryPatterns, normalizeLiteraryPatterns } from './literary-patterns';
+import { detectLiteraryPatterns, normalizeLiteraryPatterns, shouldActivateZhanna } from './literary-patterns';
 import { supabase } from './supabase-service';
 
 // Stage transition rules with hysteresis
@@ -473,8 +473,11 @@ async function flushWriteQueue(): Promise<void> {
     
     // Batch insert patterns
     if (uniquePatterns.size > 0) {
+      // Get userId and callId from the first item's sessionId
+      const firstItem = itemsToWrite[0];
+      const [userId, callId] = firstItem.sessionId.split(':');
+      
       const patternInserts = Array.from(uniquePatterns.values()).map(p => {
-        const [userId, callId] = p.contentHash?.split(':') || ['', ''];
         return {
           user_id: userId,
           call_id: callId,
@@ -565,17 +568,16 @@ function determineSuggestedAgent(state: CSSSessionState): string | undefined {
   }
   
   // Priority 2: Zhanna for literary psychological patterns
-  const literaryPatternCount = 
-    state.patternCounts[PatternCategory.EXISTENTIAL] +
-    state.patternCounts[PatternCategory.MORAL_TORMENT] +
-    state.patternCounts[PatternCategory.EPISTEMIC_DOUBT] +
-    state.patternCounts[PatternCategory.KAFKA_ALIENATION] +
-    state.patternCounts[PatternCategory.SOCIAL_MASKING];
+  const literaryPatterns = {
+    existentialPatterns: Array(state.patternCounts[PatternCategory.EXISTENTIAL]).fill({}),
+    moralTormentPatterns: Array(state.patternCounts[PatternCategory.MORAL_TORMENT]).fill({}),
+    epistemicPatterns: Array(state.patternCounts[PatternCategory.EPISTEMIC_DOUBT]).fill({}),
+    kafkaPatterns: Array(state.patternCounts[PatternCategory.KAFKA_ALIENATION]).fill({}),
+    socialMaskingPatterns: Array(state.patternCounts[PatternCategory.SOCIAL_MASKING]).fill({})
+  };
   
-  if (state.patternCounts[PatternCategory.EXISTENTIAL] >= 3 ||  // Multiple existential patterns
-      state.patternCounts[PatternCategory.EPISTEMIC_DOUBT] >= 3 || // Deep confusion
-      state.patternCounts[PatternCategory.KAFKA_ALIENATION] >= 2 || // Significant alienation
-      literaryPatternCount >= 5) { // Combined literary patterns
+  // Use the literary patterns module's logic
+  if (shouldActivateZhanna(literaryPatterns)) {
     return 'zhanna';
   }
   
