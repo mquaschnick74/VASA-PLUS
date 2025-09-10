@@ -301,7 +301,15 @@ export async function processTranscript(
   // Don't store individual transcripts - only detect patterns
   // Full transcript will be stored at end-of-call
   
-  // Use enhanced pattern detection with narrative awareness
+  // Use unified CSS tracker pipeline for real-time processing
+  const result = await processTranscriptEvent(
+    session.userId,
+    callId,
+    transcript,
+    'user'
+  );
+  
+  // Also use old detection for compatibility
   const patterns = detectEnhancedCSSPatterns(transcript, false);
   
   // Log detected patterns for debugging
@@ -309,13 +317,24 @@ export async function processTranscript(
                         patterns.thendIndicators.length + patterns.cyvcPatterns.length + 
                         (patterns.somaticPatterns?.length || 0) + (patterns.griefPatterns?.length || 0);
   
-  if (totalPatterns > 0 || (patterns.narrativeFragmentation && patterns.narrativeFragmentation > 0)) {
+  const literaryPatternCount = Object.entries(result.sessionState.patternCounts)
+    .filter(([key, count]) => ['EXISTENTIAL', 'MORAL_TORMENT', 'EPISTEMIC_DOUBT', 'KAFKA_ALIENATION', 'SOCIAL_MASKING'].includes(key))
+    .reduce((sum, [_, count]) => sum + count, 0);
+  
+  if (totalPatterns > 0 || literaryPatternCount > 0 || (patterns.narrativeFragmentation && patterns.narrativeFragmentation > 0)) {
     console.log(`📊 Patterns detected in transcript:`);
-    console.log(`   CVDC: ${patterns.cvdcPatterns.length}, IBM: ${patterns.ibmPatterns.length}`);
-    console.log(`   Thend: ${patterns.thendIndicators.length}, CYVC: ${patterns.cyvcPatterns.length}`);
+    console.log(`   Core: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}, Thend=${patterns.thendIndicators.length}, CYVC=${patterns.cyvcPatterns.length}`);
     console.log(`   Somatic: ${patterns.somaticPatterns?.length || 0}, Grief: ${patterns.griefPatterns?.length || 0}`);
+    console.log(`   Literary: EXISTENTIAL=${result.sessionState.patternCounts[PatternCategory.EXISTENTIAL]}, MORAL_TORMENT=${result.sessionState.patternCounts[PatternCategory.MORAL_TORMENT]}, EPISTEMIC=${result.sessionState.patternCounts[PatternCategory.EPISTEMIC_DOUBT]}`);
+    console.log(`   Suggested Agent: ${result.suggestedAgent || 'None'}`);
     console.log(`   Distress: ${patterns.distressLevel || 0}`);
     console.log(`   📖 Narrative: Fragmentation=${patterns.narrativeFragmentation || 0}, Density=${patterns.symbolicDensity || 0}, Orientation=${patterns.temporalOrientation || 'present'}`);
+  }
+  
+  // Update session with suggested agent from unified tracker
+  if (result.suggestedAgent) {
+    session.suggestedAgent = result.suggestedAgent;
+    session.lastSuggestionTime = new Date();
   }
   
   // Store high narrative fragmentation as context
@@ -1210,12 +1229,26 @@ export async function processEndOfCall(
 }
 
 async function processFullTranscript(session: EnhancedSessionState, transcript: string): Promise<void> {
+  // Use the unified CSS tracker pipeline which includes literary patterns
+  const result = await processTranscriptEvent(
+    session.userId,
+    session.callId,
+    transcript,
+    'user'
+  );
+  
+  // Also run the old detection for backward compatibility
   const patterns = detectEnhancedCSSPatterns(transcript, true);
   const { confidence, reasoning } = assessPatternConfidence(patterns);
 
   console.log(`📊 Full transcript analysis:`);
   console.log(`  CSS Stage: ${patterns.currentStage}`);
-  console.log(`  Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}, Grief=${patterns.griefPatterns?.length || 0}`);
+  console.log(`  Core Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}, Grief=${patterns.griefPatterns?.length || 0}`);
+  console.log(`  Literary Patterns Detected:`, Object.entries(result.sessionState.patternCounts)
+    .filter(([key, count]) => ['EXISTENTIAL', 'MORAL_TORMENT', 'EPISTEMIC_DOUBT', 'KAFKA_ALIENATION', 'SOCIAL_MASKING'].includes(key) && count > 0)
+    .map(([key, count]) => `${key}=${count}`)
+    .join(', ') || 'None');
+  console.log(`  Suggested Agent: ${result.suggestedAgent || 'None'}`);
   console.log(`  Emotional Intensity: ${patterns.emotionalIntensity}`);
   console.log(`  Warning Flags: ${patterns.hasWarningFlags}`);
 
