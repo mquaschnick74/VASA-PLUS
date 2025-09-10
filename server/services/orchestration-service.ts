@@ -528,13 +528,12 @@ function analyzeForAgentSuggestionEnhanced(
   confidence: number;
 } {
   // CRITICAL: Crisis detection FIRST - Check for crisis patterns or high distress
-  const crisisPattern = patterns.patterns?.find((p: any) => 
-    p.metadata?.crisis_flag || 
-    p.metadata?.distress_level >= 7 ||
-    p.stage === 'CRISIS'
-  );
+  // Check if we have critical emotional intensity or warning flags
+  const hasCrisisIndicators = patterns.emotionalIntensity === 'critical' || 
+    patterns.hasWarningFlags ||
+    (patterns.emotionalIntensity === 'high' && patterns.cvdcPatterns.some(p => p.hasWarningFlag));
   
-  if (crisisPattern && currentAgent.toLowerCase() !== 'zhanna') {
+  if (hasCrisisIndicators && currentAgent.toLowerCase() !== 'zhanna') {
     console.log('🚨 Crisis detected - suggesting Zhanna');
     return {
       suggestedAgent: 'zhanna',
@@ -545,8 +544,8 @@ function analyzeForAgentSuggestionEnhanced(
   
   // If currently with Zhanna, check if stable for handoff
   if (currentAgent.toLowerCase() === 'zhanna') {
-    const latestDistress = patterns.patterns?.[patterns.patterns.length - 1]?.metadata?.distress_level || 10;
-    if (latestDistress >= 5) {
+    // If still in critical/high intensity, stay with Zhanna
+    if (patterns.emotionalIntensity === 'critical' || patterns.emotionalIntensity === 'high') {
       return {
         suggestedAgent: null,
         reason: null,

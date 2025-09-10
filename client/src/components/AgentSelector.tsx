@@ -1,5 +1,5 @@
 import React from 'react';
-import { THERAPEUTIC_AGENTS, TherapeuticAgent } from '../config/agent-configs';
+import { getUserSelectableAgents, TherapeuticAgent } from '../config/agent-configs';
 import { AIDisclosureCard } from './AIDisclosureCard';
 
 interface AgentSelectorProps {
@@ -13,6 +13,9 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
   onSelectAgent, 
   disabled 
 }) => {
+  // Only show agents where userSelectable !== false (excludes Zhanna)
+  const agents = getUserSelectableAgents();
+  
   return (
     <div className="agent-selector">
       <div className="flex items-center justify-center gap-2 mb-6">
@@ -20,7 +23,7 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
         <AIDisclosureCard />
       </div>
       <div className="agent-grid">
-        {THERAPEUTIC_AGENTS.map(agent => (
+        {agents.map(agent => (
           <button
             key={agent.id}
             className={`agent-card ${selectedAgentId === agent.id ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}

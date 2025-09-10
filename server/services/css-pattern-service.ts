@@ -39,6 +39,22 @@ const WARNING_PATTERNS = [
   /suicid/gi
 ];
 
+// Crisis panic patterns - Immediate Zhanna trigger
+const CRISIS_PATTERNS = [
+  /panic/gi,
+  /can't breathe/gi,
+  /chest tight/gi,
+  /heart racing/gi,
+  /dizzy/gi,
+  /unreal/gi,
+  /floating/gi,
+  /disconnected/gi,
+  /losing control/gi,
+  /going crazy/gi,
+  /dying/gi,
+  /hyperventilat/gi
+];
+
 // Intensity boosters (check within 50 chars of pattern)
 const INTENSITY_BOOSTERS = [
   'really', 'totally', 'completely', 'absolutely', 'desperate',
@@ -147,6 +163,13 @@ const CYVC_PATTERNS = [
  */
 function checkForWarnings(text: string): boolean {
   return WARNING_PATTERNS.some(pattern => pattern.test(text));
+}
+
+/**
+ * Check for crisis indicators requiring immediate grounding
+ */
+function checkForCrisis(text: string): boolean {
+  return CRISIS_PATTERNS.some(pattern => pattern.test(text));
 }
 
 /**
@@ -261,8 +284,11 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     ...cyvcPatterns
   ].some(p => p.hasWarningFlag);
 
-  // Assess overall emotional intensity
-  const emotionalIntensity = assessOverallIntensity(
+  // Check for crisis indicators
+  const hasCrisisIndicators = checkForCrisis(transcript);
+  
+  // Assess overall emotional intensity (including crisis check)
+  const emotionalIntensity = hasCrisisIndicators ? 'critical' : assessOverallIntensity(
     cvdcPatterns,
     ibmPatterns,
     thendIndicators,
