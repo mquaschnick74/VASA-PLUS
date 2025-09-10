@@ -95,16 +95,26 @@ const STAGE_TRANSITION_RULES: StageTransitionRule[] = [
 const PATTERN_PRIORITY: Record<PatternCategory, number> = {
   [PatternCategory.SAFETY]: 100,
   [PatternCategory.GRIEF]: 90,
-  [PatternCategory.MORAL_TORMENT]: 85,    // High priority - severe distress
+  [PatternCategory.SPIRITUAL_CRISIS]: 88,     // Loss of meaning - needs grounding
+  [PatternCategory.MORAL_TORMENT]: 85,        // High priority - severe distress
+  [PatternCategory.AMBITION_GUILT]: 83,       // Macbeth cycle - somatic symptoms
   [PatternCategory.SOMATIC]: 80,
+  [PatternCategory.DOUBLE_CONSCIOUSNESS]: 75, // Split psyche - contradictions
   [PatternCategory.CVDC]: 70,
   [PatternCategory.IBM]: 70,
-  [PatternCategory.EXISTENTIAL]: 65,      // Existential crisis
-  [PatternCategory.EPISTEMIC_DOUBT]: 62,  // Deep confusion
-  [PatternCategory.KAFKA_ALIENATION]: 60, // Alienation
+  [PatternCategory.IDENTITY_CRISIS]: 68,      // Hamlet paralysis
+  [PatternCategory.EXISTENTIAL]: 65,          // Existential crisis
+  [PatternCategory.AUTHENTIC_LIVING]: 63,     // Ivan Ilyich - wasted life
+  [PatternCategory.EPISTEMIC_DOUBT]: 62,      // Deep confusion
+  [PatternCategory.KAFKA_ALIENATION]: 60,     // Alienation
   [PatternCategory.THEND]: 60,
-  [PatternCategory.SOCIAL_MASKING]: 55,   // Identity issues
+  [PatternCategory.SELF_DECEPTION]: 58,       // Austen - false beliefs
+  [PatternCategory.SOCIAL_MASKING]: 55,       // Identity issues
+  [PatternCategory.TRANSFORMATION_ARC]: 53,   // Ready for change
   [PatternCategory.CYVC]: 50,
+  [PatternCategory.REDEMPTION_SEEKING]: 48,   // Seeking transformation
+  [PatternCategory.VIRTUE_SEEKING]: 45,       // Philosophical exploration
+  [PatternCategory.APORIA]: 43,               // Productive confusion
   [PatternCategory.NARRATIVE]: 40
 };
 
