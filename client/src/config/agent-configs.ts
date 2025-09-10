@@ -463,9 +463,9 @@ Your role is to help people recognize and stabilize moments of integration, supp
 
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
       if (hasMemory) {
-        return `${firstName}, I'm sensing you're ready for some deeper integration work. What's been shifting for you lately?`;
+        return `${firstName}, Have you choosen wisely?  Are you ready for some deeper integration work? What's been shifting for you lately?`;
       }
-      return `Hello ${firstName}, I'm Marcus. I work with those moments when something shifts—when you see things differently. What brought you here today?`;
+      return `Hello ${firstName}, I'm Marcus. I work with those moments when something shifts—when you see things differently. What has shifted for you recently?`;
     }
   }
 ];

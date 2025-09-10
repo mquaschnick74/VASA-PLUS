@@ -22,89 +22,89 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const vapiRef = useRef<any>(null);
-  
+
   // Track active methodology internally (invisible to user)
   const [activeMethodology, setActiveMethodology] = useState<string>(selectedAgent.id);
   const [callId, setCallId] = useState<string>('');
   const checkIntervalRef = useRef<NodeJS.Timeout>();
-  
+
   // Use refs for pattern guidance to avoid re-render issues
   const appliedGuidanceRef = useRef<Set<string>>(new Set());
   const pollIntervalRef = useRef<number>(15000);
 
-        // Initialize VAPI
-        useEffect(() => {
-          const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
+  // Initialize VAPI
+  useEffect(() => {
+    const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
 
-          if (!publicKey) {
-            console.error('VAPI public key not found');
-            return;
-          }
+    if (!publicKey) {
+      console.error('VAPI public key not found');
+      return;
+    }
 
-          const initializeVapi = async () => {
-            try {
-              const { default: Vapi } = await import('@vapi-ai/web');
-              const vapiInstance = new Vapi(publicKey);
-              vapiRef.current = vapiInstance;
-              setVapi(vapiInstance);
+    const initializeVapi = async () => {
+      try {
+        const { default: Vapi } = await import('@vapi-ai/web');
+        const vapiInstance = new Vapi(publicKey);
+        vapiRef.current = vapiInstance;
+        setVapi(vapiInstance);
 
-              // Track if we've captured call ID
-              let capturedCallId = false;
+        // Track if we've captured call ID
+        let capturedCallId = false;
 
-              // COMPREHENSIVE EVENT LOGGING
-              const allEvents = [
-                'call-start', 'call-end', 'conversation-update', 'message', 
-                'speech-start', 'speech-end', 'volume-level', 'error',
-                'message-update', 'transcript', 'function-call',
-                'metadata', 'assistant-message', 'user-message'
-              ];
+        // COMPREHENSIVE EVENT LOGGING
+        const allEvents = [
+          'call-start', 'call-end', 'conversation-update', 'message', 
+          'speech-start', 'speech-end', 'volume-level', 'error',
+          'message-update', 'transcript', 'function-call',
+          'metadata', 'assistant-message', 'user-message'
+        ];
 
-              allEvents.forEach(eventName => {
-                vapiInstance.on(eventName, (event: any) => {
-                  console.log(`📡 VAPI Event [${eventName}]:`, event);
+        allEvents.forEach(eventName => {
+          vapiInstance.on(eventName, (event: any) => {
+            console.log(`📡 VAPI Event [${eventName}]:`, event);
 
-                  // Try to extract call ID from ANY event
-                  const possibleIds = [
-                    event?.call?.id,
-                    event?.callId,
-                    event?.id,
-                    event?.data?.call?.id,
-                    event?.conversation?.id,
-                    event?.metadata?.callId
-                  ].filter(Boolean);
+            // Try to extract call ID from ANY event
+            const possibleIds = [
+              event?.call?.id,
+              event?.callId,
+              event?.id,
+              event?.data?.call?.id,
+              event?.conversation?.id,
+              event?.metadata?.callId
+            ].filter(Boolean);
 
-                  if (possibleIds.length > 0 && !capturedCallId) {
-                    console.log(`🔍 Found potential call IDs in ${eventName}:`, possibleIds);
-                    setCallId(possibleIds[0]);
-                    capturedCallId = true;
-                  }
-                });
-              });
+            if (possibleIds.length > 0 && !capturedCallId) {
+              console.log(`🔍 Found potential call IDs in ${eventName}:`, possibleIds);
+              setCallId(possibleIds[0]);
+              capturedCallId = true;
+            }
+          });
+        });
 
-              // Specific handlers for state management
-              vapiInstance.on('call-start', () => {
-                console.log('✅ Call session started');
-                setIsSessionActive(true);
-                setConnectionStatus('connected');
-                setIsLoading(false);
-                capturedCallId = false; // Reset for new call
-              });
+        // Specific handlers for state management
+        vapiInstance.on('call-start', () => {
+          console.log('✅ Call session started');
+          setIsSessionActive(true);
+          setConnectionStatus('connected');
+          setIsLoading(false);
+          capturedCallId = false; // Reset for new call
+        });
 
-              vapiInstance.on('call-end', () => {
-                console.log('📴 Call session ended');
-                setIsSessionActive(false);
-                setConnectionStatus('disconnected');
-                setCallId('');
-                setActiveMethodology(selectedAgent.id);
-                appliedGuidanceRef.current.clear();
-                capturedCallId = false;
-              });
+        vapiInstance.on('call-end', () => {
+          console.log('📴 Call session ended');
+          setIsSessionActive(false);
+          setConnectionStatus('disconnected');
+          setCallId('');
+          setActiveMethodology(selectedAgent.id);
+          appliedGuidanceRef.current.clear();
+          capturedCallId = false;
+        });
 
-              vapiInstance.on('error', (error: any) => {
-                console.error('❌ VAPI error details:', error);
-                setIsLoading(false);
-                setConnectionStatus('disconnected');
-              });
+        vapiInstance.on('error', (error: any) => {
+          console.error('❌ VAPI error details:', error);
+          setIsLoading(false);
+          setConnectionStatus('disconnected');
+        });
 
       } catch (error) {
         console.error('Failed to initialize VAPI:', error);
@@ -135,17 +135,17 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
 
     let isActive = true;
     let pollingCallId: string | null = null;
-    
+
     const fetchCallIdAndStartPolling = async () => {
       // Try to get call ID from server
       let attempts = 0;
       const maxAttempts = 10;
-      
+
       while (isActive && !pollingCallId && attempts < maxAttempts) {
         try {
-          const response = await fetch(`/api/orchestration/active-call/${userId}`);
+          const response = await fetch(`/api/vapi/orchestration/active-call/${userId}`);
           const data = await response.json();
-          
+
           if (data.success) {
             console.log(`✅ Got call ID from server: ${data.callId}`);
             pollingCallId = data.callId;
@@ -160,32 +160,32 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         }
         attempts++;
       }
-      
+
       if (!pollingCallId) {
         console.error('❌ Could not retrieve call ID after', maxAttempts, 'attempts');
         return;
       }
-      
+
       // Now start polling with the retrieved call ID
       const checkPatternsAndOrchestration = async () => {
         if (!isActive || !pollingCallId) return;
-        
+
         try {
-          const response = await fetch(`/api/orchestration/state/${pollingCallId}`);
+          const response = await fetch(`/api/vapi/orchestration/state/${pollingCallId}`);
           if (!response.ok) {
             console.error('Failed to fetch orchestration state');
             return;
           }
-          
+
           const state = await response.json();
           console.log('📊 Orchestration state received:', state);
-          
+
           // Log current patterns
           const totalPatterns = Object.values(state.patternCounts || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
           if (totalPatterns > 0) {
             console.log(`📊 Active patterns: CVDC=${state.patternCounts.cvdc}, IBM=${state.patternCounts.ibm}, Thend=${state.patternCounts.thend}`);
           }
-          
+
           // Determine polling interval based on pattern activity
           if (state.patternGuidance?.some((g: any) => g.priority === 'high')) {
             pollIntervalRef.current = 3000; // 3 seconds for high priority
@@ -194,34 +194,34 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
           } else {
             pollIntervalRef.current = 15000; // 15 seconds default
           }
-          
+
           // Apply pattern guidance if available
           if (state.needsGuidanceUpdate && state.patternGuidance?.length > 0) {
             const newGuidance = state.patternGuidance.filter((g: any) => 
               !appliedGuidanceRef.current.has(`${g.pattern}_${g.count}`)
             );
-            
+
             if (newGuidance.length > 0) {
               console.log(`🎯 Injecting ${newGuidance.length} pattern guidance items`);
-              
+
               // Build enhanced prompt
               let enhancedPrompt = selectedAgent.systemPrompt;
-              
+
               if (memoryContext && memoryContext.length > 50) {
                 enhancedPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====\n${memoryContext}\n===== END CONTEXT =====`;
               }
-              
+
               enhancedPrompt += `\n\nThe user's name is ${firstName}.`;
               enhancedPrompt += '\n\n===== ACTIVE PATTERNS REQUIRING ATTENTION =====\n';
               enhancedPrompt += 'Address these patterns naturally in the conversation:\n\n';
-              
+
               newGuidance.forEach((g: any) => {
                 enhancedPrompt += `• [${g.priority.toUpperCase()}] ${g.suggestion}\n`;
               });
-              
+
               enhancedPrompt += '\n===== END PATTERNS =====\n';
               enhancedPrompt += 'IMPORTANT: Address these patterns gently and naturally.';
-              
+
               try {
                 // Update assistant with pattern awareness
                 await vapi.setAssistant({
@@ -235,14 +235,14 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
                     }]
                   }
                 });
-                
+
                 // Mark as applied using ref
                 newGuidance.forEach((g: any) => {
                   appliedGuidanceRef.current.add(`${g.pattern}_${g.count}`);
                 });
-                
+
                 // Notify backend
-                await fetch('/api/orchestration/guidance-applied', {
+                await fetch('/api/vapi/orchestration/guidance-applied', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -251,24 +251,24 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
                     guidanceKeys: newGuidance.map((g: any) => `${g.pattern}_${g.count}`)
                   })
                 });
-                
+
                 console.log('✅ Pattern guidance successfully injected');
               } catch (error) {
                 console.error('Failed to inject pattern guidance:', error);
               }
             }
           }
-          
+
           // Handle agent switching (existing logic)
           if (state.suggestedAgent && state.suggestedAgent !== activeMethodology && state.canSwitch) {
             console.log(`🔄 Switching methodology: ${activeMethodology} → ${state.suggestedAgent}`);
             await updateMethodology(state.suggestedAgent);
           }
-          
+
         } catch (error) {
           console.error('Orchestration check error:', error);
         }
-        
+
         // Schedule next check if still active
         if (isActive) {
           setTimeout(() => {
@@ -278,15 +278,15 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
           }, pollIntervalRef.current);
         }
       };
-      
+
       // Start polling once we have the call ID
       console.log('🚀 Starting orchestration polling with call ID:', pollingCallId);
       checkPatternsAndOrchestration();
     };
-    
+
     // Start the process
     fetchCallIdAndStartPolling();
-    
+
     return () => {
       isActive = false;
       console.log('🛑 Stopping orchestration polling');
@@ -296,22 +296,22 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
   // Silently update the therapeutic methodology
   const updateMethodology = async (newMethodology: string) => {
     if (!vapi || !isSessionActive) return;
-    
+
     const newAgent = getAgentById(newMethodology);
     if (!newAgent) return;
 
     try {
       // Build updated system prompt for new methodology
       let systemPrompt = newAgent.systemPrompt;
-      
+
       if (memoryContext && memoryContext.length > 50) {
         systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
 ${memoryContext}
 ===== END CONTEXT =====`;
       }
-      
+
       systemPrompt += `\n\nThe user's name is ${firstName}.`;
-      
+
       // Critical: Add seamless continuation instruction
       systemPrompt += `\n\nIMPORTANT: You are continuing an ongoing conversation. 
 Do not reintroduce yourself or indicate any change has occurred.
@@ -336,10 +336,10 @@ Never mention switching approaches or changing methods.`;
       });
 
       setActiveMethodology(newMethodology);
-      
+
       // Record the switch in backend (for analytics only)
       try {
-        await fetch('/api/orchestration/record-switch', {
+        await fetch('/api/vapi/orchestration/record-switch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -354,7 +354,7 @@ Never mention switching approaches or changing methods.`;
         // Analytics failure shouldn't break the switch
         console.debug('Failed to record switch:', error);
       }
-      
+
     } catch (error) {
       console.error('Failed to update methodology:', error);
     }
@@ -368,9 +368,9 @@ Never mention switching approaches or changing methods.`;
 
     try {
       const hasMemory = memoryContext && memoryContext.length > 50;
-      
+
       let systemPrompt = selectedAgent.systemPrompt;
-      
+
       if (hasMemory) {
         systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
 ${memoryContext}
@@ -381,9 +381,9 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       } else {
         systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
       }
-      
+
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
-      
+
       // Get personalized first message
       const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
@@ -444,7 +444,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       vapi.stop();
       setIsSessionActive(false);
       setConnectionStatus('disconnected');
-      
+
       // Clear orchestration interval
       if (checkIntervalRef.current) {
         clearInterval(checkIntervalRef.current);
