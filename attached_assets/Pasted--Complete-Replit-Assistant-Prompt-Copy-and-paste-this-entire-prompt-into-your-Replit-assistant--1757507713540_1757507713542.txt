@@ -1,0 +1,155 @@
+## Complete Replit Assistant Prompt
+
+Copy and paste this entire prompt into your Replit assistant:
+
+---
+
+**Please implement a secure dynamic greeting system for our therapeutic voice assistant. Follow these exact steps:**
+
+## Step 1: Add OpenAI Key to Secrets
+
+Add this to your Replit Secrets (if not already there):
+```
+OPENAI_API_KEY = [your OpenAI API key that starts with sk-]
+```
+
+## Step 2: Add Server Endpoint
+
+In the file `server/routes/webhook-routes.ts`, add this new endpoint right before `export default router;`:
+
+```typescript
+// Dynamic greeting generation endpoint
+router.post('/generate-greeting', async (req, res) => {
+  try {
+    const { agentName, memoryContext, firstName } = req.body;
+
+    if (!memoryContext || memoryContext.length < 50) {
+      return res.json({ greeting: null });
+    }
+
+    const prompt = `You are ${agentName}, a therapeutic AI assistant.
+
+Previous session context:
+${memoryContext.substring(0, 1000)}
+
+User's name: ${firstName}
+
+Generate a warm, personalized greeting (1-2 sentences) that:
+- Acknowledges our ongoing relationship  
+- References something specific from our previous sessions
+- Invites them to continue the conversation
+
+Just write the greeting, nothing else.`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 60
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const greeting = data.choices[0]?.message?.content?.trim();
+      return res.json({ greeting: greeting || null });
+    }
+
+    return res.json({ greeting: null });
+  } catch (error) {
+    console.error('Failed to generate greeting:', error);
+    return res.json({ greeting: null });
+  }
+});
+```
+
+## Step 3: Add Client Function
+
+In the file `client/src/hooks/use-vapi.ts`, find the line that says `const startSession = useCallback(async () => {` (around line 343).
+
+Right BEFORE that line, add this function:
+
+```typescript
+// Generate dynamic greeting via server API
+const generateDynamicGreeting = async (): Promise<string | null> => {
+  if (!memoryContext || memoryContext.length < 50) {
+    return null;
+  }
+
+  try {
+    const response = await fetch('/api/vapi/generate-greeting', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        agentName: selectedAgent.name,
+        memoryContext: memoryContext.substring(0, 1000),
+        firstName
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.greeting;
+    }
+    return null;
+  } catch (error) {
+    console.log('Dynamic greeting failed, using template');
+    return null;
+  }
+};
+```
+
+## Step 4: Update First Message Logic
+
+In the same file (`client/src/hooks/use-vapi.ts`), inside the `startSession` function, find this line (around line 374):
+
+```typescript
+const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
+```
+
+Replace it with these three lines:
+
+```typescript
+const dynamicGreeting = await generateDynamicGreeting();
+const firstMessage = dynamicGreeting || selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
+if (dynamicGreeting) {
+  console.log('✨ Using dynamic greeting');
+}
+```
+
+## Step 5: Test
+
+1. Restart your server
+2. Sign in as a user with previous sessions
+3. Start a voice session
+4. Check the console for "✨ Using dynamic greeting"
+5. Listen for a personalized greeting that references previous conversations
+
+## Expected Behavior:
+
+- **With history**: "Hi Frank, good to connect again. Last time we were exploring those feelings about work pressure - how has that been for you?"
+- **Without history**: Uses the normal template greeting
+- **If OpenAI fails**: Falls back to template greeting (no error shown to user)
+
+That's it! The implementation adds about 500ms to session start but provides truly personalized greetings based on actual conversation history.
+
+---
+
+**End of Replit Assistant Prompt**
+
+## What This Does:
+
+1. **Keeps OpenAI key secure** on server-side only
+2. **Generates personalized greetings** based on actual memory context
+3. **Falls back gracefully** if anything fails
+4. **Requires minimal changes** to existing code
+
+Just copy the entire prompt above and paste it into your Replit assistant. It has all the code and exact instructions needed.

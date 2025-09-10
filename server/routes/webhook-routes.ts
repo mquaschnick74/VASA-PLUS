@@ -255,4 +255,54 @@ router.post('/orchestration/guidance-applied', async (req, res) => {
   }
 });
 
+// Dynamic greeting generation endpoint
+router.post('/generate-greeting', async (req, res) => {
+  try {
+    const { agentName, memoryContext, firstName } = req.body;
+
+    if (!memoryContext || memoryContext.length < 50) {
+      return res.json({ greeting: null });
+    }
+
+    const prompt = `You are ${agentName}, a therapeutic AI assistant.
+
+Previous session context:
+${memoryContext.substring(0, 1000)}
+
+User's name: ${firstName}
+
+Generate a warm, personalized greeting (1-2 sentences) that:
+- Acknowledges our ongoing relationship  
+- References something specific from our previous sessions
+- Invites them to continue the conversation
+
+Just write the greeting, nothing else.`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 60
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const greeting = data.choices[0]?.message?.content?.trim();
+      return res.json({ greeting: greeting || null });
+    }
+
+    return res.json({ greeting: null });
+  } catch (error) {
+    console.error('Failed to generate greeting:', error);
+    return res.json({ greeting: null });
+  }
+});
+
 export default router;

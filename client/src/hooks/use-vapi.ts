@@ -366,6 +366,36 @@ Never mention switching approaches or changing methods.`;
     }
   };
 
+  // Generate dynamic greeting via server API
+  const generateDynamicGreeting = async (): Promise<string | null> => {
+    if (!memoryContext || memoryContext.length < 50) {
+      return null;
+    }
+
+    try {
+      const response = await fetch('/api/vapi/generate-greeting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          agentName: selectedAgent.name,
+          memoryContext: memoryContext.substring(0, 1000),
+          firstName
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.greeting;
+      }
+      return null;
+    } catch (error) {
+      console.log('Dynamic greeting failed, using template');
+      return null;
+    }
+  };
+
   const startSession = useCallback(async () => {
     if (!vapi || isLoading || !selectedAgent) return;
 
@@ -406,7 +436,11 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
       // Get personalized first message
-      const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
+      const dynamicGreeting = await generateDynamicGreeting();
+      const firstMessage = dynamicGreeting || selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
+      if (dynamicGreeting) {
+        console.log('✨ Using dynamic greeting');
+      }
       console.log('🎯 First message generated:', {
         hasMemory: !!hasMemory,
         messagePreview: firstMessage.substring(0, 100)
