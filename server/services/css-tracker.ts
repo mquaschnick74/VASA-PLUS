@@ -570,39 +570,78 @@ function calculateEmotionalIntensity(state: CSSSessionState): EmotionalIntensity
 }
 
 function determineSuggestedAgent(state: CSSSessionState): string | undefined {
-  // Priority 1: Zhanna for crisis/safety/moral torment
+  // Priority 1: Zhanna for crisis/safety/spiritual crisis
   if (state.hasWarningFlags || 
       state.patternCounts[PatternCategory.SAFETY] > 0 ||
+      state.patternCounts[PatternCategory.SPIRITUAL_CRISIS] >= 2 ||
       state.patternCounts[PatternCategory.MORAL_TORMENT] >= 2) {
     return 'zhanna';
   }
   
-  // Priority 2: Zhanna for literary psychological patterns
+  // Priority 2: Zhanna for somatic-related patterns (ambition-guilt when somatic symptoms present)
+  if (state.patternCounts[PatternCategory.SOMATIC] >= 2 ||
+      (state.patternCounts[PatternCategory.AMBITION_GUILT] >= 2 && state.patternCounts[PatternCategory.SOMATIC] > 0)) {
+    return 'zhanna';
+  }
+  
+  // Priority 3: Zhanna for other critical literary patterns
   const literaryPatterns = {
     existentialPatterns: Array(state.patternCounts[PatternCategory.EXISTENTIAL]).fill({}),
     moralTormentPatterns: Array(state.patternCounts[PatternCategory.MORAL_TORMENT]).fill({}),
     epistemicPatterns: Array(state.patternCounts[PatternCategory.EPISTEMIC_DOUBT]).fill({}),
     kafkaPatterns: Array(state.patternCounts[PatternCategory.KAFKA_ALIENATION]).fill({}),
-    socialMaskingPatterns: Array(state.patternCounts[PatternCategory.SOCIAL_MASKING]).fill({})
+    socialMaskingPatterns: Array(state.patternCounts[PatternCategory.SOCIAL_MASKING]).fill({}),
+    doubleConsciousnessPatterns: Array(state.patternCounts[PatternCategory.DOUBLE_CONSCIOUSNESS]).fill({}),
+    redemptionSeekingPatterns: Array(state.patternCounts[PatternCategory.REDEMPTION_SEEKING]).fill({}),
+    spiritualCrisisPatterns: Array(state.patternCounts[PatternCategory.SPIRITUAL_CRISIS]).fill({}),
+    aporiaPatterns: Array(state.patternCounts[PatternCategory.APORIA]).fill({}),
+    virtueSeekingPatterns: Array(state.patternCounts[PatternCategory.VIRTUE_SEEKING]).fill({}),
+    transformationArcPatterns: Array(state.patternCounts[PatternCategory.TRANSFORMATION_ARC]).fill({}),
+    authenticLivingPatterns: Array(state.patternCounts[PatternCategory.AUTHENTIC_LIVING]).fill({}),
+    identityCrisisPatterns: Array(state.patternCounts[PatternCategory.IDENTITY_CRISIS]).fill({}),
+    ambitionGuiltPatterns: Array(state.patternCounts[PatternCategory.AMBITION_GUILT]).fill({}),
+    selfDeceptionPatterns: Array(state.patternCounts[PatternCategory.SELF_DECEPTION]).fill({})
   };
   
-  // Use the literary patterns module's logic
+  // Use the literary patterns module's logic for Zhanna activation
   if (shouldActivateZhanna(literaryPatterns)) {
     return 'zhanna';
   }
   
-  // Priority 3: Zhanna for somatic patterns
-  if (state.patternCounts[PatternCategory.SOMATIC] >= 2) return 'zhanna';
+  // Priority 4: Sarah for contradictions and split psyche
+  if (state.patternCounts[PatternCategory.CVDC] >= 3 ||
+      state.patternCounts[PatternCategory.DOUBLE_CONSCIOUSNESS] >= 2 ||
+      state.patternCounts[PatternCategory.SELF_DECEPTION] >= 2 ||
+      (state.patternCounts[PatternCategory.TRANSFORMATION_ARC] >= 2 && 
+       state.currentStage === CSSStage.POINTED_ORIGIN)) { // Early resistance phase
+    return 'sarah';
+  }
   
-  // Sarah for CVDC patterns
-  if (state.patternCounts[PatternCategory.CVDC] >= 3) return 'sarah';
+  // Priority 5: Mathew for analytical patterns
+  if (state.patternCounts[PatternCategory.IBM] >= 3 ||
+      state.patternCounts[PatternCategory.VIRTUE_SEEKING] >= 2 ||
+      (state.patternCounts[PatternCategory.IDENTITY_CRISIS] >= 2 && 
+       state.emotionalIntensity !== 'critical') || // Paralysis needs analysis when not in crisis
+      (state.patternCounts[PatternCategory.APORIA] >= 2 && 
+       state.patternCounts[PatternCategory.EPISTEMIC_DOUBT] > 0)) { // Confusion needs structure
+    return 'mathew';
+  }
   
-  // Mathew for IBM patterns
-  if (state.patternCounts[PatternCategory.IBM] >= 3) return 'mathew';
-  
-  // Marcus for Thend/CYVC
+  // Priority 6: Marcus for integration and transformation
   if (state.patternCounts[PatternCategory.THEND] >= 2 || 
-      state.patternCounts[PatternCategory.CYVC] >= 2) return 'marcus';
+      state.patternCounts[PatternCategory.CYVC] >= 2 ||
+      state.patternCounts[PatternCategory.REDEMPTION_SEEKING] >= 2 ||
+      state.patternCounts[PatternCategory.AUTHENTIC_LIVING] >= 2 ||
+      (state.patternCounts[PatternCategory.TRANSFORMATION_ARC] >= 2 && 
+       state.currentStage !== CSSStage.POINTED_ORIGIN)) { // Integration phase
+    return 'marcus';
+  }
+  
+  // Default to Sarah for initial exploration
+  if (state.patternCounts[PatternCategory.GRIEF] > 0 ||
+      state.emotionalIntensity === 'high') {
+    return 'sarah';
+  }
   
   return undefined;
 }
