@@ -220,28 +220,23 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   </div>
 
                   {/* Voice Call Controls */}
-                  <div className="flex justify-center space-x-4 sm:space-x-6">
+                  <div className="flex justify-center">
                     <Button
                       onClick={isSessionActive ? endSession : handleStartSession}
                       disabled={isLoading || memoryLoading}
-                      className={`group relative w-16 h-16 sm:w-20 sm:h-20 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
+                      className={`group relative px-8 py-4 sm:px-10 sm:py-5 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 ${
                         isSessionActive 
                           ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
                           : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
                       }`}
                       data-testid="button-call"
                     >
-                      <i className={`text-xl sm:text-2xl text-white group-hover:scale-110 transition-transform duration-200 ${
+                      <i className={`text-lg sm:text-xl text-white group-hover:scale-110 transition-transform duration-200 ${
                         isSessionActive ? 'fas fa-phone-slash' : 'fas fa-phone'
                       }`}></i>
-                    </Button>
-
-                    <Button className="w-12 h-12 sm:w-16 sm:h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
-                      <i className="fas fa-microphone text-lg sm:text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
-                    </Button>
-
-                    <Button className="w-12 h-12 sm:w-16 sm:h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
-                      <i className="fas fa-volume-up text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
+                      <span className="text-white font-medium text-base sm:text-lg">
+                        {isSessionActive ? 'End Session' : 'Start Session'}
+                      </span>
                     </Button>
                   </div>
 
