@@ -208,7 +208,10 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
               let enhancedPrompt = selectedAgent.systemPrompt;
 
               if (memoryContext && memoryContext.length > 50) {
+                console.log('💉 Injecting memory into pattern guidance update');
                 enhancedPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====\n${memoryContext}\n===== END CONTEXT =====`;
+              } else {
+                console.log('⚠️ No memory context for pattern guidance (length:', memoryContext?.length, ')');
               }
 
               enhancedPrompt += `\n\nThe user's name is ${firstName}.`;
@@ -305,9 +308,12 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
       let systemPrompt = newAgent.systemPrompt;
 
       if (memoryContext && memoryContext.length > 50) {
+        console.log('🔄 Maintaining memory context during agent switch');
         systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
 ${memoryContext}
 ===== END CONTEXT =====`;
+      } else {
+        console.log('⚠️ No memory context during agent switch');
       }
 
       systemPrompt += `\n\nThe user's name is ${firstName}.`;
@@ -363,22 +369,37 @@ Never mention switching approaches or changing methods.`;
   const startSession = useCallback(async () => {
     if (!vapi || isLoading || !selectedAgent) return;
 
+    // Memory Debug Logging
+    console.log('🧠 Memory Debug at Session Start:', {
+      contextLength: memoryContext?.length,
+      contextPreview: memoryContext?.substring(0, 200),
+      hasMemory: memoryContext && memoryContext.length > 50,
+      firstName,
+      selectedAgentId: selectedAgent.id,
+      timestamp: new Date().toISOString()
+    });
+
     setIsLoading(true);
     setConnectionStatus('connecting');
 
     try {
       const hasMemory = memoryContext && memoryContext.length > 50;
+      
+      console.log(`📝 Memory Status: ${hasMemory ? 'FOUND' : 'MISSING'} (${memoryContext?.length || 0} chars)`);
 
       let systemPrompt = selectedAgent.systemPrompt;
 
       if (hasMemory) {
+        console.log('✅ Injecting memory context into system prompt');
         systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
 ${memoryContext}
 ===== END CONTEXT =====
 
 IMPORTANT: Reference the above context naturally in conversation when relevant.
 Do not make up or hallucinate any details not explicitly mentioned above.`;
+        console.log('📊 System prompt with memory length:', systemPrompt.length);
       } else {
+        console.log('⚠️ No memory context - starting fresh session');
         systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
       }
 
@@ -386,6 +407,10 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
 
       // Get personalized first message
       const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
+      console.log('🎯 First message generated:', {
+        hasMemory: !!hasMemory,
+        messagePreview: firstMessage.substring(0, 100)
+      });
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
 
       const assistantConfig = {

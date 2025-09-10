@@ -28,6 +28,18 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
   const selectedAgent = getAgentById(selectedAgentId);
 
+  // Log what we're passing to the hook
+  const memoryToPass = userContext?.memoryContext || '';
+  const firstNameToPass = userContext?.firstName || 'there';
+  
+  console.log('🔌 Passing to useVapi hook:', {
+    memoryLength: memoryToPass.length,
+    memoryPreview: memoryToPass.substring(0, 100),
+    firstName: firstNameToPass,
+    userId,
+    agentId: selectedAgent?.id
+  });
+
   const {
     isSessionActive,
     isLoading,
@@ -36,8 +48,8 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     connectionStatus
   } = useVapi({
     userId,
-    memoryContext: userContext?.memoryContext || '',
-    firstName: userContext?.firstName || 'there',
+    memoryContext: memoryToPass,
+    firstName: firstNameToPass,
     selectedAgent: selectedAgent!
   });
 
@@ -59,6 +71,12 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           const data = await response.json();
           setUserContext(data);
           console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
+          console.log('📄 User Context Loaded:', {
+            memoryLength: data.memoryContext?.length,
+            memoryPreview: data.memoryContext?.substring(0, 200),
+            firstName: data.firstName,
+            sessionCount: data.sessionCount
+          });
         }
       } catch (error) {
         console.error('Error loading user context:', error);
