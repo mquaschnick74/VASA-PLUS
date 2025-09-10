@@ -493,10 +493,11 @@ async function analyzeForOrchestrationEnhanced(
     return;
   }
   
-  // Respect cooldown period
+  // Respect cooldown period (reduced to 30 seconds for more responsive switching)
   const now = new Date();
   if (session.lastSuggestionTime && 
-      (now.getTime() - session.lastSuggestionTime.getTime()) < 120000) {
+      (now.getTime() - session.lastSuggestionTime.getTime()) < 30000) {
+    console.log(`⏱️ In cooldown period, skipping orchestration analysis`);
     return;
   }
 
@@ -900,7 +901,7 @@ export function getOrchestrationState(callId: string): {
     suggestedAgent: session.suggestedAgent,
     agentSwitches: session.agentSwitches,
     canSwitch: !session.lastSuggestionTime || 
-                (Date.now() - session.lastSuggestionTime.getTime()) > 60000, // 1 minute cooldown
+                (Date.now() - session.lastSuggestionTime.getTime()) > 20000, // 20 second cooldown
     currentCSSStage: session.currentCSSStage,
     sessionStartTime: session.sessionStartTime,
     userId: session.userId,
