@@ -47,6 +47,7 @@ interface EnhancedSessionState extends SessionState {
     ibm: number;
     thend: number;
     cyvc: number;
+    grief: number;
   };
   // NEW: Real-time guidance tracking
   guidanceApplied: string[];
@@ -152,7 +153,8 @@ async function ensureSessionInternal(
         cvdc: 0,
         ibm: 0,
         thend: 0,
-        cyvc: 0
+        cyvc: 0,
+        grief: 0
       },
       guidanceApplied: [],
       lastGuidanceTime: null
@@ -302,13 +304,14 @@ export async function processTranscript(
   // Log detected patterns for debugging
   const totalPatterns = patterns.cvdcPatterns.length + patterns.ibmPatterns.length + 
                         patterns.thendIndicators.length + patterns.cyvcPatterns.length + 
-                        (patterns.somaticPatterns?.length || 0);
+                        (patterns.somaticPatterns?.length || 0) + (patterns.griefPatterns?.length || 0);
   
   if (totalPatterns > 0 || (patterns.narrativeFragmentation && patterns.narrativeFragmentation > 0)) {
     console.log(`📊 Patterns detected in transcript:`);
     console.log(`   CVDC: ${patterns.cvdcPatterns.length}, IBM: ${patterns.ibmPatterns.length}`);
     console.log(`   Thend: ${patterns.thendIndicators.length}, CYVC: ${patterns.cyvcPatterns.length}`);
-    console.log(`   Somatic: ${patterns.somaticPatterns?.length || 0}, Distress: ${patterns.distressLevel || 0}`);
+    console.log(`   Somatic: ${patterns.somaticPatterns?.length || 0}, Grief: ${patterns.griefPatterns?.length || 0}`);
+    console.log(`   Distress: ${patterns.distressLevel || 0}`);
     console.log(`   📖 Narrative: Fragmentation=${patterns.narrativeFragmentation || 0}, Density=${patterns.symbolicDensity || 0}, Orientation=${patterns.temporalOrientation || 'present'}`);
   }
   
@@ -341,7 +344,8 @@ export async function processTranscript(
     cvdc: patterns.cvdcPatterns.length,
     ibm: patterns.ibmPatterns.length,
     thend: patterns.thendIndicators.length,
-    cyvc: patterns.cyvcPatterns.length
+    cyvc: patterns.cyvcPatterns.length,
+    grief: patterns.griefPatterns?.length || 0
   };
 
   // Handle critical situations
@@ -561,7 +565,7 @@ function analyzeForAgentSuggestionEnhanced(
     symbolicDensity?: number;
     temporalOrientation?: string;
   },
-  patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number }
+  patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number; grief: number }
 ): {
   suggestedAgent: string | null;
   reason: string | null;
@@ -947,7 +951,7 @@ export function getOrchestrationState(callId: string): {
   // NEW enhanced fields
   emotionalIntensity: 'low' | 'medium' | 'high' | 'critical';
   hasActiveWarnings: boolean;
-  patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number };
+  patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number; grief: number };
   therapeuticPriority: { priority: string; recommendation: string };
   // NEW: Pattern guidance fields
   patternGuidance: PatternGuidance[];
@@ -1001,6 +1005,19 @@ export function getOrchestrationState(callId: string): {
     }
   }
   
+  // Check for grief patterns (NEW)
+  if (session.recentPatternCounts.grief > 0) {
+    const guidanceKey = `grief_support_${session.recentPatternCounts.grief}`;
+    if (!session.guidanceApplied.includes(guidanceKey)) {
+      guidance.push({
+        pattern: 'grief_loss',
+        count: session.recentPatternCounts.grief,
+        suggestion: `User experiencing grief/loss (${session.recentPatternCounts.grief} patterns). Respond with deep compassion: "I hear how much pain you're in about this loss. Tell me more about what this means to you."`,
+        priority: 'high'
+      });
+    }
+  }
+  
   // Check for self-care patterns (IBM)
   if (session.recentPatternCounts.ibm > 0) {
     const guidanceKey = `ibm_selfcare_${session.recentPatternCounts.ibm}`;
@@ -1048,6 +1065,7 @@ export function getOrchestrationState(callId: string): {
   if (session.recentPatternCounts.ibm > 0) patternsDetected.push('IBM');
   if (session.recentPatternCounts.thend > 0) patternsDetected.push('Thend');
   if (session.recentPatternCounts.cyvc > 0) patternsDetected.push('CYVC');
+  if (session.recentPatternCounts.grief > 0) patternsDetected.push('Grief');
 
   return {
     currentAgent: session.agentName,
@@ -1192,7 +1210,7 @@ async function processFullTranscript(session: EnhancedSessionState, transcript: 
 
   console.log(`📊 Full transcript analysis:`);
   console.log(`  CSS Stage: ${patterns.currentStage}`);
-  console.log(`  Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}`);
+  console.log(`  Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}, Grief=${patterns.griefPatterns?.length || 0}`);
   console.log(`  Emotional Intensity: ${patterns.emotionalIntensity}`);
   console.log(`  Warning Flags: ${patterns.hasWarningFlags}`);
 

@@ -471,10 +471,14 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
       thendIndicators: [],
       cyvcPatterns: [],
       somaticPatterns: [],
+      griefPatterns: [],
       currentStage: 'pointed_origin',
       hasWarningFlags: false,
       emotionalIntensity: 'low',
-      distressLevel: 0
+      distressLevel: 0,
+      narrativeFragmentation: 0,
+      symbolicDensity: 0,
+      temporalOrientation: 'present'
     };
   }
 
