@@ -39,7 +39,10 @@ interface EnhancedSessionState extends SessionState {
     reason: string;
   }>;
   suggestedAgent: string | null;
-  lastSuggestionTime: Date | null;
+  // SEPARATE COOLDOWN TIMERS
+  lastAgentSwitchTime: Date | null;  // For agent methodology changes (120s cooldown)
+  lastGuidanceTime: Date | null;     // For pattern acknowledgment (5-10s cooldown)
+  lastSuggestionTime: Date | null;   // Deprecated - kept for backward compatibility
   // NEW: Enhanced pattern tracking
   emotionalIntensity: 'low' | 'medium' | 'high' | 'critical';
   hasActiveWarnings: boolean;
@@ -50,10 +53,11 @@ interface EnhancedSessionState extends SessionState {
     thend: number;
     cyvc: number;
     grief: number;
+    somatic?: number;
   };
   // NEW: Real-time guidance tracking
   guidanceApplied: string[];
-  lastGuidanceTime: Date | null;
+  naturalGuidance: string[];  // Natural language guidance for current patterns
 }
 
 // Two-tier cache system with enhanced state
@@ -146,6 +150,8 @@ async function ensureSessionInternal(
       processedTranscripts: new Set(),
       agentSwitches: [],
       suggestedAgent: null,
+      lastAgentSwitchTime: null,
+      lastGuidanceTime: null,
       lastSuggestionTime: null,
       // NEW fields
       emotionalIntensity: 'low',
@@ -156,10 +162,11 @@ async function ensureSessionInternal(
         ibm: 0,
         thend: 0,
         cyvc: 0,
-        grief: 0
+        grief: 0,
+        somatic: 0
       },
       guidanceApplied: [],
-      lastGuidanceTime: null
+      naturalGuidance: []
     };
     activeSessions.set(callId, session);
     return session;
@@ -190,6 +197,8 @@ export async function initializeSession(
     processedTranscripts: new Set(),
     agentSwitches: [],
     suggestedAgent: null,
+    lastAgentSwitchTime: null,
+    lastGuidanceTime: null,
     lastSuggestionTime: null,
     // NEW fields
     emotionalIntensity: 'low',
@@ -200,10 +209,11 @@ export async function initializeSession(
       ibm: 0,
       thend: 0,
       cyvc: 0,
-      grief: 0
+      grief: 0,
+      somatic: 0
     },
     guidanceApplied: [],
-    lastGuidanceTime: null
+    naturalGuidance: []
   };
 
   activeSessions.set(callId, session);
@@ -367,7 +377,8 @@ export async function processTranscript(
     ibm: patterns.ibmPatterns.length,
     thend: patterns.thendIndicators.length,
     cyvc: patterns.cyvcPatterns.length,
-    grief: patterns.griefPatterns?.length || 0
+    grief: patterns.griefPatterns?.length || 0,
+    somatic: patterns.somaticPatterns?.length || 0
   };
 
   // Handle critical situations
@@ -527,23 +538,140 @@ async function analyzeForOrchestration(session: EnhancedSessionState, transcript
   }
 }
 
-// NEW: Enhanced orchestration with safety checks
+// Generate natural language guidance from detected patterns
+function generateNaturalGuidance(
+  patterns: CSSPatterns & { 
+    somaticPatterns?: any[];
+    griefPatterns?: any[];
+    narrativeFragmentation?: number;
+    symbolicDensity?: number;
+    temporalOrientation?: string;
+  },
+  patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number; grief: number; somatic?: number },
+  appliedGuidance: string[]
+): string[] {
+  const guidance: string[] = [];
+  const now = Date.now();
+  
+  // Check for repeated apologies (3+ times)
+  if (patternCounts.cvdc >= 3 && !appliedGuidance.includes('apology_pattern')) {
+    guidance.push("Notice they've apologized several times - acknowledge this gently and reassure them it's okay");
+  }
+  
+  // Check for contradictory feelings (2+ CVDC patterns)
+  if (patternCounts.cvdc >= 2 && !appliedGuidance.includes('contradiction_pattern')) {
+    guidance.push("They're expressing conflicting feelings or desires - explore both sides with curiosity");
+  }
+  
+  // Check for intention-behavior gaps
+  if (patternCounts.ibm >= 2 && !appliedGuidance.includes('behavior_gap')) {
+    guidance.push("Notice the gap between what they want to do and what they're actually doing - explore this gently");
+  }
+  
+  // Check for somatic/physical symptoms
+  if ((patternCounts.somatic || 0) >= 1 && !appliedGuidance.includes('somatic_awareness')) {
+    guidance.push("They're describing physical sensations - acknowledge how their body is responding to this stress");
+  }
+  
+  // Check for grief/loss patterns
+  if (patternCounts.grief >= 1 && !appliedGuidance.includes('grief_support')) {
+    guidance.push("They're processing a significant loss - offer deep compassion and space for their grief");
+  }
+  
+  // Check for integration moments (Thend)
+  if (patternCounts.thend >= 2 && !appliedGuidance.includes('integration_moment')) {
+    guidance.push("Something seems to be shifting for them - support this emerging awareness");
+  }
+  
+  // Check for high narrative fragmentation
+  if (patterns.narrativeFragmentation && patterns.narrativeFragmentation >= 7 && !appliedGuidance.includes('fragmentation_support')) {
+    guidance.push("Their story feels fragmented or scattered - help them find a thread to follow");
+  }
+  
+  // Check for temporal stuck patterns
+  if (patterns.temporalOrientation === 'stuck_past' && !appliedGuidance.includes('temporal_stuck')) {
+    guidance.push("They seem stuck in past events - gently bring them to how this affects them now");
+  }
+  
+  // Check for high emotional intensity without somatic awareness
+  if (patterns.emotionalIntensity === 'high' && (patternCounts.somatic || 0) === 0 && !appliedGuidance.includes('body_check')) {
+    guidance.push("High emotional intensity detected - check in with how they're feeling in their body");
+  }
+  
+  return guidance;
+}
+
+// NEW: Enhanced orchestration with safety checks and separate cooldowns
 async function analyzeForOrchestrationEnhanced(
   session: EnhancedSessionState,
   transcript: string,
-  patterns: CSSPatterns
+  patterns: CSSPatterns & {
+    somaticPatterns?: any[];
+    griefPatterns?: any[];
+    narrativeFragmentation?: number;
+    symbolicDensity?: number;
+    temporalOrientation?: string;
+  }
 ): Promise<void> {
-  // Check if safe to switch
+  const now = new Date();
+  
+  // ALWAYS generate guidance (with short 5-second cooldown)
+  if (!session.lastGuidanceTime || 
+      (now.getTime() - session.lastGuidanceTime.getTime()) > 5000) {
+    
+    const newGuidance = generateNaturalGuidance(
+      patterns,
+      session.recentPatternCounts,
+      session.guidanceApplied
+    );
+    
+    if (newGuidance.length > 0) {
+      session.naturalGuidance = newGuidance;
+      session.lastGuidanceTime = now;
+      
+      // Mark patterns as acknowledged
+      if (newGuidance.some(g => g.includes('apologized'))) {
+        session.guidanceApplied.push('apology_pattern');
+      }
+      if (newGuidance.some(g => g.includes('conflicting'))) {
+        session.guidanceApplied.push('contradiction_pattern');
+      }
+      if (newGuidance.some(g => g.includes('gap between'))) {
+        session.guidanceApplied.push('behavior_gap');
+      }
+      if (newGuidance.some(g => g.includes('physical sensations'))) {
+        session.guidanceApplied.push('somatic_awareness');
+      }
+      if (newGuidance.some(g => g.includes('loss'))) {
+        session.guidanceApplied.push('grief_support');
+      }
+      if (newGuidance.some(g => g.includes('shifting'))) {
+        session.guidanceApplied.push('integration_moment');
+      }
+      if (newGuidance.some(g => g.includes('fragmented'))) {
+        session.guidanceApplied.push('fragmentation_support');
+      }
+      if (newGuidance.some(g => g.includes('past events'))) {
+        session.guidanceApplied.push('temporal_stuck');
+      }
+      if (newGuidance.some(g => g.includes('feeling in their body'))) {
+        session.guidanceApplied.push('body_check');
+      }
+      
+      console.log(`💡 Generated ${newGuidance.length} natural guidance items`);
+    }
+  }
+  
+  // Check if safe to switch agents
   if (!isSafeToSwitch(patterns)) {
     console.log(`🛑 Not safe to switch agents - intensity: ${patterns.emotionalIntensity}`);
     return;
   }
   
-  // Respect cooldown period (reduced to 30 seconds for more responsive switching)
-  const now = new Date();
-  if (session.lastSuggestionTime && 
-      (now.getTime() - session.lastSuggestionTime.getTime()) < 30000) {
-    console.log(`⏱️ In cooldown period, skipping orchestration analysis`);
+  // Respect agent switch cooldown (120 seconds)
+  if (session.lastAgentSwitchTime && 
+      (now.getTime() - session.lastAgentSwitchTime.getTime()) < 120000) {
+    console.log(`⏱️ Agent switch cooldown active, skipping agent suggestion`);
     return;
   }
 
@@ -561,7 +689,8 @@ async function analyzeForOrchestrationEnhanced(
     console.log(`   Reason: ${suggestion.reason}, Confidence: ${suggestion.confidence}`);
     
     session.suggestedAgent = suggestion.suggestedAgent;
-    session.lastSuggestionTime = now;
+    session.lastAgentSwitchTime = now;
+    session.lastSuggestionTime = now; // Keep for backward compatibility
     
     await supabase
       .from('therapeutic_context')
@@ -1011,60 +1140,37 @@ export function getOrchestrationState(callId: string): {
   const session = activeSessions.get(callId);
   if (!session) return null;
 
-  // Generate pattern-specific guidance
-  const guidance: PatternGuidance[] = [];
+  // Get fresh natural language guidance (always check for new patterns)
+  const naturalGuidance = session.naturalGuidance || [];
   
-  // Check for apologizing patterns (CVDC)
-  if (session.recentPatternCounts.cvdc >= 2) {
-    const guidanceKey = `cvdc_apology_${session.recentPatternCounts.cvdc}`;
-    if (!session.guidanceApplied.includes(guidanceKey)) {
-      guidance.push({
-        pattern: 'excessive_apologizing',
-        count: session.recentPatternCounts.cvdc,
-        suggestion: `User has apologized ${session.recentPatternCounts.cvdc} times. Address with: "I notice you've apologized several times, Frank. What's behind that for you?"`,
-        priority: session.recentPatternCounts.cvdc >= 3 ? 'high' : 'medium'
-      });
+  // Convert natural guidance to PatternGuidance format for backward compatibility
+  const guidance: PatternGuidance[] = naturalGuidance.map((g, index) => {
+    // Determine priority based on content
+    let priority: 'low' | 'medium' | 'high' = 'medium';
+    if (g.includes('grief') || g.includes('loss') || g.includes('physical sensations')) {
+      priority = 'high';
+    } else if (g.includes('shifting') || g.includes('emerging')) {
+      priority = 'low';
     }
-  }
-  
-  // Check for grief patterns (NEW)
-  if (session.recentPatternCounts.grief > 0) {
-    const guidanceKey = `grief_support_${session.recentPatternCounts.grief}`;
-    if (!session.guidanceApplied.includes(guidanceKey)) {
-      guidance.push({
-        pattern: 'grief_loss',
-        count: session.recentPatternCounts.grief,
-        suggestion: `User experiencing grief/loss (${session.recentPatternCounts.grief} patterns). Respond with deep compassion: "I hear how much pain you're in about this loss. Tell me more about what this means to you."`,
-        priority: 'high'
-      });
-    }
-  }
-  
-  // Check for self-care patterns (IBM)
-  if (session.recentPatternCounts.ibm > 0) {
-    const guidanceKey = `ibm_selfcare_${session.recentPatternCounts.ibm}`;
-    if (!session.guidanceApplied.includes(guidanceKey)) {
-      guidance.push({
-        pattern: 'self_care_deficit',
-        count: session.recentPatternCounts.ibm,
-        suggestion: `User mentioned self-care struggles. Explore: "It sounds like taking care of yourself has been difficult. What makes it hard right now?"`,
-        priority: 'medium'
-      });
-    }
-  }
-  
-  // Check for integration opportunities (Thend)
-  if (session.recentPatternCounts.thend >= 2) {
-    const guidanceKey = `thend_integration_${session.recentPatternCounts.thend}`;
-    if (!session.guidanceApplied.includes(guidanceKey)) {
-      guidance.push({
-        pattern: 'integration_moment',
-        count: session.recentPatternCounts.thend,
-        suggestion: `Integration moment detected. Support with: "Something seems to be shifting for you. What are you noticing?"`,
-        priority: 'low'
-      });
-    }
-  }
+    
+    // Extract pattern type from guidance content
+    let pattern = 'pattern_detected';
+    if (g.includes('apologized')) pattern = 'repeated_apologies';
+    else if (g.includes('conflicting')) pattern = 'conflicting_feelings';
+    else if (g.includes('gap between')) pattern = 'intention_behavior_gap';
+    else if (g.includes('physical')) pattern = 'somatic_awareness';
+    else if (g.includes('loss')) pattern = 'grief_processing';
+    else if (g.includes('shifting')) pattern = 'integration_moment';
+    else if (g.includes('fragmented')) pattern = 'narrative_fragmentation';
+    else if (g.includes('past events')) pattern = 'temporal_stuck';
+    
+    return {
+      pattern,
+      count: 1,
+      suggestion: g,
+      priority
+    };
+  });
 
   const needsUpdate = guidance.length > 0 && 
     (!session.lastGuidanceTime || 
@@ -1093,8 +1199,8 @@ export function getOrchestrationState(callId: string): {
     currentAgent: session.agentName,
     suggestedAgent: session.suggestedAgent,
     agentSwitches: session.agentSwitches,
-    canSwitch: !session.lastSuggestionTime || 
-                (Date.now() - session.lastSuggestionTime.getTime()) > 20000, // 20 second cooldown
+    canSwitch: !session.lastAgentSwitchTime || 
+                (Date.now() - session.lastAgentSwitchTime.getTime()) > 120000, // 120 second cooldown for agent switches
     currentCSSStage: session.currentCSSStage,
     sessionStartTime: session.sessionStartTime,
     userId: session.userId,
@@ -1161,6 +1267,8 @@ export async function processEndOfCall(
         processedTranscripts: new Set(),
         agentSwitches: [],
         suggestedAgent: null,
+        lastAgentSwitchTime: null,
+        lastGuidanceTime: null,
         lastSuggestionTime: null,
         emotionalIntensity: 'low',
         hasActiveWarnings: false,
@@ -1170,10 +1278,11 @@ export async function processEndOfCall(
           ibm: 0,
           thend: 0,
           cyvc: 0,
-          grief: 0
+          grief: 0,
+          somatic: 0
         },
         guidanceApplied: [],
-        lastGuidanceTime: null
+        naturalGuidance: []
       };
     } else {
       session = {
@@ -1185,6 +1294,8 @@ export async function processEndOfCall(
         processedTranscripts: new Set(),
         agentSwitches: [],
         suggestedAgent: null,
+        lastAgentSwitchTime: null,
+        lastGuidanceTime: null,
         lastSuggestionTime: null,
         emotionalIntensity: 'low',
         hasActiveWarnings: false,
@@ -1194,10 +1305,11 @@ export async function processEndOfCall(
           ibm: 0,
           thend: 0,
           cyvc: 0,
-          grief: 0
+          grief: 0,
+          somatic: 0
         },
         guidanceApplied: [],
-        lastGuidanceTime: null
+        naturalGuidance: []
       };
     }
   }
