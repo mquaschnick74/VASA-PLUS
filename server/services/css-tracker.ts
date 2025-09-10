@@ -557,6 +557,31 @@ function calculateEmotionalIntensity(state: CSSSessionState): EmotionalIntensity
 }
 
 function determineSuggestedAgent(state: CSSSessionState): string | undefined {
+  // Priority 1: Zhanna for crisis/safety/moral torment
+  if (state.hasWarningFlags || 
+      state.patternCounts[PatternCategory.SAFETY] > 0 ||
+      state.patternCounts[PatternCategory.MORAL_TORMENT] >= 2) {
+    return 'zhanna';
+  }
+  
+  // Priority 2: Zhanna for literary psychological patterns
+  const literaryPatternCount = 
+    state.patternCounts[PatternCategory.EXISTENTIAL] +
+    state.patternCounts[PatternCategory.MORAL_TORMENT] +
+    state.patternCounts[PatternCategory.EPISTEMIC_DOUBT] +
+    state.patternCounts[PatternCategory.KAFKA_ALIENATION] +
+    state.patternCounts[PatternCategory.SOCIAL_MASKING];
+  
+  if (state.patternCounts[PatternCategory.EXISTENTIAL] >= 3 ||  // Multiple existential patterns
+      state.patternCounts[PatternCategory.EPISTEMIC_DOUBT] >= 3 || // Deep confusion
+      state.patternCounts[PatternCategory.KAFKA_ALIENATION] >= 2 || // Significant alienation
+      literaryPatternCount >= 5) { // Combined literary patterns
+    return 'zhanna';
+  }
+  
+  // Priority 3: Zhanna for somatic patterns
+  if (state.patternCounts[PatternCategory.SOMATIC] >= 2) return 'zhanna';
+  
   // Sarah for CVDC patterns
   if (state.patternCounts[PatternCategory.CVDC] >= 3) return 'sarah';
   
@@ -566,9 +591,6 @@ function determineSuggestedAgent(state: CSSSessionState): string | undefined {
   // Marcus for Thend/CYVC
   if (state.patternCounts[PatternCategory.THEND] >= 2 || 
       state.patternCounts[PatternCategory.CYVC] >= 2) return 'marcus';
-  
-  // Zhanna for crisis/somatic
-  if (state.hasWarningFlags || state.patternCounts[PatternCategory.SOMATIC] >= 2) return 'zhanna';
   
   return undefined;
 }
