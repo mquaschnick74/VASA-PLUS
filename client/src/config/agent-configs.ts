@@ -629,16 +629,5 @@ export function shouldSwitchAgent(
   return currentAgent !== recommendedAgent;
 }
 
-// New helper for tracking narrative journey phases
-export function determineNarrativePhase(
-  sessionCount: number,
-  patternsDetected: string[]
-): 'building' | 'deepening' | 'integrating' {
-  if (sessionCount <= 2 && patternsDetected.length < 3) {
-    return 'building';
-  }
-  if (patternsDetected.includes('Thend') || patternsDetected.includes('CYVC')) {
-    return 'integrating';
-  }
-  return 'deepening';
-}
+// Re-export the narrative phase function from shared module
+export { determineNarrativePhase } from '../../../shared/narrative';

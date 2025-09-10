@@ -81,6 +81,10 @@ export const cssPatterns = pgTable("css_patterns", {
   emotional_intensity: varchar("emotional_intensity", { length: 10 }),
   safety_flag: boolean("safety_flag").default(false),
   crisis_flag: boolean("crisis_flag").default(false),
+  // Narrative tracking columns
+  narrative_fragmentation: real("narrative_fragmentation").default(0),
+  symbolic_density: integer("symbolic_density").default(0),
+  temporal_orientation: varchar("temporal_orientation", { length: 10 }),
 });
 
 // Insert schemas

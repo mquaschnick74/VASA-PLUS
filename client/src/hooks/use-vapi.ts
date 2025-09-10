@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TherapeuticAgent, getAgentById } from '../config/agent-configs';
+import { determineNarrativePhase } from '../../../shared/narrative';
 
 interface UseVapiProps {
   userId: string;
@@ -179,6 +180,16 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
 
           const state = await response.json();
           console.log('📊 Orchestration state received:', state);
+          
+          // Log narrative metrics if available
+          if (state.narrativeMetrics) {
+            console.log(`📖 Narrative state: Fragmentation=${state.narrativeMetrics.fragmentation}, Orientation=${state.narrativeMetrics.temporalOrientation}`);
+            
+            // Determine narrative phase
+            const sessionCount = state.agentSwitches?.length || 1;
+            const narrativePhase = determineNarrativePhase(sessionCount, state.narrativeMetrics.patternsDetected || []);
+            console.log(`📚 Narrative journey phase: ${narrativePhase}`);
+          }
 
           // Log current patterns
           const totalPatterns = Object.values(state.patternCounts || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
@@ -215,6 +226,20 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
               }
 
               enhancedPrompt += `\n\nThe user's name is ${firstName}.`;
+              
+              // Add narrative phase awareness if available
+              if (state.narrativeMetrics) {
+                const sessionCount = state.agentSwitches?.length || 1;
+                const narrativePhase = determineNarrativePhase(sessionCount, state.narrativeMetrics.patternsDetected || []);
+                enhancedPrompt += `\n\nCurrent therapeutic journey phase: ${narrativePhase}.`;
+                if (narrativePhase === 'building') {
+                  enhancedPrompt += ' Focus on establishing narrative rapport and exploration.';
+                } else if (narrativePhase === 'deepening') {
+                  enhancedPrompt += ' Support deeper narrative exploration and pattern recognition.';
+                } else if (narrativePhase === 'integrating') {
+                  enhancedPrompt += ' Facilitate narrative integration and synthesis.';
+                }
+              }
               enhancedPrompt += '\n\n===== ACTIVE PATTERNS REQUIRING ATTENTION =====\n';
               enhancedPrompt += 'Address these patterns naturally in the conversation:\n\n';
 
@@ -317,6 +342,17 @@ ${memoryContext}
       }
 
       systemPrompt += `\n\nThe user's name is ${firstName}.`;
+      
+      // Add narrative phase context if switching agents
+      // (Note: We don't have state here but can infer from memory context)
+      if (memoryContext && memoryContext.includes('Session')) {
+        const sessionMatch = memoryContext.match(/Session (\d+)/);
+        if (sessionMatch) {
+          const sessionCount = parseInt(sessionMatch[1]);
+          const narrativePhase = sessionCount <= 2 ? 'building' : sessionCount <= 5 ? 'deepening' : 'integrating';
+          systemPrompt += `\n\nCurrent narrative journey phase: ${narrativePhase}.`;
+        }
+      }
 
       // Critical: Add seamless continuation instruction
       systemPrompt += `\n\nIMPORTANT: You are continuing an ongoing conversation. 

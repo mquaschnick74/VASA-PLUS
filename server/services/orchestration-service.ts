@@ -296,7 +296,7 @@ export async function processTranscript(
   // Don't store individual transcripts - only detect patterns
   // Full transcript will be stored at end-of-call
   
-  // Use enhanced pattern detection
+  // Use enhanced pattern detection with narrative awareness
   const patterns = detectEnhancedCSSPatterns(transcript, false);
   
   // Log detected patterns for debugging
@@ -304,17 +304,37 @@ export async function processTranscript(
                         patterns.thendIndicators.length + patterns.cyvcPatterns.length + 
                         (patterns.somaticPatterns?.length || 0);
   
-  if (totalPatterns > 0) {
+  if (totalPatterns > 0 || (patterns.narrativeFragmentation && patterns.narrativeFragmentation > 0)) {
     console.log(`📊 Patterns detected in transcript:`);
     console.log(`   CVDC: ${patterns.cvdcPatterns.length}, IBM: ${patterns.ibmPatterns.length}`);
     console.log(`   Thend: ${patterns.thendIndicators.length}, CYVC: ${patterns.cyvcPatterns.length}`);
     console.log(`   Somatic: ${patterns.somaticPatterns?.length || 0}, Distress: ${patterns.distressLevel || 0}`);
+    console.log(`   📖 Narrative: Fragmentation=${patterns.narrativeFragmentation || 0}, Density=${patterns.symbolicDensity || 0}, Orientation=${patterns.temporalOrientation || 'present'}`);
   }
   
-  // Update session with enhanced data
+  // Store high narrative fragmentation as context
+  if (patterns.narrativeFragmentation && patterns.narrativeFragmentation > 6) {
+    await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: session.userId,
+        call_id: callId,
+        context_type: 'narrative_marker',
+        content: `High narrative fragmentation detected: ${patterns.narrativeFragmentation}/10`,
+        importance: patterns.narrativeFragmentation,
+        pattern_type: 'NARRATIVE_FRAGMENTATION'
+      });
+  }
+  
+  // Update session with enhanced data including narrative metrics
   session.emotionalIntensity = patterns.emotionalIntensity;
   session.hasActiveWarnings = patterns.hasWarningFlags;
   session.lastPatternAnalysis = new Date();
+  
+  // Store narrative metrics in session
+  (session as any).narrativeFragmentation = patterns.narrativeFragmentation || 0;
+  (session as any).symbolicDensity = patterns.symbolicDensity || 0;
+  (session as any).temporalOrientation = patterns.temporalOrientation || 'present';
   
   // Update pattern counts
   session.recentPatternCounts = {
@@ -530,52 +550,74 @@ async function analyzeForOrchestrationEnhanced(
   }
 }
 
-// Enhanced agent suggestion with intensity and distress awareness
+// Enhanced agent suggestion with intensity, distress, and narrative awareness
 function analyzeForAgentSuggestionEnhanced(
   transcript: string,
   currentAgent: string,
-  patterns: CSSPatterns & { distressLevel?: number; somaticPatterns?: any[] },
+  patterns: CSSPatterns & { 
+    distressLevel?: number; 
+    somaticPatterns?: any[];
+    narrativeFragmentation?: number;
+    symbolicDensity?: number;
+    temporalOrientation?: string;
+  },
   patternCounts: { cvdc: number; ibm: number; thend: number; cyvc: number }
 ): {
   suggestedAgent: string | null;
   reason: string | null;
   confidence: number;
 } {
-  // High distress or somatic patterns → Zhanna
+  // High narrative fragmentation or distress → Zhanna
   const distressLevel = patterns.distressLevel || 0;
   const somaticCount = patterns.somaticPatterns?.length || 0;
+  const narrativeFragmentation = patterns.narrativeFragmentation || 0;
   
-  // Lower threshold: Even 1 somatic pattern or distress >= 5 triggers Zhanna
-  if ((distressLevel >= 5 || somaticCount >= 1) && currentAgent.toLowerCase() !== 'zhanna') {
-    console.log(`🔄 Suggesting Zhanna: distress=${distressLevel}, somatic=${somaticCount}`);
+  // Prioritize Zhanna for high fragmentation or somatic distress
+  if ((distressLevel >= 5 || somaticCount >= 1 || narrativeFragmentation >= 7) && 
+      currentAgent.toLowerCase() !== 'zhanna') {
+    console.log(`🔄 Suggesting Zhanna: distress=${distressLevel}, somatic=${somaticCount}, narrative fragmentation=${narrativeFragmentation}`);
     return {
       suggestedAgent: 'zhanna',
-      reason: 'Somatic awareness and grounding needed',
+      reason: narrativeFragmentation >= 7 
+        ? 'High narrative fragmentation requires grounding' 
+        : 'Somatic awareness and grounding needed',
       confidence: 0.9
     };
   }
   
   // If currently with Zhanna, check if stable for handoff
   if (currentAgent.toLowerCase() === 'zhanna' && distressLevel < 5) {
-    // Determine next agent based on patterns
-    if (patternCounts.thend >= 2) {
+    // Determine next agent based on patterns and narrative state
+    const symbolicDensity = patterns.symbolicDensity || 0;
+    
+    // Marcus for integration and symbolic work
+    if (patternCounts.thend >= 2 || symbolicDensity >= 5) {
       return {
         suggestedAgent: 'marcus',
-        reason: 'Ready for integration work',
+        reason: symbolicDensity >= 5 
+          ? 'Rich symbolic content ready for exploration'
+          : 'Ready for integration work',
         confidence: 0.8
       };
     }
-    if (patternCounts.ibm > patternCounts.cvdc && patternCounts.ibm >= 2) {
+    // Mathew for behavioral gaps or temporal stuck patterns
+    if ((patternCounts.ibm > patternCounts.cvdc && patternCounts.ibm >= 2) || 
+        patterns.temporalOrientation === 'stuck_past') {
       return {
         suggestedAgent: 'mathew',
-        reason: 'Behavioral patterns to explore',
+        reason: patterns.temporalOrientation === 'stuck_past'
+          ? 'Past narrative patterns need examination' 
+          : 'Behavioral patterns to explore',
         confidence: 0.8
       };
     }
-    if (patternCounts.cvdc >= 2) {
+    // Sarah for emotional contradictions
+    if (patternCounts.cvdc >= 2 || narrativeFragmentation >= 4) {
       return {
         suggestedAgent: 'sarah',
-        reason: 'Contradictions to explore',
+        reason: narrativeFragmentation >= 4
+          ? 'Fragmented narrative needs emotional coherence'
+          : 'Contradictions to explore',
         confidence: 0.8
       };
     }
@@ -592,34 +634,42 @@ function analyzeForAgentSuggestionEnhanced(
     }
   }
   
-  // Many contradictions → Sarah (lowered threshold)
-  if (patternCounts.cvdc >= 2 && currentAgent.toLowerCase() !== 'sarah') {
-    console.log(`🔄 Suggesting Sarah: cvdc=${patternCounts.cvdc}`);
+  // Many contradictions or narrative fragmentation → Sarah
+  if ((patternCounts.cvdc >= 2 || narrativeFragmentation >= 4) && currentAgent.toLowerCase() !== 'sarah') {
+    console.log(`🔄 Suggesting Sarah: cvdc=${patternCounts.cvdc}, fragmentation=${narrativeFragmentation}`);
     return {
       suggestedAgent: 'sarah',
-      reason: 'Multiple contradictions need emotional exploration',
+      reason: narrativeFragmentation >= 4
+        ? 'Fragmented narrative needs emotional coherence'
+        : 'Multiple contradictions need emotional exploration',
       confidence: 0.85
     };
   }
   
-  // Behavioral gaps → Mathew (lowered threshold)
-  if (patternCounts.ibm >= 1 && currentAgent.toLowerCase() !== 'mathew') {
-    console.log(`🔄 Suggesting Mathew: ibm=${patternCounts.ibm}`);
+  // Behavioral gaps or temporal stuck patterns → Mathew
+  if ((patternCounts.ibm >= 1 || patterns.temporalOrientation === 'stuck_past') && 
+      currentAgent.toLowerCase() !== 'mathew') {
+    console.log(`🔄 Suggesting Mathew: ibm=${patternCounts.ibm}, temporal=${patterns.temporalOrientation}`);
     return {
       suggestedAgent: 'mathew',
-      reason: 'Intention-behavior gaps need analytical approach',
+      reason: patterns.temporalOrientation === 'stuck_past'
+        ? 'Past narrative patterns need analytical examination'
+        : 'Intention-behavior gaps need analytical approach',
       confidence: 0.8
     };
   }
   
-  // Integration moments → Marcus (lowered threshold)
-  if (patternCounts.thend >= 1 && 
+  // Integration moments or high symbolic density → Marcus
+  const symbolicDensity = patterns.symbolicDensity || 0;
+  if ((patternCounts.thend >= 1 || symbolicDensity >= 5) && 
       patterns.emotionalIntensity !== 'high' &&
       currentAgent.toLowerCase() !== 'marcus') {
-    console.log(`🔄 Suggesting Marcus: thend=${patternCounts.thend}`);
+    console.log(`🔄 Suggesting Marcus: thend=${patternCounts.thend}, symbolic=${symbolicDensity}`);
     return {
       suggestedAgent: 'marcus',
-      reason: 'Integration opportunities for pattern recognition',
+      reason: symbolicDensity >= 5
+        ? 'Rich symbolic narrative requires philosophical exploration'
+        : 'Integration opportunities for pattern recognition',
       confidence: 0.75
     };
   }
@@ -813,6 +863,13 @@ export function getOrchestrationState(callId: string): {
   // NEW: Pattern guidance fields
   patternGuidance: PatternGuidance[];
   needsGuidanceUpdate: boolean;
+  // NEW: Narrative awareness fields
+  narrativeMetrics?: {
+    fragmentation: number;
+    symbolicDensity: number;
+    temporalOrientation: string;
+    patternsDetected: string[];
+  };
 } | null {
   // Check if this is a temp ID
   if (callId.startsWith('temp-')) {
@@ -896,6 +953,13 @@ export function getOrchestrationState(callId: string): {
     emotionalIntensity: session.emotionalIntensity
   });
 
+  // Build patterns detected array for narrative phase
+  const patternsDetected: string[] = [];
+  if (session.recentPatternCounts.cvdc > 0) patternsDetected.push('CVDC');
+  if (session.recentPatternCounts.ibm > 0) patternsDetected.push('IBM');
+  if (session.recentPatternCounts.thend > 0) patternsDetected.push('Thend');
+  if (session.recentPatternCounts.cyvc > 0) patternsDetected.push('CYVC');
+
   return {
     currentAgent: session.agentName,
     suggestedAgent: session.suggestedAgent,
@@ -912,7 +976,14 @@ export function getOrchestrationState(callId: string): {
     therapeuticPriority: priority,
     // Pattern guidance
     patternGuidance: guidance,
-    needsGuidanceUpdate: needsUpdate
+    needsGuidanceUpdate: needsUpdate,
+    // Narrative metrics (if available)
+    narrativeMetrics: {
+      fragmentation: (session as any).narrativeFragmentation || 0,
+      symbolicDensity: (session as any).symbolicDensity || 0,
+      temporalOrientation: (session as any).temporalOrientation || 'present',
+      patternsDetected
+    }
   };
 }
 

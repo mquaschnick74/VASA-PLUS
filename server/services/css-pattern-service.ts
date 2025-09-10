@@ -190,6 +190,50 @@ const SOMATIC_PATTERNS = [
   /can't sit still/gi
 ];
 
+// Narrative-specific pattern detection
+const NARRATIVE_PATTERNS = {
+  STORY_CONTRADICTION: [
+    /one part of me (?:says|thinks|believes) (.+) but another (?:says|thinks|believes) (.+)/i,
+    /my story (?:says|tells) (.+) but (?:I|my) (.+)/i,
+    /I tell myself (.+) but (?:then I|I also) (.+)/i,
+    /part of my story (.+) while another part (.+)/i,
+    /the story I'm telling (.+) but (.+)/i
+  ],
+  NARRATIVE_GAP: [
+    /the story I tell (?:myself|others) (?:is|isn't) (.+)/i,
+    /(?:I|my) narrative (?:doesn't|does not) match (.+)/i,
+    /there's a gap between what I (?:say|tell) and (.+)/i,
+    /my story says (.+) but my (?:actions|behavior|body) (.+)/i,
+    /disconnect between my story and (.+)/i
+  ],
+  FRAGMENTED_STORY: [
+    /(?:I|my story) (?:doesn't|does not) make sense/i,
+    /(?:I|it) (?:feels|seems) (?:scattered|fragmented|broken)/i,
+    /can't (?:find|create|tell) (?:a|my) (?:coherent|clear) story/i,
+    /my narrative is (?:falling apart|broken|shattered)/i,
+    /lost the (?:thread|plot) of my (?:story|life)/i
+  ],
+  DEFENSIVE_NARRATIVE: [
+    /that's not (?:my|the) story/i,
+    /I'm not that (?:person|story)/i,
+    /it wasn't (?:my|the) (?:fault|story)/i,
+    /don't want that to be my story/i
+  ],
+  STUCK_NARRATIVE: [
+    /same (?:old )?story/i,
+    /stuck in (?:this|the) narrative/i,
+    /story never changes/i,
+    /always the same (?:ending|pattern|story)/i
+  ],
+  EMERGING_NARRATIVE: [
+    /new story (?:is )?(?:emerging|forming)/i,
+    /different narrative/i,
+    /story is (?:changing|shifting)/i,
+    /rewriting my (?:story|narrative)/i,
+    /becoming a different story/i
+  ]
+};
+
 /**
  * Check for safety warning flags
  */
@@ -277,7 +321,108 @@ function detectPatternCategory(
 /**
  * Main pattern detection with safety enhancements
  */
-export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = false): CSSPatterns & { somaticPatterns?: PatternMatch[], distressLevel?: number } {
+/**
+ * Calculate symbolic density of content
+ */
+function calculateSymbolicDensity(content: string): number {
+  // Words that indicate high symbolic density
+  const symbolicMarkers = [
+    'always', 'never', 'everything', 'nothing', 'everyone',
+    'can\'t', 'must', 'should', 'have to', 'need to',
+    'die', 'kill', 'destroy', 'save', 'rescue',
+    'perfect', 'broken', 'ruined', 'forever', 'impossible'
+  ];
+  
+  let density = 0;
+  const words = content.toLowerCase().split(/\s+/);
+  
+  for (const marker of symbolicMarkers) {
+    if (words.includes(marker)) density += 2;
+  }
+  
+  return Math.min(density, 10);
+}
+
+/**
+ * Determine temporal orientation of narrative
+ */
+function determineTemporalOrientation(content: string): 'past' | 'present' | 'future' {
+  const pastMarkers = /(?:was|were|had|used to|before|ago|last|previous|remember|forgot)/i;
+  const futureMarkers = /(?:will|going to|gonna|soon|tomorrow|next|later|someday|eventually)/i;
+  
+  const pastCount = (content.match(pastMarkers) || []).length;
+  const futureCount = (content.match(futureMarkers) || []).length;
+  
+  if (pastCount > futureCount) return 'past';
+  if (futureCount > pastCount) return 'future';
+  return 'present';
+}
+
+/**
+ * Calculate narrative fragmentation score
+ */
+function calculateNarrativeFragmentation(transcript: string, debug: boolean = false): number {
+  let fragmentationScore = 0;
+  
+  // Check for story contradictions
+  for (const pattern of NARRATIVE_PATTERNS.STORY_CONTRADICTION) {
+    const matches = transcript.match(pattern);
+    if (matches) {
+      fragmentationScore += 3;
+      if (debug) console.log('📖 Story contradiction detected:', matches[0]);
+    }
+  }
+  
+  // Check for narrative gaps
+  for (const pattern of NARRATIVE_PATTERNS.NARRATIVE_GAP) {
+    const matches = transcript.match(pattern);
+    if (matches) {
+      fragmentationScore += 2;
+      if (debug) console.log('📖 Narrative gap detected:', matches[0]);
+    }
+  }
+  
+  // Check for fragmented stories
+  for (const pattern of NARRATIVE_PATTERNS.FRAGMENTED_STORY) {
+    const matches = transcript.match(pattern);
+    if (matches) {
+      fragmentationScore += 4;
+      if (debug) console.log('📖 Fragmented story detected:', matches[0]);
+    }
+  }
+  
+  // Check for defensive narratives
+  for (const pattern of NARRATIVE_PATTERNS.DEFENSIVE_NARRATIVE) {
+    if (pattern.test(transcript)) {
+      fragmentationScore += 1;
+    }
+  }
+  
+  // Check for stuck narratives
+  for (const pattern of NARRATIVE_PATTERNS.STUCK_NARRATIVE) {
+    if (pattern.test(transcript)) {
+      fragmentationScore += 2;
+    }
+  }
+  
+  // Emerging narratives reduce fragmentation
+  for (const pattern of NARRATIVE_PATTERNS.EMERGING_NARRATIVE) {
+    if (pattern.test(transcript)) {
+      fragmentationScore -= 2;
+    }
+  }
+  
+  // Cap between 0 and 10
+  return Math.max(0, Math.min(fragmentationScore, 10));
+}
+
+export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = false): CSSPatterns & { 
+  somaticPatterns?: PatternMatch[], 
+  distressLevel?: number,
+  narrativeFragmentation?: number,
+  symbolicDensity?: number,
+  temporalOrientation?: 'past' | 'present' | 'future'
+} {
   if (!transcript || transcript.trim().length === 0) {
     return {
       cvdcPatterns: [],
@@ -347,6 +492,16 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
   if (hasWarningFlags) {
     distressLevel = Math.max(distressLevel, 7);
   }
+  
+  // Calculate narrative metrics
+  const narrativeFragmentation = calculateNarrativeFragmentation(transcript, debug);
+  const symbolicDensity = calculateSymbolicDensity(transcript);
+  const temporalOrientation = determineTemporalOrientation(transcript);
+  
+  // Adjust distress based on narrative fragmentation
+  if (narrativeFragmentation >= 8) {
+    distressLevel = Math.max(distressLevel, 7);
+  }
 
   if (debug) {
     console.log('📊 Enhanced Pattern Detection Summary:');
@@ -358,6 +513,9 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     console.log(`  - Stage: ${currentStage}`);
     console.log(`  - Emotional Intensity: ${emotionalIntensity}`);
     console.log(`  - Distress Level: ${distressLevel}`);
+    console.log(`  - Narrative Fragmentation: ${narrativeFragmentation}`);
+    console.log(`  - Symbolic Density: ${symbolicDensity}`);
+    console.log(`  - Temporal Orientation: ${temporalOrientation}`);
     console.log(`  - Warning Flags: ${hasWarningFlags}`);
   }
 
@@ -370,7 +528,10 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     currentStage,
     hasWarningFlags,
     emotionalIntensity,
-    distressLevel
+    distressLevel,
+    narrativeFragmentation,
+    symbolicDensity,
+    temporalOrientation
   };
 }
 
