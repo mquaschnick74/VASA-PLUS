@@ -130,7 +130,13 @@ export enum PatternCategory {
   GRIEF = 'GRIEF',      // Grief and Loss Patterns
   SOMATIC = 'SOMATIC',  // Somatic/Body Patterns
   SAFETY = 'SAFETY',    // Safety/Crisis Patterns
-  NARRATIVE = 'NARRATIVE' // Narrative Fragmentation
+  NARRATIVE = 'NARRATIVE', // Narrative Fragmentation
+  // Literary Psychological Patterns
+  EXISTENTIAL = 'EXISTENTIAL',       // Existential Crisis - Camus/Sartre
+  MORAL_TORMENT = 'MORAL_TORMENT',   // Moral Torment - Dostoevsky
+  EPISTEMIC_DOUBT = 'EPISTEMIC_DOUBT', // Epistemic Doubt - Hume/Descartes
+  KAFKA_ALIENATION = 'KAFKA_ALIENATION', // Alienation - Kafka
+  SOCIAL_MASKING = 'SOCIAL_MASKING'    // Social Masking - Pessoa
 }
 
 // CSS Stage Enum with transitions
