@@ -733,6 +733,95 @@ async function handleCriticalSituation(
 }
 
 // Enhanced CSS pattern storage
+// Extract and store critical life events from transcripts
+async function extractAndStoreCriticalEvents(
+  session: EnhancedSessionState,
+  transcript: string,
+  patterns: any
+): Promise<void> {
+  const criticalEvents: Array<{
+    type: string;
+    content: string;
+    importance: number;
+  }> = [];
+  
+  // Check grief patterns specifically
+  if (patterns.griefPatterns && patterns.griefPatterns.length > 0) {
+    for (const grief of patterns.griefPatterns) {
+      // Extract pet names if mentioned
+      const petNameMatch = grief.text.match(/\b(\w+)\b.*?(pet|dog|cat|animal)/i) ||
+                          grief.text.match(/(pet|dog|cat|animal).*?\b(\w+)\b/i);
+      
+      if (petNameMatch) {
+        const petName = petNameMatch[1] || petNameMatch[2];
+        // Check if it's actually a pet name (capitalized, not a common word)
+        if (petName && petName[0] === petName[0].toUpperCase() && petName.toLowerCase() !== 'my') {
+          criticalEvents.push({
+            type: 'pet_loss',
+            content: `Pet ${petName} mentioned in context of illness/loss: ${grief.text}`,
+            importance: 9
+          });
+        }
+      } else {
+        criticalEvents.push({
+          type: 'grief_event',
+          content: grief.text,
+          importance: 8
+        });
+      }
+    }
+  }
+  
+  // Extract specific mentions of "not doing well", "dying", etc.
+  const criticalPhrases = [
+    /(\w+)\s+(?:isn't|is not|ain't)\s+doing\s+(?:so\s+)?(?:well|good)/gi,
+    /my\s+(\w+)\s+is\s+(?:dying|sick|ill)/gi,
+    /(\w+)\s+(?:died|passed away)/gi,
+    /lost\s+(?:my\s+)?(\w+)/gi
+  ];
+  
+  for (const pattern of criticalPhrases) {
+    const matches = transcript.matchAll(pattern);
+    for (const match of matches) {
+      const subject = match[1];
+      if (subject && subject[0] === subject[0].toUpperCase()) {
+        criticalEvents.push({
+          type: 'critical_event',
+          content: match[0],
+          importance: 9
+        });
+      }
+    }
+  }
+  
+  // Store critical events in therapeutic context
+  for (const event of criticalEvents) {
+    await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: session.userId,
+        call_id: session.callId,
+        context_type: event.type,
+        content: event.content,
+        confidence: 0.9,
+        importance: event.importance,
+        pattern_type: 'CRITICAL_LIFE_EVENT'
+      });
+    
+    console.log(`💔 Stored critical event: ${event.type} - ${event.content.substring(0, 50)}...`);
+  }
+  
+  // Store high-importance context if grief patterns detected
+  if (patterns.griefPatterns && patterns.griefPatterns.length > 0) {
+    await storeSessionContext(
+      session.userId,
+      session.callId,
+      `IMPORTANT: User discussed loss/grief. Distress level: ${patterns.distressLevel}. Grief patterns: ${patterns.griefPatterns.length}. Must acknowledge with compassion and specific details.`,
+      'critical_context'
+    );
+  }
+}
+
 async function storeCSSPatternsEnhanced(
   session: EnhancedSessionState,
   patterns: CSSPatterns
@@ -1118,6 +1207,9 @@ async function processFullTranscript(session: EnhancedSessionState, transcript: 
     });
 
   await storeCSSPatternsEnhanced(session, patterns);
+
+  // Extract and store critical life events (pets, deaths, major changes)
+  await extractAndStoreCriticalEvents(session, transcript, patterns);
 
   await supabase
     .from('css_patterns')
