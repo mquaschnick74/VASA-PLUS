@@ -61,7 +61,7 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         ];
 
         allEvents.forEach(eventName => {
-          vapiInstance.on(eventName, (event: any) => {
+          vapiInstance.on(eventName as any, (event: any) => {
             console.log(`📡 VAPI Event [${eventName}]:`, event);
 
             // Try to extract call ID from ANY event
