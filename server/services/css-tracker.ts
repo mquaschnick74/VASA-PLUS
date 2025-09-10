@@ -15,6 +15,7 @@ import {
   PatternDetectionResult
 } from '../../shared/schema';
 import { detectEnhancedCSSPatterns } from './css-pattern-service';
+import { detectLiteraryPatterns, normalizeLiteraryPatterns } from './literary-patterns';
 import { supabase } from './supabase-service';
 
 // Stage transition rules with hysteresis
@@ -94,10 +95,15 @@ const STAGE_TRANSITION_RULES: StageTransitionRule[] = [
 const PATTERN_PRIORITY: Record<PatternCategory, number> = {
   [PatternCategory.SAFETY]: 100,
   [PatternCategory.GRIEF]: 90,
+  [PatternCategory.MORAL_TORMENT]: 85,    // High priority - severe distress
   [PatternCategory.SOMATIC]: 80,
   [PatternCategory.CVDC]: 70,
   [PatternCategory.IBM]: 70,
+  [PatternCategory.EXISTENTIAL]: 65,      // Existential crisis
+  [PatternCategory.EPISTEMIC_DOUBT]: 62,  // Deep confusion
+  [PatternCategory.KAFKA_ALIENATION]: 60, // Alienation
   [PatternCategory.THEND]: 60,
+  [PatternCategory.SOCIAL_MASKING]: 55,   // Identity issues
   [PatternCategory.CYVC]: 50,
   [PatternCategory.NARRATIVE]: 40
 };
@@ -133,9 +139,14 @@ export async function processTranscriptEvent(
   
   // 1. DETECT - Run pattern detection
   const heuristicPatterns = detectEnhancedCSSPatterns(transcript, false);
+  const literaryPatternsRaw = detectLiteraryPatterns(transcript, false);
   
   // 2. NORMALIZE - Convert to unified PatternEvent format
   const normalizedPatterns = normalizePatterns(heuristicPatterns, role);
+  const literaryPatterns = normalizeLiteraryPatterns(literaryPatternsRaw, transcript);
+  
+  // Combine all patterns
+  normalizedPatterns.push(...literaryPatterns);
   
   // 3. AGGREGATE - Update session state
   const sessionState = aggregatePatterns(sessionKey, normalizedPatterns, userId, callId);
@@ -279,7 +290,12 @@ function aggregatePatterns(
         [PatternCategory.GRIEF]: 0,
         [PatternCategory.SOMATIC]: 0,
         [PatternCategory.SAFETY]: 0,
-        [PatternCategory.NARRATIVE]: 0
+        [PatternCategory.NARRATIVE]: 0,
+        [PatternCategory.EXISTENTIAL]: 0,
+        [PatternCategory.MORAL_TORMENT]: 0,
+        [PatternCategory.EPISTEMIC_DOUBT]: 0,
+        [PatternCategory.KAFKA_ALIENATION]: 0,
+        [PatternCategory.SOCIAL_MASKING]: 0
       },
       recentPatterns: [],
       criticalEvents: [],
