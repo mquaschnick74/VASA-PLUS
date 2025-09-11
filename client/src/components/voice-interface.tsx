@@ -43,14 +43,15 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     verbalAcknowledgment: userContext?.verbalAcknowledgment
   });
 
-  // Load memory context
+  // Load memory context with agent-specific greetings
   useEffect(() => {
     const loadUserContext = async () => {
       if (!userId) return;
       
       setMemoryLoading(true);
       try {
-        const response = await fetch(`/api/auth/user-context/${userId}`, {
+        // Include selected agent in the request for agent-specific greetings
+        const response = await fetch(`/api/auth/user-context/${userId}?agentName=${selectedAgent?.name || 'Sarah'}`, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache'
@@ -60,9 +61,9 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
         if (response.ok) {
           const data = await response.json();
           setUserContext(data);
-          console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
+          console.log(`✅ Loaded ${data.sessionCount} previous sessions for agent ${selectedAgent?.name}`);
           if (data.verbalAcknowledgment) {
-            console.log(`💬 Verbal acknowledgment: ${data.verbalAcknowledgment}`);
+            console.log(`💬 ${selectedAgent?.name}-specific greeting: ${data.verbalAcknowledgment}`);
           }
         }
       } catch (error) {
@@ -73,7 +74,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     };
     
     loadUserContext();
-  }, [userId]);
+  }, [userId, selectedAgentId]); // Reload when agent changes
 
   // Call timer effect
   useEffect(() => {

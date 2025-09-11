@@ -71,10 +71,11 @@ router.post('/user', async (req, res) => {
   }
 });
 
-// Get user context with memory
+// Get user context with enhanced memory and agent-specific verbal acknowledgment
 router.get('/user-context/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+    const { agentName = 'Sarah' } = req.query; // Extract agent name from query params
 
     // Fetch user profile
     const { data: user, error: userError } = await supabase
@@ -87,8 +88,15 @@ router.get('/user-context/:userId', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Build enhanced memory context with user's first name and get verbal acknowledgment
-    const memoryResult = await buildEnhancedMemoryContext(userId, user.first_name || 'there');
+    const firstName = user.first_name || 'there';
+
+    // Build enhanced memory context with agent-specific verbal acknowledgment
+    const memoryResult = await buildEnhancedMemoryContext(
+      userId, 
+      firstName,
+      agentName as string  // Pass the agent name for agent-specific greetings
+    );
+    
     const memoryContext = memoryResult.context;
     const verbalAcknowledgment = memoryResult.verbalAcknowledgment;
 
@@ -105,14 +113,18 @@ router.get('/user-context/:userId', async (req, res) => {
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
 
+    console.log(`🧠 Enhanced memory context built for ${firstName} with agent ${agentName}`);
+    console.log(`💬 Agent-specific verbal acknowledgment: ${verbalAcknowledgment.substring(0, 100)}...`);
+
     res.json({
       success: true,
       profile: user,
       memoryContext,
       verbalAcknowledgment,
       sessions: sessions || [],
-      firstName: user.first_name || 'there',
-      sessionCount: sessions?.length || 0
+      firstName,
+      sessionCount: sessions?.length || 0,
+      agentName // Include agent name in response
     });
   } catch (error) {
     console.error('Error fetching user context:', error);
