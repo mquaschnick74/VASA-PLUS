@@ -180,7 +180,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
       {/* Main Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           
           {/* Left Sidebar - Agent Selection */}
           <div className="lg:col-span-1">
@@ -191,7 +191,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
             />
           </div>
           
-          {/* Voice Assistant Interface - Main Column */}
+          {/* Main Content Area - Voice Interface, Live Conversation, Progress, and Memory */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
 
             {/* Voice Call Interface */}
@@ -295,11 +295,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Right Sidebar - Session History and Insights */}
-          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            
             {/* Session Stats */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">
