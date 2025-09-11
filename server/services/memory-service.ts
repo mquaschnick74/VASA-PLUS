@@ -227,7 +227,7 @@ export async function buildEnhancedMemoryContext(
   try {
     console.log(`🧠 Building enhanced memory context for user ${userId}`);
 
-    // Fetch recent sessions
+    // First try to get sessions from therapeutic_sessions table
     const { data: sessions, error: sessionsError } = await supabase
       .from('therapeutic_sessions')
       .select('*')
@@ -237,17 +237,41 @@ export async function buildEnhancedMemoryContext(
 
     if (sessionsError) {
       console.error('Error fetching sessions:', sessionsError);
-      return {
-        context: 'Unable to retrieve previous session data.',
-        verbalAcknowledgment: `Hello ${firstName}, welcome to your session.`
-      };
     }
 
+    // If no sessions found in therapeutic_sessions, check session_transcripts directly
+    let sessionCallIds: string[] = [];
+    let sessionData: any[] = [];
+    
     if (!sessions || sessions.length === 0) {
-      return {
-        context: 'First session with this user.',
-        verbalAcknowledgment: `Hello ${firstName}, welcome to your first session. What brings you here today?`
-      };
+      // Fallback to session_transcripts to find sessions
+      const { data: transcripts } = await supabase
+        .from('session_transcripts')
+        .select('call_id, timestamp')
+        .eq('user_id', userId)
+        .eq('role', 'complete')
+        .order('timestamp', { ascending: false })
+        .limit(5);
+      
+      if (transcripts && transcripts.length > 0) {
+        // Create synthetic session data from transcripts
+        sessionData = transcripts.map(t => ({
+          id: t.call_id,
+          call_id: t.call_id,
+          user_id: userId,
+          created_at: t.timestamp,
+          duration_seconds: 0, // Unknown from transcript alone
+          agent_name: 'Unknown'
+        }));
+        console.log(`📚 Found ${transcripts.length} sessions from transcripts for ${firstName}`);
+      } else {
+        return {
+          context: 'First session with this user.',
+          verbalAcknowledgment: `Hello ${firstName}, welcome to your first session. What brings you here today?`
+        };
+      }
+    } else {
+      sessionData = sessions;
     }
 
     // Process sessions and determine meaningfulness
