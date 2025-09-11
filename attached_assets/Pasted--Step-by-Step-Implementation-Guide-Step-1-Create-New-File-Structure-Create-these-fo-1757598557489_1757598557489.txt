@@ -1,0 +1,139 @@
+## **Step-by-Step Implementation Guide**
+
+### **Step 1: Create New File Structure**
+
+Create these folders and files in your project:
+
+```
+client/src/config/agents/
+├── shared/
+│   ├── vasa-foundation.ts
+│   └── hsfb-protocols.ts
+├── sarah.ts
+├── mathew.ts
+├── marcus.ts
+├── zhanna.ts
+└── index.ts
+```
+
+### **Step 2: Copy Files from Artifacts**
+
+**Create each file and copy the exact content:**
+
+1. **client/src/config/agents/shared/vasa-foundation.ts**
+   - Copy content from "VASA Foundation - Core Therapeutic Framework" artifact
+
+2. **client/src/config/agents/shared/hsfb-protocols.ts**
+   - Copy content from "HSFB Protocols - Comprehensive Crisis Intervention" artifact
+
+3. **client/src/config/agents/sarah.ts**
+   - Copy content from "Sarah Agent - CVDC Specialist" artifact
+
+4. **client/src/config/agents/mathew.ts**
+   - Copy content from "Mathew Agent - IBM Specialist" artifact
+
+5. **client/src/config/agents/marcus.ts**
+   - Copy content from "Marcus Agent - Integration Specialist" artifact
+
+6. **client/src/config/agents/zhanna.ts**
+   - Copy content from "Zhanna Agent - Somatic Specialist" artifact
+
+7. **client/src/config/agents/index.ts**
+   - Copy content from "Agents Index - Complete 4-Agent Export" artifact
+
+### **Step 3: Update Your Current agent-configs.ts**
+
+**Replace your existing `client/src/config/agent-configs.ts` with:**
+
+```typescript
+// agent-configs.ts - Updated to use new 4-agent architecture
+export { 
+  THERAPEUTIC_AGENTS, 
+  getAgentById, 
+  TherapeuticAgent,
+  selectAgentForPattern,
+  shouldSwitchAgent,
+  getAgentSpecialization,
+  getRecommendedAgent
+} from './agents/index';
+```
+
+### **Step 4: Verify Imports Still Work**
+
+Check these files to ensure they still import correctly:
+
+1. **client/src/hooks/use-vapi.ts** - Should still work with `import { TherapeuticAgent } from '../config/agent-configs';`
+
+2. **Any other files importing from agent-configs.ts** - Should continue working without changes
+
+### **Step 5: Test the Implementation**
+
+1. **Start your development server:**
+   ```bash
+   npm run dev
+   ```
+
+2. **Check for TypeScript errors** in the console
+
+3. **Test agent selection** in your UI - all 4 agents should appear
+
+4. **Start a test session** with each agent to verify:
+   - Agent loads correctly
+   - First message uses the new templates  
+   - System prompts include HSFB protocols
+   - Memory integration works
+
+### **Step 6: Verify Enhanced Memory Integration**
+
+Your enhanced memory system should now work with all agents:
+
+1. **Test returning user sessions** - should get personalized greetings
+2. **Check console logs** - should show verbal acknowledgments being generated
+3. **Verify different agent personalities** in their greetings and responses
+
+### **Rollback Plan (If Issues Occur)**
+
+If something breaks, quickly restore your original setup:
+
+1. **Revert agent-configs.ts** to your original version
+2. **Delete the new `/agents` folder**
+3. **Restart development server**
+
+### **Common Issues & Solutions**
+
+**TypeScript Errors:**
+- Make sure all imports in the new files are correct
+- Check that file paths match exactly
+- Verify no syntax errors in copied content
+
+**Agents Not Appearing:**
+- Check that `THERAPEUTIC_AGENTS` array exports correctly
+- Verify the import in agent-configs.ts is correct
+
+**Memory Integration Issues:**
+- Ensure `firstMessageTemplate` functions are properly defined
+- Check that enhanced memory service is still being called
+
+**HSFB Not Working:**
+- Verify HSFB protocols are included in system prompts
+- Check meta tag structure matches expected format
+
+### **Verification Checklist**
+
+- [ ] All 7 files created in correct locations
+- [ ] Content copied exactly from artifacts  
+- [ ] agent-configs.ts updated with new import
+- [ ] No TypeScript errors
+- [ ] All 4 agents appear in UI
+- [ ] Test session works with each agent
+- [ ] Memory integration functions correctly
+- [ ] Enhanced greetings work for returning users
+
+### **Next Steps After Implementation**
+
+1. **Test with real users** to verify therapeutic effectiveness
+2. **Monitor console logs** for any HSFB activations
+3. **Compare agent personalities** in actual conversations
+4. **Validate memory continuity** across sessions with different agents
+
+This implementation should be plug-and-play with your existing system while adding the enhanced 4-agent capabilities and comprehensive HSFB protocols.
