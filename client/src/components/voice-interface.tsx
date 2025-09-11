@@ -182,17 +182,15 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           
-          {/* Left Sidebar - Agent Selection */}
-          <div className="lg:col-span-1">
+          {/* Voice Assistant Interface - Main Column */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
+            
+            {/* Agent Selection */}
             <AgentSelector 
               selectedAgentId={selectedAgentId}
               onSelectAgent={setSelectedAgentId}
               disabled={isSessionActive || isLoading}
             />
-          </div>
-          
-          {/* Main Content Area - Voice Interface, Live Conversation, Progress, and Memory */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
 
             {/* Voice Call Interface */}
             <Card className="glass-strong rounded-2xl sm:rounded-3xl border-0">
@@ -222,23 +220,28 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   </div>
 
                   {/* Voice Call Controls */}
-                  <div className="flex justify-center">
+                  <div className="flex justify-center space-x-4 sm:space-x-6">
                     <Button
                       onClick={isSessionActive ? endSession : handleStartSession}
                       disabled={isLoading || memoryLoading}
-                      className={`group relative px-8 py-4 sm:px-10 sm:py-5 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 ${
+                      className={`group relative w-16 h-16 sm:w-20 sm:h-20 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
                         isSessionActive 
                           ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
                           : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
                       }`}
                       data-testid="button-call"
                     >
-                      <i className={`text-lg sm:text-xl text-white group-hover:scale-110 transition-transform duration-200 ${
+                      <i className={`text-xl sm:text-2xl text-white group-hover:scale-110 transition-transform duration-200 ${
                         isSessionActive ? 'fas fa-phone-slash' : 'fas fa-phone'
                       }`}></i>
-                      <span className="text-white font-medium text-base sm:text-lg">
-                        {isSessionActive ? 'End Session' : 'Start Session'}
-                      </span>
+                    </Button>
+
+                    <Button className="w-12 h-12 sm:w-16 sm:h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
+                      <i className="fas fa-microphone text-lg sm:text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
+                    </Button>
+
+                    <Button className="w-12 h-12 sm:w-16 sm:h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
+                      <i className="fas fa-volume-up text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
                     </Button>
                   </div>
 
@@ -295,7 +298,11 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                 </div>
               </CardContent>
             </Card>
+          </div>
 
+          {/* Sidebar - Session History and Insights */}
+          <div className="space-y-4 sm:space-y-6">
+            
             {/* Session Stats */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">

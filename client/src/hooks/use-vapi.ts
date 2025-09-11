@@ -61,7 +61,7 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
         ];
 
         allEvents.forEach(eventName => {
-          vapiInstance.on(eventName as any, (event: any) => {
+          vapiInstance.on(eventName, (event: any) => {
             console.log(`📡 VAPI Event [${eventName}]:`, event);
 
             // Try to extract call ID from ANY event
@@ -250,24 +250,26 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
               enhancedPrompt += '\n===== END PATTERNS =====\n';
               enhancedPrompt += 'IMPORTANT: Address these patterns gently and naturally.';
 
-              // Only inject guidance if session is still active
-              if (!isSessionActive) {
-                console.log('⚠️ Session ended, skipping pattern guidance injection');
-                return;
-              }
-
-              // VAPI Web SDK doesn't support dynamic assistant updates during active calls
-              // Log the guidance that would be injected for monitoring
-              console.log('📋 Pattern guidance detected (cannot inject mid-call):', newGuidance);
-              console.log('ℹ️ Note: VAPI Web SDK v2 does not support setAssistant during active calls');
-              
-              // Mark as applied to avoid repeated logging
-              newGuidance.forEach((g: any) => {
-                appliedGuidanceRef.current.add(`${g.pattern}_${g.count}`);
-              });
-
-              // Still notify backend for tracking purposes
               try {
+                // Update assistant with pattern awareness
+                await vapi.setAssistant({
+                  model: {
+                    provider: 'openai',
+                    model: selectedAgent.model.model,
+                    temperature: selectedAgent.model.temperature,
+                    messages: [{
+                      role: 'system',
+                      content: enhancedPrompt
+                    }]
+                  }
+                });
+
+                // Mark as applied using ref
+                newGuidance.forEach((g: any) => {
+                  appliedGuidanceRef.current.add(`${g.pattern}_${g.count}`);
+                });
+
+                // Notify backend
                 await fetch('/api/vapi/orchestration/guidance-applied', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -277,8 +279,10 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
                     guidanceKeys: newGuidance.map((g: any) => `${g.pattern}_${g.count}`)
                   })
                 });
+
+                console.log('✅ Pattern guidance successfully injected');
               } catch (error) {
-                console.error('Failed to notify backend of guidance:', error);
+                console.error('Failed to inject pattern guidance:', error);
               }
             }
           }
@@ -357,14 +361,21 @@ Continue naturally from where the conversation is at this moment.
 Maintain the same warm, consistent presence throughout.
 Never mention switching approaches or changing methods.`;
 
-      // VAPI Web SDK doesn't support dynamic assistant updates during active calls
-      // This would require ending and restarting the call with the new agent
-      console.log('⚠️ Cannot switch agents mid-call - VAPI Web SDK limitation');
-      console.log('ℹ️ Would switch to:', newAgent.name);
-      console.log('ℹ️ To switch agents, end the current call and start a new one');
-      
-      // Note: In a future version, this could be handled server-side with VAPI's server API
-      // which does support assistant updates during calls
+      // Silently update the assistant configuration
+      await vapi.setAssistant({
+        model: {
+          provider: 'openai',
+          model: newAgent.model.model,
+          temperature: newAgent.model.temperature,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            }
+          ]
+        }
+        // Keep same voice - no change in how they sound
+      });
 
       setActiveMethodology(newMethodology);
 
