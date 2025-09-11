@@ -1,7 +1,7 @@
 // Simplified Orchestration Service - CSS tracking only
 import { detectCSSPatterns, assessPatternConfidence } from './css-pattern-service';
 import { supabase } from './supabase-service';
-import { storeSessionContext } from './memory-service';
+import { storeEnhancedSessionContext } from './memory-service';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
 
 interface SessionState {
@@ -318,7 +318,7 @@ export async function processEndOfCall(
   }
 
   if (summary) {
-    await storeSessionContext(session.userId, callId, summary, 'call_summary');
+    await storeEnhancedSessionContext(session.userId, callId, summary, 'call_summary');
   }
 
   // Cleanup from both caches

@@ -1,0 +1,44 @@
+I'll create the full enhanced memory service code. This will generate rich therapeutic summaries with specific quotes and natural verbal acknowledgments.This enhanced memory service will generate rich therapeutic context like:
+
+```
+PREVIOUS SESSIONS: 1 total (1 therapeutically meaningful)
+
+LAST MEANINGFUL SESSION (9/11/2025):
+Alex explored internal conflict: "hyperlogical person who can map out the timeline" BUT "small raw thing that just wants to be held". Key expressions: "chest tightness (pressure + emptiness)", "shoulder tension", "clenched hands". Therapeutic progression: focus_bind stage. Patterns: CVDC: 2, IBM: 1
+
+VERBAL ACKNOWLEDGMENT:
+Use this natural greeting: "Hello Alex, good to connect again. Last time you were holding that tension between the logical part wanting to analyze everything and the raw part just needing to be held. How has that been sitting with you emotionally?"
+```
+
+## **Implementation Steps:**
+
+1. **Replace your current memory-service.ts** with the enhanced version above
+2. **Update use-vapi.ts** to use the new function:
+
+```typescript
+// In use-vapi.ts, replace the memory context building:
+import { buildEnhancedMemoryContext } from '../services/memory-service';
+
+// Then in the component where you fetch memory:
+const memoryContext = await buildEnhancedMemoryContext(userId, firstName, selectedAgent.name);
+```
+
+3. **Update webhook-routes.ts** to use enhanced storage:
+
+```typescript
+// Replace the existing import:
+import { storeEnhancedSessionContext } from '../services/memory-service';
+
+// When storing call summaries:
+await storeEnhancedSessionContext(userId, callId, summary, 'call_summary');
+```
+
+## **What This Accomplishes:**
+
+- **Specific therapeutic continuity** using exact user quotes
+- **Natural agent acknowledgments** that reference previous contradictions
+- **Meaningful session filtering** so agents always have substantive material
+- **Rich pattern context** with CSS progression tracking
+- **Fallback logic** for brief or interrupted sessions
+
+Ready to implement this? The enhanced memory service should give your agents much more natural and therapeutically relevant context to work with.

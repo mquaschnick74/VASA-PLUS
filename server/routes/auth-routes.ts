@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase-service';
-import { buildMemoryContext } from '../services/memory-service';
+import { buildEnhancedMemoryContext } from '../services/memory-service';
 import { deleteUserCascade, findUserByEmail } from '../services/user-service';
 
 const router = Router();
@@ -87,8 +87,8 @@ router.get('/user-context/:userId', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Build memory context
-    const memoryContext = await buildMemoryContext(userId);
+    // Build enhanced memory context with user's first name
+    const memoryContext = await buildEnhancedMemoryContext(userId, user.first_name || 'there');
 
     // Fetch recent sessions for stats
     const { data: sessions } = await supabase
