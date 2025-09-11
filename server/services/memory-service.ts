@@ -26,11 +26,17 @@ interface TherapeuticContext {
 
 /**
  * Determines if a session contains meaningful therapeutic content
+ * UPDATED: Lowered thresholds to capture Jordan's existing rich content
  */
 function isMeaningfulSession(session: any, patterns: CSSPatterns): boolean {
-  // Duration check - at least 2 minutes
-  if (session.duration_seconds && session.duration_seconds < 120) {
-    return false;
+  console.log(`🔍 Checking meaningful session for ${session.call_id}:`);
+  console.log(`  Duration: ${session.duration_seconds || 0} seconds`);
+  console.log(`  Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}, Thend=${patterns.thendIndicators.length}, CYVC=${patterns.cyvcPatterns.length}`);
+  
+  // LOWERED: Duration check - now 60 seconds instead of 120
+  if (session.duration_seconds && session.duration_seconds >= 60) {
+    console.log(`  ✅ Meaningful: Duration >= 60 seconds`);
+    return true;
   }
 
   // CSS patterns detected
@@ -40,14 +46,41 @@ function isMeaningfulSession(session: any, patterns: CSSPatterns): boolean {
                        patterns.cyvcPatterns.length;
 
   if (totalPatterns > 0) {
+    console.log(`  ✅ Meaningful: ${totalPatterns} CSS patterns detected`);
     return true;
   }
 
-  // Transcript length check (meaningful conversation)
-  if (session.text && session.text.length > 500) {
+  // LOWERED: Transcript length check - now 200 characters instead of 500
+  if (session.text && session.text.length > 200) {
+    console.log(`  ✅ Meaningful: Transcript length ${session.text.length} characters`);
     return true;
   }
 
+  // NEW: Check therapeutic_context for insights
+  if (session.hasTherapeuticInsights) {
+    console.log(`  ✅ Meaningful: Has therapeutic insights`);
+    return true;
+  }
+
+  // NEW: Check for emotional language patterns (even without formal CSS detection)
+  if (session.text) {
+    const emotionalKeywords = [
+      'electric', 'buzzing', 'invincible', 'manic', 'contradiction', 'tension',
+      'creative', 'overwhelmed', 'scattered', 'pulled', 'part of me',
+      'but also', 'want to', 'but end up', 'frustrated', 'excited'
+    ];
+    
+    const foundKeywords = emotionalKeywords.filter(keyword => 
+      session.text.toLowerCase().includes(keyword.toLowerCase())
+    );
+    
+    if (foundKeywords.length >= 2) {
+      console.log(`  ✅ Meaningful: Found emotional keywords: ${foundKeywords.join(', ')}`);
+      return true;
+    }
+  }
+
+  console.log(`  ❌ Not meaningful: No criteria met`);
   return false;
 }
 
@@ -225,7 +258,7 @@ export async function buildEnhancedMemoryContext(
   currentAgentName: string = 'Sarah'
 ): Promise<{ context: string; verbalAcknowledgment: string }> {
   try {
-    console.log(`🧠 Building enhanced memory context for user ${userId}`);
+    console.log(`🧠 Building enhanced memory context for user ${userId} with agent ${currentAgentName}`);
 
     // Fetch recent sessions
     const { data: sessions, error: sessionsError } = await supabase
@@ -250,7 +283,7 @@ export async function buildEnhancedMemoryContext(
       };
     }
 
-    // Process sessions and determine meaningfulness
+    // Process sessions and determine meaningfulness WITH ENHANCED DETECTION
     const processedSessions: SessionSummary[] = [];
 
     for (const session of sessions) {
@@ -262,9 +295,25 @@ export async function buildEnhancedMemoryContext(
         .eq('role', 'complete')
         .single();
       
+      // Check for therapeutic insights
+      const { data: insightData } = await supabase
+        .from('therapeutic_context')
+        .select('content')
+        .eq('call_id', session.call_id)
+        .limit(1);
+      
       const transcript = transcriptData?.text || '';
+      const hasTherapeuticInsights = insightData && insightData.length > 0;
+      
+      // Add insights flag to session for meaningful detection
+      const sessionWithInsights = {
+        ...session,
+        text: transcript,
+        hasTherapeuticInsights
+      };
+      
       const patterns = detectCSSPatterns(transcript, false);
-      const meaningful = isMeaningfulSession(session, patterns);
+      const meaningful = isMeaningfulSession(sessionWithInsights, patterns);
 
       const summary = meaningful ? 
         generateEnhancedSummary(session, patterns, firstName, transcript) :
@@ -285,6 +334,11 @@ export async function buildEnhancedMemoryContext(
 
     // Find most recent meaningful session
     const lastMeaningfulSession = processedSessions.find(s => s.isMeaningful) || null;
+
+    console.log(`📊 Session analysis:
+      - Total sessions: ${sessions.length}
+      - Meaningful sessions: ${processedSessions.filter(s => s.isMeaningful).length}
+      - Last meaningful: ${lastMeaningfulSession ? lastMeaningfulSession.date : 'None'}`);
 
     // Get recent insights
     const { data: insights } = await supabase
@@ -343,7 +397,7 @@ export async function buildEnhancedMemoryContext(
 
     console.log('✅ Enhanced memory context built successfully');
     console.log(`📝 Context: ${memoryContext.substring(0, 100)}...`);
-    console.log(`💬 Greeting: ${verbalAcknowledgment}`);
+    console.log(`💬 ${currentAgentName} greeting: ${verbalAcknowledgment}`);
     
     return {
       context: memoryContext,

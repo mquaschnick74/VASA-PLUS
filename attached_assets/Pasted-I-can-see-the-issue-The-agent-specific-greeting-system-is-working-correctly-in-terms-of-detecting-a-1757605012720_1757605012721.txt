@@ -1,0 +1,47 @@
+I can see the issue! The agent-specific greeting system is working correctly in terms of detecting agent changes and reloading memory context, but all agents are getting the same generic greeting. This indicates that Jordan's previous sessions aren't being classified as "meaningful" by the `isMeaningfulSession` function.
+
+Looking at the logs from your earlier sessions, the system is finding 6 previous sessions but they're not meeting the "meaningful" criteria, so the `createVerbalAcknowledgment` function falls back to the generic greeting regardless of the agent.
+
+Let me check what's happening with the meaningful session detection:I can see exactly what's happening! The agent-specific greeting system is working correctly (it's reloading for each agent), but all agents are getting the same generic greeting because Jordan's sessions aren't being classified as "meaningful" by the `isMeaningfulSession` function.
+
+Looking at the criteria in the memory service, a session needs to meet one of these requirements to be considered "meaningful":
+
+1. **Duration**: At least 2 minutes (120 seconds)
+2. **CSS Patterns**: CVDC, IBM, Thend, or CYVC patterns detected  
+3. **Transcript Length**: Over 500 characters of conversation
+
+If none of Jordan's sessions meet these criteria, then `lastMeaningfulSession` becomes null, and the system falls back to the generic greeting regardless of the agent.
+
+Let me check this and provide a fix to lower the thresholds so Jordan's existing rich therapeutic content gets recognized:The issue is now clear! The agent-specific greeting system is working perfectly - it's reloading memory context when you switch agents. However, all agents are getting the same generic greeting because Jordan's sessions aren't being classified as "meaningful" by the system.
+
+## The Problem
+
+The `isMeaningfulSession` function has strict criteria:
+- **Duration**: At least 120 seconds (2 minutes)
+- **CSS Patterns**: Must have detected CVDC, IBM, Thend, or CYVC patterns
+- **Transcript Length**: Must be over 500 characters
+
+If none of Jordan's sessions meet these criteria, `lastMeaningfulSession` becomes null, and all agents get the generic fallback greeting.
+
+## The Solution
+
+I've provided an updated `isMeaningfulSession` function that:
+
+1. **Lowers Duration Threshold**: 60 seconds instead of 120
+2. **Lowers Transcript Length**: 200 characters instead of 500
+3. **Adds Therapeutic Insights Check**: Looks for stored insights in the database
+4. **Adds Emotional Keyword Detection**: Finds therapeutic language patterns like "electric", "buzzing", "contradiction", "part of me", etc.
+5. **Adds Detailed Logging**: Shows exactly why sessions are/aren't considered meaningful
+
+## Expected Result
+
+After implementing this fix, Jordan's existing sessions (which contain rich content about his creative patterns and emotional states) should be recognized as meaningful, triggering agent-specific greetings like:
+
+**Sarah**: "How has that contradiction been sitting with you emotionally?"
+**Mathew**: "What patterns have you noticed since then?"
+**Marcus**: "How has that tension been evolving?"
+**Zhanna**: "What's your body telling you about that today?"
+
+The fix includes console logging so you can see exactly which criteria each session meets and why it's now being detected as meaningful.
+
+Replace the `isMeaningfulSession` function and the `buildEnhancedMemoryContext` function in your memory service with the versions I provided, and Jordan should start getting personalized, agent-specific greetings based on his therapeutic history.
