@@ -227,7 +227,7 @@ export async function buildEnhancedMemoryContext(
   try {
     console.log(`🧠 Building enhanced memory context for user ${userId}`);
 
-    // First try to get sessions from therapeutic_sessions table
+    // Fetch recent sessions
     const { data: sessions, error: sessionsError } = await supabase
       .from('therapeutic_sessions')
       .select('*')
@@ -237,74 +237,32 @@ export async function buildEnhancedMemoryContext(
 
     if (sessionsError) {
       console.error('Error fetching sessions:', sessionsError);
+      return {
+        context: 'Unable to retrieve previous session data.',
+        verbalAcknowledgment: `Hello ${firstName}, welcome to your session.`
+      };
     }
 
-    // If no sessions found in therapeutic_sessions, check session_transcripts directly
-    let sessionCallIds: string[] = [];
-    let sessionData: any[] = [];
-    
     if (!sessions || sessions.length === 0) {
-      // Fallback to session_transcripts to find sessions
-      const { data: transcripts } = await supabase
-        .from('session_transcripts')
-        .select('call_id, timestamp')
-        .eq('user_id', userId)
-        .eq('role', 'complete')
-        .order('timestamp', { ascending: false })
-        .limit(5);
-      
-      if (transcripts && transcripts.length > 0) {
-        // Create synthetic session data from transcripts
-        sessionData = transcripts.map(t => ({
-          id: t.call_id,
-          call_id: t.call_id,
-          user_id: userId,
-          created_at: t.timestamp,
-          duration_seconds: 0, // Unknown from transcript alone
-          agent_name: 'Unknown'
-        }));
-        console.log(`📚 Found ${transcripts.length} sessions from transcripts for ${firstName}`);
-      } else {
-        return {
-          context: 'First session with this user.',
-          verbalAcknowledgment: `Hello ${firstName}, welcome to your first session. What brings you here today?`
-        };
-      }
-    } else {
-      sessionData = sessions;
+      return {
+        context: 'First session with this user.',
+        verbalAcknowledgment: `Hello ${firstName}, welcome to your first session. What brings you here today?`
+      };
     }
 
     // Process sessions and determine meaningfulness
     const processedSessions: SessionSummary[] = [];
 
-    for (const session of sessionData) {
-      // Fetch transcript for this session - handle multiple records
-      console.log(`📖 Fetching transcript for call_id: ${session.call_id}`);
-      const { data: transcriptData, error: transcriptError } = await supabase
+    for (const session of sessions) {
+      // Fetch transcript for this session
+      const { data: transcriptData } = await supabase
         .from('session_transcripts')
         .select('text')
         .eq('call_id', session.call_id)
         .eq('role', 'complete')
-        .limit(1);  // Get first one if multiple exist
+        .single();
       
-      if (transcriptError) {
-        console.log(`⚠️ Error fetching transcript for ${session.call_id}:`, transcriptError.message);
-      }
-      
-      // Handle array or single result
-      let transcript = '';
-      if (transcriptData && transcriptData.length > 0) {
-        transcript = transcriptData[0].text || '';
-        console.log(`✅ Found transcript with ${transcript.length} characters`);
-        // Log a preview of the transcript for debugging
-        if (transcript.length > 0) {
-          const preview = transcript.substring(0, 100).replace(/\n/g, ' ');
-          console.log(`📝 Transcript preview: ${preview}...`);
-        }
-      } else {
-        console.log(`❌ No transcript found for call_id: ${session.call_id}`);
-      }
-      
+      const transcript = transcriptData?.text || '';
       const patterns = detectCSSPatterns(transcript, false);
       const meaningful = isMeaningfulSession(session, patterns);
 
@@ -341,7 +299,7 @@ export async function buildEnhancedMemoryContext(
 
     // Session count and basic info
     const meaningfulCount = processedSessions.filter(s => s.isMeaningful).length;
-    memoryContext += `PREVIOUS SESSIONS: ${sessionData.length} total (${meaningfulCount} therapeutically meaningful)\n`;
+    memoryContext += `PREVIOUS SESSIONS: ${sessions.length} total (${meaningfulCount} therapeutically meaningful)\n`;
 
     // Most recent meaningful session details
     if (lastMeaningfulSession) {
