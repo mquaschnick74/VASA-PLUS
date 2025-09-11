@@ -250,6 +250,12 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
               enhancedPrompt += '\n===== END PATTERNS =====\n';
               enhancedPrompt += 'IMPORTANT: Address these patterns gently and naturally.';
 
+              // Only inject guidance if session is still active
+              if (!isSessionActive) {
+                console.log('⚠️ Session ended, skipping pattern guidance injection');
+                return;
+              }
+
               try {
                 // Update assistant with pattern awareness
                 await vapi.setAssistant({
