@@ -15,9 +15,11 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
 }) => {
   return (
     <div className="agent-selector">
-      <div className="flex items-center justify-center gap-2 mb-6">
-        <h3 className="text-lg sm:text-xl font-semibold text-foreground">Choose Your Guide</h3>
-        <AIDisclosureCard />
+      <div className="flex flex-col items-start gap-3 mb-4">
+        <div className="flex items-center gap-2 w-full">
+          <h3 className="text-base font-semibold text-foreground">Choose Your Guide</h3>
+          <AIDisclosureCard />
+        </div>
       </div>
       <div className="agent-grid">
         {THERAPEUTIC_AGENTS.map(agent => (

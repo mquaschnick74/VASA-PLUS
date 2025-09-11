@@ -130,11 +130,11 @@
   }
 
   .agent-grid {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4;
+    @apply flex flex-col gap-3;
   }
 
   .agent-card {
-    @apply glass rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-all duration-300 hover:glass-strong transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-left;
+    @apply glass rounded-xl p-3 transition-all duration-300 hover:glass-strong transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-left w-full;
   }
 
   .agent-card.selected {
@@ -146,15 +146,15 @@
   }
 
   .agent-icon {
-    @apply text-3xl sm:text-4xl mb-2 sm:mb-3;
+    @apply text-2xl mb-2;
   }
 
   .agent-name {
-    @apply text-base sm:text-lg font-semibold mb-1 sm:mb-2 text-foreground;
+    @apply text-sm font-semibold mb-1 text-foreground;
   }
 
   .agent-description {
-    @apply text-xs sm:text-sm text-muted-foreground leading-relaxed;
+    @apply text-xs text-muted-foreground leading-relaxed;
   }
 
   /* Color variants for different agents */
