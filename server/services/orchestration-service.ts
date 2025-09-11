@@ -11,7 +11,7 @@ interface SessionState {
   currentCSSStage: string;
   sessionStartTime: Date;
   processedTranscripts: Set<string>; // Track processed transcript hashes
-}
+} 
 
 // Two-tier cache system
 const activeSessions = new Map<string, SessionState>();
