@@ -277,16 +277,34 @@ export async function buildEnhancedMemoryContext(
     // Process sessions and determine meaningfulness
     const processedSessions: SessionSummary[] = [];
 
-    for (const session of sessions) {
-      // Fetch transcript for this session
-      const { data: transcriptData } = await supabase
+    for (const session of sessionData) {
+      // Fetch transcript for this session - handle multiple records
+      console.log(`📖 Fetching transcript for call_id: ${session.call_id}`);
+      const { data: transcriptData, error: transcriptError } = await supabase
         .from('session_transcripts')
         .select('text')
         .eq('call_id', session.call_id)
         .eq('role', 'complete')
-        .single();
+        .limit(1);  // Get first one if multiple exist
       
-      const transcript = transcriptData?.text || '';
+      if (transcriptError) {
+        console.log(`⚠️ Error fetching transcript for ${session.call_id}:`, transcriptError.message);
+      }
+      
+      // Handle array or single result
+      let transcript = '';
+      if (transcriptData && transcriptData.length > 0) {
+        transcript = transcriptData[0].text || '';
+        console.log(`✅ Found transcript with ${transcript.length} characters`);
+        // Log a preview of the transcript for debugging
+        if (transcript.length > 0) {
+          const preview = transcript.substring(0, 100).replace(/\n/g, ' ');
+          console.log(`📝 Transcript preview: ${preview}...`);
+        }
+      } else {
+        console.log(`❌ No transcript found for call_id: ${session.call_id}`);
+      }
+      
       const patterns = detectCSSPatterns(transcript, false);
       const meaningful = isMeaningfulSession(session, patterns);
 
@@ -323,7 +341,7 @@ export async function buildEnhancedMemoryContext(
 
     // Session count and basic info
     const meaningfulCount = processedSessions.filter(s => s.isMeaningful).length;
-    memoryContext += `PREVIOUS SESSIONS: ${sessions.length} total (${meaningfulCount} therapeutically meaningful)\n`;
+    memoryContext += `PREVIOUS SESSIONS: ${sessionData.length} total (${meaningfulCount} therapeutically meaningful)\n`;
 
     // Most recent meaningful session details
     if (lastMeaningfulSession) {
