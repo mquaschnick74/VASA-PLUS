@@ -1,20 +1,12 @@
-// Enhanced CSS Pattern Detection Service - Streamlined Version
-// Adds intensity scoring and safety detection without complexity explosion
+// CSS (Conversational State Sensing) Pattern Detection Service
+// Analyzes therapeutic conversations for stage progression indicators
 
 export interface CSSPatterns {
-  cvdcPatterns: PatternMatch[];
-  ibmPatterns: PatternMatch[];
-  thendIndicators: PatternMatch[];
-  cyvcPatterns: PatternMatch[];
+  cvdcPatterns: string[];
+  ibmPatterns: string[];
+  thendIndicators: string[];
+  cyvcPatterns: string[];
   currentStage: CSSStage;
-  hasWarningFlags: boolean;
-  emotionalIntensity: 'low' | 'medium' | 'high' | 'critical';
-}
-
-export interface PatternMatch {
-  text: string;
-  intensity: 'low' | 'medium' | 'high';
-  hasWarningFlag: boolean;
 }
 
 export type CSSStage = 
@@ -25,34 +17,8 @@ export type CSSStage =
   | 'completion'
   | 'terminal';
 
-// Safety warning patterns - CRITICAL
-const WARNING_PATTERNS = [
-  /kill myself/gi,
-  /end it all/gi,
-  /not worth living/gi,
-  /better off dead/gi,
-  /want to die/gi,
-  /can't go on/gi,
-  /no point in living/gi,
-  /hurt myself/gi,
-  /self.?harm/gi,
-  /suicid/gi
-];
-
-// Intensity boosters (check within 50 chars of pattern)
-const INTENSITY_BOOSTERS = [
-  'really', 'totally', 'completely', 'absolutely', 'desperate',
-  'need', 'must', 'have to', 'can\'t stand', 'killing me',
-  'so much', 'extremely', 'unbearable', 'overwhelming'
-];
-
-// Intensity diminishers (check within 50 chars of pattern)
-const INTENSITY_DIMINISHERS = [
-  'maybe', 'kind of', 'sort of', 'a little', 'somewhat',
-  'might', 'possibly', 'probably', 'sometimes', 'occasionally'
-];
-
-// CVDC patterns with simplified intensity
+// CVDC (Contradiction/Value Dissonance Clarification) patterns
+// Made more flexible - punctuation now optional
 const CVDC_PATTERNS = [
   /I want[^.!?]*but[^.!?]*/gi,
   /part of me[^.!?]*while another part[^.!?]*/gi,
@@ -62,24 +28,11 @@ const CVDC_PATTERNS = [
   /I should[^.!?]*but[^.!?]*/gi,
   /on one hand[^.!?]*on the other hand/gi,
   /I believe[^.!?]*yet[^.!?]*/gi,
-  /I think[^.!?]*but[^.!?]*/gi,
-  /torn between/gi,
-
-  // Self-worth patterns (Frank's patterns)
-  /sorry(?:\s+I'm|\s+if|\s+for)?/gi,
-  /I'm sorry/gi,
-  /apologize/gi,
-  /my fault/gi,
-  /I'm bothering/gi,
-  /taking up (your )?space/gi,
-  /wasting (your )?time/gi,
-  /I'm useless/gi,
-  /I'm worthless/gi,
-  /I don't deserve/gi,
-  /I'm a burden/gi
+  /I think[^.!?]*but[^.!?]*/gi
 ];
 
-// IBM patterns
+// IBM (Incoherent Behavioral Manifestation) patterns
+// Removed strict punctuation requirement
 const IBM_PATTERNS = [
   /I should[^.!?]*but I don't/gi,
   /I need to[^.!?]*but I can't/gi,
@@ -90,22 +43,13 @@ const IBM_PATTERNS = [
   /I tell myself[^.!?]*but then/gi,
   /I plan to[^.!?]*but/gi,
   /I always[^.!?]*even when/gi,
-  /out of control[^.!?]*unable to/gi,
+  /out of control[^.!?]*unable to/gi, // Added pattern for Sept 7 match
   /can't[^.!?]*even though I want/gi,
-  /unable to[^.!?]*despite/gi,
-
-  // Executive dysfunction patterns
-  /can't make myself/gi,
-  /can't focus/gi,
-  /can't do anything/gi,
-  /haven't showered/gi,
-  /apartment'?s a mess/gi,
-  /room'?s a mess/gi,
-  /no energy/gi,
-  /exhausted but can't sleep/gi
+  /unable to[^.!?]*despite/gi
 ];
 
-// Thend patterns
+// Thend (Integration/Both-And) indicators
+// More flexible patterns for integration moments
 const THEND_PATTERNS = [
   /I realize both/gi,
   /maybe they're both/gi,
@@ -117,17 +61,14 @@ const THEND_PATTERNS = [
   /both sides[^.!?]*make sense/gi,
   /I can hold both/gi,
   /there's truth in both/gi,
-  /I'm recognizing/gi,
+  /I'm recognizing/gi,  // Added for Sept 8 conversation
   /I realize now/gi,
   /I'm doing better at/gi,
   /I see how/gi,
-  /starting to see/gi,
-  /something'?s? shift/gi,
-  /feels different now/gi,
-  /a bit better/gi
+  /starting to see/gi
 ];
 
-// CYVC patterns
+// CYVC (Contextual Yield/Variation Choice) patterns
 const CYVC_PATTERNS = [
   /sometimes I[^.!?]*other times I/gi,
   /it depends on/gi,
@@ -139,384 +80,175 @@ const CYVC_PATTERNS = [
   /I switch between[^.!?]*when/gi,
   /I'm flexible about/gi,
   /I calibrate[^.!?]*based on/gi,
-  /don't get as[^.!?]*anymore/gi
+  /don't get as[^.!?]*anymore/gi  // Pattern for reduced reactivity
 ];
 
-// Somatic/distress patterns that suggest need for Zhanna
-const SOMATIC_PATTERNS = [
-  // Anxiety patterns
-  /anxious/gi,
-  /anxiety/gi,
-  /nervous/gi,
-  /worried/gi,
-  /stress(ed|ing)/gi,
-  /overwhelm(ed|ing)/gi,
-  
-  // Body escape/dissociation
-  /jump out of (my )?body/gi,
-  /leave (my )?body/gi,
-  /escape (my )?body/gi,
-  /out of (my )?body/gi,
-  /can't be in (my )?body/gi,
-  
-  // Physical sensations
-  /can't breathe/gi,
-  /chest (is |feels )?(tight|heavy)/gi,
-  /heart (is )?(racing|pounding|beating)/gi,
-  /feel(ing)? dizzy/gi,
-  /feel(ing)? unreal/gi,
-  /feel(ing)? disconnected/gi,
-  /feel(ing)? floating/gi,
-  /panic/gi,
-  /hyperventilat/gi,
-  /can't feel my body/gi,
-  /numb/gi,
-  /shaking/gi,
-  /trembling/gi,
-  /frozen/gi,
-  /stuck/gi,
-  /can't move/gi,
-  /overwhelming/gi,
-  /body feels/gi,
-  /breathing (is |feels )?(hard|difficult)/gi,
-  /short of breath/gi,
-  
-  // Movement impulses
-  /want to run/gi,
-  /need to escape/gi,
-  /want to flee/gi,
-  /feet (want|need)/gi,
-  /restless/gi,
-  /can't sit still/gi
+// Agent response markers to help separate user from agent statements
+const AGENT_MARKERS = [
+  /I notice/gi,
+  /I hear you saying/gi,
+  /It sounds like/gi,
+  /What I'm hearing/gi,
+  /Let me reflect/gi,
+  /I wonder if/gi,
+  /Can you tell me more/gi,
+  /How does that feel/gi,
+  /What's coming up for you/gi,
+  /I'm curious about/gi,
+  /Jordan,/gi,  // Agent often addresses user by name
+  /good to talk with you/gi,
+  /I've been thinking about/gi
 ];
 
-// Narrative-specific pattern detection
-const NARRATIVE_PATTERNS = {
-  STORY_CONTRADICTION: [
-    /one part of me (?:says|thinks|believes) (.+) but another (?:says|thinks|believes) (.+)/i,
-    /my story (?:says|tells) (.+) but (?:I|my) (.+)/i,
-    /I tell myself (.+) but (?:then I|I also) (.+)/i,
-    /part of my story (.+) while another part (.+)/i,
-    /the story I'm telling (.+) but (.+)/i
-  ],
-  NARRATIVE_GAP: [
-    /the story I tell (?:myself|others) (?:is|isn't) (.+)/i,
-    /(?:I|my) narrative (?:doesn't|does not) match (.+)/i,
-    /there's a gap between what I (?:say|tell) and (.+)/i,
-    /my story says (.+) but my (?:actions|behavior|body) (.+)/i,
-    /disconnect between my story and (.+)/i
-  ],
-  FRAGMENTED_STORY: [
-    /(?:I|my story) (?:doesn't|does not) make sense/i,
-    /(?:I|it) (?:feels|seems) (?:scattered|fragmented|broken)/i,
-    /can't (?:find|create|tell) (?:a|my) (?:coherent|clear) story/i,
-    /my narrative is (?:falling apart|broken|shattered)/i,
-    /lost the (?:thread|plot) of my (?:story|life)/i
-  ],
-  DEFENSIVE_NARRATIVE: [
-    /that's not (?:my|the) story/i,
-    /I'm not that (?:person|story)/i,
-    /it wasn't (?:my|the) (?:fault|story)/i,
-    /don't want that to be my story/i
-  ],
-  STUCK_NARRATIVE: [
-    /same (?:old )?story/i,
-    /stuck in (?:this|the) narrative/i,
-    /story never changes/i,
-    /always the same (?:ending|pattern|story)/i
-  ],
-  EMERGING_NARRATIVE: [
-    /new story (?:is )?(?:emerging|forming)/i,
-    /different narrative/i,
-    /story is (?:changing|shifting)/i,
-    /rewriting my (?:story|narrative)/i,
-    /becoming a different story/i
-  ]
-};
-
 /**
- * Check for safety warning flags
+ * Extracts likely user statements from a conversation transcript
+ * Now with debug logging and less aggressive filtering
  */
-function checkForWarnings(text: string): boolean {
-  return WARNING_PATTERNS.some(pattern => pattern.test(text));
-}
-
-/**
- * Simple intensity assessment based on context
- */
-function assessIntensity(text: string, matchStart: number): 'low' | 'medium' | 'high' {
-  // Get context window (50 chars before and after)
-  const contextStart = Math.max(0, matchStart - 50);
-  const contextEnd = Math.min(text.length, matchStart + 100);
-  const context = text.substring(contextStart, contextEnd).toLowerCase();
-
-  // Count boosters and diminishers
-  let boosterCount = 0;
-  let diminisherCount = 0;
-
-  for (const booster of INTENSITY_BOOSTERS) {
-    if (context.includes(booster)) boosterCount++;
-  }
-
-  for (const diminisher of INTENSITY_DIMINISHERS) {
-    if (context.includes(diminisher)) diminisherCount++;
-  }
-
-  // Simple intensity logic
-  if (boosterCount >= 2 || context.includes('desperate') || context.includes('unbearable')) {
-    return 'high';
-  }
-  if (diminisherCount >= 2) {
-    return 'low';
-  }
-  if (boosterCount > diminisherCount) {
-    return 'medium';
-  }
-
-  return 'low';
-}
-
-/**
- * Detect patterns with intensity and safety checks
- */
-function detectPatternCategory(
-  text: string, 
-  patterns: RegExp[], 
-  debug: boolean = false
-): PatternMatch[] {
-  const results: PatternMatch[] = [];
-  const seen = new Set<string>();
-
-  for (const pattern of patterns) {
-    const regex = new RegExp(pattern.source, pattern.flags);
-    let match;
-
-    while ((match = regex.exec(text)) !== null) {
-      const matchText = match[0].trim();
-      const normalizedText = matchText.toLowerCase();
-
-      // Skip duplicates
-      if (seen.has(normalizedText)) continue;
-      seen.add(normalizedText);
-
-      // Assess intensity and check for warnings
-      const intensity = assessIntensity(text, match.index);
-      const hasWarningFlag = checkForWarnings(matchText);
-
-      results.push({
-        text: matchText,
-        intensity,
-        hasWarningFlag
-      });
-
-      if (debug && hasWarningFlag) {
-        console.log(`⚠️ WARNING FLAG in pattern: "${matchText}"`);
-      }
-    }
-  }
-
-  return results;
-}
-
-/**
- * Main pattern detection with safety enhancements
- */
-/**
- * Calculate symbolic density of content
- */
-function calculateSymbolicDensity(content: string): number {
-  // Words that indicate high symbolic density
-  const symbolicMarkers = [
-    'always', 'never', 'everything', 'nothing', 'everyone',
-    'can\'t', 'must', 'should', 'have to', 'need to',
-    'die', 'kill', 'destroy', 'save', 'rescue',
-    'perfect', 'broken', 'ruined', 'forever', 'impossible'
-  ];
-  
-  let density = 0;
-  const words = content.toLowerCase().split(/\s+/);
-  
-  for (const marker of symbolicMarkers) {
-    if (words.includes(marker)) density += 2;
-  }
-  
-  return Math.min(density, 10);
-}
-
-/**
- * Determine temporal orientation of narrative
- */
-function determineTemporalOrientation(content: string): 'past' | 'present' | 'future' {
-  const pastMarkers = /(?:was|were|had|used to|before|ago|last|previous|remember|forgot)/i;
-  const futureMarkers = /(?:will|going to|gonna|soon|tomorrow|next|later|someday|eventually)/i;
-  
-  const pastCount = (content.match(pastMarkers) || []).length;
-  const futureCount = (content.match(futureMarkers) || []).length;
-  
-  if (pastCount > futureCount) return 'past';
-  if (futureCount > pastCount) return 'future';
-  return 'present';
-}
-
-/**
- * Calculate narrative fragmentation score
- */
-function calculateNarrativeFragmentation(transcript: string, debug: boolean = false): number {
-  let fragmentationScore = 0;
-  
-  // Check for story contradictions
-  for (const pattern of NARRATIVE_PATTERNS.STORY_CONTRADICTION) {
-    const matches = transcript.match(pattern);
-    if (matches) {
-      fragmentationScore += 3;
-      if (debug) console.log('📖 Story contradiction detected:', matches[0]);
-    }
-  }
-  
-  // Check for narrative gaps
-  for (const pattern of NARRATIVE_PATTERNS.NARRATIVE_GAP) {
-    const matches = transcript.match(pattern);
-    if (matches) {
-      fragmentationScore += 2;
-      if (debug) console.log('📖 Narrative gap detected:', matches[0]);
-    }
-  }
-  
-  // Check for fragmented stories
-  for (const pattern of NARRATIVE_PATTERNS.FRAGMENTED_STORY) {
-    const matches = transcript.match(pattern);
-    if (matches) {
-      fragmentationScore += 4;
-      if (debug) console.log('📖 Fragmented story detected:', matches[0]);
-    }
-  }
-  
-  // Check for defensive narratives
-  for (const pattern of NARRATIVE_PATTERNS.DEFENSIVE_NARRATIVE) {
-    if (pattern.test(transcript)) {
-      fragmentationScore += 1;
-    }
-  }
-  
-  // Check for stuck narratives
-  for (const pattern of NARRATIVE_PATTERNS.STUCK_NARRATIVE) {
-    if (pattern.test(transcript)) {
-      fragmentationScore += 2;
-    }
-  }
-  
-  // Emerging narratives reduce fragmentation
-  for (const pattern of NARRATIVE_PATTERNS.EMERGING_NARRATIVE) {
-    if (pattern.test(transcript)) {
-      fragmentationScore -= 2;
-    }
-  }
-  
-  // Cap between 0 and 10
-  return Math.max(0, Math.min(fragmentationScore, 10));
-}
-
-export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = false): CSSPatterns & { 
-  somaticPatterns?: PatternMatch[], 
-  distressLevel?: number,
-  narrativeFragmentation?: number,
-  symbolicDensity?: number,
-  temporalOrientation?: 'past' | 'present' | 'future'
-} {
+export function extractUserStatements(transcript: string, debug: boolean = false): string[] {
   if (!transcript || transcript.trim().length === 0) {
+    return [];
+  }
+
+  // For debugging - analyze the full transcript first
+  if (debug) {
+    console.log('📝 Raw transcript length:', transcript.length);
+    console.log('📝 First 200 chars:', transcript.substring(0, 200));
+  }
+
+  // Option 1: Return full transcript for analysis (less filtering)
+  // This ensures we don't miss patterns due to aggressive filtering
+  const USE_FULL_TRANSCRIPT = true;
+  
+  if (USE_FULL_TRANSCRIPT) {
+    if (debug) console.log('🔍 Using FULL transcript for pattern detection');
+    return [transcript];
+  }
+
+  // Option 2: Original filtering logic (kept for reference)
+  // Split into sentences and clean up
+  const sentences = transcript
+    .split(/[.!?]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 10);
+
+  if (debug) {
+    console.log(`📝 Split into ${sentences.length} sentences`);
+  }
+
+  const userStatements: string[] = [];
+
+  for (const sentence of sentences) {
+    // Skip if it's likely an agent response
+    const isAgentResponse = AGENT_MARKERS.some(marker => 
+      marker.test(sentence)
+    );
+
+    // Skip questions (likely agent) - but not all questions
+    const isQuestion = sentence.trim().endsWith('?') && !sentence.includes('I');
+
+    // Prefer statements starting with "I" (likely user)
+    const startsWithI = /^I\s/i.test(sentence.trim());
+
+    // Include if it seems like a user statement
+    if (!isAgentResponse && (!isQuestion || startsWithI)) {
+      userStatements.push(sentence.trim());
+      if (debug) console.log(`✅ User statement: "${sentence.substring(0, 50)}..."`);
+    } else if (debug) {
+      console.log(`❌ Filtered out: "${sentence.substring(0, 50)}..." (agent:${isAgentResponse}, question:${isQuestion})`);
+    }
+  }
+
+  if (debug) {
+    console.log(`📝 Extracted ${userStatements.length} user statements from ${sentences.length} sentences`);
+  }
+
+  return userStatements;
+}
+
+/**
+ * Detects CSS patterns in therapeutic conversation transcript
+ * Now with debug logging and improved detection
+ */
+export function detectCSSPatterns(transcript: string, debug: boolean = true): CSSPatterns {
+  if (!transcript || transcript.trim().length === 0) {
+    console.log('⚠️ Empty transcript provided to detectCSSPatterns');
     return {
       cvdcPatterns: [],
       ibmPatterns: [],
       thendIndicators: [],
       cyvcPatterns: [],
-      somaticPatterns: [],
-      currentStage: 'pointed_origin',
-      hasWarningFlags: false,
-      emotionalIntensity: 'low',
-      distressLevel: 0
+      currentStage: 'pointed_origin'
     };
   }
 
   if (debug) {
-    console.log('🔍 Enhanced CSS pattern detection starting');
-    console.log('📝 Analyzing text length:', transcript.length);
+    console.log('🔍 Starting CSS pattern detection');
+    console.log('📝 Transcript preview:', transcript.substring(0, 150) + '...');
   }
 
-  // Detect patterns with intensity
-  const cvdcPatterns = detectPatternCategory(transcript, CVDC_PATTERNS, debug);
-  const ibmPatterns = detectPatternCategory(transcript, IBM_PATTERNS, debug);
-  const thendIndicators = detectPatternCategory(transcript, THEND_PATTERNS, debug);
-  const cyvcPatterns = detectPatternCategory(transcript, CYVC_PATTERNS, debug);
-  const somaticPatterns = detectPatternCategory(transcript, SOMATIC_PATTERNS, debug);
+  // Extract user statements (or use full transcript)
+  const userStatements = extractUserStatements(transcript, debug);
+  const userText = userStatements.join(' ');
 
-  // Check for any warning flags or somatic distress
-  const hasWarningFlags = [
-    ...cvdcPatterns,
-    ...ibmPatterns,
-    ...thendIndicators,
-    ...cyvcPatterns,
-    ...somaticPatterns
-  ].some(p => p.hasWarningFlag);
+  if (debug) {
+    console.log('📝 Text to analyze length:', userText.length);
+  }
 
-  // Assess overall emotional intensity
-  const emotionalIntensity = assessOverallIntensity(
+  // Detect CVDC patterns (contradictions)
+  const cvdcPatterns: string[] = [];
+  for (const pattern of CVDC_PATTERNS) {
+    const matches = userText.match(pattern);
+    if (matches) {
+      cvdcPatterns.push(...matches.map(match => match.trim()));
+      if (debug) console.log(`✅ CVDC match: "${matches[0].substring(0, 50)}..."`);
+    }
+  }
+
+  // Detect IBM patterns (behavioral incoherence)
+  const ibmPatterns: string[] = [];
+  for (const pattern of IBM_PATTERNS) {
+    const matches = userText.match(pattern);
+    if (matches) {
+      ibmPatterns.push(...matches.map(match => match.trim()));
+      if (debug) console.log(`✅ IBM match: "${matches[0].substring(0, 50)}..."`);
+    }
+  }
+
+  // Detect Thend indicators (integration)
+  const thendIndicators: string[] = [];
+  for (const pattern of THEND_PATTERNS) {
+    const matches = userText.match(pattern);
+    if (matches) {
+      thendIndicators.push(...matches.map(match => match.trim()));
+      if (debug) console.log(`✅ Thend match: "${matches[0].substring(0, 50)}..."`);
+    }
+  }
+
+  // Detect CYVC patterns (contextual choice)
+  const cyvcPatterns: string[] = [];
+  for (const pattern of CYVC_PATTERNS) {
+    const matches = userText.match(pattern);
+    if (matches) {
+      cyvcPatterns.push(...matches.map(match => match.trim()));
+      if (debug) console.log(`✅ CYVC match: "${matches[0].substring(0, 50)}..."`);
+    }
+  }
+
+  // Determine current stage
+  const currentStage = identifyCurrentStage({
     cvdcPatterns,
     ibmPatterns,
     thendIndicators,
-    cyvcPatterns,
-    hasWarningFlags
-  );
-
-  // Determine current stage (unchanged logic)
-  const currentStage = identifyCurrentStage({
-    cvdcPatterns: cvdcPatterns.map(p => p.text),
-    ibmPatterns: ibmPatterns.map(p => p.text),
-    thendIndicators: thendIndicators.map(p => p.text),
-    cyvcPatterns: cyvcPatterns.map(p => p.text)
+    cyvcPatterns
   });
 
-  // Calculate distress level based on somatic patterns and intensity
-  let distressLevel = 0;
-  if (somaticPatterns.length > 0) {
-    const highSomatic = somaticPatterns.filter(p => p.intensity === 'high').length;
-    const medSomatic = somaticPatterns.filter(p => p.intensity === 'medium').length;
-    
-    if (highSomatic >= 2) distressLevel = 8;
-    else if (highSomatic >= 1) distressLevel = 7;
-    else if (medSomatic >= 2) distressLevel = 6;
-    else if (medSomatic >= 1) distressLevel = 5;
-    else distressLevel = 4;
-  }
-  
-  // Adjust for warning flags
-  if (hasWarningFlags) {
-    distressLevel = Math.max(distressLevel, 7);
-  }
-  
-  // Calculate narrative metrics
-  const narrativeFragmentation = calculateNarrativeFragmentation(transcript, debug);
-  const symbolicDensity = calculateSymbolicDensity(transcript);
-  const temporalOrientation = determineTemporalOrientation(transcript);
-  
-  // Adjust distress based on narrative fragmentation
-  if (narrativeFragmentation >= 8) {
-    distressLevel = Math.max(distressLevel, 7);
-  }
-
   if (debug) {
-    console.log('📊 Enhanced Pattern Detection Summary:');
-    console.log(`  - CVDC: ${cvdcPatterns.length} patterns`);
-    console.log(`  - IBM: ${ibmPatterns.length} patterns`);
-    console.log(`  - Thend: ${thendIndicators.length} patterns`);
-    console.log(`  - CYVC: ${cyvcPatterns.length} patterns`);
-    console.log(`  - Somatic: ${somaticPatterns.length} patterns`);
-    console.log(`  - Stage: ${currentStage}`);
-    console.log(`  - Emotional Intensity: ${emotionalIntensity}`);
-    console.log(`  - Distress Level: ${distressLevel}`);
-    console.log(`  - Narrative Fragmentation: ${narrativeFragmentation}`);
-    console.log(`  - Symbolic Density: ${symbolicDensity}`);
-    console.log(`  - Temporal Orientation: ${temporalOrientation}`);
-    console.log(`  - Warning Flags: ${hasWarningFlags}`);
+    console.log('📊 Pattern Detection Summary:');
+    console.log(`  - CVDC patterns: ${cvdcPatterns.length}`);
+    console.log(`  - IBM patterns: ${ibmPatterns.length}`);
+    console.log(`  - Thend indicators: ${thendIndicators.length}`);
+    console.log(`  - CYVC patterns: ${cyvcPatterns.length}`);
+    console.log(`  - Detected stage: ${currentStage}`);
   }
 
   return {
@@ -524,80 +256,53 @@ export function detectEnhancedCSSPatterns(transcript: string, debug: boolean = f
     ibmPatterns,
     thendIndicators,
     cyvcPatterns,
-    somaticPatterns,
-    currentStage,
-    hasWarningFlags,
-    emotionalIntensity,
-    distressLevel,
-    narrativeFragmentation,
-    symbolicDensity,
-    temporalOrientation
+    currentStage
   };
 }
 
 /**
- * Simple overall intensity assessment
+ * Identifies the most likely CSS stage based on detected patterns
+ * Enhanced logic for better stage detection
  */
-function assessOverallIntensity(
-  cvdc: PatternMatch[],
-  ibm: PatternMatch[],
-  thend: PatternMatch[],
-  cyvc: PatternMatch[],
-  hasWarnings: boolean
-): 'low' | 'medium' | 'high' | 'critical' {
-  // Critical if any warnings
-  if (hasWarnings) return 'critical';
-
-  // Count high intensity patterns
-  const allPatterns = [...cvdc, ...ibm, ...thend, ...cyvc];
-  const highIntensityCount = allPatterns.filter(p => p.intensity === 'high').length;
-  const mediumIntensityCount = allPatterns.filter(p => p.intensity === 'medium').length;
-
-  // Simple thresholds
-  if (highIntensityCount >= 3) return 'high';
-  if (highIntensityCount >= 1 || mediumIntensityCount >= 3) return 'medium';
-
-  return 'low';
-}
-
-/**
- * Original stage identification (preserved)
- */
-export function identifyCurrentStage(patterns: {
-  cvdcPatterns: string[];
-  ibmPatterns: string[];
-  thendIndicators: string[];
-  cyvcPatterns: string[];
-}): CSSStage {
+export function identifyCurrentStage(patterns: Omit<CSSPatterns, 'currentStage'>): CSSStage {
   const { cvdcPatterns, ibmPatterns, thendIndicators, cyvcPatterns } = patterns;
 
+  // Count pattern occurrences
   const cvdcCount = cvdcPatterns.length;
   const ibmCount = ibmPatterns.length;
   const thendCount = thendIndicators.length;
   const cyvcCount = cyvcPatterns.length;
 
-  // Terminal: Shows both integration and contextual choice
+  console.log(`🎯 Stage identification: CVDC=${cvdcCount}, IBM=${ibmCount}, Thend=${thendCount}, CYVC=${cyvcCount}`);
+
+  // Stage identification logic - ordered by progression
   if (cyvcCount > 0 && thendCount > 0) {
+    // Terminal: Shows both integration and contextual choice
     return 'terminal';
   }
 
-  // Completion: User shows contextual choice/variation
   if (cyvcCount > 0) {
+    // Completion: User shows contextual choice/variation
     return 'completion';
   }
 
-  // Gesture toward: Integration WITH awareness of contradictions
   if (thendCount > 0 && (cvdcCount > 0 || ibmCount > 0)) {
+    // Gesture toward: Integration WITH awareness of contradictions
     return 'gesture_toward';
   }
 
-  // Suspension: Multiple contradictions or integration starting
-  if (thendCount > 0 || (cvdcCount >= 2 || ibmCount >= 2)) {
+  if (thendCount > 0) {
+    // Suspension to Gesture toward: Pure integration moments
     return 'suspension';
   }
 
-  // Focus bind: Clear contradiction or behavioral gap identified
+  if (cvdcCount >= 2 || ibmCount >= 2) {
+    // Suspension: Multiple contradictions held
+    return 'suspension';
+  }
+
   if (cvdcCount >= 1 || ibmCount >= 1) {
+    // Focus bind: Clear contradiction identified
     return 'focus_bind';
   }
 
@@ -606,7 +311,7 @@ export function identifyCurrentStage(patterns: {
 }
 
 /**
- * Enhanced confidence assessment with intensity consideration
+ * Analyzes pattern progression and confidence scoring
  */
 export function assessPatternConfidence(patterns: CSSPatterns): {
   confidence: number;
@@ -617,89 +322,36 @@ export function assessPatternConfidence(patterns: CSSPatterns): {
                        patterns.thendIndicators.length + 
                        patterns.cyvcPatterns.length;
 
-  // Boost confidence for high intensity or warnings
-  let confidenceBoost = 0;
-  if (patterns.hasWarningFlags) confidenceBoost = 0.3;
-  else if (patterns.emotionalIntensity === 'high') confidenceBoost = 0.2;
-  else if (patterns.emotionalIntensity === 'medium') confidenceBoost = 0.1;
-
   if (totalPatterns === 0) {
     return {
       confidence: 0.3,
-      reasoning: 'No clear CSS patterns detected'
+      reasoning: 'No clear CSS patterns detected in transcript'
     };
   }
 
-  if (patterns.hasWarningFlags) {
+  if (totalPatterns >= 5) {
     return {
       confidence: 0.95,
-      reasoning: 'Critical safety concerns detected - immediate attention needed'
+      reasoning: `Very strong evidence with ${totalPatterns} pattern matches`
     };
   }
 
-  const baseConfidence = Math.min(0.95, 0.3 + (totalPatterns * 0.15));
-  const finalConfidence = Math.min(0.95, baseConfidence + confidenceBoost);
-
-  let reasoning = `${totalPatterns} patterns detected`;
-  if (patterns.emotionalIntensity !== 'low') {
-    reasoning += ` with ${patterns.emotionalIntensity} emotional intensity`;
-  }
-
-  return {
-    confidence: finalConfidence,
-    reasoning
-  };
-}
-
-/**
- * Check if safe to switch agents
- */
-export function isSafeToSwitch(patterns: CSSPatterns): boolean {
-  // Never switch during crisis
-  if (patterns.hasWarningFlags || patterns.emotionalIntensity === 'critical') {
-    return false;
-  }
-
-  // Avoid switching during high emotional intensity unless necessary
-  if (patterns.emotionalIntensity === 'high') {
-    // Could still switch if there's a strong pattern mismatch
-    // but generally avoid
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Get therapeutic recommendations based on patterns
- */
-export function getTherapeuticPriority(patterns: CSSPatterns): {
-  priority: 'immediate' | 'high' | 'medium' | 'low';
-  recommendation: string;
-} {
-  if (patterns.hasWarningFlags) {
+  if (totalPatterns >= 3) {
     return {
-      priority: 'immediate',
-      recommendation: 'Crisis intervention needed - activate safety protocols'
+      confidence: 0.85,
+      reasoning: `Strong evidence with ${totalPatterns} pattern matches`
     };
   }
 
-  if (patterns.emotionalIntensity === 'high') {
+  if (totalPatterns >= 2) {
     return {
-      priority: 'high',
-      recommendation: 'High emotional activation - provide grounding and stabilization'
-    };
-  }
-
-  if (patterns.emotionalIntensity === 'medium' && patterns.currentStage === 'suspension') {
-    return {
-      priority: 'medium',
-      recommendation: 'Hold space for contradictions without rushing to resolve'
+      confidence: 0.7,
+      reasoning: `Moderate evidence with ${totalPatterns} pattern matches`
     };
   }
 
   return {
-    priority: 'low',
-    recommendation: 'Continue current therapeutic approach'
+    confidence: 0.5,
+    reasoning: `Limited evidence with ${totalPatterns} pattern match`
   };
 }

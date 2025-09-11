@@ -1,7 +1,7 @@
 # VASA MVP - File Structure
 
 ## Overview
-AI-powered therapeutic voice assistant with invisible agent orchestration, real-time CSS pattern detection, persistent memory, narrative primacy integration (v5), and mobile-responsive glassmorphic UI.
+AI-powered therapeutic voice assistant with real-time CSS pattern detection, natural voice agents (v3), persistent memory, and mobile-responsive glassmorphic UI.
 
 ## Directory Structure
 
@@ -12,14 +12,14 @@ AI-powered therapeutic voice assistant with invisible agent orchestration, real-
 │       ├── components/
 │       │   ├── ui/                  # 47 shadcn/ui components
 │       │   ├── voice-interface.tsx  # Main voice UI with controls
-│       │   ├── AgentSelector.tsx    # Multi-agent selection UI
+│       │   ├── AgentSelector.tsx    # Multi-agent selection
 │       │   ├── authentication.tsx   # Email auth flow
 │       │   ├── DeleteAccount.tsx    # Account deletion
-│       │   └── AIDisclosureCard.tsx # AI limitations dropdown
+│       │   └── AIDisclosureCard.tsx # AI limitations dropdown (NEW)
 │       ├── config/
-│       │   └── agent-configs.ts     # Sarah/Mathew/Marcus/Zhanna agents v5
+│       │   └── agent-configs.ts     # Agent v3: speak/meta separation
 │       ├── hooks/
-│       │   ├── use-vapi.ts         # VAPI + invisible orchestration
+│       │   ├── use-vapi.ts         # VAPI WebSocket management
 │       │   ├── use-toast.ts        # Notification system
 │       │   └── use-mobile.tsx      # Responsive detection
 │       ├── lib/
@@ -30,59 +30,48 @@ AI-powered therapeutic voice assistant with invisible agent orchestration, real-
 │       │   └── not-found.tsx       # 404 page
 │       ├── App.tsx                 # Root component
 │       └── index.css               # Tailwind + glassmorphic styles
-
+│
 ├── server/                          # Express backend
 │   ├── routes/
 │   │   ├── auth-routes.ts          # User auth & context
-│   │   └── webhook-routes.ts       # VAPI webhook + orchestration
+│   │   └── webhook-routes.ts       # VAPI webhook handler
 │   ├── services/
-│   │   ├── orchestration-service.ts # Invisible agent switching + narrative
-│   │   ├── css-pattern-service.ts   # CSS stage + narrative detection
-│   │   ├── memory-service.ts        # Context persistence + narrative framing
-│   │   ├── distress-detection-service.ts # HSFB integration + crisis detection
-│   │   ├── user-service.ts          # User management + cascade deletion
+│   │   ├── orchestration-service.ts # Session management + meta parsing
+│   │   ├── css-pattern-service.ts   # CSS stage detection
+│   │   ├── memory-service.ts        # Context persistence
+│   │   ├── auth-service.ts          # User authentication
 │   │   └── supabase-service.ts      # Database client
 │   ├── utils/
-│   │   └── parseAssistantOutput.ts  # Speak/meta tag parser
+│   │   └── parseAssistantOutput.ts  # Speak/meta tag parser (NEW)
 │   ├── index.ts                     # Server entry
 │   ├── routes.ts                    # Route registration
 │   ├── storage.ts                   # Storage interfaces
 │   └── vite.ts                      # Frontend serving
-
+│
 ├── shared/
-│   ├── schema.ts                    # Drizzle ORM schemas
-│   └── narrative.ts                 # Narrative phase determination
-
+│   └── schema.ts                    # Drizzle ORM schemas
+│
 ├── drizzle/
 │   └── migrations/                  # Database migrations
-
+│
 └── attached_assets/                 # User uploads
+
 ```
 
 ## Key Components
 
 ### Frontend Features
 - **Voice Interface** - Real-time call controls, status display
-- **Agent Selector** - Initial agent choice (Sarah/Mathew/Marcus/Zhanna)
-- **Invisible Orchestration** - Silent methodology switching via `use-vapi.ts`
+- **Agent Selector** - Sarah (emotional) & Mathew (analytical)
 - **AI Disclosure** - Red alert dropdown with limitations & crisis info
 - **Mobile Responsive** - Full mobile optimization with scaling UI
-- **Narrative Phase Awareness** - Journey phase injection (building/deepening/integrating)
 
 ### Backend Services
 
-**Orchestration System:**
-- `orchestration-service.ts` - Pattern analysis, agent suggestions, session management, narrative metrics
-- Silent methodology switching based on conversation patterns and narrative state
-- Adaptive polling (3-15 seconds) based on pattern activity
-- 30-second cooldowns between suggestions
-- Narrative fragmentation and symbolic density tracking
-
 **Core Services:**
-- `css-pattern-service.ts` - CVDC/IBM/Thend/CYVC detection + narrative patterns
-- `memory-service.ts` - Context building, therapeutic insights, narrative continuity
-- `distress-detection-service.ts` - HSFB protocols, emotional state assessment, crisis detection
-- `user-service.ts` - User account management, cascading data deletion
+- `orchestration-service.ts` - Session state, transcript processing, metadata extraction
+- `css-pattern-service.ts` - CVDC/IBM/Thend/CYVC detection with flexible regex
+- `memory-service.ts` - Context building, therapeutic insights
 - `parseAssistantOutput.ts` - Separates `<speak>` from `<meta>` tags
 
 **Session Management:**
@@ -90,27 +79,20 @@ AI-powered therapeutic voice assistant with invisible agent orchestration, real-
 - Race condition protection with Promise locks
 - 30-minute auto-cleanup for stale sessions
 - Duplicate transcript prevention with hash tracking
-- Narrative metrics storage (fragmentation, symbolic density, temporal orientation)
 
 ### Database Schema
 
 ```sql
 users                    # User profiles with email
 therapeutic_sessions     # Voice session metadata
-therapeutic_context      # Persistent memory + switch records + narrative markers
-session_transcripts      # Full conversations (end-of-call)
-css_patterns            # Detected patterns + narrative metrics
+therapeutic_context      # Persistent memory/insights
+session_transcripts      # Full conversations (end-of-call only)
+css_patterns            # Detected patterns + metadata
 ```
 
-## Agent System v5
+## Agent System v3
 
-### Four Therapeutic Methodologies
-- **Sarah** - Emotional support, feeling-first (contradictions, narrative fragmentation)
-- **Mathew** - Analytical patterns (behavioral gaps, stuck temporal patterns)
-- **Marcus** - Integration & meta-awareness (synthesis, symbolic exploration)
-- **Zhanna** - Somatic awareness & crisis (HSFB protocols, high distress/fragmentation)
-
-### Natural Voice Configuration with Narrative Primacy
+### Natural Voice Configuration
 ```typescript
 <speak>
 Natural conversation without tracking phrases
@@ -122,11 +104,6 @@ Natural conversation without tracking phrases
     "stage": "CVDC|SUSPENSION|THEND|CYVC",
     "confidence": 0.0-1.0
   },
-  "narrative": {
-    "fragmentation": 0-10,
-    "symbolicDensity": 0-10,
-    "temporalOrientation": "present|past|future|stuck_past|emerging_future"
-  },
   "safety": {
     "flag": boolean,
     "crisis": boolean
@@ -135,63 +112,38 @@ Natural conversation without tracking phrases
 </meta>
 ```
 
-## Invisible Orchestration
+### Agents
+- **Sarah** - Warm, feeling-first, gentle guidance
+- **Mathew** - Pattern recognition, intention-action gaps
 
-### Pattern-to-Agent Mapping
-- **CVDC patterns or Fragmentation ≥4** → Sarah (emotional coherence)
-- **IBM patterns or Stuck_Past** → Mathew (analytical examination)
-- **Integration moments or Symbolic Density ≥5** → Marcus (philosophical exploration)
-- **Crisis indicators or Fragmentation ≥7** → Zhanna (somatic grounding)
+## CSS Pattern Detection
 
-### Seamless Switching
-- Same voice throughout conversation
-- No user awareness of methodology changes
-- Continuous therapeutic presence
-- Narrative phase continuity maintained
-- Analytics tracking for improvements
+### Pattern Types
+- **CVDC** - Contradictions between desires
+- **IBM** - Intention-behavior mismatches
+- **Thend** - Therapeutic shifts/integration
+- **CYVC** - Contextual flexibility/choice
+
+### Register Tracking
+- **Symbolic** - Over-intellectualizing
+- **Imaginary** - What-if scenarios
+- **Real** - Immediate sensation/affect
 
 ## API Endpoints
 
 ### Authentication
 ```
-POST   /api/auth/user                # User creation/login
+GET    /api/auth/check               # Session status
+POST   /api/auth/identify            # User login
 GET    /api/auth/user-context/:id    # Memory retrieval
-DELETE /api/auth/user/:id            # User deletion
-DELETE /api/auth/user-by-email       # Delete by email
+DELETE /api/auth/delete-account      # Cascade delete
 ```
 
 ### VAPI Integration
 ```
 POST   /api/vapi/webhook             # Event processing
-POST   /api/vapi/analyze-transcript  # Manual analysis
-POST   /api/vapi/generate-greeting   # Custom greeting generation
+GET    /api/vapi/config              # Agent configuration
 ```
-
-### Orchestration
-```
-GET    /api/vapi/orchestration/state/:id       # Current state & narrative metrics
-GET    /api/vapi/orchestration/active-call/:id # Active call lookup
-POST   /api/vapi/orchestration/record-switch   # Analytics tracking
-POST   /api/vapi/orchestration/guidance-applied # Pattern guidance tracking
-```
-
-## CSS Pattern Detection with Narrative Metrics
-
-### Pattern Types
-- **CVDC** - Contradictions between desires (narrative conflicts)
-- **IBM** - Intention-behavior mismatches (story-action gaps)
-- **Thend** - Therapeutic shifts/integration (narrative turning points)
-- **CYVC** - Contextual flexibility/choice (emerging story possibilities)
-
-### Narrative Metrics
-- **Narrative Fragmentation (0-10)** - Story coherence measure
-- **Symbolic Density (0-10)** - Metaphor and archetype usage
-- **Temporal Orientation** - Past/present/future narrative focus
-
-### Register Tracking
-- **Symbolic** - Over-intellectualizing, abstract narratives
-- **Imaginary** - What-if scenarios, alternative stories
-- **Real** - Immediate sensation/affect, embodied experience
 
 ## Tech Stack
 
@@ -208,12 +160,11 @@ POST   /api/vapi/orchestration/guidance-applied # Pattern guidance tracking
 - Supabase client
 - VAPI webhooks
 
-### Voice Platform
-- VAPI WebSocket management
+### Voice
+- VAPI Platform
+- WebSocket management
 - Real-time transcripts
-- Memory context injection
-- Silent agent switching
-- Narrative phase awareness
+- Memory injection
 
 ## Development
 
@@ -223,14 +174,10 @@ npm run db:push      # Update schema
 npm run db:generate  # Generate migrations
 ```
 
-## Recent Updates (v5)
-- ✅ Four-agent system with Zhanna for somatic/crisis support
-- ✅ Narrative Primacy Module integration
-- ✅ Narrative metrics tracking (fragmentation, symbolic density, temporal orientation)
-- ✅ Adaptive polling intervals (3-15 seconds)
-- ✅ Reduced cooldown to 30 seconds
-- ✅ Enhanced pattern detection with narrative awareness
-- ✅ Journey phase tracking (building/deepening/integrating)
-- ✅ Distress detection service for HSFB protocols
-- ✅ User service for account management
-- ✅ Shared narrative module for phase determination
+## Recent Updates
+- ✅ Natural voice agents v3 with speak/meta separation
+- ✅ Mobile-responsive UI with proper dropdown positioning
+- ✅ AI disclosure card with crisis hotline info
+- ✅ Efficient transcript storage (end-of-call only)
+- ✅ Fixed CSS pattern detection with flexible regex
+- ✅ Two-tier cache system with race protection

@@ -1,16 +1,12 @@
-// Webhook routes with orchestration support
+// Simplified Webhook - CSS pattern tracking only
 import { Router } from 'express';
 import crypto from 'crypto';
 import { 
   initializeSession, 
   processTranscript, 
   processEndOfCall,
-  ensureSession,
-  getOrchestrationState,
-  markGuidanceApplied,
-  getActiveCallIdForUser
+  ensureSession
 } from '../services/orchestration-service';
-import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
@@ -120,9 +116,9 @@ router.post('/analyze-transcript', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const { detectEnhancedCSSPatterns, assessPatternConfidence } = await import('../services/css-pattern-service');
+    const { detectCSSPatterns, assessPatternConfidence } = await import('../services/css-pattern-service');
 
-    const patterns = detectEnhancedCSSPatterns(transcript, true);
+    const patterns = detectCSSPatterns(transcript, true);
     const { confidence, reasoning } = assessPatternConfidence(patterns);
 
     res.json({
@@ -170,139 +166,5 @@ function extractAgentName(message: any): string {
          message?.assistant?.metadata?.agentName ||
          'Sarah';
 }
-
-// GET orchestration state for a call
-router.get('/orchestration/state/:callId', async (req, res) => {
-  try {
-    const { callId } = req.params;
-    const state = getOrchestrationState(callId);
-    
-    if (!state) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-    
-    res.json(state);
-  } catch (error) {
-    console.error('Failed to get orchestration state:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET endpoint to retrieve active call ID for a user
-router.get('/orchestration/active-call/:userId', async (req, res) => {
-  const { userId } = req.params;
-  const result = getActiveCallIdForUser(userId);
-  
-  if (result.success) {
-    console.log(`📞 Providing active call ID ${result.callId} for user ${userId}`);
-  }
-  
-  res.json(result);
-});
-
-// POST to record methodology switch (analytics only)
-router.post('/orchestration/record-switch', async (req, res) => {
-  try {
-    const { callId, userId, fromMethodology, toMethodology, reason } = req.body;
-    
-    // Just record the switch for analytics - the actual switch happens client-side
-    await supabase
-      .from('therapeutic_context')
-      .insert({
-        user_id: userId,
-        call_id: callId,
-        context_type: 'methodology_switch',
-        content: `Methodology switch: ${fromMethodology} → ${toMethodology} (${reason})`,
-        confidence: 1.0,
-        importance: 7
-      });
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Failed to record switch:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// POST to mark pattern guidance as applied
-router.post('/orchestration/guidance-applied', async (req, res) => {
-  try {
-    const { callId, guidanceKeys, userId } = req.body;
-    
-    if (!callId || !guidanceKeys) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    
-    // Mark guidance as applied in session
-    await markGuidanceApplied(callId, guidanceKeys);
-    
-    // Store in database for analytics
-    await supabase
-      .from('therapeutic_context')
-      .insert({
-        user_id: userId || 'unknown',
-        call_id: callId,
-        context_type: 'guidance_applied',
-        content: `Pattern guidance applied: ${guidanceKeys.join(', ')}`,
-        confidence: 1.0,
-        importance: 5
-      });
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Failed to mark guidance as applied:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Dynamic greeting generation endpoint
-router.post('/generate-greeting', async (req, res) => {
-  try {
-    const { agentName, memoryContext, firstName } = req.body;
-
-    if (!memoryContext || memoryContext.length < 50) {
-      return res.json({ greeting: null });
-    }
-
-    const prompt = `You are ${agentName}, a therapeutic AI assistant.
-
-Previous session context:
-${memoryContext.substring(0, 1000)}
-
-User's name: ${firstName}
-
-Generate a warm, personalized greeting (1-2 sentences) that:
-- Acknowledges our ongoing relationship  
-- References something specific from our previous sessions
-- Invites them to continue the conversation
-
-Just write the greeting, nothing else.`;
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 60
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const greeting = data.choices[0]?.message?.content?.trim();
-      return res.json({ greeting: greeting || null });
-    }
-
-    return res.json({ greeting: null });
-  } catch (error) {
-    console.error('Failed to generate greeting:', error);
-    return res.json({ greeting: null });
-  }
-});
 
 export default router;
