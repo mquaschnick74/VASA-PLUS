@@ -6,6 +6,7 @@ interface UseVapiProps {
   memoryContext: string;
   firstName: string;
   selectedAgent: TherapeuticAgent;
+  verbalAcknowledgment?: string;
 }
 
 interface UseVapiReturn {
@@ -16,7 +17,7 @@ interface UseVapiReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
 }
 
-const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiProps): UseVapiReturn => {
+const useVapi = ({ userId, memoryContext, firstName, selectedAgent, verbalAcknowledgment }: UseVapiProps): UseVapiReturn => {
   const [vapi, setVapi] = useState<any>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,8 +104,12 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
-      // Get personalized first message
-      const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
+      // Use verbal acknowledgment if available and we have memory, otherwise use agent's template
+      const firstMessage = verbalAcknowledgment && hasMemory 
+        ? verbalAcknowledgment 
+        : selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
+      
+      console.log(`💬 Using first message: ${firstMessage}`);
 
       // Get the current server URL for webhook configuration
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
@@ -170,7 +175,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       setIsLoading(false);
       setConnectionStatus('disconnected');
     }
-  }, [vapi, userId, memoryContext, firstName, isLoading, isSessionActive, selectedAgent]);
+  }, [vapi, userId, memoryContext, firstName, isLoading, isSessionActive, selectedAgent, verbalAcknowledgment]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {

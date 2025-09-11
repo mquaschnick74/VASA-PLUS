@@ -14,6 +14,7 @@ interface VoiceInterfaceProps {
 interface UserContext {
   profile: any;
   memoryContext: string;
+  verbalAcknowledgment?: string;
   sessions: any[];
   firstName: string;
   sessionCount: number;
@@ -38,7 +39,8 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     userId,
     memoryContext: userContext?.memoryContext || '',
     firstName: userContext?.firstName || 'there',
-    selectedAgent: selectedAgent!
+    selectedAgent: selectedAgent!,
+    verbalAcknowledgment: userContext?.verbalAcknowledgment
   });
 
   // Load memory context
@@ -59,6 +61,9 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           const data = await response.json();
           setUserContext(data);
           console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
+          if (data.verbalAcknowledgment) {
+            console.log(`💬 Verbal acknowledgment: ${data.verbalAcknowledgment}`);
+          }
         }
       } catch (error) {
         console.error('Error loading user context:', error);

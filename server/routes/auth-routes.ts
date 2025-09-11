@@ -87,8 +87,10 @@ router.get('/user-context/:userId', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Build enhanced memory context with user's first name
-    const memoryContext = await buildEnhancedMemoryContext(userId, user.first_name || 'there');
+    // Build enhanced memory context with user's first name and get verbal acknowledgment
+    const memoryResult = await buildEnhancedMemoryContext(userId, user.first_name || 'there');
+    const memoryContext = memoryResult.context;
+    const verbalAcknowledgment = memoryResult.verbalAcknowledgment;
 
     // Fetch recent sessions for stats
     const { data: sessions } = await supabase
@@ -107,6 +109,7 @@ router.get('/user-context/:userId', async (req, res) => {
       success: true,
       profile: user,
       memoryContext,
+      verbalAcknowledgment,
       sessions: sessions || [],
       firstName: user.first_name || 'there',
       sessionCount: sessions?.length || 0

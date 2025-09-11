@@ -223,7 +223,7 @@ export async function buildEnhancedMemoryContext(
   userId: string, 
   firstName: string = 'there',
   currentAgentName: string = 'Sarah'
-): Promise<string> {
+): Promise<{ context: string; verbalAcknowledgment: string }> {
   try {
     console.log(`🧠 Building enhanced memory context for user ${userId}`);
 
@@ -237,11 +237,17 @@ export async function buildEnhancedMemoryContext(
 
     if (sessionsError) {
       console.error('Error fetching sessions:', sessionsError);
-      return `Hello ${firstName}, welcome to your session.`;
+      return {
+        context: 'Unable to retrieve previous session data.',
+        verbalAcknowledgment: `Hello ${firstName}, welcome to your session.`
+      };
     }
 
     if (!sessions || sessions.length === 0) {
-      return `Hello ${firstName}, welcome to your first session. What brings you here today?`;
+      return {
+        context: 'First session with this user.',
+        verbalAcknowledgment: `Hello ${firstName}, welcome to your first session. What brings you here today?`
+      };
     }
 
     // Process sessions and determine meaningfulness
@@ -327,10 +333,7 @@ export async function buildEnhancedMemoryContext(
     }
 
     // Create verbal acknowledgment
-    const verbalAck = createVerbalAcknowledgment(firstName, lastMeaningfulSession, currentAgentName);
-
-    memoryContext += `\nVERBAL ACKNOWLEDGMENT:\n`;
-    memoryContext += `Use this natural greeting: "${verbalAck}"\n`;
+    const verbalAcknowledgment = createVerbalAcknowledgment(firstName, lastMeaningfulSession, currentAgentName);
 
     memoryContext += `\nCONTEXT GUIDELINES:\n`;
     memoryContext += `- Reference specific quotes and contradictions naturally when relevant\n`;
@@ -339,11 +342,20 @@ export async function buildEnhancedMemoryContext(
     memoryContext += `- Acknowledge progress and patterns when appropriate\n`;
 
     console.log('✅ Enhanced memory context built successfully');
-    return memoryContext;
+    console.log(`📝 Context: ${memoryContext.substring(0, 100)}...`);
+    console.log(`💬 Greeting: ${verbalAcknowledgment}`);
+    
+    return {
+      context: memoryContext,
+      verbalAcknowledgment: verbalAcknowledgment
+    };
 
   } catch (error) {
     console.error('Error building enhanced memory context:', error);
-    return `Hello ${firstName}, welcome to your session.`;
+    return {
+      context: 'Unable to retrieve previous session data.',
+      verbalAcknowledgment: `Hello ${firstName}, welcome to your session.`
+    };
   }
 }
 
@@ -365,7 +377,7 @@ export async function storeEnhancedSessionContext(
                         patterns.thendIndicators.length > 0;
 
       // Store enhanced summary with CSS context
-      await supabase
+      const { error: insertError } = await supabase
         .from('therapeutic_context')
         .insert({
           user_id: userId,
@@ -377,9 +389,14 @@ export async function storeEnhancedSessionContext(
           confidence: meaningful ? 0.9 : 0.6,
           importance: meaningful ? 8 : 5
         });
+      
+      if (insertError) {
+        console.error('❌ Failed to store enhanced summary:', insertError);
+        throw insertError;
+      }
     } else {
       // Store regular context
-      await supabase
+      const { error: insertError } = await supabase
         .from('therapeutic_context')
         .insert({
           user_id: userId,
@@ -389,9 +406,14 @@ export async function storeEnhancedSessionContext(
           confidence: 0.8,
           importance: 5
         });
+      
+      if (insertError) {
+        console.error('❌ Failed to store regular context:', insertError);
+        throw insertError;
+      }
     }
 
-    console.log('✅ Enhanced therapeutic context stored');
+    console.log(`✅ Enhanced therapeutic context stored for ${callId} (${contextType})`);
   } catch (error) {
     console.error('Error storing enhanced context:', error);
   }
@@ -399,7 +421,8 @@ export async function storeEnhancedSessionContext(
 
 // Re-export original function for backward compatibility
 export async function buildMemoryContext(userId: string): Promise<string> {
-  return buildEnhancedMemoryContext(userId);
+  const result = await buildEnhancedMemoryContext(userId);
+  return result.context;
 }
 
 export async function storeSessionContext(
