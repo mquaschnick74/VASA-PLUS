@@ -19,17 +19,31 @@ router.post('/webhook', async (req, res) => {
   try {
     // Log webhook verification attempt
     if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
-      const signature = req.headers['x-vapi-signature'] as string;
-      const payload = JSON.stringify(req.body);
+      const signatureHeader = req.headers['x-vapi-signature'] as string;
+      
+      if (!signatureHeader) {
+        console.error('❌ Missing webhook signature header');
+        return res.status(401).json({ error: 'Missing signature' });
+      }
+      
+      // Use raw body for signature verification (captured by express middleware)
+      const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+      
+      // VAPI may send signature in format "sha256=..." or just the hex
+      const signature = signatureHeader.startsWith('sha256=') 
+        ? signatureHeader.slice(7) 
+        : signatureHeader;
+      
       const expectedSignature = crypto
         .createHmac('sha256', process.env.VAPI_SECRET_KEY)
-        .update(payload)
+        .update(rawBody)
         .digest('hex');
 
       if (signature !== expectedSignature) {
         console.error('❌ Webhook signature verification failed');
         console.error('Expected:', expectedSignature.substring(0, 10) + '...');
         console.error('Received:', signature?.substring(0, 10) + '...');
+        console.error('Body preview:', rawBody?.substring(0, 100));
         return res.status(401).json({ error: 'Invalid signature' });
       }
       console.log('✅ Webhook signature verified');
@@ -170,16 +184,26 @@ router.get('/test-db', async (req, res) => {
   }
 });
 
-// Debug webhook endpoint to see raw payload
+// Debug webhook endpoint to see raw payload (development only)
 router.post('/webhook-debug', async (req, res) => {
+  // Security: Only allow in development mode
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  
   console.log('🔍 RAW WEBHOOK DEBUG:');
   console.log('Headers:', req.headers);
   console.log('Body:', JSON.stringify(req.body, null, 2));
   res.json({ received: true, body: req.body });
 });
 
-// Manual analysis endpoint for testing
+// Manual analysis endpoint for testing (development only)
 router.post('/analyze-transcript', async (req, res) => {
+  // Security: Only allow in development mode
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  
   try {
     const { transcript, userId, callId } = req.body;
 

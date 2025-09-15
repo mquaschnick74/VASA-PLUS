@@ -21,7 +21,16 @@ app.use((req, res, next) => {
 });
 
 // Increase body size limit to handle large VAPI webhook payloads (transcripts)
-app.use(express.json({ limit: '10mb' }));
+// Capture raw body for webhook signature verification
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req: any, res, buf) => {
+    // Store raw body for webhook signature verification
+    if (req.url && req.url.includes('/api/vapi/webhook')) {
+      req.rawBody = buf.toString('utf8');
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 app.use((req, res, next) => {
