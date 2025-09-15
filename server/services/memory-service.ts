@@ -197,6 +197,26 @@ function generateEnhancedSummary(
 }
 
 /**
+ * Truncates text at word boundary to avoid cutting words mid-sentence
+ */
+function truncateAtWordBoundary(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  
+  // Find the last space before maxLength
+  const truncated = text.substring(0, maxLength);
+  const lastSpaceIndex = truncated.lastIndexOf(' ');
+  
+  // If we found a space, truncate there; otherwise take the whole maxLength
+  if (lastSpaceIndex > 0) {
+    return truncated.substring(0, lastSpaceIndex);
+  }
+  
+  return truncated;
+}
+
+/**
  * Creates natural verbal acknowledgment for returning sessions
  */
 function createVerbalAcknowledgment(
@@ -217,7 +237,7 @@ function createVerbalAcknowledgment(
   if (contradictions.length > 0) {
     const contradiction = contradictions[0];
     if (contradiction.includes('part of me')) {
-      acknowledgment += `Last time you were exploring that internal split - ${contradiction.substring(0, 60)}... `;
+      acknowledgment += `Last time you were exploring that internal split - ${truncateAtWordBoundary(contradiction, 60)}... `;
     } else if (contradiction.includes('but')) {
       const parts = contradiction.split('BUT');
       acknowledgment += `Last time you were holding that tension between ${parts[0].trim()} and ${parts[1].trim()}. `;
@@ -225,7 +245,7 @@ function createVerbalAcknowledgment(
   } else if (keyQuotes.length > 0) {
     // Reference physical or emotional themes
     const quote = keyQuotes[0].replace(/"/g, '');
-    acknowledgment += `Last time you mentioned ${quote.substring(0, 50)}... `;
+    acknowledgment += `Last time you mentioned ${truncateAtWordBoundary(quote, 50)}... `;
   }
 
   // Agent-specific follow-up
