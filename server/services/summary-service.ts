@@ -6,6 +6,14 @@ import { detectCSSPatterns } from './css-pattern-service';
  */
 export async function getCSSProgressionContext(userId: string): Promise<string> {
   try {
+    // Get actual CSS progressions from the progressions table
+    const { data: progressions } = await supabase
+      .from('css_progressions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
     // Get the latest CSS summary
     const { data: latestSummary } = await supabase
       .from('therapeutic_context')
@@ -16,6 +24,50 @@ export async function getCSSProgressionContext(userId: string): Promise<string> 
       .limit(1)
       .single();
 
+    // If we have actual CSS progressions, use them for rich context
+    if (progressions && progressions.length > 0) {
+      const latestProgression = progressions[0];
+      let context = `CSS PROGRESSION CONTEXT:\n`;
+      context += `Current Stage: ${latestProgression.to_stage}\n`;
+      context += `Previous Stage: ${latestProgression.from_stage}\n`;
+      
+      // Add the trigger that caused the latest transition
+      if (latestProgression.trigger_content) {
+        context += `Latest Insight: "${latestProgression.trigger_content}"\n`;
+      }
+      
+      // Show the journey through stages
+      if (progressions.length > 1) {
+        context += `\nRecent Journey:\n`;
+        progressions.slice(0, 3).forEach(p => {
+          context += `• ${p.from_stage} → ${p.to_stage}`;
+          if (p.trigger_content) {
+            context += `: "${p.trigger_content.substring(0, 50)}..."`;
+          }
+          context += '\n';
+        });
+      }
+      
+      // Add metadata from CSS summary if available
+      if (latestSummary && latestSummary.content.includes('---METADATA---')) {
+        const parts = latestSummary.content.split('---METADATA---');
+        try {
+          const metadata = JSON.parse(parts[1]);
+          if (metadata?.therapeuticQuotes && metadata.therapeuticQuotes.length > 0) {
+            context += `\nKey Therapeutic Moments:\n`;
+            metadata.therapeuticQuotes.slice(0, 2).forEach((q: string) => {
+              context += `• "${q}"\n`;
+            });
+          }
+        } catch (e) {
+          // Continue without metadata
+        }
+      }
+      
+      return context;
+    }
+
+    // Fallback to CSS summary if no progressions exist
     if (!latestSummary) {
       return 'No previous CSS progression data available.';
     }

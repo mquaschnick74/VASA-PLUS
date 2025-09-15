@@ -223,8 +223,64 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
 function createVerbalAcknowledgment(
   firstName: string, 
   lastSession: SessionSummary | null,
-  agentName: string
+  agentName: string,
+  cssProgressions?: any[]
 ): string {
+  // If we have CSS progressions data, use it for specific acknowledgment
+  if (cssProgressions && cssProgressions.length > 0) {
+    const latest = cssProgressions[0];
+    let acknowledgment = `Hello ${firstName}, `;
+    
+    // Reference the specific trigger content or stage transition
+    if (latest.trigger_content) {
+      const trigger = truncateAtWordBoundary(latest.trigger_content, 60);
+      
+      // Stage-specific acknowledgments
+      if (latest.to_stage === 'suspension') {
+        acknowledgment += `last time you reached that place of holding both truths - "${trigger}". `;
+      } else if (latest.to_stage === 'focus_bind') {
+        acknowledgment += `you were working with "${trigger}". `;
+      } else if (latest.to_stage === 'pointed_origin' && latest.from_stage === 'suspension') {
+        acknowledgment += `I noticed things felt intense when you said "${trigger}". `;
+      } else {
+        acknowledgment += `you shared "${trigger}". `;
+      }
+    } else {
+      acknowledgment += `good to reconnect. `;
+    }
+    
+    // Agent-specific follow-up based on current stage
+    switch (agentName.toLowerCase()) {
+      case 'sarah':
+        if (latest.to_stage === 'suspension') {
+          acknowledgment += `How are you holding those contradictions today?`;
+        } else if (latest.to_stage === 'pointed_origin') {
+          acknowledgment += `What feelings are most alive for you right now?`;
+        } else {
+          acknowledgment += `What emotional truth wants to emerge today?`;
+        }
+        break;
+      case 'mathew':
+        if (latest.trigger_content && latest.trigger_content.includes('but')) {
+          acknowledgment += `Has that intention-behavior gap shifted?`;
+        } else {
+          acknowledgment += `What patterns are you noticing now?`;
+        }
+        break;
+      case 'marcus':
+        acknowledgment += `How has that tension been evolving?`;
+        break;
+      case 'zhanna':
+        acknowledgment += `Where does that live in your body today?`;
+        break;
+      default:
+        acknowledgment += `What's present for you now?`;
+    }
+    
+    return acknowledgment;
+  }
+  
+  // Fallback to transcript-based acknowledgment
   if (!lastSession || !lastSession.isMeaningful) {
     return `Hello ${firstName}, good to connect again. What's most present for you today?`;
   }
@@ -383,11 +439,20 @@ export async function buildEnhancedMemoryContext(
       memoryContext += `- Use direct quotes when therapeutically appropriate\n`;
     }
 
+    // Get CSS progressions for more specific acknowledgment
+    const { data: cssProgressions } = await supabase
+      .from('css_progressions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
     // NOW WE USE THE SOPHISTICATED GREETING GENERATOR!
     const verbalAcknowledgment = createVerbalAcknowledgment(
       firstName,
       lastSession,
-      currentAgentName
+      currentAgentName,
+      cssProgressions
     );
 
     console.log('✅ CSS progression context built with personalized greeting');
