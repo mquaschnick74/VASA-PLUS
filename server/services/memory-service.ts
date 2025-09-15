@@ -1,6 +1,7 @@
 // Enhanced Memory Service - Rich therapeutic context with specific quotes and natural acknowledgments
 import { supabase } from './supabase-service';
 import { detectCSSPatterns, CSSPatterns } from './css-pattern-service';
+import { getCSSProgressionContext } from './summary-service';
 
 interface SessionSummary {
   id: string;
@@ -270,7 +271,7 @@ function createVerbalAcknowledgment(
 }
 
 /**
- * Enhanced memory context builder with rich therapeutic details
+ * Enhanced memory context builder with CSS focus
  */
 export async function buildEnhancedMemoryContext(
   userId: string, 
@@ -278,146 +279,64 @@ export async function buildEnhancedMemoryContext(
   currentAgentName: string = 'Sarah'
 ): Promise<{ context: string; verbalAcknowledgment: string }> {
   try {
-    console.log(`🧠 Building enhanced memory context for user ${userId} with agent ${currentAgentName}`);
+    console.log(`🧠 Building CSS-focused memory context for user ${userId}`);
 
-    // Fetch recent sessions
-    const { data: sessions, error: sessionsError } = await supabase
+    // Get CSS progression context
+    const cssContext = await getCSSProgressionContext(userId);
+    
+    // Get session count for basic context
+    const { data: sessions } = await supabase
       .from('therapeutic_sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    if (sessionsError) {
-      console.error('Error fetching sessions:', sessionsError);
-      return {
-        context: 'Unable to retrieve previous session data.',
-        verbalAcknowledgment: `Hello ${firstName}, welcome to your session.`
-      };
-    }
-
-    if (!sessions || sessions.length === 0) {
+      .select('id')
+      .eq('user_id', userId);
+    
+    const sessionCount = sessions?.length || 0;
+    
+    if (sessionCount === 0) {
       return {
         context: 'First session with this user.',
-        verbalAcknowledgment: `Hello ${firstName}, welcome to your first session. What brings you here today?`
+        verbalAcknowledgment: `Hello ${firstName}, I'm ${currentAgentName}. What brings you here today?`
       };
     }
-
-    // Process sessions and determine meaningfulness WITH ENHANCED DETECTION
-    const processedSessions: SessionSummary[] = [];
-
-    for (const session of sessions) {
-      // Fetch transcript for this session
-      const { data: transcriptData } = await supabase
-        .from('session_transcripts')
-        .select('text')
-        .eq('call_id', session.call_id)
-        .eq('role', 'complete')
-        .single();
-      
-      // Check for therapeutic insights
-      const { data: insightData } = await supabase
-        .from('therapeutic_context')
-        .select('content')
-        .eq('call_id', session.call_id)
-        .limit(1);
-      
-      const transcript = transcriptData?.text || '';
-      const hasTherapeuticInsights = insightData && insightData.length > 0;
-      
-      // Add insights flag to session for meaningful detection
-      const sessionWithInsights = {
-        ...session,
-        text: transcript,
-        hasTherapeuticInsights
-      };
-      
-      const patterns = detectCSSPatterns(transcript, false);
-      const meaningful = isMeaningfulSession(sessionWithInsights, patterns);
-
-      const summary = meaningful ? 
-        generateEnhancedSummary(session, patterns, firstName, transcript) :
-        'Brief session - limited therapeutic content';
-
-      processedSessions.push({
-        id: session.id,
-        callId: session.call_id,
-        date: new Date(session.created_at).toLocaleDateString(),
-        duration: session.duration_seconds || 0,
-        transcript: transcript,
-        summary: summary,
-        cssStage: patterns.currentStage,
-        patterns: patterns,
-        isMeaningful: meaningful
-      });
-    }
-
-    // Find most recent meaningful session
-    const lastMeaningfulSession = processedSessions.find(s => s.isMeaningful) || null;
-
-    console.log(`📊 Session analysis:
-      - Total sessions: ${sessions.length}
-      - Meaningful sessions: ${processedSessions.filter(s => s.isMeaningful).length}
-      - Last meaningful: ${lastMeaningfulSession ? lastMeaningfulSession.date : 'None'}`);
-
-    // Get recent insights
-    const { data: insights } = await supabase
+    
+    // Build memory context focused on CSS progression
+    let memoryContext = `SESSION CONTEXT:\n`;
+    memoryContext += `Client: ${firstName}\n`;
+    memoryContext += `Total Sessions: ${sessionCount}\n\n`;
+    memoryContext += cssContext;
+    memoryContext += `\n`;
+    
+    // Agent-specific guidance based on CSS stage
+    const { data: latestSummary } = await supabase
       .from('therapeutic_context')
-      .select('content, context_type')
+      .select('metadata')
       .eq('user_id', userId)
+      .eq('context_type', 'css_summary')
       .order('created_at', { ascending: false })
-      .limit(3);
-
-    // Build context
-    let memoryContext = '';
-
-    // Session count and basic info
-    const meaningfulCount = processedSessions.filter(s => s.isMeaningful).length;
-    memoryContext += `PREVIOUS SESSIONS: ${sessions.length} total (${meaningfulCount} therapeutically meaningful)\n`;
-
-    // Most recent meaningful session details
-    if (lastMeaningfulSession) {
-      memoryContext += `\nLAST MEANINGFUL SESSION (${lastMeaningfulSession.date}):\n`;
-      memoryContext += `${lastMeaningfulSession.summary}\n`;
-      memoryContext += `CSS Stage: ${lastMeaningfulSession.cssStage}\n`;
-
-      // Pattern summary
-      const patternCounts = [];
-      if (lastMeaningfulSession.patterns.cvdcPatterns.length > 0) {
-        patternCounts.push(`CVDC: ${lastMeaningfulSession.patterns.cvdcPatterns.length}`);
-      }
-      if (lastMeaningfulSession.patterns.ibmPatterns.length > 0) {
-        patternCounts.push(`IBM: ${lastMeaningfulSession.patterns.ibmPatterns.length}`);
-      }
-      if (lastMeaningfulSession.patterns.thendIndicators.length > 0) {
-        patternCounts.push(`Thend: ${lastMeaningfulSession.patterns.thendIndicators.length}`);
-      }
-
-      if (patternCounts.length > 0) {
-        memoryContext += `Patterns: ${patternCounts.join(', ')}\n`;
-      }
+      .limit(1)
+      .single();
+    
+    if (latestSummary?.metadata) {
+      const progression = latestSummary.metadata as any;
+      
+      memoryContext += `\nAGENT GUIDANCE:\n`;
+      memoryContext += `- Current CSS Stage: ${progression.currentStage}\n`;
+      memoryContext += `- You may reference any of the quoted material naturally\n`;
+      memoryContext += `- Focus on ${currentAgentName === 'Sarah' ? 'emotional contradictions (CVDC)' : 
+                         currentAgentName === 'Mathew' ? 'behavioral gaps (IBM)' :
+                         currentAgentName === 'Marcus' ? 'integration moments (Thend)' :
+                         'somatic experiences'}\n`;
+      memoryContext += `- Build on established patterns to progress through CSS stages\n`;
+      memoryContext += `- Use direct quotes when therapeutically appropriate\n`;
     }
-
-    // Additional insights
-    if (insights && insights.length > 0) {
-      memoryContext += `\nKEY INSIGHTS:\n`;
-      insights.forEach((insight, index) => {
-        memoryContext += `${index + 1}. ${insight.content}\n`;
-      });
-    }
-
-    // Create verbal acknowledgment
-    const verbalAcknowledgment = createVerbalAcknowledgment(firstName, lastMeaningfulSession, currentAgentName);
-
-    memoryContext += `\nCONTEXT GUIDELINES:\n`;
-    memoryContext += `- Reference specific quotes and contradictions naturally when relevant\n`;
-    memoryContext += `- Don't hallucinate details not mentioned above\n`;
-    memoryContext += `- Build on established therapeutic themes\n`;
-    memoryContext += `- Acknowledge progress and patterns when appropriate\n`;
-
-    console.log('✅ Enhanced memory context built successfully');
-    console.log(`📝 Context: ${memoryContext.substring(0, 100)}...`);
-    console.log(`💬 ${currentAgentName} greeting: ${verbalAcknowledgment}`);
+    
+    // Simple, flexible greeting - let agent decide how to use the context
+    const verbalAcknowledgment = sessionCount === 1 ? 
+      `Hello ${firstName}, good to see you again. What's present for you today?` :
+      `Hello ${firstName}, welcome back.`;
+    
+    console.log('✅ CSS progression context built');
+    console.log(`📊 CSS Stage: ${latestSummary?.metadata?.currentStage || 'Unknown'}`);
     
     return {
       context: memoryContext,
@@ -425,10 +344,10 @@ export async function buildEnhancedMemoryContext(
     };
 
   } catch (error) {
-    console.error('Error building enhanced memory context:', error);
+    console.error('Error building CSS context:', error);
     return {
-      context: 'Unable to retrieve previous session data.',
-      verbalAcknowledgment: `Hello ${firstName}, welcome to your session.`
+      context: 'Unable to retrieve session data.',
+      verbalAcknowledgment: `Hello ${firstName}, I'm ${currentAgentName}. What brings you here today?`
     };
   }
 }

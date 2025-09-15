@@ -93,6 +93,18 @@ router.post('/webhook', async (req, res) => {
         const callMetadata = message?.call;
 
         await processEndOfCall(callId, fullTranscript, summary, callMetadata);
+
+        // Generate CSS progression summary
+        if (fullTranscript && fullTranscript.length > 100) {
+          const { generateCSSProgressionSummary } = await import('../services/summary-service');
+          
+          try {
+            await generateCSSProgressionSummary(userId, callId, fullTranscript, agentName);
+            console.log('✅ CSS progression summary generated');
+          } catch (error) {
+            console.error('Failed to generate CSS summary:', error);
+          }
+        }
         break;
 
       default:
