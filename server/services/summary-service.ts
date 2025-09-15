@@ -133,7 +133,6 @@ export async function generateCSSProgressionSummary(
         context_type: 'css_summary',
         content: enhancedContent,
         css_stage: patterns.currentStage,
-        pattern_type: 'css_progression',
         confidence: 0.85
       });
     

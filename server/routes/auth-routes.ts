@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../services/supabase-service';
 import { buildEnhancedMemoryContext } from '../services/memory-service';
 import { deleteUserCascade, findUserByEmail } from '../services/user-service';
+import { generateMissingCSSSummaries } from '../services/generate-missing-css';
 
 const router = Router();
 
@@ -323,6 +324,226 @@ router.get('/fix-therapeutic-context', async (req, res) => {
   } catch (error) {
     console.error('Diagnostic error:', error);
     res.status(500).json({ error: 'Diagnostic failed', details: error });
+  }
+});
+
+// Generate missing CSS summaries for all users
+router.post('/generate-missing-css', async (req, res) => {
+  try {
+    console.log('🚀 Starting CSS summary generation for missing transcripts...');
+    const result = await generateMissingCSSSummaries();
+    res.json(result);
+  } catch (error) {
+    console.error('Error generating CSS summaries:', error);
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
+// Generate CSS for specific user (Sophia)
+router.post('/generate-css-for-user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`🎯 Generating CSS for user: ${userId}`);
+    
+    // Import the function we need
+    const { generateCSSProgressionSummary } = await import('../services/summary-service');
+    
+    // Get user info
+    const { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Get transcripts
+    const { data: transcripts } = await supabase
+      .from('session_transcripts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (!transcripts || transcripts.length === 0) {
+      return res.json({ success: false, message: 'No transcripts found' });
+    }
+    
+    const results = [];
+    
+    for (const transcript of transcripts) {
+      if (!transcript.text || transcript.text.length < 100) {
+        console.log(`⏭️ Skipping short transcript: ${transcript.call_id}`);
+        continue;
+      }
+      
+      console.log(`📝 Processing transcript for call: ${transcript.call_id}`);
+      console.log(`   Transcript length: ${transcript.text.length} chars`);
+      
+      try {
+        // Generate CSS summary
+        const summary = await generateCSSProgressionSummary(
+          transcript.text,
+          userId,
+          transcript.call_id,
+          'Sarah' // Default agent
+        );
+        
+        results.push({
+          callId: transcript.call_id,
+          status: 'success',
+          summary: summary?.slice(0, 200) + '...'
+        });
+        
+        console.log(`✅ CSS summary generated for call: ${transcript.call_id}`);
+      } catch (error) {
+        console.error(`❌ Failed for ${transcript.call_id}:`, error);
+        results.push({
+          callId: transcript.call_id,
+          status: 'failed',
+          error: String(error)
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      user: user.first_name,
+      processed: results.length,
+      results
+    });
+    
+  } catch (error) {
+    console.error('Error generating CSS for user:', error);
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
+// Check user sessions and transcripts
+router.get('/check-user-sessions/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Get sessions
+    const { data: sessions } = await supabase
+      .from('therapeutic_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    // Get transcripts
+    const { data: transcripts } = await supabase
+      .from('session_transcripts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    // Get all context
+    const { data: contexts } = await supabase
+      .from('therapeutic_context')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    res.json({ 
+      success: true,
+      sessions: sessions || [],
+      transcripts: transcripts?.map(t => ({
+        id: t.id,
+        call_id: t.call_id,
+        created_at: t.created_at,
+        text_length: t.text?.length || 0,
+        text_preview: t.text?.substring(0, 200) || ''
+      })) || [],
+      contexts: contexts || []
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
+// Check users and their CSS data
+router.get('/check-users-css', async (req, res) => {
+  try {
+    // Get all users with first_name containing 'Sophia' or similar
+    const { data: users, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .ilike('first_name', '%soph%');
+
+    const userResults = [];
+    
+    for (const user of users || []) {
+      // Get CSS summaries for this user
+      const { data: cssData } = await supabase
+        .from('therapeutic_context')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('context_type', ['css_summary', 'call_summary'])
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // Get session count
+      const { count: sessionCount } = await supabase
+        .from('therapeutic_sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      userResults.push({
+        user,
+        sessionCount,
+        cssRecords: cssData || [],
+        hasCSSData: (cssData || []).some(r => r.context_type === 'css_summary')
+      });
+    }
+
+    res.json({ 
+      success: true,
+      users: userResults
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
+// Check CSS data for specific call ID
+router.get('/check-css/:callId', async (req, res) => {
+  try {
+    const { callId } = req.params;
+    
+    // Get all context for this call
+    const { data: callData, error: callError } = await supabase
+      .from('therapeutic_context')
+      .select('*')
+      .eq('call_id', callId)
+      .order('created_at', { ascending: false });
+
+    // Get CSS summaries for the user associated with this call
+    let userData = null;
+    let userId = null;
+    if (callData && callData.length > 0) {
+      userId = callData[0].user_id;
+      const { data, error } = await supabase
+        .from('therapeutic_context')
+        .select('*')
+        .eq('user_id', userId)
+        .in('context_type', ['css_summary', 'call_summary'])
+        .order('created_at', { ascending: false })
+        .limit(10);
+      userData = data;
+    }
+
+    res.json({ 
+      success: true,
+      callId,
+      userId,
+      callRecords: callData || [],
+      userRecords: userData || [],
+      contextTypes: [...new Set((callData || []).map(r => r.context_type))]
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: String(error) });
   }
 });
 
