@@ -12,8 +12,12 @@ const router = Router();
 
 router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI webhook received:', req.body.message?.type);
+  console.log('Environment:', process.env.NODE_ENV);
+  console.log('Has VAPI_SECRET_KEY:', !!process.env.VAPI_SECRET_KEY);
+  console.log('Has signature header:', !!req.headers['x-vapi-signature']);
 
   try {
+    // Log webhook verification attempt
     if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
       const signature = req.headers['x-vapi-signature'] as string;
       const payload = JSON.stringify(req.body);
@@ -23,8 +27,14 @@ router.post('/webhook', async (req, res) => {
         .digest('hex');
 
       if (signature !== expectedSignature) {
+        console.error('❌ Webhook signature verification failed');
+        console.error('Expected:', expectedSignature.substring(0, 10) + '...');
+        console.error('Received:', signature?.substring(0, 10) + '...');
         return res.status(401).json({ error: 'Invalid signature' });
       }
+      console.log('✅ Webhook signature verified');
+    } else {
+      console.log('⚠️ Skipping webhook verification (not in production or no secret key)');
     }
 
     const { message } = req.body;
@@ -34,8 +44,11 @@ router.post('/webhook', async (req, res) => {
     const callId = extractCallId(message);
     const agentName = extractAgentName(message);
 
+    console.log('Extracted data:', { userId, callId, agentName, eventType });
+
     if (!userId || !callId) {
-      console.warn('Missing userId or callId');
+      console.warn('❌ Missing userId or callId');
+      console.warn('Message structure:', JSON.stringify(message, null, 2).substring(0, 500));
       return res.status(200).json({ received: true });
     }
 
