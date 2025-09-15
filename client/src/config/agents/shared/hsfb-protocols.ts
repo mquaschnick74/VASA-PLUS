@@ -133,12 +133,13 @@ IMMEDIATE RESPONSE:
 ===== HSFB META TRACKING =====
 
 Always log HSFB usage in <meta> tag:
-Example format:
+```json
 "hsfb": {
   "invoked": true,
   "mode": "breathing" | "feeling" | "seeing" | "hearing" | "sequence",
   "reason": "stuck" | "user_requested" | "integration" | "crisis"
 }
+```
 
 DISTRESS LEVEL ASSESSMENT:
 1-3: Mild discomfort, continue therapy
