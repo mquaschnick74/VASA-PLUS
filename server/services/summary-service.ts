@@ -9,7 +9,7 @@ export async function getCSSProgressionContext(userId: string): Promise<string> 
     // Get the latest CSS summary
     const { data: latestSummary } = await supabase
       .from('therapeutic_context')
-      .select('content, metadata, created_at')
+      .select('content, created_at')
       .eq('user_id', userId)
       .eq('context_type', 'css_summary')
       .order('created_at', { ascending: false })
@@ -20,7 +20,16 @@ export async function getCSSProgressionContext(userId: string): Promise<string> 
       return 'No previous CSS progression data available.';
     }
 
-    const metadata = latestSummary.metadata as any;
+    // Parse metadata from content if it exists
+    let metadata: any = null;
+    if (latestSummary.content.includes('---METADATA---')) {
+      const parts = latestSummary.content.split('---METADATA---');
+      try {
+        metadata = JSON.parse(parts[1]);
+      } catch (e) {
+        console.log('Could not parse embedded metadata');
+      }
+    }
     let context = `CSS PROGRESSION CONTEXT:\n`;
     
     if (metadata?.currentStage) {
@@ -112,16 +121,19 @@ export async function generateCSSProgressionSummary(
     // Generate a coherent text summary
     const textSummary = generateTextSummary(summaryMetadata, transcript);
     
-    // Store the CSS summary
+    // Create enhanced content with embedded metadata
+    const enhancedContent = `${textSummary}\n\n---METADATA---\n${JSON.stringify(summaryMetadata, null, 2)}`;
+    
+    // Store the CSS summary (metadata embedded in content since column might not exist)
     const { error } = await supabase
       .from('therapeutic_context')
       .insert({
         user_id: userId,
         call_id: callId,
         context_type: 'css_summary',
-        content: textSummary,
-        metadata: summaryMetadata,
+        content: enhancedContent,
         css_stage: patterns.currentStage,
+        pattern_type: 'css_progression',
         confidence: 0.85
       });
     

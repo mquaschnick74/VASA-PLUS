@@ -352,15 +352,25 @@ export async function buildEnhancedMemoryContext(
     // Agent-specific guidance based on CSS stage
     const { data: latestSummary } = await supabase
       .from('therapeutic_context')
-      .select('metadata')
+      .select('content')
       .eq('user_id', userId)
       .eq('context_type', 'css_summary')
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
-    if (latestSummary?.metadata) {
-      const progression = latestSummary.metadata as any;
+    // Parse metadata from content if it exists
+    let progression: any = null;
+    if (latestSummary?.content && latestSummary.content.includes('---METADATA---')) {
+      const parts = latestSummary.content.split('---METADATA---');
+      try {
+        progression = JSON.parse(parts[1]);
+      } catch (e) {
+        console.log('Could not parse embedded metadata');
+      }
+    }
+
+    if (progression) {
 
       memoryContext += `\nAGENT GUIDANCE:\n`;
       memoryContext += `- Current CSS Stage: ${progression.currentStage}\n`;

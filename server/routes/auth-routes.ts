@@ -267,4 +267,63 @@ router.delete('/user-by-email', async (req, res) => {
   }
 });
 
+// Diagnostic endpoint to check and fix therapeutic_context table
+router.get('/fix-therapeutic-context', async (req, res) => {
+  try {
+    console.log('🔧 Checking therapeutic_context table...');
+    
+    // First, try to query the table to see its current structure
+    const { data: testQuery, error: testError } = await supabase
+      .from('therapeutic_context')
+      .select('*')
+      .limit(1);
+    
+    if (testError) {
+      console.log('Error querying therapeutic_context:', testError);
+      
+      // Try to add the metadata column if it's missing
+      if (testError.message.includes('metadata')) {
+        console.log('Attempting to add metadata column...');
+        
+        // Use raw SQL through Supabase
+        const { error: alterError } = await supabase.rpc('exec_sql', {
+          query: 'ALTER TABLE therapeutic_context ADD COLUMN IF NOT EXISTS metadata JSONB'
+        });
+        
+        if (alterError) {
+          console.log('Could not add column via RPC:', alterError);
+          // Column might already exist or RPC function doesn't exist
+        }
+      }
+    }
+    
+    // Check how many records exist
+    const { count, error: countError } = await supabase
+      .from('therapeutic_context')
+      .select('*', { count: 'exact', head: true });
+    
+    // Get sample records
+    const { data: samples, error: sampleError } = await supabase
+      .from('therapeutic_context')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    res.json({
+      success: true,
+      recordCount: count || 0,
+      sampleRecords: samples || [],
+      errors: {
+        test: testError?.message,
+        count: countError?.message,
+        sample: sampleError?.message
+      }
+    });
+    
+  } catch (error) {
+    console.error('Diagnostic error:', error);
+    res.status(500).json({ error: 'Diagnostic failed', details: error });
+  }
+});
+
 export default router;

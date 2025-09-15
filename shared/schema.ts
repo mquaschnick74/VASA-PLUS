@@ -34,6 +34,7 @@ export const therapeuticContext = pgTable("therapeutic_context", {
   call_id: text("call_id"),
   context_type: text("context_type").default("session_insight"),
   content: text("content").notNull(),
+  metadata: jsonb("metadata"),
   css_stage: text("css_stage"),
   pattern_type: text("pattern_type"),
   contradiction_content: text("contradiction_content"),
