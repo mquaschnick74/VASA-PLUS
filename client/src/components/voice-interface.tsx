@@ -65,6 +65,11 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           if (data.verbalAcknowledgment) {
             console.log(`💬 ${selectedAgent?.name}-specific greeting: ${data.verbalAcknowledgment}`);
           }
+        } else if (response.status === 404) {
+          // User no longer exists, clear localStorage and redirect to auth
+          console.log('User not found, clearing stored userId');
+          localStorage.removeItem('userId');
+          setUserId(null);
         }
       } catch (error) {
         console.error('Error loading user context:', error);
