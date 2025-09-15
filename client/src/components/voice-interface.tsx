@@ -61,8 +61,17 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
         if (response.ok) {
           const data = await response.json();
           setUserContext(data);
+          
+          // Enhanced debugging
+          console.log('📥 Received from backend:');
+          console.log('  Memory Context:', data.memoryContext?.substring(0, 100));
+          console.log('  Verbal Acknowledgment:', data.verbalAcknowledgment);
+          console.log('  Session Count:', data.sessionCount);
           console.log(`✅ Loaded ${data.sessionCount} previous sessions for agent ${selectedAgent?.name}`);
-          if (data.verbalAcknowledgment) {
+          
+          if (!data.verbalAcknowledgment || data.verbalAcknowledgment.length < 10) {
+            console.warn('⚠️ No valid verbal acknowledgment received from backend!');
+          } else {
             console.log(`💬 ${selectedAgent?.name}-specific greeting: ${data.verbalAcknowledgment}`);
           }
         } else if (response.status === 404) {

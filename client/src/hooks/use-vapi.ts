@@ -104,12 +104,18 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
-      // Use verbal acknowledgment if available and we have memory, otherwise use agent's template
-      const firstMessage = verbalAcknowledgment && hasMemory 
+      // Debug logging
+      console.log('🔍 VAPI First Message Debug:');
+      console.log('  - verbalAcknowledgment:', verbalAcknowledgment);
+      console.log('  - hasMemory:', hasMemory);
+      console.log('  - memoryContext length:', memoryContext?.length || 0);
+      
+      // Use verbal acknowledgment if available, regardless of memory context length
+      const firstMessage = verbalAcknowledgment && verbalAcknowledgment.length > 10
         ? verbalAcknowledgment 
         : selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
       
-      console.log(`💬 Using first message: ${firstMessage}`);
+      console.log(`💬 FINAL first message being sent to VAPI: "${firstMessage}"`);
 
       // Get the current server URL for webhook configuration
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
@@ -154,7 +160,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       };
 
       console.log('🔍 Starting VAPI call with:', {
-        assistant: assistantConfig,
+        firstMessage: assistantConfig.firstMessage,
         hasPublicKey: !!import.meta.env.VITE_VAPI_PUBLIC_KEY,
         metadata: { userId: userId, agentName: selectedAgent.name }
       });
