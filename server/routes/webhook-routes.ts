@@ -37,7 +37,8 @@ router.post('/webhook', async (req, res) => {
       console.log('⚠️ Skipping webhook verification (not in production or no secret key)');
     }
 
-    const { message } = req.body;
+    // VAPI can send data either as { message: {...} } or directly as {...}
+    const message = req.body.message || req.body;
     const eventType = message?.type;
 
     const userId = extractUserId(message);
@@ -48,7 +49,8 @@ router.post('/webhook', async (req, res) => {
 
     if (!userId || !callId) {
       console.warn('❌ Missing userId or callId');
-      console.warn('Message structure:', JSON.stringify(message, null, 2).substring(0, 500));
+      const msgStr = JSON.stringify(message, null, 2);
+      console.warn('Message structure:', msgStr ? msgStr.substring(0, 500) : 'undefined');
       return res.status(200).json({ received: true });
     }
 
