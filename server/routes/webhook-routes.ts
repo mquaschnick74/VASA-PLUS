@@ -132,6 +132,50 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
+// Test database connection endpoint
+router.get('/test-db', async (req, res) => {
+  try {
+    const { supabase } = await import('../services/supabase-service');
+    
+    // Test connection by fetching sessions count
+    const { data, error, count } = await supabase
+      .from('therapeutic_sessions')
+      .select('*', { count: 'exact', head: true });
+    
+    if (error) {
+      console.error('Database test failed:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        details: error 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Database connection successful',
+      sessionCount: count,
+      supabaseUrl: process.env.SUPABASE_URL?.substring(0, 30) + '...',
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY
+    });
+  } catch (error) {
+    console.error('Database test error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Database test failed',
+      details: error
+    });
+  }
+});
+
+// Debug webhook endpoint to see raw payload
+router.post('/webhook-debug', async (req, res) => {
+  console.log('🔍 RAW WEBHOOK DEBUG:');
+  console.log('Headers:', req.headers);
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  res.json({ received: true, body: req.body });
+});
+
 // Manual analysis endpoint for testing
 router.post('/analyze-transcript', async (req, res) => {
   try {
