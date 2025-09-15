@@ -12,59 +12,30 @@ const router = Router();
 
 router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI webhook received:', req.body.message?.type);
-  console.log('Environment:', process.env.NODE_ENV);
-  console.log('Has VAPI_SECRET_KEY:', !!process.env.VAPI_SECRET_KEY);
-  console.log('Has signature header:', !!req.headers['x-vapi-signature']);
 
   try {
-    // Log webhook verification attempt
     if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
-      const signatureHeader = req.headers['x-vapi-signature'] as string;
-      
-      if (!signatureHeader) {
-        console.error('❌ Missing webhook signature header');
-        return res.status(401).json({ error: 'Missing signature' });
-      }
-      
-      // Use raw body for signature verification (captured by express middleware)
-      const rawBody = (req as any).rawBody || JSON.stringify(req.body);
-      
-      // VAPI may send signature in format "sha256=..." or just the hex
-      const signature = signatureHeader.startsWith('sha256=') 
-        ? signatureHeader.slice(7) 
-        : signatureHeader;
-      
+      const signature = req.headers['x-vapi-signature'] as string;
+      const payload = JSON.stringify(req.body);
       const expectedSignature = crypto
         .createHmac('sha256', process.env.VAPI_SECRET_KEY)
-        .update(rawBody)
+        .update(payload)
         .digest('hex');
 
       if (signature !== expectedSignature) {
-        console.error('❌ Webhook signature verification failed');
-        console.error('Expected:', expectedSignature.substring(0, 10) + '...');
-        console.error('Received:', signature?.substring(0, 10) + '...');
-        console.error('Body preview:', rawBody?.substring(0, 100));
         return res.status(401).json({ error: 'Invalid signature' });
       }
-      console.log('✅ Webhook signature verified');
-    } else {
-      console.log('⚠️ Skipping webhook verification (not in production or no secret key)');
     }
 
-    // VAPI can send data either as { message: {...} } or directly as {...}
-    const message = req.body.message || req.body;
+    const { message } = req.body;
     const eventType = message?.type;
 
     const userId = extractUserId(message);
     const callId = extractCallId(message);
     const agentName = extractAgentName(message);
 
-    console.log('Extracted data:', { userId, callId, agentName, eventType });
-
     if (!userId || !callId) {
-      console.warn('❌ Missing userId or callId');
-      const msgStr = JSON.stringify(message, null, 2);
-      console.warn('Message structure:', msgStr ? msgStr.substring(0, 500) : 'undefined');
+      console.warn('Missing userId or callId');
       return res.status(200).json({ received: true });
     }
 
@@ -148,62 +119,8 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
-// Test database connection endpoint
-router.get('/test-db', async (req, res) => {
-  try {
-    const { supabase } = await import('../services/supabase-service');
-    
-    // Test connection by fetching sessions count
-    const { data, error, count } = await supabase
-      .from('therapeutic_sessions')
-      .select('*', { count: 'exact', head: true });
-    
-    if (error) {
-      console.error('Database test failed:', error);
-      return res.status(500).json({ 
-        success: false, 
-        error: error.message,
-        details: error 
-      });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Database connection successful',
-      sessionCount: count,
-      supabaseUrl: process.env.SUPABASE_URL?.substring(0, 30) + '...',
-      hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY
-    });
-  } catch (error) {
-    console.error('Database test error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Database test failed',
-      details: error
-    });
-  }
-});
-
-// Debug webhook endpoint to see raw payload (development only)
-router.post('/webhook-debug', async (req, res) => {
-  // Security: Only allow in development mode
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({ error: 'Not found' });
-  }
-  
-  console.log('🔍 RAW WEBHOOK DEBUG:');
-  console.log('Headers:', req.headers);
-  console.log('Body:', JSON.stringify(req.body, null, 2));
-  res.json({ received: true, body: req.body });
-});
-
-// Manual analysis endpoint for testing (development only)
+// Manual analysis endpoint for testing
 router.post('/analyze-transcript', async (req, res) => {
-  // Security: Only allow in development mode
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({ error: 'Not found' });
-  }
-  
   try {
     const { transcript, userId, callId } = req.body;
 
