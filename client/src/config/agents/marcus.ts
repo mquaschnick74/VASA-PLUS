@@ -7,7 +7,7 @@ import { HSFB_PROTOCOLS, SAFETY_CRISIS_MODULE } from './shared/hsfb-protocols';
 export const MARCUS_AGENT = {
   id: 'marcus',
   name: 'Marcus',
-  description: 'Integration specialist - Thend states and meta-awareness',
+  description: 'Integration specialist',
   icon: '🧔🏾‍♂️',
   color: 'emerald',
   model: {
