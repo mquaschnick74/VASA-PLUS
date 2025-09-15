@@ -25,12 +25,12 @@ export class SupabaseStorage implements IStorage {
       .select('*')
       .eq('id', id)
       .single();
-    
+
     if (error) {
       console.error('Error fetching user:', error);
       return undefined;
     }
-    
+
     return data;
   }
 
@@ -40,12 +40,12 @@ export class SupabaseStorage implements IStorage {
       .select('*')
       .eq('email', username)  // Using email as username
       .single();
-    
+
     if (error) {
       console.error('Error fetching user by email:', error);
       return undefined;
     }
-    
+
     return data;
   }
 
@@ -55,12 +55,12 @@ export class SupabaseStorage implements IStorage {
       .insert(insertUser)
       .select()
       .single();
-    
+
     if (error) {
       console.error('Error creating user:', error);
       throw new Error('Failed to create user');
     }
-    
+
     return data;
   }
 }
