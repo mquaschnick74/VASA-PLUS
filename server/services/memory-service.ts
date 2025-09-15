@@ -33,7 +33,7 @@ function isMeaningfulSession(session: any, patterns: CSSPatterns): boolean {
   console.log(`🔍 Checking meaningful session for ${session.call_id}:`);
   console.log(`  Duration: ${session.duration_seconds || 0} seconds`);
   console.log(`  Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}, Thend=${patterns.thendIndicators.length}, CYVC=${patterns.cyvcPatterns.length}`);
-  
+
   // LOWERED: Duration check - now 60 seconds instead of 120
   if (session.duration_seconds && session.duration_seconds >= 60) {
     console.log(`  ✅ Meaningful: Duration >= 60 seconds`);
@@ -70,11 +70,11 @@ function isMeaningfulSession(session: any, patterns: CSSPatterns): boolean {
       'creative', 'overwhelmed', 'scattered', 'pulled', 'part of me',
       'but also', 'want to', 'but end up', 'frustrated', 'excited'
     ];
-    
+
     const foundKeywords = emotionalKeywords.filter(keyword => 
       session.text.toLowerCase().includes(keyword.toLowerCase())
     );
-    
+
     if (foundKeywords.length >= 2) {
       console.log(`  ✅ Meaningful: Found emotional keywords: ${foundKeywords.join(', ')}`);
       return true;
@@ -204,16 +204,16 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
     return text;
   }
-  
+
   // Find the last space before maxLength
   const truncated = text.substring(0, maxLength);
   const lastSpaceIndex = truncated.lastIndexOf(' ');
-  
+
   // If we found a space, truncate there; otherwise take the whole maxLength
   if (lastSpaceIndex > 0) {
     return truncated.substring(0, lastSpaceIndex);
   }
-  
+
   return truncated;
 }
 
@@ -283,29 +283,72 @@ export async function buildEnhancedMemoryContext(
 
     // Get CSS progression context
     const cssContext = await getCSSProgressionContext(userId);
-    
-    // Get session count for basic context
+
+    // Get recent sessions with more detail
     const { data: sessions } = await supabase
       .from('therapeutic_sessions')
-      .select('id')
-      .eq('user_id', userId);
-    
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
     const sessionCount = sessions?.length || 0;
-    
+
     if (sessionCount === 0) {
       return {
         context: 'First session with this user.',
         verbalAcknowledgment: `Hello ${firstName}, I'm ${currentAgentName}. What brings you here today?`
       };
     }
-    
-    // Build memory context focused on CSS progression
+
+    // Get the most recent transcript for pattern analysis
+    const { data: lastTranscript } = await supabase
+      .from('session_transcripts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    // Create a SessionSummary object for the last session if we have transcript
+    let lastSession: SessionSummary | null = null;
+
+    if (sessions && sessions.length > 0 && lastTranscript && lastTranscript.text) {
+      const mostRecentSession = sessions[0];
+      const patterns = detectCSSPatterns(lastTranscript.text, false);
+
+      // Check if it was meaningful
+      const transcriptWithSession = {
+        ...mostRecentSession,
+        text: lastTranscript.text
+      };
+
+      lastSession = {
+        id: mostRecentSession.id,
+        callId: mostRecentSession.call_id,
+        date: mostRecentSession.created_at,
+        duration: mostRecentSession.duration_seconds || 0,
+        transcript: lastTranscript.text,
+        summary: '',
+        cssStage: patterns.currentStage,
+        patterns: patterns,
+        isMeaningful: isMeaningfulSession(transcriptWithSession, patterns)
+      };
+
+      console.log(`📝 Last session analysis:
+        - Call ID: ${lastSession.callId}
+        - Duration: ${lastSession.duration}s
+        - Meaningful: ${lastSession.isMeaningful}
+        - Patterns found: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}`);
+    }
+
+    // Build memory context
     let memoryContext = `SESSION CONTEXT:\n`;
     memoryContext += `Client: ${firstName}\n`;
     memoryContext += `Total Sessions: ${sessionCount}\n\n`;
     memoryContext += cssContext;
     memoryContext += `\n`;
-    
+
     // Agent-specific guidance based on CSS stage
     const { data: latestSummary } = await supabase
       .from('therapeutic_context')
@@ -315,10 +358,10 @@ export async function buildEnhancedMemoryContext(
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
-    
+
     if (latestSummary?.metadata) {
       const progression = latestSummary.metadata as any;
-      
+
       memoryContext += `\nAGENT GUIDANCE:\n`;
       memoryContext += `- Current CSS Stage: ${progression.currentStage}\n`;
       memoryContext += `- You may reference any of the quoted material naturally\n`;
@@ -329,15 +372,18 @@ export async function buildEnhancedMemoryContext(
       memoryContext += `- Build on established patterns to progress through CSS stages\n`;
       memoryContext += `- Use direct quotes when therapeutically appropriate\n`;
     }
-    
-    // Simple, flexible greeting - let agent decide how to use the context
-    const verbalAcknowledgment = sessionCount === 1 ? 
-      `Hello ${firstName}, good to see you again. What's present for you today?` :
-      `Hello ${firstName}, welcome back.`;
-    
-    console.log('✅ CSS progression context built');
+
+    // NOW WE USE THE SOPHISTICATED GREETING GENERATOR!
+    const verbalAcknowledgment = createVerbalAcknowledgment(
+      firstName,
+      lastSession,
+      currentAgentName
+    );
+
+    console.log('✅ CSS progression context built with personalized greeting');
     console.log(`📊 CSS Stage: ${latestSummary?.metadata?.currentStage || 'Unknown'}`);
-    
+    console.log(`💬 Personalized greeting: ${verbalAcknowledgment}`);
+
     return {
       context: memoryContext,
       verbalAcknowledgment: verbalAcknowledgment
@@ -382,7 +428,7 @@ export async function storeEnhancedSessionContext(
           confidence: meaningful ? 0.9 : 0.6,
           importance: meaningful ? 8 : 5
         });
-      
+
       if (insertError) {
         console.error('❌ Failed to store enhanced summary:', insertError);
         throw insertError;
@@ -399,7 +445,7 @@ export async function storeEnhancedSessionContext(
           confidence: 0.8,
           importance: 5
         });
-      
+
       if (insertError) {
         console.error('❌ Failed to store regular context:', insertError);
         throw insertError;
