@@ -17,16 +17,7 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 │       │   ├── DeleteAccount.tsx    # Account deletion
 │       │   └── AIDisclosureCard.tsx # AI limitations dropdown (NEW)
 │       ├── config/
-│       │   ├── agent-configs.ts     # Re-exports from agents/
-│       │   └── agents/              # 4-agent architecture (NEW)
-│       │       ├── shared/
-│       │       │   ├── vasa-foundation.ts  # Core therapeutic framework
-│       │       │   └── hsfb-protocols.ts   # Crisis intervention protocols
-│       │       ├── sarah.ts         # CVDC specialist
-│       │       ├── mathew.ts        # IBM specialist
-│       │       ├── marcus.ts        # Integration specialist
-│       │       ├── zhanna.ts        # Somatic specialist
-│       │       └── index.ts         # Agent exports & utilities
+│       │   └── agent-configs.ts     # Agent v3: speak/meta separation
 │       ├── hooks/
 │       │   ├── use-vapi.ts         # VAPI WebSocket management
 │       │   ├── use-toast.ts        # Notification system
@@ -42,7 +33,8 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 │
 ├── server/                          # Express backend
 │   ├── routes/
-│   │   ├── auth-routes.ts          # User auth & enhanced context
+│   │   ├── auth-routes.ts          # User auth & context
+│   │   ├── vapi-routes.ts          # VAPI config endpoints
 │   │   └── webhook-routes.ts       # VAPI webhook handler
 │   ├── services/
 │   │   ├── orchestration-service.ts # Session management + meta parsing
@@ -71,7 +63,7 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 
 ### Frontend Features
 - **Voice Interface** - Real-time call controls, status display
-- **Agent Selector** - 4 specialized therapeutic agents
+- **Agent Selector** - Sarah (emotional) & Mathew (analytical)
 - **AI Disclosure** - Red alert dropdown with limitations & crisis info
 - **Mobile Responsive** - Full mobile optimization with scaling UI
 
@@ -80,7 +72,7 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 **Core Services:**
 - `orchestration-service.ts` - Session state, transcript processing, metadata extraction
 - `css-pattern-service.ts` - CVDC/IBM/Thend/CYVC detection with flexible regex
-- `memory-service.ts` - Enhanced context building, verbal acknowledgments, therapeutic insights
+- `memory-service.ts` - Context building, therapeutic insights
 - `parseAssistantOutput.ts` - Separates `<speak>` from `<meta>` tags
 
 **Session Management:**
@@ -121,17 +113,9 @@ Natural conversation without tracking phrases
 </meta>
 ```
 
-### Agents (4-Agent Architecture)
-- **Sarah** - CVDC specialist, contradictions and emotional paradoxes
-- **Mathew** - IBM specialist, behavioral patterns and intention-action gaps
-- **Marcus** - Integration specialist, synthesis and meta-awareness
-- **Zhanna** - Somatic specialist, body awareness and enhanced grounding
-
-All agents include:
-- HSFB (Hearing, Seeing, Feeling, Breathing) crisis protocols
-- Natural voice with speak/meta tag separation
-- Register-aware interventions (Symbolic/Imaginary/Real)
-- Enhanced memory integration with personalized greetings
+### Agents
+- **Sarah** - Warm, feeling-first, gentle guidance
+- **Mathew** - Pattern recognition, intention-action gaps
 
 ## CSS Pattern Detection
 
@@ -192,12 +176,9 @@ npm run db:generate  # Generate migrations
 ```
 
 ## Recent Updates
-- ✅ 4-agent architecture with specialized therapeutic focus
-- ✅ HSFB crisis intervention protocols for all agents
-- ✅ Enhanced memory service with personalized verbal acknowledgments
 - ✅ Natural voice agents v3 with speak/meta separation
-- ✅ Mobile-responsive UI with pill-shaped session button
+- ✅ Mobile-responsive UI with proper dropdown positioning
 - ✅ AI disclosure card with crisis hotline info
 - ✅ Efficient transcript storage (end-of-call only)
-- ✅ Fixed payload size limit for large transcripts (10MB)
+- ✅ Fixed CSS pattern detection with flexible regex
 - ✅ Two-tier cache system with race protection

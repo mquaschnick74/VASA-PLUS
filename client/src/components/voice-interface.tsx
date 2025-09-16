@@ -14,7 +14,6 @@ interface VoiceInterfaceProps {
 interface UserContext {
   profile: any;
   memoryContext: string;
-  verbalAcknowledgment?: string;
   sessions: any[];
   firstName: string;
   sessionCount: number;
@@ -39,19 +38,17 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     userId,
     memoryContext: userContext?.memoryContext || '',
     firstName: userContext?.firstName || 'there',
-    selectedAgent: selectedAgent!,
-    verbalAcknowledgment: userContext?.verbalAcknowledgment
+    selectedAgent: selectedAgent!
   });
 
-  // Load memory context with agent-specific greetings
+  // Load memory context
   useEffect(() => {
     const loadUserContext = async () => {
       if (!userId) return;
       
       setMemoryLoading(true);
       try {
-        // Include selected agent in the request for agent-specific greetings
-        const response = await fetch(`/api/auth/user-context/${userId}?agentName=${selectedAgent?.name || 'Sarah'}`, {
+        const response = await fetch(`/api/auth/user-context/${userId}`, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache'
@@ -61,24 +58,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
         if (response.ok) {
           const data = await response.json();
           setUserContext(data);
-          
-          // Enhanced debugging
-          console.log('📥 Received from backend:');
-          console.log('  Memory Context:', data.memoryContext?.substring(0, 100));
-          console.log('  Verbal Acknowledgment:', data.verbalAcknowledgment);
-          console.log('  Session Count:', data.sessionCount);
-          console.log(`✅ Loaded ${data.sessionCount} previous sessions for agent ${selectedAgent?.name}`);
-          
-          if (!data.verbalAcknowledgment || data.verbalAcknowledgment.length < 10) {
-            console.warn('⚠️ No valid verbal acknowledgment received from backend!');
-          } else {
-            console.log(`💬 ${selectedAgent?.name}-specific greeting: ${data.verbalAcknowledgment}`);
-          }
-        } else if (response.status === 404) {
-          // User no longer exists, clear localStorage and redirect to auth
-          console.log('User not found, clearing stored userId');
-          localStorage.removeItem('userId');
-          setUserId(null);
+          console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
         }
       } catch (error) {
         console.error('Error loading user context:', error);
@@ -88,7 +68,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     };
     
     loadUserContext();
-  }, [userId, selectedAgentId]); // Reload when agent changes
+  }, [userId]);
 
   // Call timer effect
   useEffect(() => {
@@ -222,20 +202,28 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   </div>
 
                   {/* Voice Call Controls */}
-                  <div className="flex justify-center">
+                  <div className="flex justify-center space-x-4 sm:space-x-6">
                     <Button
                       onClick={isSessionActive ? endSession : handleStartSession}
                       disabled={isLoading || memoryLoading}
-                      className={`group relative px-8 py-3 sm:px-10 sm:py-4 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
+                      className={`group relative w-16 h-16 sm:w-20 sm:h-20 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
                         isSessionActive 
                           ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
                           : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
                       }`}
                       data-testid="button-call"
                     >
-                      <span className="text-white font-medium text-base sm:text-lg">
-                        {isSessionActive ? 'End Session' : 'Start Session'}
-                      </span>
+                      <i className={`text-xl sm:text-2xl text-white group-hover:scale-110 transition-transform duration-200 ${
+                        isSessionActive ? 'fas fa-phone-slash' : 'fas fa-phone'
+                      }`}></i>
+                    </Button>
+
+                    <Button className="w-12 h-12 sm:w-16 sm:h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
+                      <i className="fas fa-microphone text-lg sm:text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
+                    </Button>
+
+                    <Button className="w-12 h-12 sm:w-16 sm:h-16 glass rounded-full hover:glass-strong transition-all duration-200 flex items-center justify-center group">
+                      <i className="fas fa-volume-up text-xl text-muted-foreground group-hover:text-foreground transition-colors duration-200"></i>
                     </Button>
                   </div>
 

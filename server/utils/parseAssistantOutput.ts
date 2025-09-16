@@ -1,100 +1,58 @@
-// parseAssistantOutput.ts - Fixed to prevent metadata bleeding
+// Utility to parse assistant output with speak/meta tags
 
 export interface ParsedOutput {
   speak: string;
-  meta: any;
+  meta: {
+    register?: 'symbolic' | 'imaginary' | 'real' | 'mixed' | 'undetermined';
+    css?: {
+      stage: 'CVDC' | 'SUSPENSION' | 'THEND' | 'CYVC' | 'NONE';
+      evidence: string[];
+      confidence: number;
+    };
+    hsfb?: {
+      invoked: boolean;
+      mode: 'hearing' | 'seeing' | 'feeling' | 'breathing' | 'sequence' | null;
+      reason: 'stuck' | 'user_requested' | 'integration' | null;
+    };
+    safety?: {
+      flag: boolean;
+      reason: 'self_harm' | 'harm_to_others' | 'abuse' | 'medical' | null;
+      action: 'grounding' | 'activate_protocol' | null;
+      crisis: boolean;
+    };
+  } | null;
 }
 
 export function parseAssistantOutput(text: string): ParsedOutput {
-  // More robust parsing to prevent bleed-through
+  // Extract speak content
+  const speakMatch = /<speak>([\s\S]*?)<\/speak>/m.exec(text);
+  const speak = speakMatch?.[1]?.trim();
   
-  // First, try to find <speak> tags
-  const speakMatch = text.match(/<speak>([\s\S]*?)<\/speak>/);
+  // Extract meta content
+  const metaMatch = /<meta>([\s\S]*?)<\/meta>/m.exec(text);
+  const metaRaw = metaMatch?.[1]?.trim();
   
-  // Then find <meta> tags
-  const metaMatch = text.match(/<meta>([\s\S]*?)<\/meta>/);
+  let meta: ParsedOutput['meta'] = null;
   
-  let speak = '';
-  let meta = null;
-  
-  if (speakMatch && speakMatch[1]) {
-    // Clean the speak content - remove any leaked metadata
-    speak = speakMatch[1]
-      .trim()
-      .replace(/Register\..*/g, '')  // Remove any leaked Register text
-      .replace(/CSS\..*/g, '')        // Remove any leaked CSS text
-      .replace(/Stage,.*/g, '')       // Remove any leaked Stage text
-      .replace(/Confidence\..*/g, '') // Remove any leaked Confidence text
-      .replace(/HSFB,.*/g, '')       // Remove any leaked HSFB text
-      .trim();
-  } else {
-    // If no speak tags, check if there's content before <meta>
-    if (metaMatch && metaMatch.index) {
-      speak = text.substring(0, metaMatch.index).trim();
-    } else {
-      // Fallback: treat entire text as speak
-      speak = text
-        .replace(/<meta>[\s\S]*<\/meta>/, '')
-        .trim();
-    }
-  }
-  
-  // Parse meta section
-  if (metaMatch && metaMatch[1]) {
+  // Try to parse meta as JSON
+  if (metaRaw) {
     try {
-      meta = JSON.parse(metaMatch[1].trim());
+      meta = JSON.parse(metaRaw);
     } catch (e) {
       console.warn('Failed to parse meta JSON:', e);
-      // Don't let parse errors affect the speech
+      meta = null;
     }
   }
   
-  // Final safety check - ensure no metadata in speak
-  const metadataPatterns = [
-    /Register\./gi,
-    /CSS\./gi,
-    /Stage[,:\s]/gi,
-    /Confidence[:\s]/gi,
-    /HSFB[,:\s]/gi,
-    /evidence[:\s]/gi,
-    /"exchangeCount"/gi,
-    /CVDC/gi,
-    /IBM/gi,
-    /Thend/gi,
-    /CYVC/gi,
-    /invoked/gi
-  ];
-  
-  for (const pattern of metadataPatterns) {
-    if (pattern.test(speak)) {
-      console.error('METADATA LEAK DETECTED IN SPEAK SECTION');
-      speak = speak.replace(pattern, '');
-    }
-  }
-  
+  // If no speak tag found, treat entire text as speak
   return {
-    speak: speak.trim(),
-    meta: meta
+    speak: speak ?? text,
+    meta
   };
 }
 
-// Helper to validate output before sending
-export function validateTherapeuticOutput(output: string): boolean {
-  const parsed = parseAssistantOutput(output);
-  
-  // Check for metadata leaks
-  const hasMetadataLeak = /Register\.|CSS\.|Stage,|Confidence\.|HSFB,|CVDC|IBM|Thend|CYVC|invoked/i.test(parsed.speak);
-  
-  if (hasMetadataLeak) {
-    console.error('REJECTED OUTPUT - Metadata leak detected:', parsed.speak);
-    return false;
-  }
-  
-  return true;
-}
-
-// Helper to extract CSS stage from meta
-export function extractCSSStage(meta: any): string | null {
+// Helper to validate and extract CSS stage from meta
+export function extractCSSStage(meta: ParsedOutput['meta']): string | null {
   if (!meta?.css?.stage) return null;
   
   const validStages = ['CVDC', 'SUSPENSION', 'THEND', 'CYVC', 'NONE'];
@@ -106,12 +64,12 @@ export function extractCSSStage(meta: any): string | null {
 }
 
 // Helper to check if safety intervention is needed
-export function needsSafetyIntervention(meta: any): boolean {
+export function needsSafetyIntervention(meta: ParsedOutput['meta']): boolean {
   return meta?.safety?.flag === true || meta?.safety?.crisis === true;
 }
 
 // Helper to extract register dominance
-export function extractRegister(meta: any): string | null {
+export function extractRegister(meta: ParsedOutput['meta']): string | null {
   if (!meta?.register) return null;
   
   const validRegisters = ['symbolic', 'imaginary', 'real', 'mixed', 'undetermined'];

@@ -6,7 +6,6 @@ interface UseVapiProps {
   memoryContext: string;
   firstName: string;
   selectedAgent: TherapeuticAgent;
-  verbalAcknowledgment?: string;
 }
 
 interface UseVapiReturn {
@@ -17,7 +16,7 @@ interface UseVapiReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
 }
 
-const useVapi = ({ userId, memoryContext, firstName, selectedAgent, verbalAcknowledgment }: UseVapiProps): UseVapiReturn => {
+const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiProps): UseVapiReturn => {
   const [vapi, setVapi] = useState<any>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,49 +88,23 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent, verbalAcknow
       const hasMemory = memoryContext && memoryContext.length > 50;
       
       let systemPrompt = selectedAgent.systemPrompt;
-
-      // Add exchange tracking initialization
-      systemPrompt = `
-${systemPrompt}
-
-===== SESSION INITIALIZATION =====
-This is exchange #1. Remember to track exchanges internally.
-Phase: NARRATIVE COLLECTION (exchanges 1-25)
-Focus: Deep listening and understanding only.
-DO NOT identify patterns or contradictions yet.
-
-===== RESPONSE REQUIREMENTS =====
-1. Keep <speak> completely natural - no technical language
-2. Track metadata in <meta> only
-3. Prioritize building trust and understanding
-4. Ask open-ended questions about their experience
-`;
-
+      
+      // Add memory context if available
       if (hasMemory) {
         systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
 ${memoryContext}
 ===== END CONTEXT =====
 
-Build on the trust and understanding already established.
-Reference specific things they shared to show continuity.`;
+IMPORTANT: Reference the above context naturally in conversation when relevant.
+Do not make up or hallucinate any details not explicitly mentioned above.`;
       } else {
-        systemPrompt += '\n\nThis is your first session with this user. Focus on understanding their story.';
+        systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
       }
       
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
-      // Debug logging
-      console.log('🔍 VAPI First Message Debug:');
-      console.log('  - verbalAcknowledgment:', verbalAcknowledgment);
-      console.log('  - hasMemory:', hasMemory);
-      console.log('  - memoryContext length:', memoryContext?.length || 0);
-      
-      // Use verbal acknowledgment if available, regardless of memory context length
-      const firstMessage = verbalAcknowledgment && verbalAcknowledgment.length > 10
-        ? verbalAcknowledgment 
-        : selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
-      
-      console.log(`💬 FINAL first message being sent to VAPI: "${firstMessage}"`);
+      // Get personalized first message
+      const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
 
       // Get the current server URL for webhook configuration
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
@@ -176,7 +149,7 @@ Reference specific things they shared to show continuity.`;
       };
 
       console.log('🔍 Starting VAPI call with:', {
-        firstMessage: assistantConfig.firstMessage,
+        assistant: assistantConfig,
         hasPublicKey: !!import.meta.env.VITE_VAPI_PUBLIC_KEY,
         metadata: { userId: userId, agentName: selectedAgent.name }
       });
@@ -197,7 +170,7 @@ Reference specific things they shared to show continuity.`;
       setIsLoading(false);
       setConnectionStatus('disconnected');
     }
-  }, [vapi, userId, memoryContext, firstName, isLoading, isSessionActive, selectedAgent, verbalAcknowledgment]);
+  }, [vapi, userId, memoryContext, firstName, isLoading, isSessionActive, selectedAgent]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {
