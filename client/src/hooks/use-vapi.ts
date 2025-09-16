@@ -107,7 +107,12 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
 
       // Get the current server URL for webhook configuration
+      // Use the current origin to ensure webhooks work in both dev and production
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
+      
+      console.log('📍 Webhook URL:', serverUrl);
+      console.log('📍 User ID:', userId);
+      console.log('📍 Agent:', selectedAgent.name);
 
       // VAPI configuration with dynamic agent settings
       const assistantConfig = {
@@ -131,8 +136,11 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           similarityBoost: 0.75,
           speed: selectedAgent.voice.speed || 1.0
         },
+        serverUrl: serverUrl,  // VAPI SDK might expect serverUrl instead of server.url
         server: {
-          url: serverUrl
+          url: serverUrl,
+          timeoutSeconds: 20,
+          secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
         },
         firstMessage: firstMessage,
         transcriber: {
@@ -144,7 +152,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         metadata: {
           userId: userId,
           agentName: selectedAgent.name,
-          agentId: selectedAgent.id
+          agentId: selectedAgent.id,
+          timestamp: Date.now()  // Add timestamp to ensure uniqueness
         }
       };
 

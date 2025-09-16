@@ -159,16 +159,37 @@ router.post('/test-css-patterns', async (req, res) => {
 });
 
 function extractUserId(message: any): string | null {
-  return message?.call?.metadata?.userId || 
+  // Log the entire message structure in production for debugging
+  if (process.env.REPLIT_DEPLOYMENT === '1') {
+    console.log('🔍 Production webhook message structure:', JSON.stringify({
+      hasCall: !!message?.call,
+      hasCallMetadata: !!message?.call?.metadata,
+      hasDirectMetadata: !!message?.metadata,
+      hasAssistant: !!message?.assistant,
+      hasAssistantMetadata: !!message?.assistant?.metadata,
+      callMetadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : [],
+      directMetadataKeys: message?.metadata ? Object.keys(message.metadata) : []
+    }));
+  }
+  
+  const userId = message?.call?.metadata?.userId || 
          message?.metadata?.userId ||
          message?.call?.assistant?.metadata?.userId ||
          message?.assistant?.metadata?.userId ||
          null;
+         
+  if (!userId && process.env.REPLIT_DEPLOYMENT === '1') {
+    console.error('❌ Failed to extract userId from webhook in production');
+    console.error('Full message:', JSON.stringify(message).substring(0, 500));
+  }
+  
+  return userId;
 }
 
 function extractCallId(message: any): string | null {
   return message?.call?.id || 
          message?.callId || 
+         message?.id ||  // Some events might have id directly
          null;
 }
 
@@ -177,6 +198,7 @@ function extractAgentName(message: any): string {
          message?.metadata?.agentName ||
          message?.call?.assistant?.metadata?.agentName ||
          message?.assistant?.metadata?.agentName ||
+         message?.call?.assistant?.name?.replace('VASA-', '') ||  // Extract from assistant name
          'Sarah';
 }
 
