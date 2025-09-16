@@ -3,6 +3,11 @@
 export interface ParsedOutput {
   speak: string;
   meta: {
+    phase?: 'narrative_collection' | 'css_entry_assessment' | 'css_active';
+    exchange_count?: number;
+    narrative_depth?: 'surface' | 'emerging' | 'rich' | 'comprehensive';
+    entry_criteria_met?: boolean;
+    themes?: string[];
     register?: 'symbolic' | 'imaginary' | 'real' | 'mixed' | 'undetermined';
     css?: {
       stage: 'CVDC' | 'SUSPENSION' | 'THEND' | 'CYVC' | 'NONE';

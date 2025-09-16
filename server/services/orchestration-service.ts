@@ -11,6 +11,8 @@ interface SessionState {
   currentCSSStage: string;
   sessionStartTime: Date;
   processedTranscripts: Set<string>; // Track processed transcript hashes
+  exchangeCount: number; // Track number of exchanges
+  narrativePhase: 'narrative_collection' | 'css_entry_assessment' | 'css_active'; // Track narrative phase
 }
 
 // Two-tier cache system
@@ -97,7 +99,9 @@ async function ensureSessionInternal(
       agentName: existing.agent_name,
       currentCSSStage: 'pointed_origin',
       sessionStartTime: new Date(existing.start_time),
-      processedTranscripts: new Set()
+      processedTranscripts: new Set(),
+      exchangeCount: 0,
+      narrativePhase: 'narrative_collection'
     };
     activeSessions.set(callId, session);
     return session;
@@ -125,7 +129,9 @@ export async function initializeSession(
     agentName,
     currentCSSStage: 'pointed_origin',
     sessionStartTime: new Date(),
-    processedTranscripts: new Set()
+    processedTranscripts: new Set(),
+    exchangeCount: 0,
+    narrativePhase: 'narrative_collection'
   };
 
   activeSessions.set(callId, session);
@@ -179,6 +185,17 @@ export async function processTranscript(
       console.log(`📊 Assistant meta CSS stage: ${metaStage}`);
     }
     
+    // Update narrative phase if present in metadata
+    if (parsed.meta?.phase) {
+      session.narrativePhase = parsed.meta.phase;
+      console.log(`📖 Narrative phase: ${parsed.meta.phase}`);
+    }
+    
+    // Update exchange count if present
+    if (parsed.meta?.exchange_count !== undefined) {
+      session.exchangeCount = parsed.meta.exchange_count;
+    }
+    
     // Store metadata in database if present
     if (parsed.meta) {
       await supabase
@@ -209,6 +226,9 @@ export async function processTranscript(
   if (role !== 'user') {
     return;
   }
+  
+  // Increment exchange count for user messages
+  session.exchangeCount++;
 
   // Check if we've already processed this exact transcript
   const transcriptHash = Buffer.from(transcript).toString('base64').substring(0, 50);
@@ -287,7 +307,9 @@ export async function processEndOfCall(
         agentName,
         currentCSSStage: 'pointed_origin',
         sessionStartTime: new Date(Date.now() - (duration * 1000)),
-        processedTranscripts: new Set()
+        processedTranscripts: new Set(),
+        exchangeCount: 0,
+        narrativePhase: 'narrative_collection'
       };
     } else {
       session = {
@@ -296,7 +318,9 @@ export async function processEndOfCall(
         agentName: dbSession.agent_name,
         currentCSSStage: 'pointed_origin',
         sessionStartTime: new Date(),
-        processedTranscripts: new Set()
+        processedTranscripts: new Set(),
+        exchangeCount: 0,
+        narrativePhase: 'narrative_collection'
       };
     }
   }
