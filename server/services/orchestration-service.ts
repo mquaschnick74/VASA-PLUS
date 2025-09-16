@@ -197,17 +197,18 @@ export async function processTranscript(
     }
     
     // Store metadata in database if present
-    if (parsed.meta) {
+    if (parsed.meta && parsed.meta.css?.stage && parsed.meta.css.stage !== 'NONE') {
       await supabase
         .from('css_patterns')
         .insert({
           call_id: callId,
-          stage: parsed.meta.css?.stage || 'NONE',
-          register: parsed.meta.register || 'undetermined',
+          user_id: session.userId,
+          pattern_type: 'META',
+          content: JSON.stringify(parsed.meta),
+          css_stage: parsed.meta.css?.stage || 'NONE',
           confidence: parsed.meta.css?.confidence || 0,
           safety_flag: parsed.meta.safety?.flag || false,
           crisis_flag: parsed.meta.safety?.crisis || false,
-          hsfb_invoked: parsed.meta.hsfb?.invoked || false,
           detected_at: new Date().toISOString()
         });
         
