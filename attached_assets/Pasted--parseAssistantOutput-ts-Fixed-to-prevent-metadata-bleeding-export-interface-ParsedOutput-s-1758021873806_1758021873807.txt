@@ -57,12 +57,7 @@ export function parseAssistantOutput(text: string): ParsedOutput {
     /Confidence[:\s]/gi,
     /HSFB[,:\s]/gi,
     /evidence[:\s]/gi,
-    /"exchangeCount"/gi,
-    /CVDC/gi,
-    /IBM/gi,
-    /Thend/gi,
-    /CYVC/gi,
-    /invoked/gi
+    /"exchangeCount"/gi
   ];
   
   for (const pattern of metadataPatterns) {
@@ -83,7 +78,7 @@ export function validateTherapeuticOutput(output: string): boolean {
   const parsed = parseAssistantOutput(output);
   
   // Check for metadata leaks
-  const hasMetadataLeak = /Register\.|CSS\.|Stage,|Confidence\.|HSFB,|CVDC|IBM|Thend|CYVC|invoked/i.test(parsed.speak);
+  const hasMetadataLeak = /Register\.|CSS\.|Stage,|Confidence\.|HSFB,/.test(parsed.speak);
   
   if (hasMetadataLeak) {
     console.error('REJECTED OUTPUT - Metadata leak detected:', parsed.speak);
@@ -91,33 +86,4 @@ export function validateTherapeuticOutput(output: string): boolean {
   }
   
   return true;
-}
-
-// Helper to extract CSS stage from meta
-export function extractCSSStage(meta: any): string | null {
-  if (!meta?.css?.stage) return null;
-  
-  const validStages = ['CVDC', 'SUSPENSION', 'THEND', 'CYVC', 'NONE'];
-  if (validStages.includes(meta.css.stage)) {
-    return meta.css.stage;
-  }
-  
-  return null;
-}
-
-// Helper to check if safety intervention is needed
-export function needsSafetyIntervention(meta: any): boolean {
-  return meta?.safety?.flag === true || meta?.safety?.crisis === true;
-}
-
-// Helper to extract register dominance
-export function extractRegister(meta: any): string | null {
-  if (!meta?.register) return null;
-  
-  const validRegisters = ['symbolic', 'imaginary', 'real', 'mixed', 'undetermined'];
-  if (validRegisters.includes(meta.register)) {
-    return meta.register;
-  }
-  
-  return null;
 }
