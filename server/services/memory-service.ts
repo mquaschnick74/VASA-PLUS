@@ -38,14 +38,14 @@ export async function buildMemoryContext(userId: string): Promise<string> {
 
     // Format memory context
     let memoryContext = '';
-    
+
     if (sessions && sessions.length > 0) {
       memoryContext += `You have had ${sessions.length} previous sessions with this user. `;
-      
+
       const lastSession = sessions[0];
       const lastDate = new Date(lastSession.created_at).toLocaleDateString();
       memoryContext += `The last session was on ${lastDate}. `;
-      
+
       if (lastSession.duration_seconds) {
         const minutes = Math.floor(lastSession.duration_seconds / 60);
         memoryContext += `It lasted ${minutes} minutes. `;
@@ -62,7 +62,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     if (cssPatterns && cssPatterns.length > 0) {
       const currentStage = cssPatterns[0].css_stage;
       memoryContext += `\n\nTherapeutic Progress: Currently in ${currentStage} stage. `;
-      
+
       const cvdcPattern = cssPatterns.find(p => p.pattern_type === 'CVDC');
       if (cvdcPattern) {
         const contradiction = cvdcPattern.extracted_contradiction || cvdcPattern.content;
@@ -75,6 +75,155 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     console.error('Error building memory context:', error);
     return 'Welcome to your session.';
   }
+}
+
+/**
+ * Enhanced memory context builder that includes last session summary
+ * for natural conversation continuity
+ */
+export async function buildMemoryContextWithSummary(userId: string): Promise<{
+  memoryContext: string;
+  lastSessionSummary: string | null;
+  shouldReferenceLastSession: boolean;
+}> {
+  try {
+    console.log(`📚 Building enhanced memory context for user: ${userId}`);
+
+    // Fetch the most recent conversational summary
+    const { data: lastSummary, error: summaryError } = await supabase
+      .from('therapeutic_context')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('context_type', 'conversational_summary')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (summaryError && summaryError.code !== 'PGRST116') { // PGRST116 is "no rows found"
+      console.error('Error fetching last summary:', summaryError);
+    }
+
+    // Also check for regular call_summary if no conversational_summary exists
+    let fallbackSummary = null;
+    if (!lastSummary) {
+      const { data: callSummary } = await supabase
+        .from('therapeutic_context')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('context_type', 'call_summary')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (callSummary) {
+        fallbackSummary = callSummary;
+        console.log('📝 Using call_summary as fallback for conversation continuity');
+      }
+    }
+
+    // Get the existing base memory context
+    const baseContext = await buildMemoryContext(userId);
+
+    // Use either conversational_summary or call_summary
+    const summaryToUse = lastSummary || fallbackSummary;
+
+    // Determine if we should reference the last session
+    let shouldReference = false;
+    let timeSinceLastSession = null;
+
+    if (summaryToUse) {
+      const lastSessionTime = new Date(summaryToUse.created_at).getTime();
+      const currentTime = Date.now();
+      const daysSinceLastSession = (currentTime - lastSessionTime) / (1000 * 60 * 60 * 24);
+
+      // Reference if within 7 days
+      shouldReference = daysSinceLastSession <= 7;
+
+      // Log time since last session for debugging
+      if (daysSinceLastSession < 1) {
+        timeSinceLastSession = 'earlier today';
+      } else if (daysSinceLastSession === 1) {
+        timeSinceLastSession = 'yesterday';
+      } else if (daysSinceLastSession < 7) {
+        timeSinceLastSession = `${Math.floor(daysSinceLastSession)} days ago`;
+      } else if (daysSinceLastSession < 30) {
+        timeSinceLastSession = `${Math.floor(daysSinceLastSession / 7)} weeks ago`;
+      } else {
+        timeSinceLastSession = 'over a month ago';
+      }
+
+      console.log(`⏰ Last session was ${timeSinceLastSession} - Reference: ${shouldReference}`);
+    }
+
+    // Process the summary for better conversational use
+    let processedSummary = null;
+    if (summaryToUse?.content) {
+      processedSummary = enhanceSummaryForConversation(summaryToUse.content);
+    }
+
+    // Add timing context to the summary if relevant
+    if (processedSummary && timeSinceLastSession && shouldReference) {
+      processedSummary = `Last session (${timeSinceLastSession}): ${processedSummary}`;
+    }
+
+    console.log(`✅ Enhanced memory context built:`);
+    console.log(`   - Has base context: ${baseContext.length > 0}`);
+    console.log(`   - Has last summary: ${!!processedSummary}`);
+    console.log(`   - Should reference: ${shouldReference}`);
+
+    return {
+      memoryContext: baseContext,
+      lastSessionSummary: processedSummary,
+      shouldReferenceLastSession: shouldReference
+    };
+
+  } catch (error) {
+    console.error('Error building enhanced memory context:', error);
+
+    // Fallback to basic context if enhanced version fails
+    const basicContext = await buildMemoryContext(userId);
+    return {
+      memoryContext: basicContext,
+      lastSessionSummary: null,
+      shouldReferenceLastSession: false
+    };
+  }
+}
+
+/**
+ * Helper function to enhance summary for more natural conversation
+ */
+function enhanceSummaryForConversation(summary: string): string {
+  // Transform technical/clinical language to conversational
+  let enhanced = summary;
+
+  // Replace clinical terms with conversational ones
+  const replacements = [
+    ['User expressed conflicting feelings:', 'They were working with'],
+    ['Noticed gap between intentions and actions around', 'We explored the gap between what they want and what happens with'],
+    ['Key emotions:', 'They mentioned feeling'],
+    ['Session with', 'In our conversation with'],
+    ['detected pattern', 'noticed'],
+    ['CSS Stage:', 'Therapeutic progress:'],
+    ['CVDC pattern:', 'Contradiction:'],
+    ['IBM pattern:', 'Intention-behavior gap:'],
+    ['pointed_origin', 'early exploration'],
+    ['focus_bind', 'deepening awareness'],
+    ['thend', 'therapeutic shift'],
+    ['cyvc', 'emerging flexibility']
+  ];
+
+  replacements.forEach(([from, to]) => {
+    enhanced = enhanced.replace(new RegExp(from, 'gi'), to);
+  });
+
+  // Clean up any remaining technical artifacts
+  enhanced = enhanced
+    .replace(/\s+/g, ' ') // normalize whitespace
+    .replace(/\.\s*\./g, '.') // remove double periods
+    .trim();
+
+  return enhanced;
 }
 
 export async function storeSessionContext(
@@ -94,9 +243,51 @@ export async function storeSessionContext(
         confidence: 0.8,
         importance: 5
       });
-    
+
     console.log('✅ Stored therapeutic context');
   } catch (error) {
     console.error('Error storing context:', error);
+  }
+}
+
+/**
+ * Store both regular and conversational summaries
+ * Used after enhanced summary generation from Phase 1
+ */
+export async function storeEnhancedSessionContext(
+  userId: string,
+  callId: string,
+  regularSummary: string,
+  conversationalSummary: string
+): Promise<void> {
+  try {
+    const contexts = [
+      {
+        user_id: userId,
+        call_id: callId,
+        context_type: 'call_summary',
+        content: regularSummary,
+        confidence: 0.8,
+        importance: 5
+      },
+      {
+        user_id: userId,
+        call_id: callId,
+        context_type: 'conversational_summary',
+        content: conversationalSummary,
+        confidence: 0.85,
+        importance: 8
+      }
+    ];
+
+    const { error } = await supabase
+      .from('therapeutic_context')
+      .insert(contexts);
+
+    if (error) throw error;
+
+    console.log('✅ Stored enhanced therapeutic context (both summaries)');
+  } catch (error) {
+    console.error('Error storing enhanced context:', error);
   }
 }

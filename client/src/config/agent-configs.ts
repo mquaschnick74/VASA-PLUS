@@ -1,11 +1,15 @@
-// agent-configs.ts - CORRECTED VERSION WITH NARRATIVE PROTOCOL
+// agent-configs.ts - ENHANCED WITH SESSION CONTINUITY
 
 export interface TherapeuticAgent {
   id: string;
   name: string;
   description: string;
   systemPrompt: string;
-  firstMessageTemplate: (firstName: string, hasMemory: boolean) => string;
+  firstMessageTemplate: (
+    firstName: string, 
+    hasMemory: boolean,
+    lastSessionSummary?: string | null
+  ) => string;
   voice: {
     provider: string;
     voiceId: string;
@@ -162,6 +166,33 @@ CRITICAL: Every conversation begins with acknowledging their unique journey.
 `.trim();
 
 /* =========================
+   SESSION CONTINUITY PROTOCOL
+   ========================= */
+const SESSION_CONTINUITY = `
+Session Continuity Guidelines:
+
+When Previous Session Summary Available:
+- Reference it naturally in your opening, but don't over-emphasize
+- Use it as a bridge, not the entire focus
+- Allow them to correct or update your understanding
+- Be prepared for them to start somewhere completely new
+
+Natural Reference Examples:
+- "Last time you mentioned feeling [emotion]..."
+- "We were exploring [theme] when we spoke..."
+- "You were working with [situation]..."
+- "I remember you sharing about [experience]..."
+
+Always Prioritize:
+- Their current state over past sessions
+- Fresh narrative collection each session
+- Allowing new directions to emerge
+- Building on trust, not assuming it carries over
+
+Remember: Each session is both connected to the past AND a fresh beginning.
+`.trim();
+
+/* =========================
    RESPONSE FORMAT WITH NARRATIVE TRACKING
    ========================= */
 const RESPONSE_FORMAT = `
@@ -205,13 +236,78 @@ ${CSS_STAGES_NARRATIVE}
 
 ${THERAPEUTIC_PRESENCE}
 
+${SESSION_CONTINUITY}
+
 ${RESPONSE_FORMAT}
 
 Remember: The narrative IS the therapy. Pattern detection is secondary to deep listening and understanding.
 `.trim();
 
 /* =========================
-   AGENTS WITH NARRATIVE FOCUS
+   HELPER FUNCTIONS FOR SESSION CONTINUITY
+   ========================= */
+function extractSessionHints(summary: string | null): {
+  emotions: string[];
+  themes: string[];
+  hasContradiction: boolean;
+  hasPattern: boolean;
+  situation: string | null;
+} {
+  if (!summary) {
+    return {
+      emotions: [],
+      themes: [],
+      hasContradiction: false,
+      hasPattern: false,
+      situation: null
+    };
+  }
+
+  // Extract emotions
+  const emotionPattern = /feeling\s+(\w+(?:\s+and\s+\w+)*)/gi;
+  const emotionMatches = summary.match(emotionPattern) || [];
+  const emotions = emotionMatches
+    .map(match => match.replace(/feeling\s+/i, ''))
+    .flatMap(e => e.split(/\s+and\s+/))
+    .filter(e => e.length > 0);
+
+  // Extract themes
+  const themes: string[] = [];
+  if (summary.includes('connection')) themes.push('connection');
+  if (summary.includes('relationship')) themes.push('relationships');
+  if (summary.includes('work')) themes.push('work');
+  if (summary.includes('family')) themes.push('family');
+  if (summary.includes('creative') || summary.includes('creativity')) themes.push('creativity');
+  if (summary.includes('boundary') || summary.includes('boundaries')) themes.push('boundaries');
+  if (summary.includes('anger') || summary.includes('angry')) themes.push('anger');
+  if (summary.includes('guilt')) themes.push('guilt');
+
+  // Check for contradictions or patterns
+  const hasContradiction = summary.includes('but') || 
+                          summary.includes('tension') || 
+                          summary.includes('conflicting') ||
+                          summary.includes('working with');
+
+  const hasPattern = summary.includes('pattern') || 
+                     summary.includes('gap between') ||
+                     summary.includes('recurring');
+
+  // Extract situation if mentioned
+  const situationPattern = /(?:about|with|around)\s+([^.]+?)(?:\.|,|$)/i;
+  const situationMatch = summary.match(situationPattern);
+  const situation = situationMatch ? situationMatch[1].trim() : null;
+
+  return {
+    emotions,
+    themes,
+    hasContradiction,
+    hasPattern,
+    situation
+  };
+}
+
+/* =========================
+   AGENTS WITH NARRATIVE FOCUS AND SESSION CONTINUITY
    ========================= */
 export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
   {
@@ -235,10 +331,35 @@ Sarah's Special Approach:
 - Keep questions soft, single-step, and grounded in their stories
 - Never rush toward CSS work - the narrative collection IS the therapy
     `.trim(),
-    firstMessageTemplate: (firstName: string, hasMemory: boolean) =>
-      hasMemory
+    firstMessageTemplate: (firstName: string, hasMemory: boolean, lastSessionSummary?: string | null) => {
+      // Extract hints from the summary if available
+      const hints = extractSessionHints(lastSessionSummary);
+
+      // If we have a recent session with clear content
+      if (lastSessionSummary && hasMemory && (hints.emotions.length > 0 || hints.themes.length > 0)) {
+        // Reference emotions if they were prominent
+        if (hints.emotions.length > 0) {
+          const emotionRef = hints.emotions[0];
+          return `Hello ${firstName}. Last time, you were feeling ${emotionRef}. What's been happening with that since we spoke?`;
+        }
+
+        // Reference themes if clear
+        if (hints.themes.length > 0) {
+          const themeRef = hints.themes[0];
+          return `${firstName}, welcome back. We were exploring ${themeRef} last time. What's been on your mind about that?`;
+        }
+
+        // Reference patterns or contradictions
+        if (hints.hasContradiction) {
+          return `Hello ${firstName}. We were sitting with some tension you noticed last time. How has that been settling for you?`;
+        }
+      }
+
+      // Default messages when no clear summary reference
+      return hasMemory
         ? `Hello ${firstName}. What's been occupying your thoughts since we last spoke?`
-        : `Hello ${firstName}, I'm Sarah. Tell me, what's been on your mind lately?`
+        : `Hello ${firstName}, I'm Sarah. Tell me, what's been on your mind lately?`;
+    }
   },
 
   {
@@ -262,10 +383,31 @@ Mathew's Special Approach:
 - Name patterns only when they emerge from multiple stories
 - Small moves come after trust and understanding established
     `.trim(),
-    firstMessageTemplate: (firstName: string, hasMemory: boolean) =>
-      hasMemory
+    firstMessageTemplate: (firstName: string, hasMemory: boolean, lastSessionSummary?: string | null) => {
+      // Extract hints from the summary if available
+      const hints = extractSessionHints(lastSessionSummary);
+
+      // If we have a recent session with patterns or gaps
+      if (lastSessionSummary && hasMemory && hints.hasPattern) {
+        return `${firstName}, good to connect again. Last time we noticed some patterns in your story. What's been showing up for you since then?`;
+      }
+
+      // If there was a specific situation
+      if (lastSessionSummary && hasMemory && hints.situation) {
+        return `Hello ${firstName}. We were looking at ${hints.situation} last time. What's developed there?`;
+      }
+
+      // If there were themes to reference
+      if (lastSessionSummary && hasMemory && hints.themes.length > 0) {
+        const themeRef = hints.themes[0];
+        return `${firstName}, welcome back. You were sharing about ${themeRef}. What story would you like to tell about that today?`;
+      }
+
+      // Default messages
+      return hasMemory
         ? `${firstName}, good to connect again. What's been unfolding for you recently?`
-        : `Hello ${firstName}, I'm Mathew. What story would you like to share about what's happening in your life?`
+        : `Hello ${firstName}, I'm Mathew. What story would you like to share about what's happening in your life?`;
+    }
   }
 ];
 

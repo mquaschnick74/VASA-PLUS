@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase-service';
-import { buildMemoryContext } from '../services/memory-service';
+import { buildMemoryContext, buildMemoryContextWithSummary } from '../services/memory-service';
 import { deleteUserCascade, findUserByEmail } from '../services/user-service';
 
 const router = Router();
 
-// Create or get user
+// Create or get user - UNCHANGED
 router.post('/user', async (req, res) => {
   try {
     const { email, firstName } = req.body;
@@ -21,12 +21,12 @@ router.post('/user', async (req, res) => {
       .from('users')
       .select('id')
       .limit(1);
-    
+
     if (testError) {
       console.error('Supabase connection test failed:', testError);
       return res.status(500).json({ error: 'Database connection failed', details: testError.message });
     }
-    
+
     console.log('Supabase connection successful');
 
     // Check if user exists
@@ -71,10 +71,13 @@ router.post('/user', async (req, res) => {
   }
 });
 
-// Get user context with memory
+// Get user context with memory - ENHANCED WITH SESSION CONTINUITY
 router.get('/user-context/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+
+    // Check for optional query parameter to enable/disable enhanced context
+    const useEnhancedContext = req.query.enhanced !== 'false'; // Default to true
 
     // Fetch user profile
     const { data: user, error: userError } = await supabase
@@ -87,10 +90,34 @@ router.get('/user-context/:userId', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Build memory context
-    const memoryContext = await buildMemoryContext(userId);
+    // Build memory context - Use enhanced version if available
+    let memoryContext: string;
+    let lastSessionSummary: string | null = null;
+    let shouldReferenceLastSession: boolean = false;
 
-    // Fetch recent sessions for stats
+    if (useEnhancedContext) {
+      try {
+        // Try to use enhanced memory context with session continuity
+        const enhancedContext = await buildMemoryContextWithSummary(userId);
+        memoryContext = enhancedContext.memoryContext;
+        lastSessionSummary = enhancedContext.lastSessionSummary;
+        shouldReferenceLastSession = enhancedContext.shouldReferenceLastSession;
+
+        console.log(`📝 Enhanced context loaded for ${user.email}:`);
+        console.log(`   - Has memory context: ${memoryContext.length > 0}`);
+        console.log(`   - Has session summary: ${!!lastSessionSummary}`);
+        console.log(`   - Should reference: ${shouldReferenceLastSession}`);
+      } catch (error) {
+        // Fallback to basic memory context if enhanced fails
+        console.warn('Enhanced context failed, falling back to basic:', error);
+        memoryContext = await buildMemoryContext(userId);
+      }
+    } else {
+      // Use basic memory context if enhanced is disabled
+      memoryContext = await buildMemoryContext(userId);
+    }
+
+    // Fetch recent sessions for stats - UNCHANGED
     const { data: sessions } = await supabase
       .from('therapeutic_sessions')
       .select('*')
@@ -98,15 +125,18 @@ router.get('/user-context/:userId', async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    // Set cache-control headers
+    // Set cache-control headers - UNCHANGED
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
 
+    // Return enhanced response with backward compatibility
     res.json({
       success: true,
       profile: user,
       memoryContext,
+      lastSessionSummary,           // NEW: Session continuity
+      shouldReferenceLastSession,   // NEW: Session continuity flag
       sessions: sessions || [],
       firstName: user.first_name || 'there',
       sessionCount: sessions?.length || 0
@@ -117,11 +147,11 @@ router.get('/user-context/:userId', async (req, res) => {
   }
 });
 
-// CASCADE DELETE: Delete user and all related data
+// CASCADE DELETE: Delete user and all related data - UNCHANGED
 router.delete('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     console.log(`🗑️ Starting cascade delete for user: ${userId}`);
 
     // Verify user exists
@@ -202,7 +232,7 @@ router.delete('/user/:userId', async (req, res) => {
   }
 });
 
-// Delete user by email
+// Delete user by email - UNCHANGED
 router.delete('/user-by-email', async (req, res) => {
   try {
     const { email } = req.body;
@@ -225,7 +255,7 @@ router.delete('/user-by-email', async (req, res) => {
 
     // Use the cascade delete service
     const result = await deleteUserCascade(userToDelete.id);
-    
+
     if (!result.success) {
       return res.status(500).json({ 
         error: result.error || 'Failed to delete user'
@@ -242,7 +272,7 @@ router.delete('/user-by-email', async (req, res) => {
       },
       deletedCounts: result.deletedCounts
     });
-    
+
   } catch (error) {
     console.error('Error in delete by email:', error);
     res.status(500).json({ 

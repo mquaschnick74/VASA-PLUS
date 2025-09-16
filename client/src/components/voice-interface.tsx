@@ -14,6 +14,8 @@ interface VoiceInterfaceProps {
 interface UserContext {
   profile: any;
   memoryContext: string;
+  lastSessionSummary?: string | null;  // ADD: Session continuity
+  shouldReferenceLastSession?: boolean; // ADD: Session continuity
   sessions: any[];
   firstName: string;
   sessionCount: number;
@@ -37,6 +39,8 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   } = useVapi({
     userId,
     memoryContext: userContext?.memoryContext || '',
+    lastSessionSummary: userContext?.lastSessionSummary || null, // ADD: Pass session summary
+    shouldReferenceLastSession: userContext?.shouldReferenceLastSession || false, // ADD: Pass reference flag
     firstName: userContext?.firstName || 'there',
     selectedAgent: selectedAgent!
   });
@@ -45,7 +49,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   useEffect(() => {
     const loadUserContext = async () => {
       if (!userId) return;
-      
+
       setMemoryLoading(true);
       try {
         const response = await fetch(`/api/auth/user-context/${userId}`, {
@@ -54,11 +58,16 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
             'Cache-Control': 'no-cache'
           }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setUserContext(data);
           console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
+
+          // ADD: Log session continuity info if available
+          if (data.shouldReferenceLastSession && data.lastSessionSummary) {
+            console.log('📝 Session continuity enabled - will reference previous session');
+          }
         }
       } catch (error) {
         console.error('Error loading user context:', error);
@@ -66,7 +75,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
         setMemoryLoading(false);
       }
     };
-    
+
     loadUserContext();
   }, [userId]);
 
@@ -134,7 +143,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                 <span className="text-lg sm:text-xl font-semibold">VASA</span>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="hidden sm:block glass rounded-full px-3 sm:px-4 py-1 sm:py-2">
                 <span className="text-xs sm:text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
@@ -163,10 +172,10 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
       {/* Main Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          
+
           {/* Voice Assistant Interface - Main Column */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
-            
+
             {/* Agent Selection */}
             <AgentSelector 
               selectedAgentId={selectedAgentId}
@@ -251,16 +260,20 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   <i className="fas fa-comments text-accent text-sm sm:text-base"></i>
                   <h3 className="text-lg sm:text-xl font-semibold">Live Conversation</h3>
                 </div>
-                
+
                 <div className="space-y-4 max-h-80 overflow-y-auto" data-testid="transcript-container">
                   <div className="bg-secondary/50 rounded-lg p-3">
                     <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-sm font-medium text-accent">Sarah</span>
+                      <span className="text-sm font-medium text-accent">{selectedAgent?.name || 'Sarah'}</span>
                       <span className="text-xs text-muted-foreground">AI Therapist</span>
                     </div>
-                    <p className="text-sm">Hello! I'm Sarah, your therapeutic voice assistant. How are you feeling today?</p>
+                    <p className="text-sm">
+                      {userContext.shouldReferenceLastSession && userContext.lastSessionSummary
+                        ? `Continuing from our last session...`
+                        : `Hello! I'm ${selectedAgent?.name || 'Sarah'}, your therapeutic voice assistant. How are you feeling today?`}
+                    </p>
                   </div>
-                  
+
                   <div className="bg-primary/20 rounded-lg p-3 ml-8">
                     <div className="flex items-center space-x-2 mb-2">
                       <span className="text-sm font-medium text-primary-foreground">You</span>
@@ -268,7 +281,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                     <p className="text-sm text-muted-foreground italic">Start a conversation to see live transcription here...</p>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 pt-4 border-t border-border">
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>Real-time transcription enabled</span>
@@ -284,7 +297,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
           {/* Sidebar - Session History and Insights */}
           <div className="space-y-4 sm:space-y-6">
-            
+
             {/* Session Stats */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">
@@ -292,7 +305,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   <i className="fas fa-chart-bar text-accent text-sm sm:text-base"></i>
                   <span>Your Progress</span>
                 </h3>
-                
+
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Total Sessions</span>
@@ -300,7 +313,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                       {userContext.sessionCount}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">This Week</span>
                     <span className="text-lg font-semibold">
@@ -312,7 +325,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                       }).length}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Average Duration</span>
                     <span className="text-lg font-semibold">
@@ -321,7 +334,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                         : 0} min
                     </span>
                   </div>
-                  
+
                   <div className="w-full bg-muted rounded-full h-2 mt-4">
                     <div className="bg-gradient-to-r from-primary to-accent h-2 rounded-full w-3/4"></div>
                   </div>
@@ -337,7 +350,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   <i className="fas fa-brain text-accent text-sm sm:text-base"></i>
                   <span>Session Memory</span>
                 </h3>
-                
+
                 <div className="space-y-3">
                   {userContext.memoryContext.split('\n').filter(line => line.trim()).map((line, index) => (
                     <div key={index} className="bg-secondary/30 rounded-lg p-3">
@@ -345,7 +358,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                     </div>
                   ))}
                 </div>
-                
+
                 <Button variant="ghost" className="mt-4 text-sm text-accent hover:text-accent/80 transition-colors duration-200 p-0">
                   View full session history →
                 </Button>
@@ -359,7 +372,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   <i className="fas fa-history text-accent text-sm sm:text-base"></i>
                   <span>Recent Sessions</span>
                 </h3>
-                
+
                 <div className="space-y-3">
                   {userContext.sessions.slice(0, 3).map((session, index) => (
                     <div key={session.id} className="flex items-center justify-between py-2 border-b border-border/50">
@@ -376,10 +389,10 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                       </div>
                     </div>
                   ))}
-                  
+
                   {userContext.sessions.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No sessions yet. Start your first conversation with Sarah!
+                      No sessions yet. Start your first conversation with {selectedAgent?.name || 'Sarah'}!
                     </p>
                   )}
                 </div>

@@ -4,6 +4,8 @@ import { TherapeuticAgent } from '../config/agent-configs';
 interface UseVapiProps {
   userId: string;
   memoryContext: string;
+  lastSessionSummary?: string | null;  // ADD: Session continuity
+  shouldReferenceLastSession?: boolean; // ADD: Session continuity  
   firstName: string;
   selectedAgent: TherapeuticAgent;
 }
@@ -16,7 +18,14 @@ interface UseVapiReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
 }
 
-const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiProps): UseVapiReturn => {
+const useVapi = ({ 
+  userId, 
+  memoryContext, 
+  lastSessionSummary, 
+  shouldReferenceLastSession,
+  firstName, 
+  selectedAgent 
+}: UseVapiProps): UseVapiReturn => {
   const [vapi, setVapi] = useState<any>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +34,7 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
 
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
-    
+
     if (!publicKey) {
       console.error('VAPI public key not found');
       return;
@@ -86,33 +95,48 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent }: UseVapiPro
     try {
       // Build system prompt with agent-specific configuration
       const hasMemory = memoryContext && memoryContext.length > 50;
-      
+
       let systemPrompt = selectedAgent.systemPrompt;
-      
-      // Add memory context if available
+
+      // ENHANCED: Add session continuity context if available
+      if (shouldReferenceLastSession && lastSessionSummary) {
+        systemPrompt += `\n\n===== LAST SESSION CONTEXT =====
+${lastSessionSummary}
+
+IMPORTANT: You've already referenced this in your greeting. Build naturally from there.
+Continue the therapeutic narrative without re-introducing the previous session.
+===== END LAST SESSION =====\n`;
+      }
+
+      // Add regular memory context if available
       if (hasMemory) {
-        systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
+        systemPrompt += `\n\n===== PREVIOUS SESSION HISTORY =====
 ${memoryContext}
-===== END CONTEXT =====
+===== END HISTORY =====
 
 IMPORTANT: Reference the above context naturally in conversation when relevant.
 Do not make up or hallucinate any details not explicitly mentioned above.`;
-      } else {
+      } else if (!lastSessionSummary) {
+        // Only add this if we don't have a last session summary
         systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
       }
-      
+
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
-      // Get personalized first message
-      const firstMessage = selectedAgent.firstMessageTemplate(firstName, !!hasMemory);
+      // ENHANCED: Get personalized first message with session summary
+      const firstMessage = selectedAgent.firstMessageTemplate(
+        firstName, 
+        !!hasMemory,
+        shouldReferenceLastSession ? lastSessionSummary : null
+      );
 
       // Get the current server URL for webhook configuration
-      // Use the current origin to ensure webhooks work in both dev and production
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
-      
+
       console.log('📍 Webhook URL:', serverUrl);
       console.log('📍 User ID:', userId);
       console.log('📍 Agent:', selectedAgent.name);
+      console.log('📝 Session continuity:', shouldReferenceLastSession ? 'Enabled' : 'Disabled');
 
       // VAPI configuration with dynamic agent settings
       const assistantConfig = {
@@ -136,7 +160,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           similarityBoost: 0.75,
           speed: selectedAgent.voice.speed || 1.0
         },
-        serverUrl: serverUrl,  // VAPI SDK might expect serverUrl instead of server.url
+        serverUrl: serverUrl,
         server: {
           url: serverUrl,
           timeoutSeconds: 20,
@@ -153,16 +177,18 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           userId: userId,
           agentName: selectedAgent.name,
           agentId: selectedAgent.id,
-          timestamp: Date.now()  // Add timestamp to ensure uniqueness
+          hasSessionContinuity: shouldReferenceLastSession || false,
+          timestamp: Date.now()
         }
       };
 
       console.log('🔍 Starting VAPI call with:', {
         assistant: assistantConfig,
         hasPublicKey: !!import.meta.env.VITE_VAPI_PUBLIC_KEY,
+        hasSessionContinuity: shouldReferenceLastSession,
         metadata: { userId: userId, agentName: selectedAgent.name }
       });
-      
+
       try {
         await vapi.start(assistantConfig);
         // Since VAPI.start() succeeded, consider the session active
@@ -179,7 +205,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       setIsLoading(false);
       setConnectionStatus('disconnected');
     }
-  }, [vapi, userId, memoryContext, firstName, isLoading, isSessionActive, selectedAgent]);
+  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, firstName, isLoading, isSessionActive, selectedAgent]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {
