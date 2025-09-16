@@ -89,17 +89,33 @@ const useVapi = ({ userId, memoryContext, firstName, selectedAgent, verbalAcknow
       const hasMemory = memoryContext && memoryContext.length > 50;
       
       let systemPrompt = selectedAgent.systemPrompt;
-      
-      // Add memory context if available
+
+      // Add exchange tracking initialization
+      systemPrompt = `
+${systemPrompt}
+
+===== SESSION INITIALIZATION =====
+This is exchange #1. Remember to track exchanges internally.
+Phase: NARRATIVE COLLECTION (exchanges 1-25)
+Focus: Deep listening and understanding only.
+DO NOT identify patterns or contradictions yet.
+
+===== RESPONSE REQUIREMENTS =====
+1. Keep <speak> completely natural - no technical language
+2. Track metadata in <meta> only
+3. Prioritize building trust and understanding
+4. Ask open-ended questions about their experience
+`;
+
       if (hasMemory) {
         systemPrompt += `\n\n===== PREVIOUS SESSION CONTEXT =====
 ${memoryContext}
 ===== END CONTEXT =====
 
-IMPORTANT: Reference the above context naturally in conversation when relevant.
-Do not make up or hallucinate any details not explicitly mentioned above.`;
+Build on the trust and understanding already established.
+Reference specific things they shared to show continuity.`;
       } else {
-        systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
+        systemPrompt += '\n\nThis is your first session with this user. Focus on understanding their story.';
       }
       
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
