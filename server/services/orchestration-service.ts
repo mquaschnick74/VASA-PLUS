@@ -3,6 +3,7 @@ import { detectCSSPatterns, assessPatternConfidence } from './css-pattern-servic
 import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
+import { generateEnhancedSessionSummary } from './summary-service'; // ADD THIS IMPORT
 
 interface SessionState {
   userId: string;
@@ -24,13 +25,13 @@ const initializationLocks = new Map<string, Promise<SessionState | null>>(); // 
 setInterval(() => {
   const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
   const staleCallIds: string[] = [];
-  
+
   activeSessions.forEach((session, callId) => {
     if (session.sessionStartTime.getTime() < twoHoursAgo) {
       staleCallIds.push(callId);
     }
   });
-  
+
   staleCallIds.forEach(callId => {
     console.log(`🧹 Cleaning up stale session: ${callId}`);
     activeSessions.delete(callId);
@@ -51,16 +52,16 @@ export async function ensureSession(
   if (activeSessions.has(callId)) {
     return activeSessions.get(callId)!;
   }
-  
+
   // If initialization is already in progress, wait for it
   if (initializationLocks.has(callId)) {
     return await initializationLocks.get(callId)!;
   }
-  
+
   // Start initialization with lock
   const initPromise = ensureSessionInternal(callId, userId, agentName);
   initializationLocks.set(callId, initPromise);
-  
+
   try {
     const result = await initPromise;
     return result;
@@ -79,17 +80,17 @@ async function ensureSessionInternal(
     console.log(`⚠️ Session ${callId} already checked, not found in DB`);
     return null;
   }
-  
+
   // Mark as checked
   checkedSessions.add(callId);
-  
+
   // Check database once
   const { data: existing } = await supabase
     .from('therapeutic_sessions')
     .select('user_id, agent_name, start_time')
     .eq('call_id', callId)
     .single();
-  
+
   if (existing) {
     console.log(`♻️ Restored session from DB: ${callId}`);
     // Restore to active sessions
@@ -106,13 +107,13 @@ async function ensureSessionInternal(
     activeSessions.set(callId, session);
     return session;
   }
-  
+
   // Need userId to create new session
   if (!userId) {
     console.warn(`❌ Cannot create session ${callId}: no userId provided`);
     return null;
   }
-  
+
   // Initialize new session
   console.log(`🆕 Creating new session: ${callId}`);
   return await initializeSession(userId, callId, agentName || 'Unknown');
@@ -177,40 +178,40 @@ export async function processTranscript(
 ): Promise<void> {
   // Try to ensure session exists (defensive programming)
   let session = activeSessions.get(callId);
-  
+
   if (!session && userId) {
     console.log(`🔧 Auto-initializing session from processTranscript for ${callId}`);
     const ensuredSession = await ensureSession(callId, userId, agentName);
     session = ensuredSession || undefined;
   }
-  
+
   if (!session) {
     console.log(`⚠️ Cannot process transcript: no session for ${callId}`);
     return;
   }
-  
+
   // Handle assistant messages with new speak/meta parsing
   if (role === 'assistant') {
     const parsed = parseAssistantOutput(transcript);
-    
+
     // Extract CSS stage from metadata if available
     const metaStage = extractCSSStage(parsed.meta);
     if (metaStage && metaStage !== 'NONE') {
       session.currentCSSStage = metaStage.toLowerCase();
       console.log(`📊 Assistant meta CSS stage: ${metaStage}`);
     }
-    
+
     // Update narrative phase if present in metadata
     if (parsed.meta?.phase) {
       session.narrativePhase = parsed.meta.phase;
       console.log(`📖 Narrative phase: ${parsed.meta.phase}`);
     }
-    
+
     // Update exchange count if present
     if (parsed.meta?.exchange_count !== undefined) {
       session.exchangeCount = parsed.meta.exchange_count;
     }
-    
+
     // Store metadata in database if present
     if (parsed.meta && parsed.meta.css?.stage && parsed.meta.css.stage !== 'NONE') {
       await supabase
@@ -226,23 +227,23 @@ export async function processTranscript(
           crisis_flag: parsed.meta.safety?.crisis || false,
           detected_at: new Date().toISOString()
         });
-        
+
       // Check for safety interventions
       if (needsSafetyIntervention(parsed.meta)) {
         console.log(`🚨 Safety intervention triggered: ${parsed.meta.safety?.reason}`);
         // TODO: Trigger safety protocol workflow
       }
     }
-    
+
     // Don't store assistant transcripts individually
     return;
   }
-  
+
   // Process user transcripts as before
   if (role !== 'user') {
     return;
   }
-  
+
   // Increment exchange count for user messages
   session.exchangeCount++;
 
@@ -256,13 +257,13 @@ export async function processTranscript(
 
   // Don't store individual transcripts - only detect patterns
   // Full transcript will be stored at end-of-call
-  
+
   // Always detect CSS patterns regardless of emotional state
   const patterns = detectCSSPatterns(transcript, false);
 
   if (patterns.currentStage !== session.currentCSSStage) {
     console.log(`🎯 CSS Stage progression: ${session.currentCSSStage} → ${patterns.currentStage}`);
-    
+
     const previousStage = session.currentCSSStage;
     session.currentCSSStage = patterns.currentStage;
 
@@ -353,12 +354,34 @@ export async function processEndOfCall(
     })
     .eq('call_id', callId);
 
+  // Process full transcript and get patterns for summary generation
+  let cssPatterns = null;
   if (fullTranscript) {
-    await processFullTranscript(session, fullTranscript);
+    cssPatterns = await processFullTranscript(session, fullTranscript);
   }
 
-  if (summary) {
-    await storeSessionContext(session.userId, callId, summary, 'call_summary');
+  // ENHANCED: Generate both basic and conversational summaries for session continuity
+  if (summary || fullTranscript) {
+    try {
+      // Generate the enhanced summary using Phase 1 generator
+      await generateEnhancedSessionSummary({
+        userId: session.userId,
+        callId: callId,
+        transcript: fullTranscript,
+        cssPatterns: cssPatterns,
+        agentName: session.agentName,
+        duration: duration
+      });
+
+      console.log(`📝 Enhanced session summary generated for continuity`);
+    } catch (error) {
+      console.error('Failed to generate enhanced summary:', error);
+
+      // Fallback: Store basic summary if enhanced fails
+      if (summary) {
+        await storeSessionContext(session.userId, callId, summary, 'call_summary');
+      }
+    }
   }
 
   // Cleanup from both caches
@@ -367,7 +390,8 @@ export async function processEndOfCall(
   console.log(`✅ Session completed and cleaned up: ${callId}`);
 }
 
-async function processFullTranscript(session: SessionState, transcript: string): Promise<void> {
+// MODIFIED: Return patterns for use in summary generation
+async function processFullTranscript(session: SessionState, transcript: string): Promise<any> {
   const patterns = detectCSSPatterns(transcript, true);
   const { confidence, reasoning } = assessPatternConfidence(patterns);
 
@@ -398,6 +422,9 @@ async function processFullTranscript(session: SessionState, transcript: string):
       confidence: confidence,
       detected_at: new Date().toISOString()
     });
+
+  // Return patterns for use in summary generation
+  return patterns;
 }
 
 async function storeCSSPatterns(session: SessionState, patterns: any): Promise<void> {
