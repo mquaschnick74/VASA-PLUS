@@ -135,19 +135,34 @@ export async function initializeSession(
   };
 
   activeSessions.set(callId, session);
-  checkedSessions.add(callId); // Mark as checked/exists
+  checkedSessions.add(callId);
 
-  await supabase
-    .from('therapeutic_sessions')
-    .upsert({
-      call_id: callId,
-      user_id: userId,
-      agent_name: agentName,
-      status: 'active',
-      start_time: new Date().toISOString()
-    }, {
-      onConflict: 'call_id'
-    });
+  try {
+    // Add error handling for database operations
+    const { data, error } = await supabase
+      .from('therapeutic_sessions')
+      .upsert({
+        call_id: callId,
+        user_id: userId,
+        agent_name: agentName,
+        status: 'active',
+        start_time: new Date().toISOString()
+      }, {
+        onConflict: 'call_id'
+      })
+      .select();
+
+    if (error) {
+      console.error(`❌ Failed to save session to database:`, error);
+      console.error(`Details: ${JSON.stringify(error)}`);
+      // Don't throw - keep session in memory even if DB fails
+    } else {
+      console.log(`✅ Session saved to database:`, data);
+    }
+  } catch (dbError) {
+    console.error(`❌ Database operation failed:`, dbError);
+    // Continue with in-memory session even if DB fails
+  }
 
   console.log(`✅ Session initialized: ${callId} for user ${userId}`);
   return session;

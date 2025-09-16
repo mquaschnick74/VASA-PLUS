@@ -14,20 +14,42 @@ router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI webhook received:', req.body.message?.type);
 
   try {
-    if (process.env.NODE_ENV === 'production' && process.env.VAPI_SECRET_KEY) {
+    // Fix signature validation - check if VAPI_SECRET_KEY exists, not NODE_ENV
+    if (process.env.VAPI_SECRET_KEY) {
       const signature = req.headers['x-vapi-signature'] as string;
-      const payload = JSON.stringify(req.body);
+
+      // Handle both raw buffer and parsed JSON body
+      let payload: string;
+      if (Buffer.isBuffer(req.body)) {
+        payload = req.body.toString('utf8');
+      } else {
+        payload = JSON.stringify(req.body);
+      }
+
+      // VAPI uses different signature format - might be base64 encoded
       const expectedSignature = crypto
         .createHmac('sha256', process.env.VAPI_SECRET_KEY)
         .update(payload)
         .digest('hex');
 
-      if (signature !== expectedSignature) {
-        return res.status(401).json({ error: 'Invalid signature' });
+      // Also try base64 format
+      const expectedSignatureBase64 = crypto
+        .createHmac('sha256', process.env.VAPI_SECRET_KEY)
+        .update(payload)
+        .digest('base64');
+
+      if (signature !== expectedSignature && signature !== expectedSignatureBase64) {
+        console.warn(`Signature mismatch. Received: ${signature?.substring(0, 20)}...`);
+        // In development, log warning but continue processing
+        if (process.env.NODE_ENV === 'production') {
+          return res.status(401).json({ error: 'Invalid signature' });
+        }
       }
     }
 
-    const { message } = req.body;
+    // Parse body if it's a buffer
+    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
+    const { message } = body;
     const eventType = message?.type;
 
     const userId = extractUserId(message);
@@ -45,70 +67,61 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'conversation-update':
-        // Process conversation update
-        
-        // Ensure session exists (handles missing call-started events)
         const session = await ensureSession(callId, userId, agentName);
         if (!session) {
           console.warn(`⚠️ Cannot process conversation-update: failed to ensure session for ${callId}`);
           break;
         }
-        
-        // Process both user and assistant messages for CSS patterns
-        if (message?.conversation) {
-          // Process the last user message
-          const lastUserMessage = message.conversation
-            .filter((m: any) => m.role === 'user')
-            .pop();
 
-          if (lastUserMessage?.content) {
-            await processTranscript(callId, lastUserMessage.content, 'user', userId, agentName);
+        // Process messages
+        if (message.transcript?.length > 0) {
+          for (const item of message.transcript) {
+            if (item.text && item.text.trim()) {
+              await processTranscript(
+                callId,
+                item.text,
+                item.role || 'user',
+                userId,
+                agentName
+              );
+            }
           }
-          
-          // Also process the last assistant message for metadata
-          const lastAssistantMessage = message.conversation
-            .filter((m: any) => m.role === 'assistant')
-            .pop();
-            
-          if (lastAssistantMessage?.content) {
-            await processTranscript(callId, lastAssistantMessage.content, 'assistant', userId, agentName);
-          }
-        }
-        break;
-
-      case 'transcript':
-        const transcript = message?.transcript?.text || message?.transcript || '';
-        const role = message?.transcript?.role || 'user';
-
-        if (transcript) {
-          // Ensure session exists before processing
-          await ensureSession(callId, userId, agentName);
-          await processTranscript(callId, transcript, role, userId, agentName);
         }
         break;
 
       case 'end-of-call-report':
-        const fullTranscript = message?.transcript;
-        const summary = message?.summary;
-        const callMetadata = message?.call;
+        console.log('🔍 Starting CSS pattern detection');
 
-        await processEndOfCall(callId, fullTranscript, summary, callMetadata);
+        const transcript = message.transcript || message.fullTranscript;
+        const summary = message.summary;
+
+        if (transcript) {
+          console.log(`📝 Transcript preview: ${transcript.substring(0, 100)}...`);
+          console.log(`📝 Raw transcript length: ${transcript.length}`);
+          console.log(`📝 First 200 chars: ${transcript.substring(0, 200)}`);
+
+          await processEndOfCall(
+            callId,
+            transcript,
+            summary,
+            message.call
+          );
+        }
         break;
 
       default:
-        console.log(`Unhandled event: ${eventType}`);
+        console.log(`Unhandled event type: ${eventType}`);
     }
 
     res.status(200).json({ received: true });
-
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
+    console.error('Webhook processing error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Manual analysis endpoint for testing
-router.post('/analyze-transcript', async (req, res) => {
+// Test endpoint for CSS pattern analysis
+router.post('/test-css-patterns', async (req, res) => {
   try {
     const { transcript, userId, callId } = req.body;
 

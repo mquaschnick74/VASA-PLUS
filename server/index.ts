@@ -3,9 +3,18 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
+// INCREASED LIMITS for VAPI webhooks with large transcripts
+app.use(express.json({ limit: '10mb' }));  // Increased from default 100kb
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// Special handling for VAPI webhook endpoint with raw body for signature validation
+app.use('/api/vapi/webhook', express.raw({ 
+  type: 'application/json',
+  limit: '10mb' 
+}));
+
+// Rest of your existing code...
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -35,6 +44,8 @@ app.use((req, res, next) => {
 
   next();
 });
+
+// Continue with the rest of the file...
 
 (async () => {
   const server = await registerRoutes(app);
