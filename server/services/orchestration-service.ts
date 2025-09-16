@@ -369,7 +369,7 @@ export async function processEndOfCall(
         callId: callId,
         transcript: fullTranscript,
         cssPatterns: cssPatterns,
-        agentName: session.agentName,
+        agentName: session.agentName,  // Already passing agent name here
         duration: duration
       });
 
@@ -377,9 +377,9 @@ export async function processEndOfCall(
     } catch (error) {
       console.error('Failed to generate enhanced summary:', error);
 
-      // Fallback: Store basic summary if enhanced fails
+      // FIXED: Pass agent name in fallback case too
       if (summary) {
-        await storeSessionContext(session.userId, callId, summary, 'call_summary');
+        await storeSessionContext(session.userId, callId, summary, 'call_summary', session.agentName);
       }
     }
   }

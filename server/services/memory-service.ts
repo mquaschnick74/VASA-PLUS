@@ -2,6 +2,15 @@ import { supabase } from './supabase-service';
 
 export async function buildMemoryContext(userId: string): Promise<string> {
   try {
+    // ADDED: Fetch user's name for proper display
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('first_name')
+      .eq('id', userId)
+      .single();
+
+    const userName = userProfile?.first_name || 'there';
+
     // Fetch recent sessions
     const { data: sessions, error: sessionsError } = await supabase
       .from('therapeutic_sessions')
@@ -40,7 +49,8 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     let memoryContext = '';
 
     if (sessions && sessions.length > 0) {
-      memoryContext += `You have had ${sessions.length} previous sessions with this user. `;
+      // CHANGED: Use actual user name instead of "this user"
+      memoryContext += `You have had ${sessions.length} previous sessions with ${userName}. `;
 
       const lastSession = sessions[0];
       const lastDate = new Date(lastSession.created_at).toLocaleDateString();
@@ -55,7 +65,16 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     if (insights && insights.length > 0) {
       memoryContext += '\n\nKey insights from previous sessions:\n';
       insights.forEach((insight, index) => {
-        memoryContext += `${index + 1}. ${insight.content}\n`;
+        // ADDED: Replace generic terms with actual names in insights
+        let content = insight.content;
+        const sessionForInsight = sessions?.find(s => s.call_id === insight.call_id);
+        const agentName = sessionForInsight?.agent_name || 'Sarah';
+
+        content = content
+          .replace(/\b(the |this )?user\b/gi, userName)
+          .replace(/\b(the )?AI\b/gi, agentName);
+
+        memoryContext += `${index + 1}. ${content}\n`;
       });
     }
 
@@ -230,16 +249,46 @@ export async function storeSessionContext(
   userId: string,
   callId: string,
   content: string,
-  contextType: string = 'session_insight'
+  contextType: string = 'session_insight',
+  agentName?: string  // ADDED: optional agent name parameter
 ): Promise<void> {
   try {
+    // ADDED: Process content to use actual names if needed
+    let processedContent = content;
+
+    // Only fetch names if we're storing a summary that might have generic terms
+    if (contextType === 'call_summary' || contextType === 'session_insight') {
+      const { data: userProfile } = await supabase
+        .from('users')
+        .select('first_name')
+        .eq('id', userId)
+        .single();
+
+      const userName = userProfile?.first_name || 'the user';
+
+      // Get agent name if not provided
+      if (!agentName) {
+        const { data: session } = await supabase
+          .from('therapeutic_sessions')
+          .select('agent_name')
+          .eq('call_id', callId)
+          .single();
+        agentName = session?.agent_name || 'Sarah';
+      }
+
+      // Replace generic terms
+      processedContent = processedContent
+        .replace(/\b(the |this )?user\b/gi, userName)
+        .replace(/\b(the )?AI\b/gi, agentName);
+    }
+
     await supabase
       .from('therapeutic_context')
       .insert({
         user_id: userId,
         call_id: callId,
         context_type: contextType,
-        content: content,
+        content: processedContent,
         confidence: 0.8,
         importance: 5
       });
@@ -261,12 +310,38 @@ export async function storeEnhancedSessionContext(
   conversationalSummary: string
 ): Promise<void> {
   try {
+    // ADDED: Get names for proper storage
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('first_name')
+      .eq('id', userId)
+      .single();
+
+    const userName = userProfile?.first_name || 'the user';
+
+    const { data: session } = await supabase
+      .from('therapeutic_sessions')
+      .select('agent_name')
+      .eq('call_id', callId)
+      .single();
+
+    const agentName = session?.agent_name || 'Sarah';
+
+    // Process both summaries to use actual names
+    const processedRegularSummary = regularSummary
+      .replace(/\b(the |this )?user\b/gi, userName)
+      .replace(/\b(the )?AI\b/gi, agentName);
+
+    const processedConversationalSummary = conversationalSummary
+      .replace(/\b(the |this )?user\b/gi, userName)
+      .replace(/\b(the )?AI\b/gi, agentName);
+
     const contexts = [
       {
         user_id: userId,
         call_id: callId,
         context_type: 'call_summary',
-        content: regularSummary,
+        content: processedRegularSummary,
         confidence: 0.8,
         importance: 5
       },
@@ -274,7 +349,7 @@ export async function storeEnhancedSessionContext(
         user_id: userId,
         call_id: callId,
         context_type: 'conversational_summary',
-        content: conversationalSummary,
+        content: processedConversationalSummary,
         confidence: 0.85,
         importance: 8
       }
