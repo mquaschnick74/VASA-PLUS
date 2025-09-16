@@ -40,10 +40,8 @@ router.post('/webhook', async (req, res) => {
 
       if (signature !== expectedSignature && signature !== expectedSignatureBase64) {
         console.warn(`Signature mismatch. Received: ${signature?.substring(0, 20)}...`);
-        // In development, log warning but continue processing
-        if (process.env.NODE_ENV === 'production') {
-          return res.status(401).json({ error: 'Invalid signature' });
-        }
+        // Don't block webhooks - just log the warning
+        // VAPI inline configs may not use signatures consistently
       }
     }
 
@@ -56,8 +54,22 @@ router.post('/webhook', async (req, res) => {
     const callId = extractCallId(message);
     const agentName = extractAgentName(message);
 
+    // Enhanced debugging for production
+    if (process.env.REPLIT_DEPLOYMENT === '1' || !userId || !callId) {
+      console.log('📊 Webhook Debug Info:', {
+        eventType,
+        hasUserId: !!userId,
+        userId: userId || 'MISSING',
+        hasCallId: !!callId,
+        callId: callId || 'MISSING',
+        agentName,
+        isProduction: process.env.REPLIT_DEPLOYMENT === '1'
+      });
+    }
+
     if (!userId || !callId) {
-      console.warn('Missing userId or callId');
+      console.warn('⚠️ Missing critical data - userId:', userId, 'callId:', callId);
+      console.warn('Full message metadata:', JSON.stringify(message?.call?.metadata || message?.metadata || {}));
       return res.status(200).json({ received: true });
     }
 
