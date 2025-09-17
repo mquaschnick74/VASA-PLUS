@@ -1,10 +1,18 @@
 import { supabase } from './supabase-service';
-import { storeSessionContext } from './memory-service';  // Keep this for backward compatibility
+import { storeSessionContext } from './memory-service';
 import OpenAI from 'openai';
 
-// Initialize OpenAI client
+// Initialize OpenAI client with multiple fallbacks for Replit
+const apiKey = process.env.OPENAI_API_KEY || 
+               process.env.VITE_OPENAI_API_KEY || 
+               process.env['OPENAI_API_KEY'] ||
+               process.env.openai_api_key;
+
+console.log('🔑 OpenAI API Key exists on startup:', !!apiKey);
+console.log('🔑 Key length:', apiKey?.length);
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY
+  apiKey: apiKey
 });
 
 interface SessionSummaryData {
@@ -24,6 +32,8 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
   const { userId, callId, transcript, cssPatterns, agentName, duration } = data;
 
   console.log(`🎯 Generating AI-powered summary for call ${callId}`);
+  console.log('🔑 API Key available in function?', !!apiKey);
+  console.log('🔑 Transcript length:', transcript?.length);
 
   // If no transcript, create minimal summary
   if (!transcript || transcript.length < 50) {
@@ -49,6 +59,12 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
 
   } catch (error) {
     console.error('❌ AI summary generation failed, using fallback:', error);
+    console.error('❌ Error details:', {
+      message: (error as any)?.message,
+      type: (error as any)?.type,
+      code: (error as any)?.code,
+      status: (error as any)?.status
+    });
 
     // Fallback to narrative extraction
     const fallbackSummary = await extractNarrativeFromTranscript(
@@ -72,6 +88,14 @@ async function generateAISummaries(
   agentName: string,
   duration: number
 ): Promise<{ greetingContext: string; clinicalNotes: string }> {
+
+  console.log('🤖 Starting AI summary generation...');
+
+  // Check API key one more time
+  if (!apiKey) {
+    console.error('❌ No API key found!');
+    throw new Error('OpenAI API key not configured');
+  }
 
   // Prepare CSS context if available
   let cssContext = '';
@@ -129,6 +153,8 @@ ${transcript.substring(0, 4000)} ${transcript.length > 4000 ? '...[transcript co
 Clinical notes (2-3 sentences):`;
 
   try {
+    console.log('📡 Calling OpenAI API...');
+
     // Generate both summaries in parallel
     const [greetingResponse, clinicalResponse] = await Promise.all([
       openai.chat.completions.create({
@@ -144,8 +170,7 @@ Clinical notes (2-3 sentences):`;
           }
         ],
         temperature: 0.3,
-        max_tokens: 200,
-        timeout: 5000
+        max_tokens: 200
       }),
       openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -160,8 +185,7 @@ Clinical notes (2-3 sentences):`;
           }
         ],
         temperature: 0.2,
-        max_tokens: 150,
-        timeout: 5000
+        max_tokens: 150
       })
     ]);
 
@@ -176,8 +200,15 @@ Clinical notes (2-3 sentences):`;
       clinicalNotes: clinicalNotes.trim()
     };
 
-  } catch (error) {
-    console.error('OpenAI API error:', error);
+  } catch (error: any) {
+    console.error('❌ OpenAI API error:', error);
+    console.error('❌ API Key exists?', !!apiKey);
+    console.error('❌ API Key first 10 chars:', apiKey?.substring(0, 10));
+    console.error('❌ Error message:', error?.message);
+    console.error('❌ Error type:', error?.type);
+    console.error('❌ Error code:', error?.code);
+    console.error('❌ Error status:', error?.status);
+    console.error('❌ Full error object:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
