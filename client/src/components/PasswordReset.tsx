@@ -25,7 +25,7 @@ export default function PasswordReset({ onBack }: PasswordResetProps) {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/confirm`,  // Changed to /confirm
       });
 
       if (error) throw error;
