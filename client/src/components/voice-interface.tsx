@@ -27,6 +27,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   const [callTimer, setCallTimer] = useState(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState('sarah'); // Default to Sarah
+  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
 
   const selectedAgent = getAgentById(selectedAgentId);
 
@@ -52,11 +53,17 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
       setMemoryLoading(true);
       try {
+        const authToken = localStorage.getItem('authToken');
+        const headers: Record<string, string> = {
+          'Cache-Control': 'no-cache'
+        };
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
         const response = await fetch(`/api/auth/user-context/${userId}`, {
           cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache'
-          }
+          headers
         });
 
         if (response.ok) {
@@ -68,6 +75,8 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           if (data.shouldReferenceLastSession && data.lastSessionSummary) {
             console.log('📝 Session continuity enabled - will reference previous session');
           }
+        } else {
+          console.error('Failed to fetch user context');
         }
       } catch (error) {
         console.error('Error loading user context:', error);
@@ -103,9 +112,54 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
   const handleStartSession = () => {
     if (!memoryLoading && userContext && selectedAgent) {
+      // Generate a call ID for tracking
+      const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      setCurrentCallId(callId);
       startSession();
     }
   };
+
+  const handleEndCall = async () => {
+    if (!currentCallId) {
+      // If no call ID, just use regular endSession
+      endSession();
+      return;
+    }
+    
+    try {
+      // Stop the vapi session
+      endSession();
+      
+      // Send end session request with auth token
+      const authToken = localStorage.getItem('authToken');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      await fetch('/api/vapi/webhook', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: {
+            type: 'end-of-call-report',
+            call: { id: currentCallId },
+            endedReason: 'user-ended'
+          }
+        })
+      });
+      
+      console.log('📴 Call ended by user');
+      setCurrentCallId(null);
+    } catch (error) {
+      console.error('Error ending call:', error);
+      endSession();
+      setCurrentCallId(null);
+    }
+  };
+
 
   const handleSignOut = () => {
     setUserId(null);
@@ -213,7 +267,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   {/* Voice Call Controls */}
                   <div className="flex justify-center">
                     <Button
-                      onClick={isSessionActive ? endSession : handleStartSession}
+                      onClick={isSessionActive ? handleEndCall : handleStartSession}
                       disabled={isLoading || memoryLoading}
                       className={`group relative px-8 py-3 sm:px-10 sm:py-4 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
                         isSessionActive 
