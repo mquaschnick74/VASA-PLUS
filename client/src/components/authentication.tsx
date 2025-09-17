@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { apiRequest } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
+import { AIDisclosureCard } from './AIDisclosureCard';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 
 interface AuthenticationProps {
@@ -140,15 +141,18 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         <Card className="glass rounded-2xl border-0">
           <CardContent className="p-8">
             <div className="space-y-6">
-              <div className="text-center">
+              <div className="text-center relative">
                 <h2 className="text-2xl font-semibold mb-2">
                   {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
                 </h2>
-                <p className="text-muted-foreground">
-                  {mode === 'signup' 
-                    ? 'Start your therapeutic journey' 
-                    : 'Continue your therapeutic journey'}
-                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="text-muted-foreground">
+                    {mode === 'signup' 
+                      ? 'Start your therapeutic journey' 
+                      : 'Continue your therapeutic journey'}
+                  </p>
+                  <AIDisclosureCard className="inline-block" />
+                </div>
               </div>
 
               {/* Error Display */}
