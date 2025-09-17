@@ -5,6 +5,7 @@ import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
 import { getAgentById } from '../config/agent-configs';
+import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 
 interface VoiceInterfaceProps {
   userId: string;
@@ -191,10 +192,14 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="flex items-center space-x-1 sm:space-x-2">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full glass flex items-center justify-center">
-                  <i className="fas fa-microphone-alt text-accent text-sm sm:text-base"></i>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full glass flex items-center justify-center p-1">
+                  <img 
+                    src={vasaLogo} 
+                    alt="iVASA Logo" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
-                <span className="text-lg sm:text-xl font-semibold">VASA</span>
+                <span className="text-lg sm:text-xl font-semibold">iVASA</span>
               </div>
             </div>
 

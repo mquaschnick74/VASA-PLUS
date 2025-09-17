@@ -127,7 +127,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           <div className="inline-flex items-center justify-center w-20 h-20 mb-6 animate-float">
             <img 
               src={vasaLogo} 
-              alt="VASA Logo" 
+              alt="iVASA Logo" 
               className="w-full h-full object-contain"
             />
           </div>
@@ -230,7 +230,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 >
                   {loading ? 'Loading...' : (
                     mode === 'signup' ? 'Create Account' : 
-                    isLegacyMode ? 'Continue to VASA' : 'Sign In'
+                    isLegacyMode ? 'Continue to iVASA' : 'Sign In'
                   )}
                 </Button>
               </form>

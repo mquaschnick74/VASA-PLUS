@@ -48,7 +48,7 @@ export function AIDisclosureCard({ className }: AIDisclosureCardProps) {
             <div className="space-y-2 sm:space-y-3 text-[11px] sm:text-xs text-white/80">
               <div className="space-y-2">
                 <p>
-                  <strong className="text-red-400">Important:</strong> VASA provides AI-powered therapeutic support designed to complement, not replace, professional mental health care.
+                  <strong className="text-red-400">Important:</strong> iVASA provides AI-powered therapeutic support designed to complement, not replace, professional mental health care.
                 </p>
                 
                 <div className="space-y-1 pl-3 border-l-2 border-red-500/30">
@@ -73,7 +73,7 @@ export function AIDisclosureCard({ className }: AIDisclosureCardProps) {
 
               {/* Footer */}
               <p className="text-[9px] sm:text-[10px] text-white/60 italic pt-2 border-t border-white/10">
-                By using VASA, you acknowledge this service is not a substitute for professional medical advice, diagnosis, or treatment.
+                By using iVASA, you acknowledge this service is not a substitute for professional medical advice, diagnosis, or treatment.
               </p>
             </div>
           </div>
