@@ -173,8 +173,6 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
         },
         // CHANGE 3: Let AI generate the greeting instead of using hardcoded template
-        firstMessage: undefined,
-        firstMessageMode: 'assistant-speaks-first-with-model',
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
