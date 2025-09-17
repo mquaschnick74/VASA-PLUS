@@ -107,6 +107,12 @@ Your first message should be a warm, personalized greeting that:
 4. Shows continuity from previous sessions
 5. Feels natural and conversational
 
+VOICE SESSION MODE:
+This is a voice conversation through VAPI. 
+DO NOT include <speak>, </speak>, <meta>, or </meta> tags.
+DO NOT output any JSON or metadata.
+Just respond naturally with your therapeutic conversation.
+
 ` + systemPrompt;
 
       // ENHANCED: Add session continuity context if available
