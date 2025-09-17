@@ -2,17 +2,21 @@ import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import OpenAI from 'openai';
 
-// Initialize OpenAI client with multiple fallbacks for Replit
-const apiKey = process.env.OPENAI_API_KEY || 
-               process.env.VITE_OPENAI_API_KEY || 
-               process.env['OPENAI_API_KEY'] ||
-               process.env.openai_api_key;
+// For Replit, we need to access the secret directly
+// Replit makes secrets available as process.env variables
+const apiKey = process.env.OPENAI_API_KEY;
 
 console.log('🔑 OpenAI API Key exists on startup:', !!apiKey);
+console.log('🔑 Key starts with sk-:', apiKey?.startsWith('sk-'));
 console.log('🔑 Key length:', apiKey?.length);
 
+if (!apiKey) {
+  console.error('❌ OPENAI_API_KEY not found in environment!');
+  console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('OPEN') || k.includes('API')));
+}
+
 const openai = new OpenAI({
-  apiKey: apiKey
+  apiKey: apiKey || 'sk-dummy-key-for-fallback'
 });
 
 interface SessionSummaryData {
