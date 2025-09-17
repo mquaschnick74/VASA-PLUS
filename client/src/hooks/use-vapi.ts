@@ -167,14 +167,14 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           speed: selectedAgent.voice.speed || 1.0
         },
         serverUrl: serverUrl,
-        server: {
-          url: serverUrl,
-          timeoutSeconds: 20,
-          secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
-        },
-        // CHANGE 3: Let AI generate the greeting instead of using hardcoded template
-        firstMessageMode: "assistant-speaks-first-with-model-generated-message",
-        transcriber: {
+          server: {
+            url: serverUrl,
+            timeoutSeconds: 20,
+            secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
+          },
+          firstMessage: null,  // MUST be null, not undefined or omitted
+          firstMessageMode: "assistant-speaks-first-with-model-generated-message",
+          transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
           language: 'en'
