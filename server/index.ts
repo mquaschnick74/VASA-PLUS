@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { authenticateToken } from "./middleware/auth";
 
 const app = express();
 
@@ -46,6 +47,9 @@ app.use((req, res, next) => {
 });
 
 // Continue with the rest of the file...
+
+// Apply soft auth to all /api routes
+app.use('/api', authenticateToken);
 
 (async () => {
   const server = await registerRoutes(app);

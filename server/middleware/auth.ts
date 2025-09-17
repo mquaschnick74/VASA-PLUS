@@ -5,8 +5,8 @@ import { Request, Response, NextFunction } from 'express';
 
 // Create Supabase client for auth verification
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY! // Use ANON key for verifying tokens
+  process.env.VITE_SUPABASE_URL!,
+  process.env.VITE_SUPABASE_ANON_KEY! // Use ANON key for verifying tokens
 );
 
 // Extend Express Request type to include user
