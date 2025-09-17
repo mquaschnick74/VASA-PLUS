@@ -98,6 +98,17 @@ const useVapi = ({
 
       let systemPrompt = selectedAgent.systemPrompt;
 
+      // CHANGE 1: Add greeting generation instructions
+      systemPrompt = `GREETING GENERATION INSTRUCTION:
+Your first message should be a warm, personalized greeting that:
+1. References specific details from the session context below
+2. Uses the user's actual words when available
+3. Avoids generic phrases like "important parts of your story"
+4. Shows continuity from previous sessions
+5. Feels natural and conversational
+
+` + systemPrompt;
+
       // ENHANCED: Add session continuity context if available
       if (shouldReferenceLastSession && lastSessionSummary) {
         systemPrompt += `\n\n===== LAST SESSION CONTEXT =====
@@ -123,12 +134,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
 
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
-      // ENHANCED: Get personalized first message with session summary
-      const firstMessage = selectedAgent.firstMessageTemplate(
-        firstName, 
-        !!hasMemory,
-        shouldReferenceLastSession ? lastSessionSummary : null
-      );
+      // CHANGE 2: REMOVED the firstMessageTemplate call - no more hardcoded greetings
 
       // Get the current server URL for webhook configuration
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
@@ -166,7 +172,9 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           timeoutSeconds: 20,
           secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
         },
-        firstMessage: firstMessage,
+        // CHANGE 3: Let AI generate the greeting instead of using hardcoded template
+        firstMessage: undefined,
+        firstMessageMode: 'assistant-speaks-first-with-model',
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',

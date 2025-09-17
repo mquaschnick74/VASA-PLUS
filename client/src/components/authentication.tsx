@@ -124,16 +124,18 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       <div className="w-full max-w-md">
         {/* Logo and Branding */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 mb-6 animate-float">
-            <img 
-              src={vasaLogo} 
-              alt="iVASA Logo" 
-              className="w-full h-full object-contain"
-            />
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-16 h-16 animate-float">
+              <img 
+                src={vasaLogo} 
+                alt="iVASA Logo" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              iVASA
+            </h1>
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
-            iVASA
-          </h1>
           <p className="text-muted-foreground text-lg">Your Voice. Your Journey.</p>
           <p className="text-muted-foreground text-lg">Your AI Therapeutic Assistant</p>
         </div>
