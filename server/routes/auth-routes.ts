@@ -133,6 +133,28 @@ router.post('/user-with-auth', async (req, res) => {
   }
 });
 
+// Get user by ID
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ user });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
 // Get user context with memory - ENHANCED WITH SESSION CONTINUITY
 router.get('/user-context/:userId', async (req, res) => {
   try {
