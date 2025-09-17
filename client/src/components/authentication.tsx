@@ -130,7 +130,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             />
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
-            VASA
+            iVASA
           </h1>
           <p className="text-muted-foreground text-lg">Your Voice. Your Journey. Your AI Assistant.</p>
         </div>
