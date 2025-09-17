@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { apiRequest } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabaseClient';
+import PasswordReset from './PasswordReset';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -19,6 +20,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'signin' | 'signup' | 'legacy'>('signin');
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
 
   // Legacy auth for existing users without passwords
   const handleLegacyAuth = async (e: React.FormEvent) => {
@@ -110,6 +112,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   // Determine which form to show
   const isLegacyMode = mode === 'legacy';
 
+  if (showPasswordReset) {
+    return <PasswordReset onBack={() => setShowPasswordReset(false)} />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 gradient-bg">
       <div className="w-full max-w-md">
@@ -177,6 +183,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     />
                     {mode === 'signup' && (
                       <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+                    )}
+                    {!isLegacyMode && mode === 'signin' && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswordReset(true)}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors text-right w-full"
+                      >
+                        Forgot password?
+                      </button>
                     )}
                   </div>
                 )}
