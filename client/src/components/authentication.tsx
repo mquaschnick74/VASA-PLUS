@@ -64,7 +64,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           email,
           password,
           options: {
-            data: { first_name: firstName || email.split('@')[0] }
+            data: { first_name: firstName || email.split('@')[0] },
+            emailRedirectTo: `${window.location.origin}/confirm`  // Changed from /dashboard
           }
         });
       } else {
