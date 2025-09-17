@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { apiRequest } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
+import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -123,7 +124,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-20 h-20 mb-6 animate-float">
             <img 
-              src="/attached_assets/VASA Favi Minimal_1758122988999.png" 
+              src={vasaLogo} 
               alt="VASA Logo" 
               className="w-full h-full object-contain"
             />
