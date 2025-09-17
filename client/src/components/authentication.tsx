@@ -132,7 +132,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
             iVASA
           </h1>
-          <p className="text-muted-foreground text-lg">Your Voice. Your Journey. Your AI Assistant.</p>
+          <p className="text-muted-foreground text-lg">Your Voice. Your Journey.</p>
+          <p className="text-muted-foreground text-lg">Your AI Therapeutic Assistant</p>
         </div>
 
         {/* Authentication Form */}
