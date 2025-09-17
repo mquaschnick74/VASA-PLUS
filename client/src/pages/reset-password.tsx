@@ -1,7 +1,7 @@
 // Location: client/src/pages/reset-password.tsx
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter';  // Changed from useNavigate
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ResetPassword() {
-  const [, navigate] = useNavigate();
+  const [, setLocation] = useLocation();  // Changed from navigate
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,9 +19,9 @@ export default function ResetPassword() {
     // Check if we have a reset token
     const resetToken = localStorage.getItem('resetToken');
     if (!resetToken) {
-      navigate('/');
+      setLocation('/');  // Changed from navigate
     }
-  }, [navigate]);
+  }, [setLocation]);
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +53,7 @@ export default function ResetPassword() {
 
       // Success - redirect to dashboard
       alert('Password updated successfully!');
-      navigate('/dashboard');
+      setLocation('/dashboard');  // Changed from navigate
     } catch (error: any) {
       setError(error.message || 'Failed to reset password');
     } finally {
@@ -119,7 +119,7 @@ export default function ResetPassword() {
             </form>
 
             <button
-              onClick={() => navigate('/')}
+              onClick={() => setLocation('/')}  // Changed from navigate
               className="w-full mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancel

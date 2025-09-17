@@ -1,13 +1,13 @@
 // Location: client/src/pages/confirm.tsx
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter';  // Changed from useNavigate
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ConfirmEmail() {
-  const [, navigate] = useNavigate();
+  const [, setLocation] = useLocation();  // Changed from navigate
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
 
@@ -58,7 +58,7 @@ export default function ConfirmEmail() {
 
         // Redirect after 2 seconds
         setTimeout(() => {
-          navigate('/dashboard');
+          setLocation('/dashboard');  // Changed from navigate
         }, 2000);
       } else if (type === 'recovery') {
         // Password reset flow
@@ -69,7 +69,7 @@ export default function ConfirmEmail() {
         if (accessToken) {
           localStorage.setItem('resetToken', accessToken);
           setTimeout(() => {
-            navigate('/reset-password');
+            setLocation('/reset-password');  // Changed from navigate
           }, 2000);
         }
       } else {
@@ -111,7 +111,7 @@ export default function ConfirmEmail() {
             {status === 'error' && (
               <div className="space-y-4">
                 <Button
-                  onClick={() => navigate('/')}
+                  onClick={() => setLocation('/')}  // Changed from navigate
                   className="w-full bg-gradient-to-r from-primary to-accent py-3 rounded-xl"
                 >
                   Go to Sign In
