@@ -71,6 +71,68 @@ router.post('/user', async (req, res) => {
   }
 });
 
+// Create or get user WITH authentication (new endpoint)
+router.post('/user-with-auth', async (req, res) => {
+  try {
+    const { email, firstName, authUserId } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Check if user exists
+    const { data: existingUser, error: selectError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (selectError && selectError.code !== 'PGRST116') {
+      console.error('Error checking existing user:', selectError);
+      throw selectError;
+    }
+
+    if (existingUser) {
+      // Update auth_user_id if provided and not set
+      if (authUserId && !existingUser.auth_user_id) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ auth_user_id: authUserId })
+          .eq('id', existingUser.id);
+        
+        if (updateError) {
+          console.error('Error updating auth_user_id:', updateError);
+        }
+      }
+      
+      console.log('Found existing user:', existingUser.email);
+      return res.json({ user: existingUser });
+    }
+
+    // Create new user with auth_user_id
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert({
+        email,
+        first_name: firstName || email.split('@')[0],
+        auth_user_id: authUserId || null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating new user:', error);
+      throw error;
+    }
+
+    console.log('New user created:', newUser.email);
+    res.json({ user: newUser });
+  } catch (error) {
+    console.error('Error in /user-with-auth endpoint:', error);
+    res.status(500).json({ error: 'Failed to process user' });
+  }
+});
+
 // Get user context with memory - ENHANCED WITH SESSION CONTINUITY
 router.get('/user-context/:userId', async (req, res) => {
   try {
