@@ -119,10 +119,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 gradient-bg">
       <div className="w-full max-w-md">
-        {/* Logo and Branding - unchanged */}
+        {/* Logo and Branding */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full glass-strong mb-6 animate-float">
-            <i className="fas fa-microphone-alt text-3xl text-accent"></i>
+          <div className="inline-flex items-center justify-center w-20 h-20 mb-6 animate-float">
+            <img 
+              src="/attached_assets/VASA Favi Minimal_1758122988999.png" 
+              alt="VASA Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
             VASA
