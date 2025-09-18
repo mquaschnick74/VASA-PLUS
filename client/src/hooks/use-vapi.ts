@@ -100,20 +100,20 @@ const useVapi = ({
 
       // CHANGE 1: Add greeting generation instructions
       systemPrompt = `GREETING GENERATION INSTRUCTION:
-Your first message should be a warm, personalized greeting that:
-1. References specific details from the session context below
-2. Uses the user's actual words when available
-3. Avoids generic phrases like "important parts of your story"
-4. Shows continuity from previous sessions
-5. Feels natural and conversational
+      Your first message should be a warm greeting that:
+      1. IF there are previous sessions: Reference specific details from the context
+      2. IF this is the first session: Introduce yourself naturally without referencing past sessions
+      3. NEVER invent or hallucinate previous conversations
+      4. Uses the user's actual words when available (if any exist)
+      5. Feels natural and conversational
 
-VOICE SESSION MODE:
-This is a voice conversation through VAPI. 
-DO NOT include <speak>, </speak>, <meta>, or </meta> tags.
-DO NOT output any JSON or metadata.
-Just respond naturally with your therapeutic conversation.
+      VOICE SESSION MODE:
+      This is a voice conversation through VAPI. 
+      DO NOT include <speak>, </speak>, <meta>, or </meta> tags.
+      DO NOT output any JSON or metadata.
+      Just respond naturally with your therapeutic conversation.
 
-` + systemPrompt;
+      ` + systemPrompt;
 
       // ENHANCED: Add session continuity context if available
       if (shouldReferenceLastSession && lastSessionSummary) {

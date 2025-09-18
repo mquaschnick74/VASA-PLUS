@@ -89,7 +89,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       }
     }
 
-    return memoryContext || 'This is your first session together.';
+    return memoryContext || 'Null';
   } catch (error) {
     console.error('Error building memory context:', error);
     return 'Welcome to your session.';
