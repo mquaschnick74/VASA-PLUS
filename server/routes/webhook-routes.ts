@@ -75,6 +75,13 @@ router.post('/webhook', async (req, res) => {
 
     switch (eventType) {
       case 'call-started':
+        // ADD MONITOR URL LOGGING HERE
+        if (message?.call?.monitor) {
+          console.log('🔍 MONITOR URLs FOR TESTING:');
+          console.log(`TEST_LISTEN_URL="${message.call.monitor.listenUrl}"`);
+          console.log(`TEST_CONTROL_URL="${message.call.monitor.controlUrl}"`);
+        }
+
         await initializeSession(userId, callId, agentName);
         break;
 
@@ -183,18 +190,18 @@ function extractUserId(message: any): string | null {
       directMetadataKeys: message?.metadata ? Object.keys(message.metadata) : []
     }));
   }
-  
+
   const userId = message?.call?.metadata?.userId || 
          message?.metadata?.userId ||
          message?.call?.assistant?.metadata?.userId ||
          message?.assistant?.metadata?.userId ||
          null;
-         
+
   if (!userId && process.env.REPLIT_DEPLOYMENT === '1') {
     console.error('❌ Failed to extract userId from webhook in production');
     console.error('Full message:', JSON.stringify(message).substring(0, 500));
   }
-  
+
   return userId;
 }
 
