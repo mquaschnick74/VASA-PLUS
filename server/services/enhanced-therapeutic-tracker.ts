@@ -126,11 +126,14 @@ class EnhancedTherapeuticTracker {
     previous: string,
     current: string
   ): 'deepening' | 'resistance' | 'integration' | null {
-    // Deepening: More detail, emotional content, personal disclosure
-    if (current.length > previous.length * 1.5) {
-      if (/never told|hard to say|vulnerable|scared|ashamed|crying|tears/i.test(current)) {
-        return 'deepening';
-      }
+    // Check for deepening FIRST (most specific patterns)
+    if (/empty|heavy|hollow|grief|pain|numb|echoing|lost|missing/i.test(current)) {
+      return 'deepening';
+    }
+
+    // Then check for integration (but more strict)
+    if (/I see now|makes sense now|I realize|I understand now|both.*true/i.test(current)) {
+      return 'integration';
     }
 
     // Resistance: Shorter, deflective, minimizing
