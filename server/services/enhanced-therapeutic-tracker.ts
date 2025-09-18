@@ -1,6 +1,6 @@
 // server/services/enhanced-therapeutic-tracker.ts
 // Process-based therapeutic tracking using webhook data
-// No monitor URLs required - works with your current setup
+// FIXED: Now properly separates therapeutic movements from CSS stages
 
 import { supabase } from './supabase-service';
 
@@ -282,13 +282,13 @@ class EnhancedTherapeuticTracker {
     // Store only when exchange count is at key milestones
     const milestones = [5, 10, 15, 20, 30, 40, 50];
     if (milestones.includes(state.exchangeCount)) {
-      // Store as a process-based pattern
+      // Store as a process-based pattern - THIS IS CORRECT, USES PROPER CSS STAGES
       await supabase.from('css_patterns').insert({
         user_id: userId,
         call_id: callId,
         pattern_type: 'PROCESS',
         content: `Process metrics: depth=${state.narrativeDepth.toFixed(2)}, emotions=${state.emotionalRange.length}, somatic=${state.somaticReferences}, exchanges=${state.exchangeCount}`,
-        css_stage: suggestedStage,
+        css_stage: suggestedStage, // This correctly uses CSS stages like 'pointed_origin', 'focus_bind', etc.
         confidence: confidence,
         detected_at: new Date().toISOString(),
         emotional_intensity: this.calculateIntensity(state)
@@ -312,7 +312,9 @@ class EnhancedTherapeuticTracker {
   }
 
   /**
-   * Store therapeutic movement (with duplicate prevention)
+   * FIXED: Store therapeutic movement in the correct table
+   * Movements (deepening, resistance, integration) are NOT CSS stages!
+   * They go in the therapeutic_movements table, not css_patterns
    */
   private async storeMovement(
     callId: string,
@@ -339,17 +341,15 @@ class EnhancedTherapeuticTracker {
       // Mark as processed
       processedSet.add(contentHash);
 
-      // Store the movement
-      await supabase.from('css_patterns').insert({
+      // FIXED: Store in the therapeutic_movements table, NOT css_patterns!
+      await supabase.from('therapeutic_movements').insert({
         user_id: userId,
         call_id: callId,
-        pattern_type: 'MOVEMENT',
+        movement_type: movement, // 'deepening', 'resistance', or 'integration'
         content: content.substring(0, 500),
-        css_stage: movement,
-        confidence: 0.7,
         detected_at: new Date().toISOString()
       });
-      console.log(`💫 Stored therapeutic movement: ${movement}`);
+      console.log(`💫 Stored therapeutic movement: ${movement} in therapeutic_movements table`);
     } catch (error) {
       console.error('Error storing movement:', error);
     }
