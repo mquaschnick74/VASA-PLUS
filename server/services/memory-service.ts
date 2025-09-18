@@ -1,8 +1,12 @@
 import { supabase } from './supabase-service';
 
+/**
+ * Builds memory context for display to users AND AI agents
+ * Now filters insights to only show user-friendly content
+ */
 export async function buildMemoryContext(userId: string): Promise<string> {
   try {
-    // ADDED: Fetch user's name for proper display
+    // Fetch user's name for proper display
     const { data: userProfile } = await supabase
       .from('users')
       .select('first_name')
@@ -24,11 +28,12 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       return '';
     }
 
-    // Fetch recent insights
+    // MODIFIED: Fetch ONLY user-friendly insights (exclude technical metadata)
     const { data: insights, error: insightsError } = await supabase
       .from('therapeutic_context')
       .select('*')
       .eq('user_id', userId)
+      .in('context_type', ['session_insight', 'call_summary', 'conversational_summary'])  // Only user-friendly types
       .order('created_at', { ascending: false })
       .limit(5);
 
@@ -37,7 +42,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       return '';
     }
 
-    // Get CSS-specific patterns
+    // Get CSS-specific patterns (for agent context, not displayed to user)
     const { data: cssPatterns } = await supabase
       .from('css_patterns')
       .select('css_stage, pattern_type, content, extracted_contradiction')
@@ -49,7 +54,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     let memoryContext = '';
 
     if (sessions && sessions.length > 0) {
-      // CHANGED: Use actual user name instead of "this user"
+      // Use actual user name instead of "this user"
       memoryContext += `You have had ${sessions.length} previous sessions with ${userName}. `;
 
       const lastSession = sessions[0];
@@ -62,10 +67,26 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       }
     }
 
+    // MODIFIED: Better filtering and formatting of insights
     if (insights && insights.length > 0) {
       memoryContext += '\n\nKey insights from previous sessions:\n';
-      insights.forEach((insight, index) => {
-        // ADDED: Replace generic terms with actual names in insights
+
+      // Filter out duplicate or technical-looking content
+      const userFriendlyInsights = insights.filter(insight => {
+        const content = insight.content.toLowerCase();
+        // Exclude entries that look like technical metadata
+        return !content.includes('"exchangecount"') && 
+               !content.includes('"narrativedepth"') &&
+               !content.includes('"therapeuticarc"') &&
+               !content.includes('"dominantmovement"') &&
+               !content.includes('session with sarah') && // Avoid duplicate summaries
+               !content.includes('session with mathew') &&
+               content.length > 20; // Exclude very short entries
+      });
+
+      // Display only the most relevant insights
+      userFriendlyInsights.slice(0, 3).forEach((insight, index) => {
+        // Replace generic terms with actual names
         let content = insight.content;
         const sessionForInsight = sessions?.find(s => s.call_id === insight.call_id);
         const agentName = sessionForInsight?.agent_name || 'Sarah';
@@ -78,22 +99,75 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       });
     }
 
+    // Add CSS patterns for agent context (but keep it subtle for user display)
     if (cssPatterns && cssPatterns.length > 0) {
       const currentStage = cssPatterns[0].css_stage;
-      memoryContext += `\n\nTherapeutic Progress: Currently in ${currentStage} stage. `;
+      memoryContext += `\n\nTherapeutic Progress: Currently in ${formatStageName(currentStage)} stage. `;
 
       const cvdcPattern = cssPatterns.find(p => p.pattern_type === 'CVDC');
       if (cvdcPattern) {
         const contradiction = cvdcPattern.extracted_contradiction || cvdcPattern.content;
-        memoryContext += `Key contradiction: "${contradiction}" `;
+        memoryContext += `Key pattern: "${contradiction}" `;
       }
     }
 
-    return memoryContext || 'Null';
+    return memoryContext || 'This is your first session together.';
   } catch (error) {
     console.error('Error building memory context:', error);
     return 'Welcome to your session.';
   }
+}
+
+/**
+ * Build memory context specifically for user display (simpler, cleaner)
+ */
+export async function buildUserDisplayContext(userId: string): Promise<string[]> {
+  try {
+    // Get only the most recent narrative insights
+    const { data: insights, error } = await supabase
+      .from('therapeutic_context')
+      .select('content, created_at')
+      .eq('user_id', userId)
+      .in('context_type', ['session_insight', 'conversational_summary'])
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    if (error || !insights || insights.length === 0) {
+      return ['Starting your therapeutic journey'];
+    }
+
+    // Filter and format for display
+    return insights
+      .filter(insight => {
+        const content = insight.content.toLowerCase();
+        return !content.includes('exchangecount') && 
+               !content.includes('narrativedepth') &&
+               !content.includes('session with') &&
+               content.length > 20;
+      })
+      .map(insight => insight.content)
+      .slice(0, 2); // Show max 2 insights on the UI
+  } catch (error) {
+    console.error('Error building user display context:', error);
+    return ['Welcome to your therapeutic space'];
+  }
+}
+
+/**
+ * Format CSS stage names for user-friendly display
+ */
+function formatStageName(stage: string): string {
+  const stageMap: { [key: string]: string } = {
+    'pointed_origin': 'early exploration',
+    'focus_bind': 'pattern recognition',
+    'thend': 'therapeutic shift',
+    'cyvc': 'emerging flexibility',
+    'CVDC': 'pattern awareness',
+    'IBM': 'behavior mapping',
+    'SUSPENSION': 'reflection'
+  };
+
+  return stageMap[stage] || stage.toLowerCase().replace('_', ' ');
 }
 
 /**
@@ -118,7 +192,7 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
       .limit(1)
       .single();
 
-    if (summaryError && summaryError.code !== 'PGRST116') { // PGRST116 is "no rows found"
+    if (summaryError && summaryError.code !== 'PGRST116') {
       console.error('Error fetching last summary:', summaryError);
     }
 
@@ -238,8 +312,8 @@ function enhanceSummaryForConversation(summary: string): string {
 
   // Clean up any remaining technical artifacts
   enhanced = enhanced
-    .replace(/\s+/g, ' ') // normalize whitespace
-    .replace(/\.\s*\./g, '.') // remove double periods
+    .replace(/\s+/g, ' ')
+    .replace(/\.\s*\./g, '.')
     .trim();
 
   return enhanced;
@@ -250,14 +324,14 @@ export async function storeSessionContext(
   callId: string,
   content: string,
   contextType: string = 'session_insight',
-  agentName?: string  // ADDED: optional agent name parameter
+  agentName?: string
 ): Promise<void> {
   try {
-    // ADDED: Process content to use actual names if needed
+    // Process content to use actual names if needed
     let processedContent = content;
 
     // Only fetch names if we're storing a summary that might have generic terms
-    if (contextType === 'call_summary' || contextType === 'session_insight') {
+    if (contextType === 'call_summary' || contextType === 'session_insight' || contextType === 'conversational_summary') {
       const { data: userProfile } = await supabase
         .from('users')
         .select('first_name')
@@ -293,7 +367,7 @@ export async function storeSessionContext(
         importance: 5
       });
 
-    console.log('✅ Stored therapeutic context');
+    console.log(`✅ Stored therapeutic context (${contextType})`);
   } catch (error) {
     console.error('Error storing context:', error);
   }
@@ -310,7 +384,7 @@ export async function storeEnhancedSessionContext(
   conversationalSummary: string
 ): Promise<void> {
   try {
-    // ADDED: Get names for proper storage
+    // Get names for proper storage
     const { data: userProfile } = await supabase
       .from('users')
       .select('first_name')

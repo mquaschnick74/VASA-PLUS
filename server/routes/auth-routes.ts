@@ -2,7 +2,7 @@
 
 import { Router } from 'express';
 import { supabase } from '../services/supabase-service';
-import { buildMemoryContext, buildMemoryContextWithSummary } from '../services/memory-service';
+import { buildMemoryContext, buildMemoryContextWithSummary, buildUserDisplayContext } from '../services/memory-service';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -87,8 +87,9 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Build memory context
+    // Build memory context for AI agents
     let memoryContext: string;
+    let displayMemoryContext: string;  // NEW: Cleaner version for UI display
     let lastSessionSummary: string | null = null;
     let shouldReferenceLastSession: boolean = false;
 
@@ -105,6 +106,14 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       memoryContext = await buildMemoryContext(userId);
     }
 
+    // NEW: Build simplified memory context for UI display
+    const userDisplayInsights = await buildUserDisplayContext(userId);
+
+    // Format display memory context with just the key insights
+    displayMemoryContext = userDisplayInsights.length > 0 
+      ? userDisplayInsights.join('\n\n')
+      : 'Starting your therapeutic journey';
+
     // Fetch recent sessions
     const { data: sessions } = await supabase
       .from('therapeutic_sessions')
@@ -116,7 +125,8 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
     res.json({
       success: true,
       profile: user,
-      memoryContext,
+      memoryContext,  // Full context for AI agents
+      displayMemoryContext,  // NEW: Clean context for UI display
       lastSessionSummary,
       shouldReferenceLastSession,
       sessions: sessions || [],

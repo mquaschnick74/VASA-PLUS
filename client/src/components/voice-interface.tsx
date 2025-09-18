@@ -18,6 +18,7 @@ interface VoiceInterfaceProps {
 interface UserContext {
   profile: any;
   memoryContext: string;
+  displayMemoryContext?: string;  // NEW: Optional field for cleaner UI display
   lastSessionSummary?: string | null;  // ADD: Session continuity
   shouldReferenceLastSession?: boolean; // ADD: Session continuity
   sessions: any[];
@@ -101,19 +102,19 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
       const interval = setInterval(() => {
         setCallTimer(prev => {
           const newTimer = prev + 1;
-          
+
           // Show warning at 9 minutes (540 seconds) - VAPI has a 10-minute limitation
           if (newTimer === 540 && !showDurationWarning) {
             setShowDurationWarning(true);
           }
-          
+
           // Auto-end call at 10 minutes (600 seconds) due to VAPI limitation
           if (newTimer >= 600) {
             console.log('⏰ Call duration limit reached (10 minutes) - ending call');
             handleEndCall();
             return prev;
           }
-          
+
           return newTimer;
         });
       }, 1000);
@@ -149,11 +150,11 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
       endSession();
       return;
     }
-    
+
     try {
       // Stop the vapi session
       endSession();
-      
+
       // Send end session request with auth token
       const authToken = localStorage.getItem('authToken');
       const headers: Record<string, string> = {
@@ -174,7 +175,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           }
         })
       });
-      
+
       console.log('📴 Call ended by user');
       setCurrentCallId(null);
     } catch (error) {
@@ -188,13 +189,13 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   const handleSignOut = async () => {
     // Sign out from Supabase authentication
     await supabase.auth.signOut();
-    
+
     // Clear ALL stored data from browser
     localStorage.clear();
-    
+
     // Reset the user ID state
     setUserId(null);
-    
+
     // Force reload to login page
     window.location.href = '/';
   };
@@ -203,6 +204,39 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // MODIFIED: Helper function to get display insights
+  const getDisplayInsights = () => {
+    // Use displayMemoryContext if available, otherwise fall back to memoryContext
+    const contextToDisplay = userContext?.displayMemoryContext || userContext?.memoryContext || '';
+
+    // Filter out technical/JSON content and empty lines
+    const lines = contextToDisplay.split('\n').filter(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+
+      // Skip lines that look like technical metadata
+      const lowerLine = trimmed.toLowerCase();
+      return !lowerLine.includes('exchangecount') && 
+             !lowerLine.includes('narrativedepth') &&
+             !lowerLine.includes('therapeuticarc') &&
+             !lowerLine.includes('dominantmovement') &&
+             !lowerLine.includes('"processinsights"') &&
+             !lowerLine.includes('"emotionalrange"') &&
+             !trimmed.startsWith('{') &&
+             !trimmed.startsWith('}');
+    });
+
+    // Further filter to only keep the narrative insights (numbered lines)
+    const insights = lines.filter(line => {
+      // Keep lines that start with numbers (1., 2., etc.) or are part of Key insights
+      return /^\d+\./.test(line.trim()) || 
+             line.includes('Key insights from previous sessions') ||
+             line.includes('Therapeutic Progress');
+    });
+
+    return insights.length > 0 ? insights : ['Starting your therapeutic journey'];
   };
 
   if (memoryLoading || !userContext) {
@@ -444,7 +478,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
               </CardContent>
             </Card>
 
-            {/* Memory Context */}
+            {/* Memory Context - MODIFIED to use cleaner display */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center space-x-2">
@@ -453,7 +487,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                 </h3>
 
                 <div className="space-y-3">
-                  {userContext.memoryContext.split('\n').filter(line => line.trim()).map((line, index) => (
+                  {getDisplayInsights().map((line, index) => (
                     <div key={index} className="bg-secondary/30 rounded-lg p-3">
                       <p className="text-sm">{line}</p>
                     </div>
