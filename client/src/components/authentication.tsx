@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
+import { Eye, EyeOff } from 'lucide-react';  // Add this import
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -22,6 +23,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);  // Add this state
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +57,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         alert('Check your email to confirm your account!');
         setMode('signin');
         setPassword('');
+        setShowPassword(false);  // Reset password visibility
         return;
       } else {
         // Sign in
@@ -169,15 +172,29 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Password</Label>
-                  <Input 
-                    type="password" 
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-input border border-border"
-                    required
-                    minLength={6}
-                  />
+                  <div className="relative">
+                    <Input 
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 pr-12 rounded-xl bg-input border border-border"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
                   {mode === 'signup' && (
                     <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
                   )}
@@ -220,6 +237,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   onClick={() => {
                     setMode(mode === 'signin' ? 'signup' : 'signin');
                     setError(null);
+                    setShowPassword(false);  // Reset password visibility when switching modes
                   }}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
