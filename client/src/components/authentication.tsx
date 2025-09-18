@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { apiRequest } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
@@ -21,34 +20,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [firstName, setFirstName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'signin' | 'signup' | 'legacy'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [showPasswordReset, setShowPasswordReset] = useState(false);
 
-  // Legacy auth for existing users without passwords
-  const handleLegacyAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await apiRequest('POST', '/api/auth/user', { email, firstName });
-      const data = await response.json();
-
-      if (data.user) {
-        setUserId(data.user.id);
-        localStorage.setItem('userId', data.user.id);
-      }
-    } catch (error) {
-      console.error('Sign in error:', error);
-      setError('Failed to sign in. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // New password-based auth
-  const handlePasswordAuth = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
 
@@ -59,50 +34,66 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       let authResult;
 
       if (mode === 'signup') {
-        // Create new account with password
+        // Create new account
         authResult = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: { first_name: firstName || email.split('@')[0] },
-            emailRedirectTo: `${window.location.origin}/confirm`  // Changed from /dashboard
+            emailRedirectTo: `${window.location.origin}/confirm`
           }
         });
+
+        if (authResult.error) throw authResult.error;
+
+        if (authResult.data.user?.identities?.length === 0) {
+          setError('An account with this email already exists. Please sign in instead.');
+          return;
+        }
+
+        // Show success message
+        alert('Check your email to confirm your account!');
+        setMode('signin');
+        setPassword('');
+        return;
       } else {
-        // Sign in with password
+        // Sign in
         authResult = await supabase.auth.signInWithPassword({
           email,
           password
         });
+
+        if (authResult.error) throw authResult.error;
       }
 
-      if (authResult.error) {
-        // If sign in fails, check if this is a legacy user
-        if (mode === 'signin' && authResult.error.message.includes('Invalid login')) {
-          setError('No password set for this account. Use "Sign in without password" below.');
-          return;
-        }
-        throw authResult.error;
-      }
+      // Successfully authenticated - get/create user profile
+      if (authResult.data.user && authResult.data.session) {
+        const token = authResult.data.session.access_token;
 
-      // Get or create user profile in your database
-      if (authResult.data.user) {
-        const token = authResult.data.session?.access_token;
-        const response = await apiRequest('POST', '/api/auth/user-with-auth', {
-          email,
-          firstName: firstName || authResult.data.user.user_metadata?.first_name,
-          authUserId: authResult.data.user.id
-        }, {
-          'Authorization': `Bearer ${token}`
+        // Store auth token immediately
+        localStorage.setItem('authToken', token);
+
+        // Create or get user profile
+        const response = await fetch('/api/auth/user-with-auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            email,
+            firstName: firstName || authResult.data.user.user_metadata?.first_name,
+            authUserId: authResult.data.user.id
+          })
         });
 
-        const data = await response.json();
-        if (data.user) {
-          setUserId(data.user.id);
-          localStorage.setItem('userId', data.user.id);
-          // Store the auth token for future API calls
-          localStorage.setItem('authToken', token || '');
+        if (!response.ok) {
+          throw new Error('Failed to create user profile');
         }
+
+        const { user } = await response.json();
+        setUserId(user.id);
+        localStorage.setItem('userId', user.id);
       }
     } catch (error: any) {
       console.error('Auth error:', error);
@@ -111,9 +102,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       setLoading(false);
     }
   };
-
-  // Determine which form to show
-  const isLegacyMode = mode === 'legacy';
 
   if (showPasswordReset) {
     return <PasswordReset onBack={() => setShowPasswordReset(false)} />;
@@ -166,7 +154,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               )}
 
               {/* Main Form */}
-              <form onSubmit={isLegacyMode ? handleLegacyAuth : handlePasswordAuth} className="space-y-4">
+              <form onSubmit={handleAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Email Address</Label>
                   <Input 
@@ -174,43 +162,37 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     placeholder="sarah@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                    data-testid="input-email"
+                    className="w-full px-4 py-3 rounded-xl bg-input border border-border"
                     required
                   />
                 </div>
 
-                {/* Password field - only show for password-based auth */}
-                {!isLegacyMode && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Password</Label>
-                    <Input 
-                      type="password" 
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                      data-testid="input-password"
-                      required={!isLegacyMode}
-                      minLength={6}
-                    />
-                    {mode === 'signup' && (
-                      <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
-                    )}
-                    {!isLegacyMode && mode === 'signin' && (
-                      <button
-                        type="button"
-                        onClick={() => setShowPasswordReset(true)}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors text-right w-full"
-                      >
-                        Forgot password?
-                      </button>
-                    )}
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Password</Label>
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+                    required
+                    minLength={6}
+                  />
+                  {mode === 'signup' && (
+                    <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+                  )}
+                  {mode === 'signin' && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordReset(true)}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
 
-                {/* First Name field - show for signup or legacy */}
-                {(mode === 'signup' || isLegacyMode) && (
+                {mode === 'signup' && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">First Name (Optional)</Label>
                     <Input 
@@ -218,48 +200,32 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       placeholder="Sarah"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                      data-testid="input-firstName"
+                      className="w-full px-4 py-3 rounded-xl bg-input border border-border"
                     />
                   </div>
                 )}
 
                 <Button 
                   type="submit"
-                  disabled={loading || !email || (!isLegacyMode && !password)}
-                  className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground font-medium py-3 px-4 rounded-xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background transition-all duration-200"
-                  data-testid="button-continue"
+                  disabled={loading || !email || !password}
+                  className="w-full bg-gradient-to-r from-primary to-accent py-3 rounded-xl"
                 >
-                  {loading ? 'Loading...' : (
-                    mode === 'signup' ? 'Create Account' : 
-                    isLegacyMode ? 'Continue to iVASA' : 'Sign In'
-                  )}
+                  {loading ? 'Loading...' : (mode === 'signup' ? 'Create Account' : 'Sign In')}
                 </Button>
               </form>
 
-              {/* Mode Switch Links */}
-              <div className="space-y-2 text-center">
-                {!isLegacyMode && (
-                  <button
-                    type="button"
-                    onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors block w-full"
-                  >
-                    {mode === 'signin' 
-                      ? "Don't have an account? Sign up" 
-                      : 'Already have an account? Sign in'}
-                  </button>
-                )}
-
-                {/* Legacy auth option */}
+              <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setMode(isLegacyMode ? 'signin' : 'legacy')}
-                  className="text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors block w-full"
+                  onClick={() => {
+                    setMode(mode === 'signin' ? 'signup' : 'signin');
+                    setError(null);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {isLegacyMode 
-                    ? 'Back to sign in with password' 
-                    : 'Sign in without password (legacy)'}
+                  {mode === 'signin' 
+                    ? "Don't have an account? Sign up" 
+                    : 'Already have an account? Sign in'}
                 </button>
               </div>
 

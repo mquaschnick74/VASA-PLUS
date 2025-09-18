@@ -5,6 +5,7 @@ import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
 import { getAgentById } from '../config/agent-configs';
+import { supabase } from '@/lib/supabaseClient';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 
 interface VoiceInterfaceProps {
@@ -162,9 +163,18 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   };
 
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    // Sign out from Supabase authentication
+    await supabase.auth.signOut();
+    
+    // Clear ALL stored data from browser
+    localStorage.clear();
+    
+    // Reset the user ID state
     setUserId(null);
-    localStorage.removeItem('userId');
+    
+    // Force reload to login page
+    window.location.href = '/';
   };
 
   const formatTime = (seconds: number) => {
