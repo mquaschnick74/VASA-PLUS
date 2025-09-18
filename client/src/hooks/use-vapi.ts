@@ -151,6 +151,9 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       console.log('📝 Session continuity:', shouldReferenceLastSession ? 'Enabled' : 'Disabled');
 
       // VAPI configuration with dynamic agent settings
+      // IMPORTANT: VAPI Platform Limitation - Calls automatically disconnect after 10 minutes (600 seconds)
+      // The maxCallDuration parameter is not available in the Web SDK (only in Tavus conversations)
+      // We handle this limitation in the UI by showing a warning at 9 minutes and auto-ending at 10 minutes
       const assistantConfig = {
         name: `VASA-${selectedAgent.name}`,
         model: {
@@ -175,7 +178,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         serverUrl: serverUrl,
           server: {
             url: serverUrl,
-            timeoutSeconds: 20,
+            timeoutSeconds: 20,  // This is for webhook timeout, not call duration
             secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
           },
           firstMessage: null,  // MUST be null, not undefined or omitted
@@ -186,6 +189,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           language: 'en'
         },
         recordingEnabled: true,
+        // Note: maxCallDuration is not available in VAPI Web SDK
+        // Calls will disconnect after 10 minutes automatically
         metadata: {
           userId: userId,
           agentName: selectedAgent.name,

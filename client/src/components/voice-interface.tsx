@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
@@ -30,6 +32,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState('sarah'); // Default to Sarah
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [showDurationWarning, setShowDurationWarning] = useState(false);
 
   const selectedAgent = getAgentById(selectedAgentId);
 
@@ -90,11 +93,29 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     loadUserContext();
   }, [userId]);
 
-  // Call timer effect
+  // Call timer effect with VAPI 10-minute limitation warning
+  // VAPI Platform Limitation: Calls automatically disconnect after 10 minutes (600 seconds)
+  // We show a warning at 9 minutes (540 seconds) and auto-end at 10 minutes
   useEffect(() => {
     if (isSessionActive) {
       const interval = setInterval(() => {
-        setCallTimer(prev => prev + 1);
+        setCallTimer(prev => {
+          const newTimer = prev + 1;
+          
+          // Show warning at 9 minutes (540 seconds) - VAPI has a 10-minute limitation
+          if (newTimer === 540 && !showDurationWarning) {
+            setShowDurationWarning(true);
+          }
+          
+          // Auto-end call at 10 minutes (600 seconds) due to VAPI limitation
+          if (newTimer >= 600) {
+            console.log('⏰ Call duration limit reached (10 minutes) - ending call');
+            handleEndCall();
+            return prev;
+          }
+          
+          return newTimer;
+        });
       }, 1000);
       setTimerInterval(interval);
     } else {
@@ -103,6 +124,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
         setTimerInterval(null);
       }
       setCallTimer(0);
+      setShowDurationWarning(false);
     }
 
     return () => {
@@ -110,7 +132,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
         clearInterval(timerInterval);
       }
     };
-  }, [isSessionActive]);
+  }, [isSessionActive, showDurationWarning]);
 
   const handleStartSession = () => {
     if (!memoryLoading && userContext && selectedAgent) {
@@ -252,6 +274,17 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
               disabled={isSessionActive || isLoading}
             />
 
+            {/* VAPI Duration Warning Alert - shows at 9 minutes */}
+            {showDurationWarning && isSessionActive && (
+              <Alert className="glass-strong border-yellow-500/50 rounded-xl sm:rounded-2xl">
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                <AlertDescription className="text-sm sm:text-base">
+                  <strong>Session Time Limit:</strong> Your call will automatically end in {600 - callTimer} seconds due to VAPI platform limitations. 
+                  Please wrap up your conversation or start a new session after this one ends.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Voice Call Interface */}
             <Card className="glass-strong rounded-2xl sm:rounded-3xl border-0">
               <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -297,15 +330,22 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                     </Button>
                   </div>
 
-                  {/* Call Duration Display */}
+                  {/* Call Duration Display with Warning Color */}
                   {isSessionActive && (
-                    <Card className="glass rounded-xl border-0">
+                    <Card className={`glass rounded-xl border-0 ${showDurationWarning ? 'border-2 border-yellow-500/50' : ''}`}>
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-center space-x-2">
-                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                          <span className="text-xl font-mono" data-testid="text-callTimer">
-                            {formatTime(callTimer)}
-                          </span>
+                        <div className="flex flex-col items-center space-y-2">
+                          <div className="flex items-center justify-center space-x-2">
+                            <div className={`w-3 h-3 ${showDurationWarning ? 'bg-yellow-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
+                            <span className={`text-xl font-mono ${showDurationWarning ? 'text-yellow-500' : ''}`} data-testid="text-callTimer">
+                              {formatTime(callTimer)}
+                            </span>
+                          </div>
+                          {showDurationWarning && (
+                            <span className="text-xs text-yellow-500 text-center">
+                              Max duration: 10 minutes (VAPI limit)
+                            </span>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
