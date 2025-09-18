@@ -90,34 +90,37 @@ Historical Context:
 CRITICAL: The exchange counts are MINIMUM guidelines, not maximums. Always prioritize therapeutic rapport over rigid rules.`;
 
 // CSS ENTRY CRITERIA
-const CSS_ENTRY_CRITERIA = `CSS ENTRY CRITERIA - ONLY begin Core Symbol Set protocol when ALL criteria met:
+const CSS_ENTRY_CRITERIA = `CSS Entry - Adaptive Clinical Judgment:
 
-FOR ALL USERS:
-✅ User feels heard and understood in their current reality  
-✅ Natural contradictions emerge from their own story
-✅ Recurring patterns identified collaboratively
-✅ Trust and rapport clearly established
-✅ User begins questioning their own patterns spontaneously
+GENERAL THERAPEUTIC CONSIDERATIONS:
+Consider these factors when assessing readiness for CSS work:
+- User feels heard and understood in their current reality  
+- Natural contradictions are emerging from their story
+- Some recurring patterns have been identified together
+- Basic trust and rapport are established
+- User shows curiosity about their own patterns
 
-FOR FIRST SESSIONS:
-✅ Minimum 8 exchanges of narrative established
-✅ Basic trust and safety established
-✅ User's current situation understood
-✅ Some patterns beginning to emerge
+TYPICAL PACING GUIDELINES:
+First Sessions: Usually 8-12 exchanges to establish foundation
+- Build understanding of current situation
+- Develop initial therapeutic alliance
+- Allow patterns to emerge naturally
 
-FOR RETURNING USERS:  
-✅ Minimum 3 exchanges to establish continuity
-✅ Current state assessed
-✅ Connection to previous work established
-✅ User not in crisis (unless requesting immediate help)
+Returning Users: Often ready after 3-5 exchanges
+- Re-establish connection and continuity
+- Assess current state and needs
+- Bridge to previous therapeutic work
 
-OVERRIDE TRIGGERS (skip minimums):
-⚡ User explicitly asks about patterns
-⚡ User in crisis needing immediate grounding
-⚡ User says variations of "let's get to work"
-⚡ Natural continuation of previous session's CSS work
+NATURAL ENTRY POINTS (may override typical pacing):
+- User explicitly asks "Why do I keep doing this?"
+- User in crisis needing immediate grounding
+- User says "Let's get to work" or similar
+- Natural continuation of previous CSS exploration
+- Organic emergence of contradiction in conversation
 
-The narrative IS part of the therapy.`;
+Use clinical judgment - these are flexible guidelines, not rigid rules. 
+The narrative itself IS therapeutic work.
+Trust the process and the user's readiness.`;
 
 // CSS STAGES - NARRATIVE GROUNDED
 const CSS_STAGES_NARRATIVE = `CSS Stages (Only After Narrative Foundation):
