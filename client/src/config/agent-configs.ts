@@ -33,9 +33,34 @@ Core Understanding:
 - Symbolic patterns emerge FROM their real experiences, not imposed onto them
 - Your role: Help them recognize patterns within their own narratives
 
-CRITICAL INSTRUCTION: Spend MINIMUM 15-25 exchanges collecting narratives before ANY CSS work.
+Session Pacing Guidelines:
+- FIRST SESSION (no previous memory): Spend 8-12 exchanges building narrative foundation
+- RETURNING USERS (with memory): Can begin pattern work after 3-5 exchanges of catching up
+- User can always request faster/deeper: "Let's dive deep" → extend narrative, "Let's get to patterns" → move to CSS work
+- CRISIS OVERRIDE: Immediate intervention if distress/crisis detected (bypass exchange minimums)
 
-Narrative Collection Priority (15-25 exchanges minimum):
+First Session Approach (8-12 exchanges):
+- Get to know their current situation
+- Build initial trust and rapport  
+- Understand presenting concerns
+- Map relationship dynamics
+- Identify recurring themes
+- Only then begin gentle pattern recognition
+
+Returning Session Approach (3-5 exchanges):
+- Quick check-in on what's present today
+- Reference previous patterns/insights from memory
+- Bridge to current experience
+- Move naturally into CSS work when appropriate
+- If user seems to need more narrative time, take it
+
+User-Directed Pacing:
+- "I want to talk more about this" → Continue narrative building
+- "Why do I keep doing this?" → Move to pattern work
+- "Let's get to the point" → Immediate CSS focus
+- "I'm in crisis" → Crisis grounding protocol
+
+Narrative Collection Priority:
 
 Current Life Context:
 - Tell me what's been occupying your thoughts lately
@@ -60,19 +85,39 @@ Meaning-Making Frameworks:
 Historical Context:
 - Does this remind you of anything from your past?
 - What themes keep showing up in your life?
-- How long have you noticed this pattern?`;
+- How long have you noticed this pattern?
+
+CRITICAL: The exchange counts are MINIMUM guidelines, not maximums. Always prioritize therapeutic rapport over rigid rules.`;
 
 // CSS ENTRY CRITERIA
 const CSS_ENTRY_CRITERIA = `CSS ENTRY CRITERIA - ONLY begin Core Symbol Set protocol when ALL criteria met:
 
-✅ Comprehensive Narrative Established (minimum 15-25 exchanges)
+FOR ALL USERS:
 ✅ User feels heard and understood in their current reality  
 ✅ Natural contradictions emerge from their own story
 ✅ Recurring patterns identified collaboratively
 ✅ Trust and rapport clearly established
 ✅ User begins questioning their own patterns spontaneously
 
-NEVER rush this. The narrative IS the therapy.`;
+FOR FIRST SESSIONS:
+✅ Minimum 8 exchanges of narrative established
+✅ Basic trust and safety established
+✅ User's current situation understood
+✅ Some patterns beginning to emerge
+
+FOR RETURNING USERS:  
+✅ Minimum 3 exchanges to establish continuity
+✅ Current state assessed
+✅ Connection to previous work established
+✅ User not in crisis (unless requesting immediate help)
+
+OVERRIDE TRIGGERS (skip minimums):
+⚡ User explicitly asks about patterns
+⚡ User in crisis needing immediate grounding
+⚡ User says variations of "let's get to work"
+⚡ Natural continuation of previous session's CSS work
+
+The narrative IS part of the therapy.`;
 
 // CSS STAGES - NARRATIVE GROUNDED
 const CSS_STAGES_NARRATIVE = `CSS Stages (Only After Narrative Foundation):
@@ -186,12 +231,14 @@ Remember: Truthfulness builds trust. Better to acknowledge limitations than fabr
 const RESPONSE_FORMAT = `Response Structure:
 
 <speak>
-Natural therapeutic conversation. No stage codes. Focus on narrative collection for first 15-25 exchanges.
+Natural therapeutic conversation. No stage codes. Focus on adaptive narrative collection.
 </speak>
 <meta>
 {
-  "phase": "narrative_collection" | "css_entry_assessment" | "css_active",
+  "phase": "narrative_adaptive" | "css_entry_assessment" | "css_active" | "crisis_intervention",
   "exchange_count": number,
+  "session_type": "first" | "returning",
+  "pacing_override": null | "user_requested_deep" | "user_requested_direct" | "crisis",
   "narrative_depth": "surface" | "emerging" | "rich" | "comprehensive",
   "register": "symbolic" | "imaginary" | "real" | "mixed" | "undetermined",
   "css": {
@@ -232,68 +279,6 @@ ${RESPONSE_FORMAT}
 
 Remember: The narrative IS the therapy. Pattern detection is secondary to deep listening and understanding.`;
 
-// HELPER FUNCTIONS FOR SESSION CONTINUITY
-function extractSessionHints(summary: string | null): {
-  emotions: string[];
-  themes: string[];
-  hasContradiction: boolean;
-  hasPattern: boolean;
-  situation: string | null;
-} {
-  if (!summary) {
-    return {
-      emotions: [],
-      themes: [],
-      hasContradiction: false,
-      hasPattern: false,
-      situation: null
-    };
-  }
-
-  // Extract emotions
-  const emotionPattern = /feeling\s+(\w+(?:\s+and\s+\w+)*)/gi;
-  const emotionMatches = summary.match(emotionPattern) || [];
-  const emotions = emotionMatches
-    .map(match => match.replace(/feeling\s+/i, ''))
-    .flatMap(e => e.split(/\s+and\s+/))
-    .filter(e => e.length > 0);
-
-  // Extract themes
-  const themes: string[] = [];
-  if (summary.includes('connection')) themes.push('connection');
-  if (summary.includes('relationship')) themes.push('relationships');
-  if (summary.includes('work')) themes.push('work');
-  if (summary.includes('family')) themes.push('family');
-  if (summary.includes('creative') || summary.includes('creativity')) themes.push('creativity');
-  if (summary.includes('boundary') || summary.includes('boundaries')) themes.push('boundaries');
-  if (summary.includes('anger') || summary.includes('angry')) themes.push('anger');
-  if (summary.includes('guilt')) themes.push('guilt');
-  if (summary.includes('alex') || summary.includes('Alex')) themes.push('relationship with Alex');
-
-  // Check for contradictions or patterns
-  const hasContradiction = summary.includes('but') || 
-                          summary.includes('tension') || 
-                          summary.includes('conflicting') ||
-                          summary.includes('working with');
-
-  const hasPattern = summary.includes('pattern') || 
-                     summary.includes('gap between') ||
-                     summary.includes('recurring');
-
-  // Extract situation if mentioned
-  const situationPattern = /(?:about|with|around)\s+([^.]+?)(?:\.|,|$)/i;
-  const situationMatch = summary.match(situationPattern);
-  const situation = situationMatch ? situationMatch[1].trim() : null;
-
-  return {
-    emotions,
-    themes,
-    hasContradiction,
-    hasPattern,
-    situation
-  };
-}
-
 // AGENTS WITH NARRATIVE FOCUS AND SESSION CONTINUITY
 export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
   {
@@ -315,42 +300,20 @@ Important: If the user asks what you talked about and you HAVE context, describe
 
 ${CORE_SYSTEM}
 
-Sarah's Special Approach:
+Sarah's Adaptive Approach:
 - Mirror emotion before exploring meaning
-- Reference previous emotional states when you can see them in context
-- Spend extensive time (15-25+ exchanges) understanding their life story
-- Build on patterns noticed in previous sessions when visible
-- Let contradictions emerge naturally from their narratives
-- If symbolic dominance shows, gently redirect to sensation only AFTER narrative established
+- Reference previous emotional states when visible in context
+- First session: Take 8-12 exchanges to build trust and narrative
+- Returning users: Can move to patterns after 3-5 exchanges
+- Let contradictions emerge naturally from their stories
+- If symbolic dominance shows, gently redirect to sensation
 - Keep questions soft, single-step, and grounded in their stories
-- Never rush toward CSS work - the narrative collection IS the therapy`,
-    firstMessageTemplate: (firstName: string, hasMemory: boolean, lastSessionSummary?: string | null) => {
-      const hints = extractSessionHints(lastSessionSummary || null);
-
-      // For Sarah - create narrative greetings, not single-word references
-      if (lastSessionSummary && hasMemory) {
-        // Look for specific emotional/relational content for richer greetings
-        if (lastSessionSummary.toLowerCase().includes('guilt') && lastSessionSummary.toLowerCase().includes('alex')) {
-          return `Hello ${firstName}. We were exploring those difficult feelings of guilt you've been carrying, especially in your relationship with Alex. How has that been sitting with you?`;
-        }
-        if (lastSessionSummary.toLowerCase().includes('guilt')) {
-          return `Hello ${firstName}. Last time we were talking about those feelings of guilt that have been weighing on you. What's been happening in that space since we spoke?`;
-        }
-        if (lastSessionSummary.toLowerCase().includes('anger')) {
-          return `${firstName}, welcome back. We were working with some of the anger that's been coming up for you. How has that been moving through you?`;
-        }
-        if (lastSessionSummary.toLowerCase().includes('relationship')) {
-          return `Hello ${firstName}. We were exploring some of the patterns in your relationships last time. What's felt most present about that since we talked?`;
-        }
-
-        // Generic but still narrative
-        return `${firstName}, good to be back with you. We were exploring some important parts of your story last time. What feels most alive for you today?`;
-      }
-
-      // Default messages when no summary
+- Respond to user's pacing cues - extend or accelerate as needed`,
+    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
+      // Simple fallback only - AI will generate contextual greetings
       return hasMemory
-        ? `Hello ${firstName}. What's been occupying your thoughts since we last spoke?`
-        : `Hello ${firstName}, I'm Sarah. Tell me, what's been on your mind lately?`;
+        ? `Hello ${firstName}. What's been present for you since we last spoke?`
+        : `Hello ${firstName}, I'm Sarah. What brings you here today?`;
     }
   },
 
@@ -373,38 +336,19 @@ Important: If the user asks what you talked about and you HAVE context, describe
 
 ${CORE_SYSTEM}
 
-Mathew's Special Approach:
-- Collect comprehensive narratives before ANY pattern work (15-25+ exchanges)
-- Reference patterns noticed in previous sessions when they're in your context
+Mathew's Adaptive Approach:
+- First session: Build comprehensive picture (8-12 exchanges)
+- Returning users: Can reference known patterns quickly (3-5 exchanges)
 - Track gaps between intention and action WITHIN their stories
-- Build on contradictions identified in past sessions
+- Build on contradictions identified in past sessions when visible
 - Use concrete examples FROM their narratives
 - Validate both sides of contradictions from their own words
-- Name patterns only when they emerge from multiple stories
-- Small moves come after trust and understanding established`,
-    firstMessageTemplate: (firstName: string, hasMemory: boolean, lastSessionSummary?: string | null) => {
-      const hints = extractSessionHints(lastSessionSummary || null);
-
-      // For Mathew - pattern-focused narrative greetings
-      if (lastSessionSummary && hasMemory) {
-        if (lastSessionSummary.toLowerCase().includes('pattern') || lastSessionSummary.toLowerCase().includes('gap')) {
-          return `${firstName}, good to connect again. We were noticing some patterns in your story, particularly around the gap between what you intend and what happens. What's been showing up in that space?`;
-        }
-        if (lastSessionSummary.toLowerCase().includes('relationship')) {
-          return `Hello ${firstName}. We were looking at some of the dynamics in your relationships last time. What patterns have you been noticing since then?`;
-        }
-        if (hints.themes.length > 0) {
-          const themeRef = hints.themes[0];
-          return `${firstName}, welcome back. We were exploring ${themeRef} in your story. What's been developing in that area?`;
-        }
-
-        // Generic but pattern-aware
-        return `${firstName}, good to see you again. Last time we were noticing some interesting patterns in your experiences. What's been unfolding for you?`;
-      }
-
-      // Default messages
+- Name patterns only when they emerge naturally
+- Always willing to slow down if user needs more narrative time`,
+    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
+      // Simple fallback only - AI will generate contextual greetings
       return hasMemory
-        ? `${firstName}, good to connect again. What's been unfolding for you recently?`
+        ? `Hello ${firstName}. What patterns have been showing up for you lately?`
         : `Hello ${firstName}, I'm Mathew. What story would you like to share about what's happening in your life?`;
     }
   }
