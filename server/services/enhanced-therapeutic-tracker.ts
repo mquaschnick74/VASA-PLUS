@@ -22,6 +22,8 @@ interface TherapeuticState {
 class EnhancedTherapeuticTracker {
   private sessionStates = new Map<string, TherapeuticState>();
   private conversationHistory = new Map<string, ConversationExchange[]>();
+  private processedMovements = new Map<string, Set<string>>(); // Track what we've already processed
+  private processedContent = new Map<string, Set<string>>(); // Track processed content per session
 
   /**
    * Process conversation-update events for therapeutic movement
@@ -32,6 +34,12 @@ class EnhancedTherapeuticTracker {
     conversation: any[]
   ): Promise<void> {
     if (!conversation || conversation.length === 0) return;
+
+    // Initialize tracking sets if needed
+    if (!this.processedContent.has(callId)) {
+      this.processedContent.set(callId, new Set<string>());
+    }
+    const processed = this.processedContent.get(callId)!;
 
     // Initialize state if needed
     if (!this.sessionStates.has(callId)) {
@@ -60,6 +68,18 @@ class EnhancedTherapeuticTracker {
     const previousUserMessage = exchanges.filter(e => e.role === 'user').slice(-2, -1)[0];
 
     if (lastUserMessage) {
+      // Create a content hash to check for duplicates
+      const contentHash = this.hashContent(lastUserMessage.content);
+
+      // Skip if we've already processed this exact content
+      if (processed.has(contentHash)) {
+        console.log(`⏭️ Skipping duplicate content for ${callId}`);
+        return;
+      }
+
+      // Mark as processed
+      processed.add(contentHash);
+
       // Track therapeutic movement between exchanges
       const movement = this.detectMovement(
         previousUserMessage?.content || '',
@@ -89,6 +109,14 @@ class EnhancedTherapeuticTracker {
 
     // Check if we should progress CSS stage based on process
     await this.assessStageProgression(callId, userId, state);
+  }
+
+  /**
+   * Create a hash of content for duplicate detection
+   */
+  private hashContent(content: string): string {
+    // Simple hash: first 100 chars + length
+    return content.substring(0, 100) + '_' + content.length;
   }
 
   /**
@@ -247,19 +275,24 @@ class EnhancedTherapeuticTracker {
       confidence = 0.85;
     }
 
-    // Store as a process-based pattern
-    await supabase.from('css_patterns').insert({
-      user_id: userId,
-      call_id: callId,
-      pattern_type: 'PROCESS',
-      content: `Process metrics: depth=${state.narrativeDepth.toFixed(2)}, emotions=${state.emotionalRange.length}, somatic=${state.somaticReferences}`,
-      css_stage: suggestedStage,
-      confidence: confidence,
-      detected_at: new Date().toISOString(),
-      emotional_intensity: this.calculateIntensity(state)
-    });
+    // Only store if we have meaningful progress (not every conversation update)
+    // Store only when exchange count is at key milestones
+    const milestones = [5, 10, 15, 20, 30, 40, 50];
+    if (milestones.includes(state.exchangeCount)) {
+      // Store as a process-based pattern
+      await supabase.from('css_patterns').insert({
+        user_id: userId,
+        call_id: callId,
+        pattern_type: 'PROCESS',
+        content: `Process metrics: depth=${state.narrativeDepth.toFixed(2)}, emotions=${state.emotionalRange.length}, somatic=${state.somaticReferences}, exchanges=${state.exchangeCount}`,
+        css_stage: suggestedStage,
+        confidence: confidence,
+        detected_at: new Date().toISOString(),
+        emotional_intensity: this.calculateIntensity(state)
+      });
 
-    console.log(`📊 Process-based stage assessment: ${suggestedStage} (confidence: ${confidence})`);
+      console.log(`📊 Process-based stage assessment: ${suggestedStage} (confidence: ${confidence}) at exchange ${state.exchangeCount}`);
+    }
   }
 
   /**
@@ -276,7 +309,7 @@ class EnhancedTherapeuticTracker {
   }
 
   /**
-   * Store therapeutic movement
+   * Store therapeutic movement (with duplicate prevention)
    */
   private async storeMovement(
     callId: string,
@@ -285,6 +318,25 @@ class EnhancedTherapeuticTracker {
     content: string
   ): Promise<void> {
     try {
+      // Initialize processed movements tracking for this call if needed
+      if (!this.processedMovements.has(callId)) {
+        this.processedMovements.set(callId, new Set());
+      }
+
+      // Create a hash of the content to check for duplicates
+      const contentHash = this.hashContent(content);
+      const processedSet = this.processedMovements.get(callId)!;
+
+      // Skip if we've already processed this exact content
+      if (processedSet.has(contentHash)) {
+        console.log(`⏭️ Skipping duplicate movement for ${callId}`);
+        return;
+      }
+
+      // Mark as processed
+      processedSet.add(contentHash);
+
+      // Store the movement
       await supabase.from('css_patterns').insert({
         user_id: userId,
         call_id: callId,
@@ -298,6 +350,14 @@ class EnhancedTherapeuticTracker {
     } catch (error) {
       console.error('Error storing movement:', error);
     }
+  }
+
+  /**
+   * Create a simple hash of content for duplicate detection
+   */
+  private hashContent(content: string): string {
+    // Simple hash using first 100 chars + length
+    return `${content.substring(0, 100)}_${content.length}`;
   }
 
   /**
@@ -345,6 +405,8 @@ class EnhancedTherapeuticTracker {
     // Clean up session data
     this.sessionStates.delete(callId);
     this.conversationHistory.delete(callId);
+    this.processedMovements.delete(callId); // Clean up movement tracking
+    this.processedContent.delete(callId);
   }
 
   /**
