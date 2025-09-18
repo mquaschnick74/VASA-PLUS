@@ -9,7 +9,6 @@ import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
-import { Eye, EyeOff } from 'lucide-react';  // Add this import
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -188,11 +187,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5" />
-                      ) : (
-                        <Eye className="h-5 w-5" />
-                      )}
+                      <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
                     </button>
                   </div>
                   {mode === 'signup' && (

@@ -1,0 +1,93 @@
+Let's troubleshoot why the eye icon isn't showing up. Here are some things to check:
+
+## Troubleshooting Steps
+
+### **1. First, verify the import is working:**
+
+Try this simpler test at the top of your form (temporarily):
+```typescript
+// Add this right after the error display in your form to test if icons load:
+<div className="text-white">
+  Test icons: <Eye className="inline h-5 w-5" /> <EyeOff className="inline h-5 w-5" />
+</div>
+```
+
+### **2. If icons don't appear, try alternative import:**
+
+```typescript
+// Instead of:
+import { Eye, EyeOff } from 'lucide-react';
+
+// Try:
+import Eye from 'lucide-react/dist/esm/icons/eye';
+import EyeOff from 'lucide-react/dist/esm/icons/eye-off';
+```
+
+### **3. If still not working, use Font Awesome (since you already use it):**
+
+**Alternative Solution with Font Awesome:**
+```typescript
+// Remove the lucide-react import and use this instead:
+
+<div className="space-y-2">
+  <Label className="text-sm font-medium">Password</Label>
+  <div className="relative">
+    <Input 
+      type={showPassword ? "text" : "password"}
+      placeholder="••••••••"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      className="w-full px-4 py-3 pr-12 rounded-xl bg-input border border-border"
+      required
+      minLength={6}
+    />
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
+    </button>
+  </div>
+  {/* Rest of your code */}
+</div>
+```
+
+### **4. Check if the button is there but invisible:**
+
+Open browser DevTools and inspect the password input. Look for the button element. Check if:
+- It exists in the DOM
+- Its positioning is correct
+- It's not being hidden by CSS
+
+### **5. Try a simpler approach with explicit sizing:**
+
+```typescript
+<div className="space-y-2">
+  <Label className="text-sm font-medium">Password</Label>
+  <div className="relative flex items-center">
+    <Input 
+      type={showPassword ? "text" : "password"}
+      placeholder="••••••••"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      className="w-full px-4 py-3 pr-12 rounded-xl bg-input border border-border"
+      required
+      minLength={6}
+    />
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-0 mr-3 text-muted-foreground hover:text-foreground transition-colors"
+      style={{ cursor: 'pointer' }}
+    >
+      <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
+    </button>
+  </div>
+</div>
+```
+
+The Font Awesome solution (option 3) is likely your best bet since you're already using Font Awesome icons elsewhere in your app (I can see the microphone icon in your logo section uses it).
+
+Let me know which approach works, and if none do, share what you see in the browser DevTools when inspecting the password field.
