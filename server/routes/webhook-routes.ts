@@ -1,4 +1,5 @@
-// Simplified Webhook - CSS pattern tracking only
+// server/routes/webhook-routes.ts
+// MERGED VERSION - Preserves all existing functionality + adds enhanced tracking
 import { Router } from 'express';
 import crypto from 'crypto';
 import { 
@@ -7,6 +8,8 @@ import {
   processEndOfCall,
   ensureSession
 } from '../services/orchestration-service';
+// NEW IMPORT - Enhanced therapeutic tracking
+import { enhancedTherapeuticTracker } from '../services/enhanced-therapeutic-tracker';
 
 const router = Router();
 
@@ -14,7 +17,7 @@ router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI webhook received:', req.body.message?.type);
 
   try {
-    // Fix signature validation - check if VAPI_SECRET_KEY exists, not NODE_ENV
+    // PRESERVED: Your robust signature validation
     if (process.env.VAPI_SECRET_KEY) {
       const signature = req.headers['x-vapi-signature'] as string;
 
@@ -45,7 +48,7 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
-    // Parse body if it's a buffer
+    // PRESERVED: Parse body if it's a buffer
     const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
     const { message } = body;
     const eventType = message?.type;
@@ -54,7 +57,7 @@ router.post('/webhook', async (req, res) => {
     const callId = extractCallId(message);
     const agentName = extractAgentName(message);
 
-    // Enhanced debugging for production
+    // PRESERVED: Enhanced debugging for production
     if (process.env.REPLIT_DEPLOYMENT === '1' || !userId || !callId) {
       console.log('📊 Webhook Debug Info:', {
         eventType,
@@ -75,7 +78,7 @@ router.post('/webhook', async (req, res) => {
 
     switch (eventType) {
       case 'call-started':
-        // ADD MONITOR URL LOGGING HERE
+        // PRESERVED: Monitor URL logging
         if (message?.call?.monitor) {
           console.log('🔍 MONITOR URLs FOR TESTING:');
           console.log(`TEST_LISTEN_URL="${message.call.monitor.listenUrl}"`);
@@ -92,7 +95,33 @@ router.post('/webhook', async (req, res) => {
           break;
         }
 
-        // Process messages
+        // NEW: Process therapeutic movement using either conversation or transcript format
+        // Check both possible formats from VAPI
+        const conversationData = message.conversation || message.transcript;
+
+        if (conversationData && Array.isArray(conversationData)) {
+          console.log(`🧠 Processing therapeutic movement for ${callId}...`);
+
+          // Convert transcript format to conversation format if needed
+          const formattedConversation = conversationData.map((item: any) => {
+            if (item.role && (item.text || item.content)) {
+              return {
+                role: item.role,
+                content: item.text || item.content,
+                timestamp: item.timestamp
+              };
+            }
+            return item;
+          });
+
+          await enhancedTherapeuticTracker.processConversationUpdate(
+            callId,
+            userId,
+            formattedConversation
+          );
+        }
+
+        // PRESERVED: Your original transcript processing
         if (message.transcript?.length > 0) {
           for (const item of message.transcript) {
             if (item.text && item.text.trim()) {
@@ -106,11 +135,32 @@ router.post('/webhook', async (req, res) => {
             }
           }
         }
+        // ALSO handle if it comes as conversation array
+        else if (message.conversation?.length > 0) {
+          // Process the last user message
+          const lastUserMessage = message.conversation
+            .filter((m: any) => m.role === 'user')
+            .pop();
+
+          if (lastUserMessage?.content) {
+            await processTranscript(callId, lastUserMessage.content, 'user', userId, agentName);
+          }
+
+          // Also process the last assistant message for metadata
+          const lastAssistantMessage = message.conversation
+            .filter((m: any) => m.role === 'assistant')
+            .pop();
+
+          if (lastAssistantMessage?.content) {
+            await processTranscript(callId, lastAssistantMessage.content, 'assistant', userId, agentName);
+          }
+        }
         break;
 
       case 'end-of-call-report':
         console.log('🔍 Starting CSS pattern detection');
 
+        // PRESERVED: Your transcript extraction logic
         const transcript = message.transcript || message.fullTranscript;
         const summary = message.summary;
 
@@ -119,6 +169,15 @@ router.post('/webhook', async (req, res) => {
           console.log(`📝 Raw transcript length: ${transcript.length}`);
           console.log(`📝 First 200 chars: ${transcript.substring(0, 200)}`);
 
+          // NEW: Process-based therapeutic assessment
+          console.log(`📊 Creating process-based assessment for ${callId}...`);
+          await enhancedTherapeuticTracker.processEndOfCall(
+            callId,
+            userId,
+            transcript
+          );
+
+          // PRESERVED: Your original end-of-call processing
           await processEndOfCall(
             callId,
             transcript,
@@ -139,7 +198,7 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
-// Test endpoint for CSS pattern analysis
+// PRESERVED: Test endpoint for CSS pattern analysis
 router.post('/test-css-patterns', async (req, res) => {
   try {
     const { transcript, userId, callId } = req.body;
@@ -177,6 +236,7 @@ router.post('/test-css-patterns', async (req, res) => {
   }
 });
 
+// PRESERVED: All your extraction functions with production debugging
 function extractUserId(message: any): string | null {
   // Log the entire message structure in production for debugging
   if (process.env.REPLIT_DEPLOYMENT === '1') {
@@ -208,7 +268,7 @@ function extractUserId(message: any): string | null {
 function extractCallId(message: any): string | null {
   return message?.call?.id || 
          message?.callId || 
-         message?.id ||  // Some events might have id directly
+         message?.id ||  // PRESERVED: Some events might have id directly
          null;
 }
 
@@ -217,7 +277,7 @@ function extractAgentName(message: any): string {
          message?.metadata?.agentName ||
          message?.call?.assistant?.metadata?.agentName ||
          message?.assistant?.metadata?.agentName ||
-         message?.call?.assistant?.name?.replace('VASA-', '') ||  // Extract from assistant name
+         message?.call?.assistant?.name?.replace('VASA-', '') ||  // PRESERVED: Extract from assistant name
          'Sarah';
 }
 

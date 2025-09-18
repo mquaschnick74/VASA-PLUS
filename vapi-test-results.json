@@ -1,0 +1,22 @@
+{
+  "websocket": {
+    "tested": false,
+    "success": false,
+    "details": null
+  },
+  "controlUrl": {
+    "tested": false,
+    "success": false,
+    "details": null
+  },
+  "roleDetection": {
+    "tested": false,
+    "success": false,
+    "details": null
+  },
+  "sessionPersistence": {
+    "tested": true,
+    "success": true,
+    "details": "API endpoint accessible"
+  }
+}
