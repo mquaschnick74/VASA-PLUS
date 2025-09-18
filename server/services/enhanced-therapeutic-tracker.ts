@@ -353,14 +353,6 @@ class EnhancedTherapeuticTracker {
   }
 
   /**
-   * Create a simple hash of content for duplicate detection
-   */
-  private hashContent(content: string): string {
-    // Simple hash using first 100 chars + length
-    return `${content.substring(0, 100)}_${content.length}`;
-  }
-
-  /**
    * Process end-of-call for final analysis
    */
   async processEndOfCall(

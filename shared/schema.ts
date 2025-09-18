@@ -1,9 +1,10 @@
+// Updated schema.ts with CSS tracking fixes
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, real, jsonb, uuid, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table
+// Users table - NO CHANGES
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
@@ -16,7 +17,7 @@ export const users = pgTable("users", {
   subscription_status: text("subscription_status").default("active"),
 });
 
-// Therapeutic sessions table
+// Therapeutic sessions table - NO CHANGES
 export const therapeuticSessions = pgTable("therapeutic_sessions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
@@ -31,7 +32,7 @@ export const therapeuticSessions = pgTable("therapeutic_sessions", {
   updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
-// Therapeutic context table for memory
+// Therapeutic context table - NO CHANGES
 export const therapeuticContext = pgTable("therapeutic_context", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
@@ -46,7 +47,7 @@ export const therapeuticContext = pgTable("therapeutic_context", {
   created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
-// Session transcripts table
+// Session transcripts table - NO CHANGES
 export const sessionTranscripts = pgTable("session_transcripts", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
@@ -56,7 +57,7 @@ export const sessionTranscripts = pgTable("session_transcripts", {
   timestamp: timestamp("timestamp", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
-// CSS progressions table for tracking stage transitions
+// CSS progressions table - UPDATED with new columns
 export const cssProgressions = pgTable("css_progressions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
@@ -68,18 +69,22 @@ export const cssProgressions = pgTable("css_progressions", {
   agent_name: text("agent_name"),
   created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
   emotional_intensity: varchar("emotional_intensity", { length: 10 }),
+  // NEW COLUMNS:
+  trigger_type: varchar("trigger_type", { length: 20 }), // 'CVDC', 'IBM', 'THEND', 'CYVC'
+  confidence: real("confidence"),
+  transition_context: jsonb("transition_context"),
 });
 
-// CSS patterns table for clean pattern storage
+// CSS patterns table - NO CHANGES but note the valid values
 export const cssPatterns = pgTable("css_patterns", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   call_id: text("call_id").notNull(),
-  pattern_type: varchar("pattern_type", { length: 20 }).notNull(), // CVDC, IBM, Thend, CYVC, META, STAGE_ASSESSMENT
-  content: text("content").notNull(), // Full pattern text
-  extracted_contradiction: text("extracted_contradiction"), // For CVDC: "X BUT Y"
-  behavioral_gap: text("behavioral_gap"), // For IBM: "want X, do Y"
-  css_stage: varchar("css_stage", { length: 50 }),
+  pattern_type: varchar("pattern_type", { length: 20 }).notNull(), // CVDC, IBM, THEND, CYVC, STAGE_ASSESSMENT, MOVEMENT, PROCESS
+  content: text("content").notNull(),
+  extracted_contradiction: text("extracted_contradiction"),
+  behavioral_gap: text("behavioral_gap"),
+  css_stage: varchar("css_stage", { length: 50 }), // pointed_origin, focus_bind, suspension, gesture_toward, completion, terminal
   confidence: real("confidence"),
   detected_at: timestamp("detected_at", { withTimezone: false }),
   emotional_intensity: varchar("emotional_intensity", { length: 10 }),
@@ -88,6 +93,17 @@ export const cssPatterns = pgTable("css_patterns", {
   narrative_fragmentation: real("narrative_fragmentation").default(0),
   symbolic_density: integer("symbolic_density").default(0),
   temporal_orientation: varchar("temporal_orientation", { length: 10 }),
+});
+
+// NEW TABLE: Therapeutic movements (separate from CSS stages)
+export const therapeuticMovements = pgTable("therapeutic_movements", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: varchar("user_id").notNull(), // VARCHAR to match existing data
+  call_id: varchar("call_id").notNull(),
+  movement_type: varchar("movement_type", { length: 20 }), // 'deepening', 'resistance', 'integration', 'exploration'
+  content: text("content"),
+  detected_at: timestamp("detected_at", { withTimezone: false }).default(sql`NOW()`),
+  created_at: timestamp("created_at", { withTimezone: false }).default(sql`NOW()`),
 });
 
 // Insert schemas
@@ -122,6 +138,13 @@ export const insertCssPatternsSchema = createInsertSchema(cssPatterns).omit({
   detected_at: true,
 });
 
+// NEW: Insert schema for therapeutic movements
+export const insertTherapeuticMovementSchema = createInsertSchema(therapeuticMovements).omit({
+  id: true,
+  created_at: true,
+  detected_at: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -135,3 +158,37 @@ export type CssProgression = typeof cssProgressions.$inferSelect;
 export type InsertCssProgression = z.infer<typeof insertCssProgressionSchema>;
 export type CssPattern = typeof cssPatterns.$inferSelect;
 export type InsertCssPattern = z.infer<typeof insertCssPatternsSchema>;
+// NEW: Type for therapeutic movements
+export type TherapeuticMovement = typeof therapeuticMovements.$inferSelect;
+export type InsertTherapeuticMovement = z.infer<typeof insertTherapeuticMovementSchema>;
+
+// Valid values for reference (add these as constants)
+export const CSS_STAGES = {
+  POINTED_ORIGIN: 'pointed_origin',
+  FOCUS_BIND: 'focus_bind',
+  SUSPENSION: 'suspension',
+  GESTURE_TOWARD: 'gesture_toward',
+  COMPLETION: 'completion',
+  TERMINAL: 'terminal'
+} as const;
+
+export const PATTERN_TYPES = {
+  CVDC: 'CVDC',
+  IBM: 'IBM',
+  THEND: 'THEND',
+  CYVC: 'CYVC',
+  STAGE_ASSESSMENT: 'STAGE_ASSESSMENT',
+  MOVEMENT: 'MOVEMENT',
+  PROCESS: 'PROCESS'
+} as const;
+
+export const MOVEMENT_TYPES = {
+  DEEPENING: 'deepening',
+  RESISTANCE: 'resistance',
+  INTEGRATION: 'integration',
+  EXPLORATION: 'exploration'
+} as const;
+
+export type CssStage = typeof CSS_STAGES[keyof typeof CSS_STAGES];
+export type PatternType = typeof PATTERN_TYPES[keyof typeof PATTERN_TYPES];
+export type MovementType = typeof MOVEMENT_TYPES[keyof typeof MOVEMENT_TYPES];

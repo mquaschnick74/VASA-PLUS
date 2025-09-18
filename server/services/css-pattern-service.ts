@@ -1,133 +1,38 @@
-// CSS (Conversational State Sensing) Pattern Detection Service
-// Analyzes therapeutic conversations for stage progression indicators
+// server/services/css-pattern-service.ts
+// CSS Pattern Detection Service
+// Detects CVDC, IBM, Thend, CYVC patterns in therapeutic conversations
 
 export interface CSSPatterns {
   cvdcPatterns: string[];
   ibmPatterns: string[];
   thendIndicators: string[];
   cyvcPatterns: string[];
-  currentStage: CSSStage;
+  currentStage: string;
 }
 
-export type CSSStage = 
-  | 'pointed_origin'
-  | 'focus_bind' 
-  | 'suspension'
-  | 'gesture_toward'
-  | 'completion'
-  | 'terminal';
+export type CSSStage = 'pointed_origin' | 'focus_bind' | 'suspension' | 'gesture_toward' | 'completion' | 'terminal';
 
-// CVDC (Contradiction/Value Dissonance Clarification) patterns
-// Made more flexible - punctuation now optional
-const CVDC_PATTERNS = [
-  /I want[^.!?]*but[^.!?]*/gi,
-  /part of me[^.!?]*while another part[^.!?]*/gi,
-  /I feel[^.!?]*and[^.!?]*at the same time/gi,
-  /I love[^.!?]*but[^.!?]*/gi,
-  /I need[^.!?]*but[^.!?]*/gi,
-  /I should[^.!?]*but[^.!?]*/gi,
-  /on one hand[^.!?]*on the other hand/gi,
-  /I believe[^.!?]*yet[^.!?]*/gi,
-  /I think[^.!?]*but[^.!?]*/gi
-];
-
-// IBM (Incoherent Behavioral Manifestation) patterns
-// Removed strict punctuation requirement
-const IBM_PATTERNS = [
-  /I should[^.!?]*but I don't/gi,
-  /I need to[^.!?]*but I can't/gi,
-  /I keep doing[^.!?]*even though/gi,
-  /I know I should[^.!?]*but/gi,
-  /I try to[^.!?]*but/gi,
-  /I want to stop[^.!?]*but/gi,
-  /I tell myself[^.!?]*but then/gi,
-  /I plan to[^.!?]*but/gi,
-  /I always[^.!?]*even when/gi,
-  /out of control[^.!?]*unable to/gi, // Added pattern for Sept 7 match
-  /can't[^.!?]*even though I want/gi,
-  /unable to[^.!?]*despite/gi
-];
-
-// Thend (Integration/Both-And) indicators
-// More flexible patterns for integration moments
-const THEND_PATTERNS = [
-  /I realize both/gi,
-  /maybe they're both/gi,
-  /I can see how both/gi,
-  /both[^.!?]*are true/gi,
-  /it's not either[^.!?]*or[^.!?]*it's both/gi,
-  /they can coexist/gi,
-  /I don't have to choose between/gi,
-  /both sides[^.!?]*make sense/gi,
-  /I can hold both/gi,
-  /there's truth in both/gi,
-  /I'm recognizing/gi,  // Added for Sept 8 conversation
-  /I realize now/gi,
-  /I'm doing better at/gi,
-  /I see how/gi,
-  /starting to see/gi
-];
-
-// CYVC (Contextual Yield/Variation Choice) patterns
-const CYVC_PATTERNS = [
-  /sometimes I[^.!?]*other times I/gi,
-  /it depends on/gi,
-  /I can choose when to/gi,
-  /in some situations[^.!?]*in others/gi,
-  /I decide based on/gi,
-  /I adapt[^.!?]*depending on/gi,
-  /I vary[^.!?]*according to/gi,
-  /I switch between[^.!?]*when/gi,
-  /I'm flexible about/gi,
-  /I calibrate[^.!?]*based on/gi,
-  /don't get as[^.!?]*anymore/gi  // Pattern for reduced reactivity
-];
-
-// Agent response markers to help separate user from agent statements
+// Agent response markers to filter out
 const AGENT_MARKERS = [
-  /I notice/gi,
-  /I hear you saying/gi,
-  /It sounds like/gi,
-  /What I'm hearing/gi,
-  /Let me reflect/gi,
-  /I wonder if/gi,
+  /What\'s it like/gi,
   /Can you tell me more/gi,
   /How does that feel/gi,
-  /What's coming up for you/gi,
-  /I'm curious about/gi,
-  /Jordan,/gi,  // Agent often addresses user by name
-  /good to talk with you/gi,
-  /I've been thinking about/gi
+  /I hear you saying/gi,
+  /It sounds like/gi,
+  /What do you notice/gi,
+  /I\'m curious about/gi,
+  /Thank you for sharing/gi,
+  /That must be/gi,
+  /I can imagine/gi
 ];
 
 /**
- * Extracts likely user statements from a conversation transcript
- * Now with debug logging and less aggressive filtering
+ * Extract user statements from a full transcript
  */
-export function extractUserStatements(transcript: string, debug: boolean = false): string[] {
-  if (!transcript || transcript.trim().length === 0) {
-    return [];
-  }
-
-  // For debugging - analyze the full transcript first
-  if (debug) {
-    console.log('📝 Raw transcript length:', transcript.length);
-    console.log('📝 First 200 chars:', transcript.substring(0, 200));
-  }
-
-  // Option 1: Return full transcript for analysis (less filtering)
-  // This ensures we don't miss patterns due to aggressive filtering
-  const USE_FULL_TRANSCRIPT = true;
-  
-  if (USE_FULL_TRANSCRIPT) {
-    if (debug) console.log('🔍 Using FULL transcript for pattern detection');
-    return [transcript];
-  }
-
-  // Option 2: Original filtering logic (kept for reference)
-  // Split into sentences and clean up
+function extractUserStatements(transcript: string, debug: boolean = false): string[] {
+  // Split by sentences but preserve the full text structure
   const sentences = transcript
-    .split(/[.!?]+/)
+    .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(s => s.length > 10);
 
@@ -167,9 +72,8 @@ export function extractUserStatements(transcript: string, debug: boolean = false
 
 /**
  * Detects CSS patterns in therapeutic conversation transcript
- * Now with debug logging and improved detection
  */
-export function detectCSSPatterns(transcript: string, debug: boolean = true): CSSPatterns {
+export function detectCSSPatterns(transcript: string, debug: boolean = false): CSSPatterns {
   if (!transcript || transcript.trim().length === 0) {
     console.log('⚠️ Empty transcript provided to detectCSSPatterns');
     return {
@@ -190,104 +94,181 @@ export function detectCSSPatterns(transcript: string, debug: boolean = true): CS
   const userStatements = extractUserStatements(transcript, debug);
   const userText = userStatements.join(' ');
 
-  if (debug) {
-    console.log('📝 Text to analyze length:', userText.length);
-  }
+  // Also scan full transcript as fallback
+  const textToAnalyze = userText || transcript;
 
-  // Detect CVDC patterns (contradictions)
-  const cvdcPatterns: string[] = [];
-  for (const pattern of CVDC_PATTERNS) {
-    const matches = userText.match(pattern);
-    if (matches) {
-      cvdcPatterns.push(...matches.map(match => match.trim()));
-      if (debug) console.log(`✅ CVDC match: "${matches[0].substring(0, 50)}..."`);
-    }
-  }
+  const cvdcMatches = detectCVDC(textToAnalyze);
+  const ibmMatches = detectIBM(textToAnalyze);
+  const thendIndicators = detectThend(textToAnalyze);
+  const cyvcPatterns = detectCYVC(textToAnalyze);
 
-  // Detect IBM patterns (behavioral incoherence)
-  const ibmPatterns: string[] = [];
-  for (const pattern of IBM_PATTERNS) {
-    const matches = userText.match(pattern);
-    if (matches) {
-      ibmPatterns.push(...matches.map(match => match.trim()));
-      if (debug) console.log(`✅ IBM match: "${matches[0].substring(0, 50)}..."`);
-    }
-  }
-
-  // Detect Thend indicators (integration)
-  const thendIndicators: string[] = [];
-  for (const pattern of THEND_PATTERNS) {
-    const matches = userText.match(pattern);
-    if (matches) {
-      thendIndicators.push(...matches.map(match => match.trim()));
-      if (debug) console.log(`✅ Thend match: "${matches[0].substring(0, 50)}..."`);
-    }
-  }
-
-  // Detect CYVC patterns (contextual choice)
-  const cyvcPatterns: string[] = [];
-  for (const pattern of CYVC_PATTERNS) {
-    const matches = userText.match(pattern);
-    if (matches) {
-      cyvcPatterns.push(...matches.map(match => match.trim()));
-      if (debug) console.log(`✅ CYVC match: "${matches[0].substring(0, 50)}..."`);
-    }
-  }
-
-  // Determine current stage
-  const currentStage = identifyCurrentStage({
-    cvdcPatterns,
-    ibmPatterns,
-    thendIndicators,
-    cyvcPatterns
-  });
+  const currentStage = determineStage(cvdcMatches, ibmMatches, thendIndicators, cyvcPatterns);
 
   if (debug) {
-    console.log('📊 Pattern Detection Summary:');
-    console.log(`  - CVDC patterns: ${cvdcPatterns.length}`);
-    console.log(`  - IBM patterns: ${ibmPatterns.length}`);
-    console.log(`  - Thend indicators: ${thendIndicators.length}`);
-    console.log(`  - CYVC patterns: ${cyvcPatterns.length}`);
-    console.log(`  - Detected stage: ${currentStage}`);
+    console.log(`📊 Pattern Detection Results:
+    - CVDC: ${cvdcMatches.length} patterns
+    - IBM: ${ibmMatches.length} patterns
+    - Thend: ${thendIndicators.length} indicators
+    - CYVC: ${cyvcPatterns.length} patterns
+    - Stage: ${currentStage}`);
   }
 
   return {
-    cvdcPatterns,
-    ibmPatterns,
-    thendIndicators,
-    cyvcPatterns,
-    currentStage
+    cvdcPatterns: cvdcMatches,
+    ibmPatterns: ibmMatches,
+    thendIndicators: thendIndicators,
+    cyvcPatterns: cyvcPatterns,
+    currentStage: currentStage
   };
 }
 
 /**
- * Identifies the most likely CSS stage based on detected patterns
- * Enhanced logic for better stage detection
+ * Detect CVDC (Contradiction) patterns
  */
-export function identifyCurrentStage(patterns: Omit<CSSPatterns, 'currentStage'>): CSSStage {
-  const { cvdcPatterns, ibmPatterns, thendIndicators, cyvcPatterns } = patterns;
+function detectCVDC(text: string): string[] {
+  const patterns = [
+    // Core contradiction patterns
+    /part of me.{0,50}(?:but|while|yet|however).{0,50}another part/gi,
+    /I want.{0,30}but.{0,30}I (?:also want|need|can't)/gi,
+    /torn between/gi,
+    /both.{0,20}and.{0,20}at the same time/gi,
+    /simultaneously/gi,
+    /on one hand.{0,50}on the other/gi,
 
-  // Count pattern occurrences
+    // Emotional contradictions
+    /I feel.{0,30}but.{0,30}I also feel/gi,
+    /feeling both/gi,
+    /mixed feelings/gi,
+
+    // Enhanced patterns for "empty and heavy" type contradictions
+    /empty.{0,20}(?:and|but|yet).{0,20}heavy/gi,
+    /hollow.{0,20}(?:and|but|yet).{0,20}full/gi,
+    /numb.{0,20}(?:and|but|yet).{0,20}pain/gi,
+    /nothing.{0,20}(?:and|but|yet).{0,20}everything/gi
+  ];
+
+  const matches: string[] = [];
+
+  for (const pattern of patterns) {
+    const found = text.match(pattern);
+    if (found) {
+      matches.push(...found.map(m => m.substring(0, 100)));
+    }
+  }
+
+  return matches;
+}
+
+/**
+ * Detect IBM (Intention-Behavior Mismatch) patterns
+ */
+function detectIBM(text: string): string[] {
+  const patterns = [
+    /I (?:say|tell myself).{0,30}but.{0,30}I (?:do|act|behave)/gi,
+    /I know.{0,30}but.{0,30}I still/gi,
+    /I should.{0,30}but.{0,30}I/gi,
+    /my intention.{0,30}but.{0,30}my action/gi,
+    /I try to.{0,30}but.{0,30}end up/gi,
+    /I want to.{0,30}but.{0,30}I can't/gi,
+    /knowing.{0,30}but.{0,30}doing/gi,
+    /gap between.{0,30}(?:intention|what I want).{0,30}(?:action|what I do)/gi
+  ];
+
+  const matches: string[] = [];
+
+  for (const pattern of patterns) {
+    const found = text.match(pattern);
+    if (found) {
+      matches.push(...found.map(m => m.substring(0, 100)));
+    }
+  }
+
+  return matches;
+}
+
+/**
+ * Detect Thend (Therapeutic End/Shift) indicators
+ */
+function detectThend(text: string): string[] {
+  const patterns = [
+    /something.{0,20}(?:shifted|changed|different)/gi,
+    /I (?:realize|understand|see) now/gi,
+    /it just (?:clicked|hit me|came together)/gi,
+    /suddenly makes sense/gi,
+    /I can see.{0,20}differently/gi,
+    /perspective.{0,20}shift/gi,
+    /new understanding/gi,
+    /integration/gi,
+    /coming together/gi,
+    /I never thought of it that way/gi
+  ];
+
+  const matches: string[] = [];
+
+  for (const pattern of patterns) {
+    const found = text.match(pattern);
+    if (found) {
+      matches.push(...found.map(m => m.substring(0, 100)));
+    }
+  }
+
+  return matches;
+}
+
+/**
+ * Detect CYVC (Contextual/Choice) patterns
+ */
+function detectCYVC(text: string): string[] {
+  const patterns = [
+    /sometimes.{0,30}other times/gi,
+    /depends on.{0,20}(?:context|situation)/gi,
+    /I (?:can|could) choose/gi,
+    /different in different/gi,
+    /flexibility/gi,
+    /adaptive/gi,
+    /it varies/gi,
+    /contextual/gi,
+    /I have options/gi
+  ];
+
+  const matches: string[] = [];
+
+  for (const pattern of patterns) {
+    const found = text.match(pattern);
+    if (found) {
+      matches.push(...found.map(m => m.substring(0, 100)));
+    }
+  }
+
+  return matches;
+}
+
+/**
+ * Determine CSS stage based on detected patterns
+ */
+function determineStage(
+  cvdcPatterns: string[],
+  ibmPatterns: string[],
+  thendIndicators: string[],
+  cyvcPatterns: string[]
+): string {
   const cvdcCount = cvdcPatterns.length;
   const ibmCount = ibmPatterns.length;
   const thendCount = thendIndicators.length;
   const cyvcCount = cyvcPatterns.length;
 
-  console.log(`🎯 Stage identification: CVDC=${cvdcCount}, IBM=${ibmCount}, Thend=${thendCount}, CYVC=${cyvcCount}`);
-
-  // Stage identification logic - ordered by progression
-  if (cyvcCount > 0 && thendCount > 0) {
-    // Terminal: Shows both integration and contextual choice
+  // Terminal: Full recursive awareness with contextual flexibility
+  if (cyvcCount >= 2 && thendCount >= 1) {
     return 'terminal';
   }
 
-  if (cyvcCount > 0) {
-    // Completion: User shows contextual choice/variation
+  // Completion: Active choice and flexibility
+  if (cyvcCount >= 1) {
     return 'completion';
   }
 
-  if (thendCount > 0 && (cvdcCount > 0 || ibmCount > 0)) {
-    // Gesture toward: Integration WITH awareness of contradictions
+  // Gesture toward: Integration beginning
+  if (thendCount >= 2) {
     return 'gesture_toward';
   }
 
