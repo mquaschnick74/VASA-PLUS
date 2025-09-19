@@ -128,7 +128,7 @@ export async function buildUserDisplayContext(userId: string): Promise<string[]>
       .from('therapeutic_context')
       .select('content, created_at')
       .eq('user_id', userId)
-      .in('context_type', ['session_insight', 'conversational_summary'])
+      .in('context_type', ['session_insight', 'conversational_summary', 'call_summary'])
       .order('created_at', { ascending: false })
       .limit(3);
 
