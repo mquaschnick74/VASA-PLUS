@@ -11,11 +11,12 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 │   └── src/
 │       ├── components/
 │       │   ├── ui/                  # 47 shadcn/ui components
-│       │   ├── voice-interface.tsx  # Main voice UI with controls
+│       │   ├── voice-interface.tsx  # Main voice UI with controls & 10min warning
 │       │   ├── AgentSelector.tsx    # Multi-agent selection
 │       │   ├── authentication.tsx   # Email auth flow
 │       │   ├── DeleteAccount.tsx    # Account deletion
-│       │   └── AIDisclosureCard.tsx # AI limitations dropdown (NEW)
+│       │   ├── PasswordReset.tsx    # Password reset flow
+│       │   └── AIDisclosureCard.tsx # AI limitations dropdown
 │       ├── config/
 │       │   └── agent-configs.ts     # Agent v3: speak/meta separation
 │       ├── hooks/
@@ -24,26 +25,34 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 │       │   └── use-mobile.tsx      # Responsive detection
 │       ├── lib/
 │       │   ├── queryClient.ts      # TanStack Query setup
+│       │   ├── supabaseClient.ts    # Supabase client instance
 │       │   └── utils.ts            # Utility functions
 │       ├── pages/
 │       │   ├── dashboard.tsx       # Main dashboard
+│       │   ├── confirm.tsx         # Email confirmation page
+│       │   ├── reset-password.tsx  # Password reset page
 │       │   └── not-found.tsx       # 404 page
 │       ├── App.tsx                 # Root component
+│       ├── main.tsx                # React entry point
 │       └── index.css               # Tailwind + glassmorphic styles
 │
 ├── server/                          # Express backend
+│   ├── middleware/
+│   │   └── auth.ts                 # Authentication middleware
 │   ├── routes/
 │   │   ├── auth-routes.ts          # User auth & context
-│   │   ├── vapi-routes.ts          # VAPI config endpoints
 │   │   └── webhook-routes.ts       # VAPI webhook handler
 │   ├── services/
 │   │   ├── orchestration-service.ts # Session management + meta parsing
 │   │   ├── css-pattern-service.ts   # CSS stage detection
 │   │   ├── memory-service.ts        # Context persistence
-│   │   ├── auth-service.ts          # User authentication
+│   │   ├── summary-service.ts       # Session summarization
+│   │   ├── user-service.ts          # User management
+│   │   ├── distress-detection-service.ts # Crisis detection
+│   │   ├── enhanced-therapeutic-tracker.ts # Advanced tracking
 │   │   └── supabase-service.ts      # Database client
 │   ├── utils/
-│   │   └── parseAssistantOutput.ts  # Speak/meta tag parser (NEW)
+│   │   └── parseAssistantOutput.ts  # Speak/meta tag parser
 │   ├── index.ts                     # Server entry
 │   ├── routes.ts                    # Route registration
 │   ├── storage.ts                   # Storage interfaces
@@ -52,10 +61,7 @@ AI-powered therapeutic voice assistant with real-time CSS pattern detection, nat
 ├── shared/
 │   └── schema.ts                    # Drizzle ORM schemas
 │
-├── drizzle/
-│   └── migrations/                  # Database migrations
-│
-└── attached_assets/                 # User uploads
+└── attached_assets/                 # User uploads & screenshots
 
 ```
 
@@ -182,3 +188,6 @@ npm run db:generate  # Generate migrations
 - ✅ Efficient transcript storage (end-of-call only)
 - ✅ Fixed CSS pattern detection with flexible regex
 - ✅ Two-tier cache system with race protection
+- ✅ 10-minute VAPI call limit warning system with auto-disconnect
+- ✅ Password reset flow with Supabase integration
+- ✅ Enhanced therapeutic tracking and distress detection services
