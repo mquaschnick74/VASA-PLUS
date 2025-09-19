@@ -201,15 +201,25 @@ export async function processTranscript(
       console.log(`📊 Assistant meta CSS stage: ${metaStage}`);
     }
 
-    // Update narrative phase if present in metadata
-    if (parsed.meta?.phase) {
-      session.narrativePhase = parsed.meta.phase;
-      console.log(`📖 Narrative phase: ${parsed.meta.phase}`);
+    // Update narrative depth if present in metadata
+    // Note: narrative_depth and narrativePhase are different concepts
+    if (parsed.meta?.session?.narrative_depth) {
+      // Log the narrative depth but don't assign to narrativePhase as they have different types
+      console.log(`📖 Narrative depth: ${parsed.meta.session.narrative_depth}`);
+      
+      // Map narrative depth to phase if needed (optional mapping)
+      if (parsed.meta.session.narrative_depth === 'building') {
+        session.narrativePhase = 'narrative_collection';
+      } else if (parsed.meta.session.narrative_depth === 'established') {
+        session.narrativePhase = 'css_entry_assessment';
+      } else if (parsed.meta.session.narrative_depth === 'deep') {
+        session.narrativePhase = 'css_active';
+      }
     }
 
     // Update exchange count if present
-    if (parsed.meta?.exchange_count !== undefined) {
-      session.exchangeCount = parsed.meta.exchange_count;
+    if (parsed.meta?.session?.exchange_count !== undefined) {
+      session.exchangeCount = parsed.meta.session.exchange_count;
     }
 
     // Store metadata in database if present
@@ -224,13 +234,14 @@ export async function processTranscript(
           css_stage: parsed.meta.css?.stage || 'NONE',
           confidence: parsed.meta.css?.confidence || 0,
           safety_flag: parsed.meta.safety?.flag || false,
-          crisis_flag: parsed.meta.safety?.crisis || false,
+          crisis_flag: parsed.meta.safety?.level === 'crisis' || false,
           detected_at: new Date().toISOString()
         });
 
       // Check for safety interventions
       if (needsSafetyIntervention(parsed.meta)) {
-        console.log(`🚨 Safety intervention triggered: ${parsed.meta.safety?.reason}`);
+        const indicators = parsed.meta.safety?.indicators?.join(', ') || 'safety concern detected';
+        console.log(`🚨 Safety intervention triggered: ${indicators}`);
         // TODO: Trigger safety protocol workflow
       }
     }
