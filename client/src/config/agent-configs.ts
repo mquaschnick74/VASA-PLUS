@@ -260,8 +260,7 @@ ${THERAPEUTIC_PRESENCE}
 
 ${RESPONSE_FORMAT}
 
-Remember: Narrative IS the gateway to the therapy. Pattern detection is secondary to deep listening and understanding. 
-Always maintain the 15-25 exchange minimum for narrative development before considering CSS work.`;
+Remember: Narrative IS the gateway to the therapy. Pattern detection flows from deep listening and understanding.`;
 
 // THERAPEUTIC AGENTS - Both implementing identical VASA methodology
 export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
