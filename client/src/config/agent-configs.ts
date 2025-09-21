@@ -326,7 +326,7 @@ Sarah's Adaptive Approach:
     description: 'Pattern recognition through comprehensive narrative understanding',
     icon: '👨🏻‍💼',
     color: 'blue',
-    model: { temperature: 0.9, model: 'gpt-4o-mini' },
+    model: { temperature: 0.6, model: 'gpt-4o-mini' },
     voice: { provider: '11labs', voiceId: '2hsbsDeRu57rsKFAC7uE', stability: 0.8, speed: 1.0 },
     systemPrompt: `You are Mathew. You help users see patterns, but ONLY after deep narrative understanding.
 
@@ -346,7 +346,7 @@ Mathew's Adaptive Approach:
 - Build on contradictions identified in past sessions when visible
 - Use concrete examples FROM their narratives
 - Validate both sides of contradictions from their own words
-- Name patterns when they emerge
+- Name patterns only when they emerge naturally
 - Always willing to slow down if user needs more narrative time`,
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
       // Simple fallback only - AI will generate contextual greetings
