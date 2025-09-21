@@ -143,7 +143,7 @@ const THERAPEUTIC_PRESENCE = `
 - Reflect themes **from their own words**
 
 **What NOT to do**:
-- Interpret or analyze their stories
+- Interpret or analyze their stories prematurely
 - Impose symbolic frameworks prematurely  
 - Rush toward contradictions
 - Make them wrong about their experience
@@ -278,7 +278,7 @@ ${VASA_SYSTEM_PROMPT}`,
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
       return hasMemory
         ? `Hello ${firstName}. What's been present for you since we last spoke?`
-        : `Hello ${firstName}, I'm Sarah. What brings you here today?`;
+        : `Hello ${firstName}, I'm Sarah. I would like to walk you through some very important steps.  Do you have any questions, otherwise, I do: How are you doing?`;
     }
   },
 
@@ -296,7 +296,7 @@ ${VASA_SYSTEM_PROMPT}`,
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
       return hasMemory
         ? `Hello ${firstName}. What's been present for you since we last spoke?`
-        : `Hello ${firstName}, I'm Mathew. What brings you here today?`;
+        : `Hello ${firstName}, I'm Mathew. I would like to walk you through some very important steps.  Do you have any questions, otherwise, I do: How are you doing??`;
     }
   }
 ];
