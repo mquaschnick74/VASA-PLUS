@@ -39,10 +39,18 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
   console.log('🔑 API Key available in function?', !!apiKey);
   console.log('🔑 Transcript length:', transcript?.length);
 
+  // Fetch user's actual name
+  const { data: userProfile } = await supabase
+    .from('users')
+    .select('first_name')
+    .eq('id', userId)
+    .single();
+  const userName = userProfile?.first_name || 'the user';
+
   // If no transcript, create minimal summary
   if (!transcript || transcript.length < 50) {
-    const minimalSummary = `Session with ${agentName} lasted ${Math.floor(duration / 60)} minutes.`;
-    await storeSummaries(userId, callId, minimalSummary, minimalSummary, agentName);
+    const minimalSummary = `${userName}'s session with therapeutic agent ${agentName} lasted ${Math.floor(duration / 60)} minutes.`;
+    await storeSummaries(userId, callId, minimalSummary, minimalSummary, agentName, userName);
     return minimalSummary;
   }
 
@@ -52,11 +60,12 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
       transcript,
       cssPatterns,
       agentName,
-      duration
+      duration,
+      userName
     );
 
     // Store both summaries
-    await storeSummaries(userId, callId, clinicalNotes, greetingContext, agentName);
+    await storeSummaries(userId, callId, clinicalNotes, greetingContext, agentName, userName);
 
     console.log('✅ AI summaries generated and stored successfully');
     return greetingContext;
@@ -75,10 +84,11 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
       transcript,
       cssPatterns,
       agentName,
-      duration
+      duration,
+      userName
     );
 
-    await storeSummaries(userId, callId, fallbackSummary, fallbackSummary, agentName);
+    await storeSummaries(userId, callId, fallbackSummary, fallbackSummary, agentName, userName);
     return fallbackSummary;
   }
 }
@@ -90,7 +100,8 @@ async function generateAISummaries(
   transcript: string,
   cssPatterns: any,
   agentName: string,
-  duration: number
+  duration: number,
+  userName: string
 ): Promise<{ greetingContext: string; clinicalNotes: string }> {
 
   console.log('🤖 Starting AI summary generation...');
@@ -132,7 +143,7 @@ Write as if you're noting what to remember for the next conversation.
 Keep their narrative voice alive. Use their actual words when impactful.
 ${cssContext}
 
-Session was with ${agentName} and lasted ${Math.floor(duration / 60)} minutes.
+${userName}'s session with therapeutic agent ${agentName} lasted ${Math.floor(duration / 60)} minutes.
 
 Transcript:
 ${transcript.substring(0, 4000)} ${transcript.length > 4000 ? '...[transcript continues]' : ''}
@@ -149,7 +160,7 @@ Include:
 - Any safety concerns
 ${cssContext}
 
-Session with ${agentName}, duration: ${Math.floor(duration / 60)} minutes.
+${userName}'s session with therapeutic agent ${agentName}, duration: ${Math.floor(duration / 60)} minutes.
 
 Transcript:
 ${transcript.substring(0, 4000)} ${transcript.length > 4000 ? '...[transcript continues]' : ''}
@@ -224,7 +235,8 @@ async function extractNarrativeFromTranscript(
   transcript: string,
   cssPatterns: any,
   agentName: string,
-  duration: number
+  duration: number,
+  userName: string
 ): Promise<string> {
   console.log('📝 Using fallback narrative extraction');
 
@@ -258,7 +270,7 @@ async function extractNarrativeFromTranscript(
       narrative += ` They also mentioned: "${meaningfulStatements[1]}"`;
     }
   } else {
-    narrative = `Session with ${agentName} lasted ${Math.floor(duration / 60)} minutes.`;
+    narrative = `${userName}'s session with therapeutic agent ${agentName} lasted ${Math.floor(duration / 60)} minutes.`;
   }
 
   // Add CSS patterns if detected
@@ -278,7 +290,8 @@ async function storeSummaries(
   callId: string,
   clinicalNotes: string,
   greetingContext: string,
-  agentName: string
+  agentName: string,
+  userName: string
 ): Promise<void> {
   try {
     // Use the existing storeSessionContext for backward compatibility
