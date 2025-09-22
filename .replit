@@ -41,3 +41,7 @@ integrations = ["javascript_supabase==1.0.0"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 34261
+externalPort = 3000
