@@ -11,6 +11,8 @@ const router = Router();
 router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { email, firstName, authUserId } = req.body;
+    console.log('POST /api/auth/user - Request body:', { email, firstName, authUserId });
+    console.log('POST /api/auth/user - req.user:', req.user);
 
     if (!email || !authUserId) {
       return res.status(400).json({ error: 'Email and auth ID are required' });
@@ -18,6 +20,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
 
     // Verify the request is from the authenticated user
     if (!req.user || req.user.id !== authUserId) {
+      console.error('Auth mismatch - req.user.id:', req.user?.id, 'authUserId:', authUserId);
       return res.status(401).json({ error: 'Unauthorized' });
     }
 

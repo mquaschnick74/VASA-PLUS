@@ -4,9 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 import { Request, Response, NextFunction } from 'express';
 
 // Create Supabase client for auth verification
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  console.error('Missing SUPABASE_URL or SUPABASE_ANON_KEY in auth middleware');
+}
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
-  process.env.VITE_SUPABASE_ANON_KEY! // Use ANON key for verifying tokens
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY! // Use ANON key for verifying tokens
 );
 
 // Extend Express Request type to include user
@@ -24,6 +27,7 @@ export async function authenticateToken(
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
+    console.log('Auth middleware - Token exists:', !!token);
 
     if (!token) {
       // No token provided - could be legacy user
@@ -32,11 +36,13 @@ export async function authenticateToken(
 
     // Verify token with Supabase
     const { data, error } = await supabase.auth.getUser(token);
+    console.log('Auth middleware - Supabase response:', { hasUser: !!data?.user, error: error?.message });
 
     if (!error && data.user) {
       // Valid token - attach user to request
       req.user = data.user;
       req.token = token;
+      console.log('Auth middleware - User attached:', data.user.id);
     }
 
     // Continue regardless (for backward compatibility)
