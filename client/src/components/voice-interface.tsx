@@ -83,6 +83,15 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           }
         } else {
           console.error('Failed to fetch user context');
+          
+          // If user not found (deleted from database), clear local storage and reload
+          if (response.status === 404) {
+            console.log('User not found, clearing session...');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('authToken');
+            setUserId(null);  // This will trigger return to login screen
+            return;
+          }
         }
       } catch (error) {
         console.error('Error loading user context:', error);

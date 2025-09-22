@@ -42,11 +42,30 @@ export default function Dashboard() {
   const handleSignedIn = async (session: any) => {
     localStorage.setItem('authToken', session.access_token);
 
-    const storedUserId = localStorage.getItem('userId');
+    let storedUserId = localStorage.getItem('userId');
     if (storedUserId) {
-      setUserId(storedUserId);
-    } else {
-      // Fetch user profile
+      // Verify the stored user still exists
+      const authToken = session.access_token;
+      const verifyResponse = await fetch(`/api/auth/user-context/${storedUserId}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      if (verifyResponse.status === 404) {
+        // User was deleted, clear storage and create new profile
+        console.log('Stored user not found, creating new profile...');
+        localStorage.removeItem('userId');
+        storedUserId = null;
+      } else if (verifyResponse.ok) {
+        // User exists, use stored ID
+        setUserId(storedUserId);
+        return;
+      }
+    }
+    
+    if (!storedUserId) {
+      // Fetch or create user profile
       const response = await fetch('/api/auth/user', {
         method: 'POST',
         headers: {
