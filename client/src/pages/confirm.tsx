@@ -37,7 +37,7 @@ export default function ConfirmEmail() {
 
           if (user) {
             // Create or get user profile
-            const response = await fetch('/api/auth/user-with-auth', {
+            const response = await fetch('/api/auth/user', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

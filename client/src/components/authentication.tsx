@@ -76,7 +76,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         localStorage.setItem('authToken', token);
 
         // Create or get user profile
-        const response = await fetch('/api/auth/user-with-auth', {
+        const response = await fetch('/api/auth/user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

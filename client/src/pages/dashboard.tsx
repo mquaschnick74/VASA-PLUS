@@ -47,7 +47,7 @@ export default function Dashboard() {
       setUserId(storedUserId);
     } else {
       // Fetch user profile
-      const response = await fetch('/api/auth/user-with-auth', {
+      const response = await fetch('/api/auth/user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -8,7 +8,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 const router = Router();
 
 // Create or get user - REQUIRES AUTHENTICATION
-router.post('/user-with-auth', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/user', async (req, res) => {
   try {
     const { email, firstName, authUserId } = req.body;
 
