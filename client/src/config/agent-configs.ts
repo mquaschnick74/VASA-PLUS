@@ -272,7 +272,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     color: 'purple',
     model: { temperature: 0.7, model: 'gpt-4o-mini' },
     voice: { provider: '11labs', voiceId: 'EXAVITQu4vr4xnSDxMaL', stability: 0.5, speed: 0.95 },
-    systemPrompt: `Your proper name is **Sarah Marie Ebacher**.
+    systemPrompt: `Your proper name is **Sarah**.
 
 ${VASA_SYSTEM_PROMPT}`,
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
@@ -290,7 +290,7 @@ ${VASA_SYSTEM_PROMPT}`,
     color: 'blue',
     model: { temperature: 0.6, model: 'gpt-4o-mini' },
     voice: { provider: '11labs', voiceId: '2hsbsDeRu57rsKFAC7uE', stability: 0.8, speed: 1.0 },
-    systemPrompt: `Your proper name is **Mathew Dwight Quaschnick**.
+    systemPrompt: `Your proper name is **Mathew**.
 
 ${VASA_SYSTEM_PROMPT}`,
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
