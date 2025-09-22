@@ -1,24 +1,32 @@
 // Location: server/middleware/auth.ts
-
 import { createClient } from '@supabase/supabase-js';
 import { Request, Response, NextFunction } from 'express';
 
 // Create Supabase client for auth verification
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-  console.error('Missing SUPABASE_URL or SUPABASE_ANON_KEY in auth middleware');
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing SUPABASE_URL or SUPABASE_KEY in auth middleware');
+  console.error('Available keys:', {
+    SUPABASE_URL: !!process.env.SUPABASE_URL,
+    SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+    VITE_SUPABASE_ANON_KEY: !!process.env.VITE_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY
+  });
 }
+
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY! // Use ANON key for verifying tokens
+  supabaseUrl!,
+  supabaseKey!
 );
 
-// Extend Express Request type to include user
+// Rest of your code stays the same...
 export interface AuthRequest extends Request {
   user?: any;
   token?: string;
 }
 
-// Middleware to validate tokens
 export async function authenticateToken(
   req: AuthRequest,
   res: Response,
@@ -27,34 +35,30 @@ export async function authenticateToken(
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
+
     console.log('Auth middleware - Token exists:', !!token);
 
     if (!token) {
-      // No token provided - could be legacy user
       return next();
     }
 
-    // Verify token with Supabase
     const { data, error } = await supabase.auth.getUser(token);
+
     console.log('Auth middleware - Supabase response:', { hasUser: !!data?.user, error: error?.message });
 
     if (!error && data.user) {
-      // Valid token - attach user to request
       req.user = data.user;
       req.token = token;
       console.log('Auth middleware - User attached:', data.user.id);
     }
 
-    // Continue regardless (for backward compatibility)
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    // Don't block the request, just continue without auth
     next();
   }
 }
 
-// Strict middleware that REQUIRES authentication
 export async function requireAuth(
   req: AuthRequest,
   res: Response,
@@ -71,7 +75,6 @@ export async function requireAuth(
       });
     }
 
-    // Verify token with Supabase
     const { data, error } = await supabase.auth.getUser(token);
 
     if (error || !data.user) {
@@ -81,7 +84,6 @@ export async function requireAuth(
       });
     }
 
-    // Valid token - attach user to request
     req.user = data.user;
     req.token = token;
     next();
