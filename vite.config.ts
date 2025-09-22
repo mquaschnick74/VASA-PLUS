@@ -33,5 +33,13 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // ADD THIS PROXY CONFIGURATION
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
 });

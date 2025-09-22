@@ -63,7 +63,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
 
     res.json({ user: newUser });
   } catch (error) {
-    console.error('Error in user-with-auth:', error);
+    console.error('Error in /user-with-auth:', error);
     res.status(500).json({ error: 'Failed to process user' });
   }
 });
