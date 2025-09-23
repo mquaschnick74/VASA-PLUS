@@ -37,12 +37,31 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     if (existingUser) {
+      console.log('Found existing user:', existingUser.email);
+      
       // Update auth_user_id if not set
       if (!existingUser.auth_user_id) {
         await supabase
           .from('users')
           .update({ auth_user_id: authUserId })
           .eq('id', existingUser.id);
+      }
+      
+      // UPDATE the name if a new one was provided
+      if (firstName && firstName !== existingUser.first_name) {
+        const { data: updatedUser, error: updateError } = await supabase
+          .from('users')
+          .update({ 
+            first_name: firstName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingUser.id)
+          .select()
+          .single();
+
+        if (!updateError && updatedUser) {
+          return res.json({ user: updatedUser });
+        }
       }
 
       return res.json({ user: existingUser });
