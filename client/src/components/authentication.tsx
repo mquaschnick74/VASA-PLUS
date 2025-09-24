@@ -1,6 +1,6 @@
 // Location: client/src/components/authentication.tsx
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,23 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
+
+  useEffect(() => {
+    // Check if returning from email confirmation
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const urlParams = new URLSearchParams(window.location.search);
+
+    if (hashParams.get('type') === 'signup' || urlParams.get('type') === 'signup') {
+      // User just confirmed their email
+      setEmailConfirmed(true);
+      setMode('signin');
+      setVerificationSent(false);
+
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,9 +58,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           options: {
             data: { 
               first_name: firstName || email.split('@')[0],
-              needs_profile: true  // Flag for profile creation
+              needs_profile: true
             },
-            emailRedirectTo: `${window.location.origin}/dashboard`
+            // Keep user on same page after email confirmation
+            emailRedirectTo: window.location.origin
           }
         });
 
@@ -105,8 +123,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             setUserId(user.id);
             localStorage.setItem('userId', user.id);
           } else {
-            // If profile creation fails, still let them in but flag it
-            console.error('Profile creation failed, continuing anyway');
+            // If profile creation fails, still redirect to dashboard
+            console.error('Profile creation failed, redirecting to dashboard');
             window.location.href = '/dashboard';
           }
         }
@@ -142,7 +160,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
                   <p className="text-sm">
                     <strong>Important:</strong> Click the link in your email to verify your account. 
-                    After verification, return here and sign in with your password.
+                    You'll be brought back to this page to sign in.
                   </p>
                 </div>
 
@@ -151,13 +169,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     setVerificationSent(false);
                     setMode('signin');
                   }}
-                  className="w-full bg-gradient-to-r from-primary to-accent py-3 rounded-xl"
+                  variant="outline"
+                  className="w-full"
                 >
-                  Back to Sign In
+                  I've Already Verified - Sign In Now
                 </Button>
 
                 <p className="text-xs text-muted-foreground mt-4">
-                  Didn't receive the email? Check your spam folder or try signing up again.
+                  Didn't receive the email? Check your spam folder.
                 </p>
               </div>
             </CardContent>
@@ -205,6 +224,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   <AIDisclosureCard className="inline-block" />
                 </div>
               </div>
+
+              {/* Email Confirmed Success Message */}
+              {emailConfirmed && (
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-green-600 text-sm">
+                  <i className="fas fa-check-circle mr-2"></i>
+                  Email verified successfully! Please sign in with your password.
+                </div>
+              )}
 
               {/* Error Display */}
               {error && (
@@ -299,6 +326,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     setMode(mode === 'signin' ? 'signup' : 'signin');
                     setError(null);
                     setShowPassword(false);
+                    setEmailConfirmed(false);
                   }}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
