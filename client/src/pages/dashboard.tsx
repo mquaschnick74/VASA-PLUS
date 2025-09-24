@@ -8,11 +8,53 @@ import { supabase } from '@/lib/supabaseClient';
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
 
-  // Monitor auth state changes
+  const ensureUserProfile = async (session: any) => {
+    const token = session.access_token;
+
+    // Always attempt to create/get profile
+    const response = await fetch('/api/auth/user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        email: session.user.email,
+        firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
+        authUserId: session.user.id
+      })
+    });
+
+    if (response.ok) {
+      const { user } = await response.json();
+      localStorage.setItem('userId', user.id);
+      return user.id;
+    } else if (response.status === 401 || response.status === 500) {
+      // Handle auth mismatch or server error gracefully
+      console.error('Profile creation failed, attempting recovery');
+
+      // Sign out and reset
+      await supabase.auth.signOut();
+      localStorage.clear();
+      return null;
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        // Check for email confirmation in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const isConfirming = urlParams.has('type') && urlParams.get('type') === 'signup';
+
+        if (isConfirming) {
+          setMessage('Email confirmed! Setting up your account...');
+        }
+
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
@@ -21,87 +63,40 @@ export default function Dashboard() {
           return;
         }
 
-        let currentSession = session;
-
-        // If no session, try to refresh
-        if (!currentSession) {
+        if (!session) {
+          // Try to refresh session
           const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-          currentSession = refreshedSession;
-        }
 
-        if (currentSession?.user) {
-          console.log('Session user:', currentSession.user.email);
-
-          // Check if this is an email confirmation redirect
-          const isEmailConfirmed = window.location.hash.includes('confirmed=true');
-          if (isEmailConfirmed) {
-            // Clear the hash
-            window.history.replaceState(null, '', window.location.pathname);
-          }
-
-          // Get the auth token
-          const token = currentSession.access_token;
-
-          // Try to create or get user profile directly - NO CHECK ENDPOINT
-          console.log('Creating/getting user profile for:', currentSession.user.email);
-
-          const profileResponse = await fetch('/api/auth/user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              email: currentSession.user.email,
-              authUserId: currentSession.user.id,
-              firstName: currentSession.user.user_metadata?.first_name
-            })
-          });
-
-          // Handle 401 - sign out and reset
-          if (profileResponse.status === 401) {
-            console.log('Got 401 - User not authorized, signing out');
-            await supabase.auth.signOut();
-            localStorage.removeItem('userId');
-            setUserId(null);
+          if (!refreshedSession) {
             setLoading(false);
             return;
           }
 
-          if (!profileResponse.ok) {
-            console.error('Profile creation failed:', profileResponse.status);
-            if (isEmailConfirmed) {
-              alert('Failed to create your profile after email confirmation. Please try signing in again.');
-            }
-            // Sign out on any profile creation failure
-            await supabase.auth.signOut();
-            localStorage.removeItem('userId');
-            setUserId(null);
-            setLoading(false);
-            return;
-          }
-
-          const profileData = await profileResponse.json();
-
-          if (profileData.user?.id) {
-            console.log('Profile created/retrieved successfully:', profileData.user.email);
-            localStorage.setItem('userId', profileData.user.id);
-            setUserId(profileData.user.id);
-          } else {
-            console.error('No user ID in profile response');
-            await supabase.auth.signOut();
-            setUserId(null);
+          // Use refreshed session
+          const profileId = await ensureUserProfile(refreshedSession);
+          if (profileId) {
+            setUserId(profileId);
+            setMessage(null);
           }
         } else {
-          // No session
-          setUserId(null);
+          // Check if user is verified
+          if (!session.user.email_confirmed_at) {
+            setMessage('Please verify your email before continuing');
+            await supabase.auth.signOut();
+            setLoading(false);
+            return;
+          }
+
+          // Ensure profile exists
+          const profileId = await ensureUserProfile(session);
+          if (profileId) {
+            setUserId(profileId);
+            setMessage(null);
+          }
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        // On any error, sign out and reset
-        await supabase.auth.signOut();
-        localStorage.removeItem('userId');
-        setUserId(null);
+        setMessage('An error occurred. Please try signing in again.');
       } finally {
         setLoading(false);
       }
@@ -114,12 +109,36 @@ export default function Dashboard() {
       console.log('Auth state changed:', event, session?.user?.email);
 
       if (event === 'SIGNED_OUT') {
-        localStorage.removeItem('userId');
+        localStorage.clear();
         setUserId(null);
         setLoading(false);
-      } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        // Re-check auth status on sign in
-        await checkAuthStatus();
+      } else if (event === 'SIGNED_IN' && session) {
+        // Dual auth check - ensure email is verified
+        if (!session.user.email_confirmed_at) {
+          setMessage('Please verify your email to continue');
+          await supabase.auth.signOut();
+          setUserId(null);
+          setLoading(false);
+          return;
+        }
+
+        // Create/get profile
+        const profileId = await ensureUserProfile(session);
+        if (profileId) {
+          setUserId(profileId);
+          setMessage(null);
+        }
+        setLoading(false);
+      } else if (event === 'USER_UPDATED' && session) {
+        // Handle email confirmation
+        if (session.user.email_confirmed_at) {
+          const profileId = await ensureUserProfile(session);
+          if (profileId) {
+            setUserId(profileId);
+            setMessage('Account verified successfully!');
+            setTimeout(() => setMessage(null), 3000);
+          }
+        }
       }
     });
 
@@ -132,7 +151,24 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{message || 'Loading...'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show message if exists but no user
+  if (message && !userId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg mb-4">{message}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="text-primary hover:underline"
+          >
+            Refresh Page
+          </button>
         </div>
       </div>
     );
