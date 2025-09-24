@@ -24,7 +24,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
-  const [emailConfirmed, setEmailConfirmed] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   useEffect(() => {
     // Check if returning from email confirmation
@@ -33,9 +33,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
     if (hashParams.get('type') === 'signup' || urlParams.get('type') === 'signup') {
       // User just confirmed their email
-      setEmailConfirmed(true);
       setMode('signin');
       setVerificationSent(false);
+      setError(null);
 
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -51,7 +51,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
     try {
       if (mode === 'signup') {
-        // DUAL AUTH STEP 1: Create account with email verification
+        // Create account with email verification
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -60,8 +60,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               first_name: firstName || email.split('@')[0],
               needs_profile: true
             },
-            // Keep user on same page after email confirmation
-            emailRedirectTo: window.location.origin
+            emailRedirectTo: `${window.location.origin}/dashboard`
           }
         });
 
@@ -72,13 +71,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           return;
         }
 
-        // DUAL AUTH STEP 2: Show verification message
+        // Show verification message
+        setVerificationEmail(email);
         setVerificationSent(true);
         setPassword('');
         setShowPassword(false);
         return;
       } else {
-        // Sign in with dual verification
+        // Sign in
         const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -99,7 +99,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           return;
         }
 
-        // Successfully authenticated & verified - create/get profile
+        // Successfully authenticated & verified
         if (authData.session) {
           const token = authData.session.access_token;
           localStorage.setItem('authToken', token);
@@ -123,8 +123,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             setUserId(user.id);
             localStorage.setItem('userId', user.id);
           } else {
-            // If profile creation fails, still redirect to dashboard
-            console.error('Profile creation failed, redirecting to dashboard');
+            // If profile creation fails, redirect to dashboard anyway
             window.location.href = '/dashboard';
           }
         }
@@ -151,32 +150,37 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
                   <i className="fas fa-envelope-circle-check text-4xl text-primary"></i>
                 </div>
-                <h2 className="text-2xl font-semibold mb-4">Verify Your Email</h2>
+                <h2 className="text-2xl font-semibold mb-4">Check Your Email</h2>
                 <p className="text-muted-foreground mb-2">
                   We've sent a verification link to:
                 </p>
-                <p className="font-semibold mb-6">{email}</p>
+                <p className="font-semibold mb-6">{verificationEmail}</p>
 
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
-                  <p className="text-sm">
-                    <strong>Important:</strong> Click the link in your email to verify your account. 
-                    You'll be brought back to this page to sign in.
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6 text-left">
+                  <p className="text-sm mb-2">
+                    <strong>Next steps:</strong>
                   </p>
+                  <ol className="text-sm space-y-1 ml-4">
+                    <li>1. Click the verification link in your email</li>
+                    <li>2. Your email will be confirmed</li>
+                    <li>3. Sign in with your email and password</li>
+                  </ol>
                 </div>
 
                 <Button
                   onClick={() => {
                     setVerificationSent(false);
                     setMode('signin');
+                    setEmail(verificationEmail);
                   }}
                   variant="outline"
                   className="w-full"
                 >
-                  I've Already Verified - Sign In Now
+                  I've Verified My Email - Sign In
                 </Button>
 
                 <p className="text-xs text-muted-foreground mt-4">
-                  Didn't receive the email? Check your spam folder.
+                  Can't find the email? Check your spam folder or try signing up again.
                 </p>
               </div>
             </CardContent>
@@ -225,14 +229,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 </div>
               </div>
 
-              {/* Email Confirmed Success Message */}
-              {emailConfirmed && (
-                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-green-600 text-sm">
-                  <i className="fas fa-check-circle mr-2"></i>
-                  Email verified successfully! Please sign in with your password.
-                </div>
-              )}
-
               {/* Error Display */}
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-500 text-sm">
@@ -244,7 +240,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               {mode === 'signup' && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-sm">
                   <i className="fas fa-shield-halved mr-2"></i>
-                  Dual authentication: Email verification required
+                  Email verification required for account security
                 </div>
               )}
 
@@ -326,7 +322,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     setMode(mode === 'signin' ? 'signup' : 'signin');
                     setError(null);
                     setShowPassword(false);
-                    setEmailConfirmed(false);
                   }}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
