@@ -8,149 +8,159 @@ import { supabase } from '@/lib/supabaseClient';
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastAuthError, setLastAuthError] = useState<string | null>(null);
 
+  // Monitor auth state changes
   useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          setLoading(false);
+          return;
+        }
+
+        let currentSession = session;
+
+        // If no session, try to refresh
+        if (!currentSession) {
+          const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+          currentSession = refreshedSession;
+        }
+
+        if (currentSession?.user) {
+          console.log('Session user:', currentSession.user.email);
+
+          // Check if this is an email confirmation redirect
+          const isEmailConfirmed = window.location.hash.includes('confirmed=true');
+          if (isEmailConfirmed) {
+            // Clear the hash
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+
+          // Get the auth token
+          const token = currentSession.access_token;
+
+          // Check if user profile exists
+          const checkResponse = await fetch('/api/auth/check', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          const checkData = await checkResponse.json();
+
+          if (checkData.userId) {
+            // User profile exists
+            setUserId(checkData.userId);
+            setLoading(false);
+            return;
+          }
+
+          // User profile doesn't exist, create it
+          console.log('Creating user profile for:', currentSession.user.email);
+
+          const createResponse = await fetch('/api/auth/user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              email: currentSession.user.email,
+              authUserId: currentSession.user.id,
+              firstName: currentSession.user.user_metadata?.first_name
+            })
+          });
+
+          // Handle 401 specifically - sign out and reset
+          if (createResponse.status === 401) {
+            console.log('Got 401 - User not authorized, signing out and resetting');
+            await supabase.auth.signOut();
+            localStorage.removeItem('userId');
+            setUserId(null);
+            setLoading(false);
+            setLastAuthError('Authentication failed. Please sign in again.');
+            return;
+          }
+
+          if (!createResponse.ok) {
+            console.error('Profile creation failed:', createResponse.status);
+            if (isEmailConfirmed) {
+              alert('Failed to create your profile after email confirmation. Please try signing in again.');
+            }
+            // Sign out on any profile creation failure
+            await supabase.auth.signOut();
+            localStorage.removeItem('userId');
+            setUserId(null);
+            setLoading(false);
+            return;
+          }
+
+          const profileData = await createResponse.json();
+
+          if (profileData.user?.id) {
+            console.log('Profile created successfully:', profileData.user.email);
+            localStorage.setItem('userId', profileData.user.id);
+            setUserId(profileData.user.id);
+          } else {
+            console.error('No user ID in profile response');
+            await supabase.auth.signOut();
+            setUserId(null);
+          }
+        } else {
+          // No session
+          setUserId(null);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        // On any error, sign out and reset
+        await supabase.auth.signOut();
+        localStorage.removeItem('userId');
+        setUserId(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     checkAuthStatus();
 
-    // Listen for auth state changes
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
 
       if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('userId');
         setUserId(null);
-        localStorage.clear();
-      } else if (event === 'SIGNED_IN' && session) {
-        await handleSignedIn(session);
-      } else if (event === 'USER_UPDATED' && session) {
-        // Handle user updates after email confirmation
-        await handleSignedIn(session);
+        setLoading(false);
+      } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        // Re-check auth status on sign in
+        await checkAuthStatus();
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    // Check if we're coming from email confirmation
-    const hash = window.location.hash;
-    if (hash.includes('confirmed=true')) {
-      // Clear the hash
-      window.history.replaceState(null, '', window.location.pathname);
-
-      // Force re-check auth status
-      checkAuthStatus();
-    }
-  }, []);
-
-  const checkAuthStatus = async () => {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-
-      if (error) {
-        console.error('Session error:', error);
-        setLoading(false);
-        return;
-      }
-
-      if (session) {
-        await handleSignedIn(session);
-      } else {
-        // Check if there's a session being established from email confirmation
-        const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-        if (refreshedSession) {
-          await handleSignedIn(refreshedSession);
-        }
-      }
-    } catch (error) {
-      console.error('Auth check error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignedIn = async (session: any) => {
-    try {
-      localStorage.setItem('authToken', session.access_token);
-
-      let storedUserId = localStorage.getItem('userId');
-      if (storedUserId) {
-        // Verify the stored user still exists
-        const authToken = session.access_token;
-        const verifyResponse = await fetch(`/api/auth/user-context/${storedUserId}`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
-        });
-
-        if (verifyResponse.status === 404 || verifyResponse.status === 401) {
-          // User was deleted OR unauthorized, clear storage and show login
-          console.log('User not found or unauthorized, clearing session...');
-          localStorage.removeItem('userId');
-          storedUserId = null;
-
-          // Sign out to clear auth state and show login
-          await supabase.auth.signOut();
-          setUserId(null);
-          setLoading(false);
-          return;
-        } else if (verifyResponse.ok) {
-          // User exists, use stored ID
-          setUserId(storedUserId);
-          return;
-        }
-      }
-
-      if (!storedUserId) {
-        // Fetch or create user profile
-        const response = await fetch('/api/auth/user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            email: session.user.email,
-            firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
-            authUserId: session.user.id
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Profile creation error:', errorData);
-
-          // If profile creation fails after email confirmation, show error
-          if (window.location.hash.includes('confirmed=true')) {
-            alert('Failed to create user profile. Please try signing in again.');
-          }
-
-          // Clear session and show login
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-
-        const { user } = await response.json();
-        setUserId(user.id);
-        localStorage.setItem('userId', user.id);
-      }
-    } catch (error) {
-      console.error('Error in handleSignedIn:', error);
-      setLoading(false);
-    }
-  };
-
+  // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center gradient-bg">
-        <div className="animate-pulse">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
+  // Show auth if no user
   if (!userId) {
-    return <Authentication setUserId={setUserId} />;
+    return <Authentication initialError={lastAuthError} />;
   }
 
-  return <VoiceInterface userId={userId} setUserId={setUserId} />;
+  // Show voice interface
+  return <VoiceInterface userId={userId} />;
 }
