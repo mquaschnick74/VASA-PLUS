@@ -22,7 +22,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [showPasswordReset, setShowPasswordReset] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);  // Add this state
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,13 +35,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       let authResult;
 
       if (mode === 'signup') {
-        // Create new account
+        // Create new account with proper redirect URL
         authResult = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: { first_name: firstName || email.split('@')[0] },
-            emailRedirectTo: `${window.location.origin}/confirm`
+            // Fix: Use the full URL path for email redirect
+            emailRedirectTo: `${window.location.origin}/dashboard#confirmed=true`
           }
         });
 
@@ -56,7 +57,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         alert('Check your email to confirm your account!');
         setMode('signin');
         setPassword('');
-        setShowPassword(false);  // Reset password visibility
+        setShowPassword(false);
         return;
       } else {
         // Sign in
@@ -90,7 +91,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to create user profile');
+          const errorData = await response.json();
+          console.error('Profile creation error:', errorData);
+          throw new Error(errorData.error || 'Failed to create user profile');
         }
 
         const { user } = await response.json();
@@ -232,7 +235,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   onClick={() => {
                     setMode(mode === 'signin' ? 'signup' : 'signin');
                     setError(null);
-                    setShowPassword(false);  // Reset password visibility when switching modes
+                    setShowPassword(false);
                   }}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
