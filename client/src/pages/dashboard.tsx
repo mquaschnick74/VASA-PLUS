@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabaseClient';
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [lastAuthError, setLastAuthError] = useState<string | null>(null);
 
   // Monitor auth state changes
   useEffect(() => {
@@ -82,7 +81,6 @@ export default function Dashboard() {
             localStorage.removeItem('userId');
             setUserId(null);
             setLoading(false);
-            setLastAuthError('Authentication failed. Please sign in again.');
             return;
           }
 
@@ -156,11 +154,11 @@ export default function Dashboard() {
     );
   }
 
-  // Show auth if no user
+  // Show auth if no user - removed initialError prop
   if (!userId) {
-    return <Authentication initialError={lastAuthError} />;
+    return <Authentication setUserId={setUserId} />;
   }
 
-  // Show voice interface
-  return <VoiceInterface userId={userId} />;
+  // Show voice interface - added setUserId prop
+  return <VoiceInterface userId={userId} setUserId={setUserId} />;
 }
