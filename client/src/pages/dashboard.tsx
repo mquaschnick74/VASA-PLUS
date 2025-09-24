@@ -42,26 +42,10 @@ export default function Dashboard() {
           // Get the auth token
           const token = currentSession.access_token;
 
-          // Check if user profile exists
-          const checkResponse = await fetch('/api/auth/check', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
+          // Try to create or get user profile directly - NO CHECK ENDPOINT
+          console.log('Creating/getting user profile for:', currentSession.user.email);
 
-          const checkData = await checkResponse.json();
-
-          if (checkData.userId) {
-            // User profile exists
-            setUserId(checkData.userId);
-            setLoading(false);
-            return;
-          }
-
-          // User profile doesn't exist, create it
-          console.log('Creating user profile for:', currentSession.user.email);
-
-          const createResponse = await fetch('/api/auth/user', {
+          const profileResponse = await fetch('/api/auth/user', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -74,9 +58,9 @@ export default function Dashboard() {
             })
           });
 
-          // Handle 401 specifically - sign out and reset
-          if (createResponse.status === 401) {
-            console.log('Got 401 - User not authorized, signing out and resetting');
+          // Handle 401 - sign out and reset
+          if (profileResponse.status === 401) {
+            console.log('Got 401 - User not authorized, signing out');
             await supabase.auth.signOut();
             localStorage.removeItem('userId');
             setUserId(null);
@@ -84,8 +68,8 @@ export default function Dashboard() {
             return;
           }
 
-          if (!createResponse.ok) {
-            console.error('Profile creation failed:', createResponse.status);
+          if (!profileResponse.ok) {
+            console.error('Profile creation failed:', profileResponse.status);
             if (isEmailConfirmed) {
               alert('Failed to create your profile after email confirmation. Please try signing in again.');
             }
@@ -97,10 +81,10 @@ export default function Dashboard() {
             return;
           }
 
-          const profileData = await createResponse.json();
+          const profileData = await profileResponse.json();
 
           if (profileData.user?.id) {
-            console.log('Profile created successfully:', profileData.user.email);
+            console.log('Profile created/retrieved successfully:', profileData.user.email);
             localStorage.setItem('userId', profileData.user.id);
             setUserId(profileData.user.id);
           } else {
@@ -154,11 +138,11 @@ export default function Dashboard() {
     );
   }
 
-  // Show auth if no user - removed initialError prop
+  // Show auth if no user
   if (!userId) {
     return <Authentication setUserId={setUserId} />;
   }
 
-  // Show voice interface - added setUserId prop
+  // Show voice interface
   return <VoiceInterface userId={userId} setUserId={setUserId} />;
 }
