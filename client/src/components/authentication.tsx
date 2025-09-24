@@ -24,13 +24,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Get the correct redirect URL based on current environment
-  const getRedirectUrl = () => {
-    const origin = window.location.origin;
-    // Always use the current origin to ensure proper redirect
-    return `${origin}/dashboard#confirmed=true`;
-  };
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
@@ -42,15 +35,13 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       let authResult;
 
       if (mode === 'signup') {
-        console.log('🔐 Signing up with redirect URL:', getRedirectUrl());
-
-        // Create new account with dynamic redirect URL
+        // Create new account - NO REDIRECT URL (let Supabase handle it)
         authResult = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { first_name: firstName || email.split('@')[0] },
-            emailRedirectTo: getRedirectUrl()
+            data: { first_name: firstName || email.split('@')[0] }
+            // REMOVED emailRedirectTo - let Supabase use its configured URL
           }
         });
 
@@ -61,8 +52,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           return;
         }
 
-        // Show success message with domain info
-        alert(`Check your email to confirm your account! You'll be redirected back to ${window.location.origin}`);
+        // Show success message
+        alert('Check your email to confirm your account!');
         setMode('signin');
         setPassword('');
         setShowPassword(false);
@@ -77,60 +68,13 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         if (authResult.error) throw authResult.error;
       }
 
-      // Successfully authenticated - get/create user profile
+      // Successfully authenticated - let dashboard handle profile creation
       if (authResult.data.user && authResult.data.session) {
         const token = authResult.data.session.access_token;
-
-        // Store auth token immediately
         localStorage.setItem('authToken', token);
 
-        // Create or get user profile with retry logic
-        let retries = 3;
-        let lastError = null;
-
-        while (retries > 0) {
-          try {
-            const response = await fetch('/api/auth/user', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                email,
-                firstName: firstName || authResult.data.user.user_metadata?.first_name,
-                authUserId: authResult.data.user.id
-              })
-            });
-
-            if (response.ok) {
-              const { user } = await response.json();
-              setUserId(user.id);
-              localStorage.setItem('userId', user.id);
-              return;
-            }
-
-            const errorData = await response.json();
-            lastError = errorData;
-
-            if (response.status === 401) {
-              // Auth error - token might be invalid
-              throw new Error('Authentication failed. Please try signing in again.');
-            }
-
-          } catch (error) {
-            lastError = error;
-            retries--;
-
-            if (retries > 0) {
-              // Wait before retry
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-          }
-        }
-
-        // All retries failed
-        throw new Error(lastError?.error || lastError?.message || 'Failed to create user profile after multiple attempts');
+        // Reload the page to trigger dashboard auth check
+        window.location.href = '/dashboard';
       }
     } catch (error: any) {
       console.error('Auth error:', error);
@@ -187,13 +131,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-500 text-sm">
                   {error}
-                </div>
-              )}
-
-              {/* Environment Info (only in development) */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="text-xs text-muted-foreground text-center">
-                  Current domain: {window.location.origin}
                 </div>
               )}
 
@@ -264,7 +201,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   disabled={loading || !email || !password}
                   className="w-full bg-gradient-to-r from-primary to-accent py-3 rounded-xl"
                 >
-                  {loading ? 'Processing...' : (mode === 'signup' ? 'Create Account' : 'Sign In')}
+                  {loading ? 'Loading...' : (mode === 'signup' ? 'Create Account' : 'Sign In')}
                 </Button>
               </form>
 
