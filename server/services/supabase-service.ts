@@ -1,23 +1,37 @@
 // Location: server/services/supabase-service.ts
-
 import { createClient } from '@supabase/supabase-js';
 
-// Handle both possible environment variable names
+// Try multiple possible environment variable names for SERVICE key
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
-                   process.env.SUPABASE_SERVICE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
+                          process.env.SUPABASE_SERVICE_KEY ||
+                          process.env.VITE_SUPABASE_SERVICE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase environment variables');
-  console.error('Available SUPABASE vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
-  throw new Error(
-    'Missing required environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_KEY)'
-  );
+if (!supabaseUrl) {
+  console.error('❌ MISSING SUPABASE_URL - Add to your .env file');
+  throw new Error('Missing SUPABASE_URL');
 }
+
+if (!supabaseServiceKey) {
+  console.error('❌ MISSING SERVICE KEY - Add one of these to your .env file:');
+  console.error('   SUPABASE_SERVICE_ROLE_KEY (preferred)');
+  console.error('   SUPABASE_SERVICE_KEY'); 
+  console.error('   VITE_SUPABASE_SERVICE_KEY');
+  throw new Error('Missing Supabase SERVICE key (not ANON key)');
+}
+
+console.log('✅ Supabase service initialized with URL:', supabaseUrl);
+console.log('✅ Using service key from env variable');
 
 export const supabase = createClient(
   supabaseUrl,
-  supabaseKey
+  supabaseServiceKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 );
 
 export interface User {
