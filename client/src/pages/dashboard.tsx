@@ -12,17 +12,13 @@ export default function Dashboard() {
   useEffect(() => {
     checkAuthStatus();
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
 
       if (event === 'SIGNED_OUT') {
         setUserId(null);
         localStorage.clear();
-      } else if (event === 'SIGNED_IN' && session) {
-        await handleSignedIn(session);
-      } else if (event === 'USER_UPDATED' && session) {
-        // Handle user updates after email confirmation
+      } else if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session) {
         await handleSignedIn(session);
       }
     });
@@ -31,31 +27,20 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    // Check if we're coming from email confirmation
     const hash = window.location.hash;
     if (hash.includes('confirmed=true')) {
-      // Clear the hash
       window.history.replaceState(null, '', window.location.pathname);
-
-      // Force re-check auth status
       checkAuthStatus();
     }
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-
-      if (error) {
-        console.error('Session error:', error);
-        setLoading(false);
-        return;
-      }
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (session) {
         await handleSignedIn(session);
       } else {
-        // Check if there's a session being established from email confirmation
         const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
         if (refreshedSession) {
           await handleSignedIn(refreshedSession);
@@ -74,7 +59,6 @@ export default function Dashboard() {
 
       let storedUserId = localStorage.getItem('userId');
       if (storedUserId) {
-        // Verify the stored user still exists
         const authToken = session.access_token;
         const verifyResponse = await fetch(`/api/auth/user-context/${storedUserId}`, {
           headers: {
@@ -82,20 +66,21 @@ export default function Dashboard() {
           }
         });
 
-        if (verifyResponse.status === 404) {
-          // User was deleted, clear storage and create new profile
-          console.log('Stored user not found, creating new profile...');
+        if (verifyResponse.status === 404 || verifyResponse.status === 401) {
+          console.log('User not found, clearing and showing login');
           localStorage.removeItem('userId');
           storedUserId = null;
+          // Sign out to clear auth state
+          await supabase.auth.signOut();
+          setUserId(null);
+          return;
         } else if (verifyResponse.ok) {
-          // User exists, use stored ID
           setUserId(storedUserId);
           return;
         }
       }
 
       if (!storedUserId) {
-        // Fetch or create user profile
         const response = await fetch('/api/auth/user', {
           method: 'POST',
           headers: {
@@ -113,13 +98,9 @@ export default function Dashboard() {
           const errorData = await response.json();
           console.error('Profile creation error:', errorData);
 
-          // If profile creation fails after email confirmation, show error
-          if (window.location.hash.includes('confirmed=true')) {
-            alert('Failed to create user profile. Please try signing in again.');
-          }
-
-          // Clear session and show login
+          // If profile creation fails, sign out and show login
           await supabase.auth.signOut();
+          setUserId(null);
           setLoading(false);
           return;
         }
@@ -130,6 +111,10 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Error in handleSignedIn:', error);
+      // On any error, show login
+      await supabase.auth.signOut();
+      setUserId(null);
+    } finally {
       setLoading(false);
     }
   };
