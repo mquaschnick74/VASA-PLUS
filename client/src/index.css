@@ -21,9 +21,9 @@
   --accent-foreground: hsl(0, 0%, 100%);
   --destructive: hsl(0, 62%, 50%);
   --destructive-foreground: hsl(0, 0%, 100%);
-  --border: hsla(268, 50%, 50%, 0.2);
+  --border: hsla(148, 100%, 41%, 0.2);
   --input: hsla(268, 50%, 30%, 0.4);
-  --ring: hsl(263, 70%, 60%);
+  --ring: hsl(148, 100%, 41%);
   --chart-1: hsl(203.8863, 88.2845%, 53.1373%);
   --chart-2: hsl(159.7826, 100%, 36.0784%);
   --chart-3: hsl(42.0290, 92.8251%, 56.2745%);
@@ -41,14 +41,14 @@
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: 12px;
-  --shadow-2xs: 0px 2px 0px 0px rgba(139, 92, 246, 0.1);
-  --shadow-xs: 0px 2px 0px 0px rgba(139, 92, 246, 0.1);
-  --shadow-sm: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 1px 2px -1px rgba(139, 92, 246, 0.1);
-  --shadow: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 1px 2px -1px rgba(139, 92, 246, 0.1);
-  --shadow-md: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 2px 4px -1px rgba(139, 92, 246, 0.1);
-  --shadow-lg: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 4px 6px -1px rgba(139, 92, 246, 0.1);
-  --shadow-xl: 0px 2px 0px 0px rgba(139, 92, 246, 0.1), 0px 8px 10px -1px rgba(139, 92, 246, 0.1);
-  --shadow-2xl: 0px 2px 0px 0px rgba(139, 92, 246, 0.1);
+  --shadow-2xs: 0px 2px 0px 0px rgba(0, 208, 98, 0.1);
+  --shadow-xs: 0px 2px 0px 0px rgba(0, 208, 98, 0.1);
+  --shadow-sm: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 1px 2px -1px rgba(0, 208, 98, 0.1);
+  --shadow: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 1px 2px -1px rgba(0, 208, 98, 0.1);
+  --shadow-md: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 2px 4px -1px rgba(0, 208, 98, 0.1);
+  --shadow-lg: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 4px 6px -1px rgba(0, 208, 98, 0.1);
+  --shadow-xl: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 8px 10px -1px rgba(0, 208, 98, 0.1);
+  --shadow-2xl: 0px 2px 0px 0px rgba(0, 208, 98, 0.1);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
@@ -70,9 +70,9 @@
   --accent-foreground: hsl(0, 0%, 100%);
   --destructive: hsl(0, 62%, 50%);
   --destructive-foreground: hsl(0, 0%, 100%);
-  --border: hsla(268, 50%, 50%, 0.2);
+  --border: hsla(148, 100%, 41%, 0.2);
   --input: hsla(268, 50%, 30%, 0.4);
-  --ring: hsl(263, 70%, 60%);
+  --ring: hsl(148, 100%, 41%);
 }
 
 @layer base {
@@ -89,16 +89,16 @@
 @layer utilities {
   .glass {
     backdrop-filter: blur(16px);
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.1);
+    background: rgba(0, 208, 98, 0.05);
+    border: 1px solid rgba(0, 208, 98, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 208, 98, 0.15), 0 0 20px rgba(0, 208, 98, 0.1);
   }
 
   .glass-strong {
     backdrop-filter: blur(20px);
-    background: rgba(139, 92, 246, 0.15);
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    box-shadow: 0 12px 40px rgba(139, 92, 246, 0.15);
+    background: rgba(0, 208, 98, 0.08);
+    border: 1px solid rgba(0, 208, 98, 0.4);
+    box-shadow: 0 12px 40px rgba(0, 208, 98, 0.2), 0 0 30px rgba(0, 208, 98, 0.15);
   }
 
   .gradient-bg {
@@ -138,7 +138,9 @@
   }
 
   .agent-card.selected {
-    @apply glass-strong ring-2 ring-purple-400 bg-purple-500 bg-opacity-5;
+    @apply glass-strong ring-2;
+    ring-color: hsl(148, 100%, 41%);
+    box-shadow: 0 0 20px rgba(0, 208, 98, 0.3);
   }
 
   .agent-card.disabled {
@@ -159,18 +161,22 @@
 
   /* Color variants for different agents */
   .agent-card[data-agent="sarah"] {
-    @apply border-purple-500 border-opacity-30;
+    border-color: hsl(148, 100%, 41%);
+    border-opacity: 0.3;
   }
 
   .agent-card[data-agent="sarah"].selected {
-    @apply ring-purple-500 ring-opacity-50 bg-purple-500 bg-opacity-5;
+    ring-color: hsl(148, 100%, 41%);
+    ring-opacity: 0.5;
   }
 
   .agent-card[data-agent="mathew"] {
-    @apply border-blue-500 border-opacity-30;
+    border-color: hsl(148, 100%, 41%);
+    border-opacity: 0.3;
   }
 
   .agent-card[data-agent="mathew"].selected {
-    @apply ring-blue-500 ring-opacity-50 bg-blue-500 bg-opacity-5;
+    ring-color: hsl(148, 100%, 41%);
+    ring-opacity: 0.5;
   }
 }
