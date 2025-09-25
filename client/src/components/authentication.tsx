@@ -192,7 +192,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 gradient-bg">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-2xl">
         {/* Logo and Branding */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -207,11 +207,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               iVASA
             </h1>
           </div>
-          <p className="text-muted-foreground text-lg">Your Voice. Your Journey. Your AI Therapeutic Assistant</p>
+          <p className="text-muted-foreground text-lg whitespace-nowrap">Your Voice. Your Journey. Your AI Therapeutic Assistant</p>
+          </div>
         </div>
 
         {/* Authentication Form */}
-        <Card className="glass rounded-2xl border-0">
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
+            <Card className="glass rounded-2xl border-0">
           <CardContent className="p-8">
             <div className="space-y-6">
               <div className="text-center relative">
@@ -336,7 +339,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
 }
