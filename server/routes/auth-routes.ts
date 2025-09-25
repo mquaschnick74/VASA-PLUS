@@ -7,11 +7,59 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+// Helper function to ensure user has profile and subscription
+async function ensureUserSetup(userId: string, email: string, firstName?: string, userType: string = 'individual') {
+  // Check for user profile
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (!profile) {
+    // Create user profile
+    await supabase
+      .from('user_profiles')
+      .insert({
+        id: userId,
+        email,
+        full_name: firstName || email.split('@')[0],
+        user_type: userType
+      });
+  }
+
+  // Check for subscription
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (!subscription) {
+    // Create trial subscription
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    await supabase
+      .from('subscriptions')
+      .insert({
+        user_id: userId,
+        subscription_tier: 'trial',
+        subscription_status: 'trialing',
+        plan_type: 'recurring',
+        trial_ends_at: trialEndDate.toISOString(),
+        trial_minutes_limit: 45,
+        usage_minutes_limit: 45,
+        usage_minutes_used: 0
+      });
+  }
+}
+
 // Create or get user - REQUIRES AUTHENTICATION
 router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { email, firstName, authUserId } = req.body;
-    console.log('POST /api/auth/user - Request body:', { email, firstName, authUserId });
+    const { email, firstName, authUserId, userType = 'individual' } = req.body;
+    console.log('POST /api/auth/user - Request body:', { email, firstName, authUserId, userType });
     console.log('POST /api/auth/user - req.user:', req.user);
 
     if (!email || !authUserId) {
@@ -38,7 +86,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
 
     if (existingUser) {
       console.log('Found existing user:', existingUser.email);
-      
+
       // Update auth_user_id if not set
       if (!existingUser.auth_user_id) {
         await supabase
@@ -46,7 +94,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
           .update({ auth_user_id: authUserId })
           .eq('id', existingUser.id);
       }
-      
+
       // UPDATE the name if a new one was provided
       if (firstName && firstName !== existingUser.first_name) {
         const { data: updatedUser, error: updateError } = await supabase
@@ -60,10 +108,14 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
           .single();
 
         if (!updateError && updatedUser) {
+          // Ensure profile and subscription exist
+          await ensureUserSetup(authUserId, email, firstName, userType);
           return res.json({ user: updatedUser });
         }
       }
 
+      // Ensure profile and subscription exist for existing user
+      await ensureUserSetup(authUserId, email, existingUser.first_name, userType);
       return res.json({ user: existingUser });
     }
 
@@ -79,6 +131,9 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
       .single();
 
     if (error) throw error;
+
+    // Setup profile and subscription for new user
+    await ensureUserSetup(authUserId, email, firstName || email.split('@')[0], userType);
 
     res.json({ user: newUser });
   } catch (error) {
@@ -108,6 +163,20 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
     if (req.user && user.auth_user_id !== req.user.id) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
+
+    // Get user profile for user_type
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.auth_user_id || userId)
+      .single();
+
+    // Get subscription status
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', user.auth_user_id || userId)
+      .single();
 
     // Build memory context for AI agents
     let memoryContext: string;
@@ -147,6 +216,8 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
     res.json({
       success: true,
       profile: user,
+      userProfile: profile, // Include user profile with user_type
+      subscription, // Include subscription data
       memoryContext,  // Full context for AI agents
       displayMemoryContext,  // NEW: Clean context for UI display
       lastSessionSummary,

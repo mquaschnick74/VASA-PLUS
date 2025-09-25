@@ -10,6 +10,8 @@ import {
 } from '../services/orchestration-service';
 // NEW IMPORT - Enhanced therapeutic tracking
 import { enhancedTherapeuticTracker } from '../services/enhanced-therapeutic-tracker';
+// NEW IMPORT - Subscription tracking
+import { subscriptionService } from '../services/subscription-service';
 
 const router = Router();
 
@@ -163,6 +165,28 @@ router.post('/webhook', async (req, res) => {
         // PRESERVED: Your transcript extraction logic
         const transcript = message.transcript || message.fullTranscript;
         const summary = message.summary;
+
+        // NEW: Track usage for subscription
+        const duration = message?.call?.endedReason?.duration || 
+                        message?.call?.duration || 
+                        message?.duration || 0;
+
+        if (duration > 0) {
+          const durationMinutes = Math.ceil(duration / 60);
+          console.log(`📊 Tracking ${durationMinutes} minutes of usage for user ${userId}`);
+
+          try {
+            await subscriptionService.trackUsageSession(
+              userId, 
+              durationMinutes, 
+              undefined, // sessionId will be looked up if needed
+              callId
+            );
+          } catch (error) {
+            console.error('Failed to track usage:', error);
+            // Don't fail the webhook if usage tracking fails
+          }
+        }
 
         if (transcript) {
           console.log(`📝 Transcript preview: ${transcript.substring(0, 100)}...`);

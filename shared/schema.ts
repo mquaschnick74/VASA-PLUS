@@ -17,6 +17,72 @@ export const users = pgTable("users", {
   subscription_status: text("subscription_status").default("active"),
 });
 
+// User profiles table (NEW)
+export const userProfiles = pgTable("user_profiles", {
+  id: uuid("id").primaryKey(), // Same as auth user ID
+  email: varchar("email").notNull(),
+  full_name: varchar("full_name"),
+  user_type: varchar("user_type").default('individual'), // 'individual', 'therapist', 'client'
+  invited_by: uuid("invited_by"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// Subscriptions table (NEW)
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull(),
+  subscription_tier: varchar("subscription_tier").notNull(), // 'trial', 'basic', 'premium', 'enterprise', 'plus'
+  subscription_status: varchar("subscription_status").notNull(), // 'trialing', 'active', 'canceled', 'past_due', 'expired'
+  plan_type: varchar("plan_type").notNull(), // 'recurring', 'one-time'
+  trial_ends_at: timestamp("trial_ends_at"),
+  trial_minutes_limit: integer("trial_minutes_limit").default(45),
+  usage_minutes_limit: integer("usage_minutes_limit"),
+  usage_minutes_used: integer("usage_minutes_used").default(0),
+  client_limit: integer("client_limit").default(0),
+  clients_used: integer("clients_used").default(0),
+  stripe_customer_id: varchar("stripe_customer_id"),
+  stripe_subscription_id: varchar("stripe_subscription_id"),
+  current_period_end: timestamp("current_period_end"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// Usage sessions tracking (NEW)
+export const usageSessions = pgTable("usage_sessions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull(),
+  therapeutic_session_id: uuid("therapeutic_session_id"),
+  duration_minutes: integer("duration_minutes").notNull(),
+  vapi_call_id: varchar("vapi_call_id"),
+  session_date: timestamp("session_date").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+// Therapist-client relationships (NEW)
+export const therapistClientRelationships = pgTable("therapist_client_relationships", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  therapist_id: uuid("therapist_id").notNull(),
+  client_id: uuid("client_id").notNull(),
+  invitation_id: uuid("invitation_id"),
+  status: varchar("status").default('active'), // 'active', 'inactive'
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+// Therapist invitations (NEW)
+export const therapistInvitations = pgTable("therapist_invitations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  therapist_id: uuid("therapist_id").notNull(),
+  client_email: varchar("client_email").notNull(),
+  invitation_token: varchar("invitation_token").notNull(), // 6-digit code
+  magic_token: varchar("magic_token"), // 32-char secure token
+  status: varchar("status").default('pending'), // 'pending', 'accepted', 'cancelled'
+  personal_message: text("personal_message"),
+  sent_at: timestamp("sent_at").defaultNow(),
+  accepted_at: timestamp("accepted_at"),
+  expires_at: timestamp("expires_at").notNull(),
+});
+
 // Therapeutic sessions table - NO CHANGES
 export const therapeuticSessions = pgTable("therapeutic_sessions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -148,6 +214,11 @@ export const insertTherapeuticMovementSchema = createInsertSchema(therapeuticMov
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type UsageSession = typeof usageSessions.$inferSelect;
+export type TherapistClientRelationship = typeof therapistClientRelationships.$inferSelect;
+export type TherapistInvitation = typeof therapistInvitations.$inferSelect;
 export type TherapeuticSession = typeof therapeuticSessions.$inferSelect;
 export type InsertTherapeuticSession = z.infer<typeof insertTherapeuticSessionSchema>;
 export type TherapeuticContext = typeof therapeuticContext.$inferSelect;
