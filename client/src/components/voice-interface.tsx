@@ -55,6 +55,9 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
   // ADD subscription hook
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription(userId);
+  
+  // Debug logging for subscription
+  console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
 
   // Load memory context
   useEffect(() => {
@@ -322,6 +325,22 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
           <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
 
             {/* ADD Subscription Status Card */}
+            {subscriptionLoading && (
+              <Card className="glass-strong rounded-xl sm:rounded-2xl border-0">
+                <CardContent className="p-4">
+                  <p>Loading subscription...</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {!subscriptionLoading && !subscription && (
+              <Card className="glass-strong rounded-xl sm:rounded-2xl border-0">
+                <CardContent className="p-4">
+                  <p className="text-red-500">Failed to load subscription data</p>
+                </CardContent>
+              </Card>
+            )}
+
             {subscription && (
               <Card className="glass-strong rounded-xl sm:rounded-2xl border-0">
                 <CardContent className="p-4 sm:p-6">
