@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { supabaseClient } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { useSubscription } from '@/hooks/use-subscription';
 import { Users, Clock, TrendingUp, UserPlus } from 'lucide-react';
 
@@ -38,7 +38,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
     setLoading(true);
     try {
       // Get therapist's clients
-      const { data: relationships } = await supabaseClient
+      const { data: relationships } = await supabase
         .from('therapist_client_relationships')
         .select(`
           *,
@@ -55,7 +55,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
         // Get usage stats for each client
         const clientsWithStats = await Promise.all(
           relationships.map(async (rel) => {
-            const { data: sessions } = await supabaseClient
+            const { data: sessions } = await supabase
               .from('therapeutic_sessions')
               .select('*')
               .eq('user_id', rel.client_id)
@@ -90,7 +90,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
 
     setInviting(true);
     try {
-      const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
 
       const response = await fetch('/api/therapist/invite-client', {
         method: 'POST',
@@ -127,7 +127,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Therapist Dashboard</h1>
           <Button onClick={() => {
-            supabaseClient.auth.signOut();
+            supabase.auth.signOut();
             setUserId(null);
           }}>
             Sign Out

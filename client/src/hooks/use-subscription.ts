@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabaseClient } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 export function useSubscription(userId: string | undefined) {
   return useQuery({
@@ -7,7 +7,7 @@ export function useSubscription(userId: string | undefined) {
     queryFn: async () => {
       if (!userId) return null;
 
-      const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
       if (!token) return null;
 
       const response = await fetch(`/api/subscription/status/${userId}`, {
