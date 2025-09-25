@@ -10,30 +10,38 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
-  const handleSignedIn = async (session: any) => {
-    localStorage.setItem('authToken', session.access_token);
+  const ensureUserProfile = async (session: any) => {
+    const token = session.access_token;
 
-    // ALWAYS use the auth user ID - don't create separate profile IDs
-    const authUserId = session.user.id;
-    
-    // Check if profile exists for this auth user
+    // Always attempt to create/get profile
     const response = await fetch('/api/auth/user', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         email: session.user.email,
-        authUserId: authUserId
+        firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
+        authUserId: session.user.id
       })
     });
 
     if (response.ok) {
-      // Use the auth user ID directly - don't use a different database ID
-      setUserId(authUserId);
-      localStorage.setItem('userId', authUserId);
+      const { user } = await response.json();
+      localStorage.setItem('userId', user.id);
+      return user.id;
+    } else if (response.status === 401 || response.status === 500) {
+      // Handle auth mismatch or server error gracefully
+      console.error('Profile creation failed, attempting recovery');
+
+      // Sign out and reset
+      await supabase.auth.signOut();
+      localStorage.clear();
+      return null;
     }
+
+    return null;
   };
 
   useEffect(() => {
@@ -65,8 +73,11 @@ export default function Dashboard() {
           }
 
           // Use refreshed session
-          await handleSignedIn(refreshedSession);
-          setMessage(null);
+          const profileId = await ensureUserProfile(refreshedSession);
+          if (profileId) {
+            setUserId(profileId);
+            setMessage(null);
+          }
         } else {
           // Check if user is verified
           if (!session.user.email_confirmed_at) {
@@ -77,8 +88,11 @@ export default function Dashboard() {
           }
 
           // Ensure profile exists
-          await handleSignedIn(session);
-          setMessage(null);
+          const profileId = await ensureUserProfile(session);
+          if (profileId) {
+            setUserId(profileId);
+            setMessage(null);
+          }
         }
       } catch (error) {
         console.error('Auth check error:', error);
@@ -109,15 +123,21 @@ export default function Dashboard() {
         }
 
         // Create/get profile
-        await handleSignedIn(session);
-        setMessage(null);
+        const profileId = await ensureUserProfile(session);
+        if (profileId) {
+          setUserId(profileId);
+          setMessage(null);
+        }
         setLoading(false);
       } else if (event === 'USER_UPDATED' && session) {
         // Handle email confirmation
         if (session.user.email_confirmed_at) {
-          await handleSignedIn(session);
-          setMessage('Account verified successfully!');
-          setTimeout(() => setMessage(null), 3000);
+          const profileId = await ensureUserProfile(session);
+          if (profileId) {
+            setUserId(profileId);
+            setMessage('Account verified successfully!');
+            setTimeout(() => setMessage(null), 3000);
+          }
         }
       }
     });
