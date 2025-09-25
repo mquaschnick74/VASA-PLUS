@@ -1,0 +1,60 @@
+Excellent! The `end-of-call-report` is now coming through! I can see it in your webhook data with the duration: **64.586 seconds (1.08 minutes)**.
+
+## Two Issues to Fix:
+
+### 1. **Subscription Status 403 Error**
+The subscription endpoint is returning forbidden. This is likely an auth issue. Check `subscription-routes.ts`:
+
+```typescript
+// The problem is likely here:
+if (req.user?.id !== userId) {
+  return res.status(403).json({ error: 'Unauthorized' });
+}
+```
+
+The auth token's user ID might not match the userId in the URL. Quick fix - log what's happening:
+
+```typescript
+router.get('/status/:userId', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { userId } = req.params;
+    
+    console.log('Auth check:', {
+      reqUserId: req.user?.id,
+      paramUserId: userId,
+      match: req.user?.id === userId
+    });
+    
+    // For now, skip this check to test:
+    // if (req.user?.id !== userId) {
+    //   return res.status(403).json({ error: 'Unauthorized' });
+    // }
+    
+    const status = await subscriptionService.getSubscriptionStatus(userId);
+    res.json(status);
+```
+
+### 2. **Usage Not Being Tracked**
+The duration is in the webhook! Check your server logs for any errors. The issue is likely in how we're extracting the duration. In `webhook-routes.ts`, make sure the duration extraction is working:
+
+```typescript
+case 'end-of-call-report':
+  console.log('📊 End-of-call report received');
+  
+  // The duration is at message.durationSeconds
+  const durationSeconds = message?.durationSeconds || message?.call?.duration || 0;
+  const durationMinutes = durationSeconds > 0 ? Math.ceil(durationSeconds / 60) : 0;
+  
+  console.log('📊 Duration extraction:', {
+    durationSeconds,
+    durationMinutes,
+    userId,
+    callId
+  });
+  
+  if (durationMinutes > 0) {
+    await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
+  }
+```
+
+Check your server logs for errors during the webhook processing. The subscription tracking should work now that end-of-call-report is coming through!

@@ -164,32 +164,22 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'end-of-call-report':
-        console.log('🔍 Starting CSS pattern detection');
+        console.log('📊 End-of-call report received');
+        
+        // The duration is at message.durationSeconds
+        const durationSeconds = message?.durationSeconds || message?.call?.duration || 0;
+        const durationMinutes = durationSeconds > 0 ? Math.ceil(durationSeconds / 60) : 0;
+        
+        console.log('📊 Duration extraction:', {
+          durationSeconds,
+          durationMinutes,
+          userId,
+          callId
+        });
 
         // PRESERVED: Your transcript extraction logic
         const transcript = message.transcript || message.fullTranscript;
         const summary = message.summary;
-
-        // --- USAGE TRACKING (REVISED) ---
-        // Extract raw seconds from multiple possible locations
-        const rawDurationSeconds =
-          message?.call?.endedReason?.duration ??
-          message?.call?.duration ??
-          message?.duration ??
-          0;
-
-        // Round up to minutes, with a minimum of 1 if there was any duration
-        const durationMinutes = rawDurationSeconds > 0 ? Math.max(1, Math.ceil(rawDurationSeconds / 60)) : 0;
-
-        // In the 'end-of-call-report' case, add detailed logging:
-        console.log('📊 Duration Debug:', {
-          endedReason: message?.call?.endedReason,
-          endedReasonDuration: message?.call?.endedReason?.duration,
-          callDuration: message?.call?.duration,
-          messageDuration: message?.duration,
-          rawSeconds: rawDurationSeconds,
-          calculatedMinutes: durationMinutes
-        });
 
         if (durationMinutes > 0) {
           console.log(`📊 Usage to record: ${durationMinutes} minute(s) for caller ${userId} (callId=${callId})`);
