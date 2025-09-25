@@ -26,6 +26,9 @@ router.post('/webhook', async (req, res) => {
     // PRESERVED: Your robust signature validation
     if (process.env.VAPI_SECRET_KEY) {
       const signature = req.headers['x-vapi-signature'] as string;
+      
+      // Only check signature if one is provided
+      if (signature) {
 
       // Handle both raw buffer and parsed JSON body
       let payload: string;
@@ -51,6 +54,7 @@ router.post('/webhook', async (req, res) => {
         console.warn(`Signature mismatch. Received: ${signature?.substring(0, 20)}...`);
         // Don't block webhooks - just log the warning
         // VAPI inline configs may not use signatures consistently
+      }
       }
     }
 
@@ -164,73 +168,27 @@ router.post('/webhook', async (req, res) => {
         break;
 
       case 'end-of-call-report':
-        console.log('📊 End-of-call report received');
+        console.log('📊 Full end-of-call-report:', JSON.stringify(message, null, 2));
         
-        // The duration is at message.durationSeconds
-        const durationSeconds = message?.durationSeconds || message?.call?.duration || 0;
-        const durationMinutes = durationSeconds > 0 ? Math.ceil(durationSeconds / 60) : 0;
+        // Duration is at the root level
+        const durationSeconds = message?.durationSeconds || 0;
+        const durationMinutes = Math.ceil(durationSeconds / 60);
         
-        console.log('📊 Duration extraction:', {
-          durationSeconds,
-          durationMinutes,
-          userId,
-          callId
-        });
-
+        console.log('📊 Tracking usage:', { userId, durationMinutes, callId });
+        
+        if (durationMinutes > 0) {
+          try {
+            await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
+            console.log('✅ Usage tracked successfully');
+          } catch (error) {
+            console.error('❌ Failed to track usage:', error);
+          }
+        }
+        
         // PRESERVED: Your transcript extraction logic
         const transcript = message.transcript || message.fullTranscript;
         const summary = message.summary;
 
-        if (durationMinutes > 0) {
-          console.log(`📊 Usage to record: ${durationMinutes} minute(s) for caller ${userId} (callId=${callId})`);
-          try {
-            // In webhook-routes.ts - minimal addition (adapted for minutes + single charge path)
-            // 1) Get profile to determine billing route
-            const { data: profile } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('id', userId)
-              .single();
-
-            if (profile?.user_type === 'client') {
-              // 2) If client, find therapist relationship and bill the therapist
-              const { data: relationship } = await supabase
-                .from('therapist_client_relationships')
-                .select('*')
-                .eq('client_id', userId)
-                .eq('status', 'active')
-                .single();
-
-              if (relationship?.therapist_id) {
-                console.log(`🧾 Billing therapist (${relationship.therapist_id}) for client ${userId}, ${durationMinutes} minute(s)`);
-                // Prefer a simple minutes API; fallback to your session-aware API if needed
-                if (typeof (subscriptionService as any).trackUsage === 'function') {
-                  await (subscriptionService as any).trackUsage(relationship.therapist_id, durationMinutes);
-                } else {
-                  await subscriptionService.trackUsageSession(relationship.therapist_id, durationMinutes, undefined, callId);
-                }
-              } else {
-                console.warn('⚠️ No therapist relationship found; billing user directly.');
-                if (typeof (subscriptionService as any).trackUsage === 'function') {
-                  await (subscriptionService as any).trackUsage(userId, durationMinutes);
-                } else {
-                  await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
-                }
-              }
-            } else {
-              // 3) If not a client, bill the user directly
-              console.log(`🧾 Billing user directly (${userId}), ${durationMinutes} minute(s)`);
-              if (typeof (subscriptionService as any).trackUsage === 'function') {
-                await (subscriptionService as any).trackUsage(userId, durationMinutes);
-              } else {
-                await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
-              }
-            }
-          } catch (error) {
-            console.error('❌ Failed to record usage:', error);
-            // Do not fail the webhook on billing errors
-          }
-        }
 
         if (transcript) {
           console.log(`📝 Transcript preview: ${transcript.substring(0, 100)}...`);
