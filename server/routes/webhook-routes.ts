@@ -181,6 +181,16 @@ router.post('/webhook', async (req, res) => {
         // Round up to minutes, with a minimum of 1 if there was any duration
         const durationMinutes = rawDurationSeconds > 0 ? Math.max(1, Math.ceil(rawDurationSeconds / 60)) : 0;
 
+        // In the 'end-of-call-report' case, add detailed logging:
+        console.log('📊 Duration Debug:', {
+          endedReason: message?.call?.endedReason,
+          endedReasonDuration: message?.call?.endedReason?.duration,
+          callDuration: message?.call?.duration,
+          messageDuration: message?.duration,
+          rawSeconds: rawDurationSeconds,
+          calculatedMinutes: durationMinutes
+        });
+
         if (durationMinutes > 0) {
           console.log(`📊 Usage to record: ${durationMinutes} minute(s) for caller ${userId} (callId=${callId})`);
           try {
