@@ -66,68 +66,59 @@ export class SubscriptionService {
 
   async trackUsageSession(userId: string, minutes: number, sessionId?: string, callId?: string) {
     try {
-      console.log(`📊 Tracking usage: ${minutes} minutes for user ${userId}`);
+      console.log(`📊 trackUsageSession called:`, { userId, minutes, sessionId, callId });
 
-      // Get user profile to check if client
-      const { data: profile } = await supabase
+      // Get user profile first
+      const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      // Determine which user's subscription to update
-      let subscriptionUserId = userId;
-
-      if (profile?.user_type === 'client' && profile.invited_by) {
-        // Check if client should use therapist's subscription
-        const { data: relationship } = await supabase
-          .from('therapist_client_relationships')
-          .select('*')
-          .eq('client_id', userId)
-          .eq('therapist_id', profile.invited_by)
-          .eq('status', 'active')
-          .single();
-
-        if (relationship) {
-          subscriptionUserId = profile.invited_by;
-          console.log(`📊 Using therapist's subscription: ${subscriptionUserId}`);
-        }
+      if (profileError) {
+        console.error('❌ Failed to get user profile:', profileError);
+        throw profileError;
       }
 
+      console.log('👤 User profile found:', profile?.email);
+
       // Record usage session
-      await supabase
+      const { data: usageData, error: usageError } = await supabase
         .from('usage_sessions')
         .insert({
-          user_id: userId, // Always record who actually used it
+          user_id: userId,
           duration_minutes: Math.ceil(minutes),
           therapeutic_session_id: sessionId,
           vapi_call_id: callId
-        });
-
-      // Update subscription minutes
-      const { data: currentSub } = await supabase
-        .from('subscriptions')
-        .select('usage_minutes_used')
-        .eq('user_id', subscriptionUserId)
+        })
+        .select()
         .single();
 
-      if (currentSub) {
-        const newUsage = (currentSub.usage_minutes_used || 0) + Math.ceil(minutes);
-
-        await supabase
-          .from('subscriptions')
-          .update({ 
-            usage_minutes_used: newUsage,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', subscriptionUserId);
-
-        console.log(`✅ Updated usage to ${newUsage} minutes for user ${subscriptionUserId}`);
+      if (usageError) {
+        console.error('❌ Failed to insert usage session:', usageError);
+        throw usageError;
       }
 
+      console.log('✅ Usage session created:', usageData);
+
+      // Update subscription
+      const { error: updateError } = await supabase
+        .from('subscriptions')
+        .update({ 
+          usage_minutes_used: supabase.sql`usage_minutes_used + ${Math.ceil(minutes)}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.error('❌ Failed to update subscription:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Subscription updated for user:', userId);
       return true;
     } catch (error) {
-      console.error('Error tracking usage:', error);
+      console.error('❌ trackUsageSession failed:', error);
       return false;
     }
   }
