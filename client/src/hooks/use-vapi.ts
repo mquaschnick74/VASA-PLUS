@@ -176,6 +176,13 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           speed: selectedAgent.voice.speed || 1.0
         },
         serverUrl: serverUrl,
+        serverMessages: [  // ADD THIS ENTIRE BLOCK
+          "conversation-update",
+          "end-of-call-report",
+          "status-update", 
+          "speech-update",
+          "transcript"
+        ],
           server: {
             url: serverUrl,
             timeoutSeconds: 20,  // This is for webhook timeout, not call duration

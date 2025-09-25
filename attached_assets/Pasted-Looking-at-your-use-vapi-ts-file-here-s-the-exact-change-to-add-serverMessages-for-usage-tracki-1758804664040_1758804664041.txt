@@ -1,0 +1,71 @@
+Looking at your `use-vapi.ts` file, here's the exact change to add `serverMessages` for usage tracking:
+
+## Add this to your assistantConfig (around line 175)
+
+Find this section in your code:
+```typescript
+const assistantConfig = {
+  name: `VASA-${selectedAgent.name}`,
+  model: {
+    provider: 'openai',
+    model: selectedAgent.model.model,
+    // ... model config ...
+  },
+  voice: {
+    // ... voice config ...
+  },
+  serverUrl: serverUrl,
+  server: {
+    url: serverUrl,
+    // ... server config ...
+  },
+```
+
+And add `serverMessages` right after `serverUrl`:
+
+```typescript
+const assistantConfig = {
+  name: `VASA-${selectedAgent.name}`,
+  model: {
+    provider: 'openai',
+    model: selectedAgent.model.model,
+    temperature: selectedAgent.model.temperature,
+    messages: [
+      {
+        role: 'system',
+        content: systemPrompt
+      }
+    ],
+    maxTokens: 150
+  },
+  voice: {
+    provider: selectedAgent.voice.provider,
+    voiceId: selectedAgent.voice.voiceId,
+    stability: selectedAgent.voice.stability || 0.5,
+    similarityBoost: 0.75,
+    speed: selectedAgent.voice.speed || 1.0
+  },
+  serverUrl: serverUrl,
+  serverMessages: [  // ADD THIS ENTIRE BLOCK
+    "conversation-update",
+    "end-of-call-report",
+    "status-update", 
+    "speech-update",
+    "transcript"
+  ],
+  server: {
+    url: serverUrl,
+    timeoutSeconds: 20,
+    secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
+  },
+  firstMessage: null,
+  firstMessageMode: "assistant-speaks-first-with-model-generated-message",
+  // ... rest of config ...
+```
+
+This addition tells VAPI to send the `end-of-call-report` webhook event which is required for tracking usage minutes in your subscription system. Without this, VAPI only sends default events and your usage tracking won't work.
+
+After adding this, test a call and check if:
+1. The `end-of-call-report` webhook is received (check server logs)
+2. Usage minutes are recorded in the `subscriptions` table
+3. A record appears in the `usage_sessions` table
