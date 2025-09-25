@@ -109,13 +109,13 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
 
         if (!updateError && updatedUser) {
           // Ensure profile and subscription exist
-          await ensureUserSetup(authUserId, email, firstName, userType);
+          await ensureUserSetup(updatedUser.id, email, firstName, userType);
           return res.json({ user: updatedUser });
         }
       }
 
       // Ensure profile and subscription exist for existing user
-      await ensureUserSetup(authUserId, email, existingUser.first_name, userType);
+      await ensureUserSetup(existingUser.id, email, existingUser.first_name, userType);
       return res.json({ user: existingUser });
     }
 
@@ -133,7 +133,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
     if (error) throw error;
 
     // Setup profile and subscription for new user
-    await ensureUserSetup(authUserId, email, firstName || email.split('@')[0], userType);
+    await ensureUserSetup(newUser.id, email, firstName || email.split('@')[0], userType);
 
     res.json({ user: newUser });
   } catch (error) {
