@@ -58,84 +58,31 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
 // Create or get user - REQUIRES AUTHENTICATION
 router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { email, firstName, authUserId, userType = 'individual' } = req.body;
-    console.log('POST /api/auth/user - Request body:', { email, firstName, authUserId, userType });
-    console.log('POST /api/auth/user - req.user:', req.user);
-
-    if (!email || !authUserId) {
-      return res.status(400).json({ error: 'Email and auth ID are required' });
-    }
-
-    // Verify the request is from the authenticated user
-    if (!req.user || req.user.id !== authUserId) {
-      console.error('Auth mismatch - req.user.id:', req.user?.id, 'authUserId:', authUserId);
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    // Check if user exists
-    const { data: existingUser, error: selectError } = await supabase
-      .from('users')
+    const { email, authUserId } = req.body;
+    
+    // Use authUserId as the profile ID
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
       .select('*')
-      .eq('email', email)
+      .eq('id', authUserId)  // <-- Use auth ID as profile ID
       .single();
 
-    if (selectError && selectError.code !== 'PGRST116') {
-      console.error('Error checking existing user:', selectError);
-      throw selectError;
+    if (existingProfile) {
+      return res.json({ user: existingProfile });
     }
 
-    if (existingUser) {
-      console.log('Found existing user:', existingUser.email);
-
-      // Update auth_user_id if not set
-      if (!existingUser.auth_user_id) {
-        await supabase
-          .from('users')
-          .update({ auth_user_id: authUserId })
-          .eq('id', existingUser.id);
-      }
-
-      // UPDATE the name if a new one was provided
-      if (firstName && firstName !== existingUser.first_name) {
-        const { data: updatedUser, error: updateError } = await supabase
-          .from('users')
-          .update({ 
-            first_name: firstName,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingUser.id)
-          .select()
-          .single();
-
-        if (!updateError && updatedUser) {
-          // Ensure profile and subscription exist
-          await ensureUserSetup(authUserId, email, firstName, userType);
-          return res.json({ user: updatedUser });
-        }
-      }
-
-      // Ensure profile and subscription exist for existing user
-      await ensureUserSetup(authUserId, email, existingUser.first_name, userType);
-      return res.json({ user: existingUser });
-    }
-
-    // Create new user
-    const { data: newUser, error } = await supabase
-      .from('users')
+    // Create new profile with auth user's ID
+    const { data: newProfile } = await supabase
+      .from('user_profiles')
       .insert({
+        id: authUserId,  // <-- Use auth ID as profile ID
         email,
-        first_name: firstName || email.split('@')[0],
-        auth_user_id: authUserId
+        full_name: req.body.firstName || email.split('@')[0]
       })
       .select()
       .single();
-
-    if (error) throw error;
-
-    // Setup profile and subscription for new user
-    await ensureUserSetup(authUserId, email, firstName || email.split('@')[0], userType);
-
-    res.json({ user: newUser });
+      
+    return res.json({ user: newProfile });
   } catch (error) {
     console.error('Error in /user-with-auth:', error);
     res.status(500).json({ error: 'Failed to process user' });
