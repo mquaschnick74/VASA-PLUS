@@ -28,14 +28,13 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
       });
   }
 
-  // Check for subscription - handle multiple records properly
-  const { data: subscriptions } = await supabase
+  // Check subscriptions using users.id
+  const { data: existingSubscriptions } = await supabase
     .from('subscriptions')
     .select('*')
-    .eq('user_id', userId);
+    .eq('user_id', userId);  // users.id
 
-  // Only create if NO subscriptions exist
-  if (!subscriptions || subscriptions.length === 0) {
+  if (!existingSubscriptions || existingSubscriptions.length === 0) {
     // Create trial subscription
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 7);
