@@ -14,9 +14,8 @@ import { enhancedTherapeuticTracker } from '../services/enhanced-therapeutic-tra
 import { subscriptionService } from '../services/subscription-service';
 
 // NEW IMPORTS - User profile & therapist-client relationship
-// ⬇️ Adjust these import paths if your services live elsewhere
-import { getUserProfile } from '../services/user-service';
-import { getTherapistClient } from '../services/relationship-service';
+// ⬇️ Using existing supabase service instead of non-existent services
+import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
@@ -187,17 +186,20 @@ router.post('/webhook', async (req, res) => {
           try {
             // In webhook-routes.ts - minimal addition (adapted for minutes + single charge path)
             // 1) Get profile to determine billing route
-            const profile = await getUserProfile(userId).catch((e: any) => {
-              console.warn('⚠️ getUserProfile failed; will fallback to direct billing:', e?.message || e);
-              return null;
-            });
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', userId)
+              .single();
 
             if (profile?.user_type === 'client') {
               // 2) If client, find therapist relationship and bill the therapist
-              const relationship = await getTherapistClient(userId).catch((e: any) => {
-                console.warn('⚠️ getTherapistClient failed; will fallback to direct billing:', e?.message || e);
-                return null;
-              });
+              const { data: relationship } = await supabase
+                .from('therapist_client_relationships')
+                .select('*')
+                .eq('client_id', userId)
+                .eq('status', 'active')
+                .single();
 
               if (relationship?.therapist_id) {
                 console.log(`🧾 Billing therapist (${relationship.therapist_id}) for client ${userId}, ${durationMinutes} minute(s)`);
