@@ -1,0 +1,105 @@
+You have a subscription creation loop bug! The code is creating a new subscription every time it runs instead of checking if one already exists. This is a critical issue.
+
+## The Problem
+
+In your `ensureUserSetup` function, this check is failing:
+```typescript
+const { data: subscription } = await supabase
+  .from('subscriptions')
+  .select('*')
+  .eq('user_id', userId)
+  .single();
+```
+
+When `.single()` finds multiple records, it returns an error, so `subscription` becomes null, triggering another subscription creation.
+
+## Immediate Fix
+
+### 1. Clean up duplicate subscriptions:
+```sql
+-- Keep only the FIRST subscription for each user
+DELETE FROM subscriptions 
+WHERE id NOT IN (
+  SELECT DISTINCT ON (user_id) id
+  FROM subscriptions
+  ORDER BY user_id, created_at ASC
+);
+
+-- Verify you now have one subscription per user
+SELECT user_id, COUNT(*) as count 
+FROM subscriptions 
+GROUP BY user_id;
+```
+
+### 2. Fix the code in `auth-routes.ts`:
+
+Replace the subscription check in `ensureUserSetup`:
+```typescript
+async function ensureUserSetup(userId: string, email: string, firstName?: string, userType: string = 'individual') {
+  // ... profile check code ...
+
+  // Check for subscription - handle multiple records properly
+  const { data: subscriptions } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId);
+
+  // Only create if NO subscriptions exist
+  if (!subscriptions || subscriptions.length === 0) {
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    await supabase
+      .from('subscriptions')
+      .insert({
+        user_id: userId,
+        subscription_tier: 'trial',
+        subscription_status: 'trialing',
+        plan_type: 'recurring',
+        trial_ends_at: trialEndDate.toISOString(),
+        trial_minutes_limit: 45,
+        usage_minutes_limit: 45,
+        usage_minutes_used: 0
+      });
+  }
+}
+```
+
+### 3. Also fix `subscription-service.ts`:
+
+In `getSubscriptionLimits`, handle multiple subscriptions:
+```typescript
+async getSubscriptionLimits(userId: string) {
+  // ... profile check ...
+  
+  // Get subscriptions (handle multiple)
+  const { data: subscriptions } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  
+  const subscription = subscriptions?.[0];
+  
+  if (!subscription) {
+    await this.createTrialSubscription(userId);
+    return this.getSubscriptionLimits(userId);
+  }
+  
+  // ... rest of logic
+}
+```
+
+## Prevention
+
+Add a unique constraint to prevent duplicates:
+```sql
+-- Add unique constraint on user_id
+ALTER TABLE subscriptions 
+ADD CONSTRAINT unique_user_subscription UNIQUE (user_id);
+```
+
+This will prevent duplicate subscriptions from being created at the database level, making the bug impossible.
+
+After applying these fixes, you should have exactly one subscription per user and the "Subscription limit reached" issue should be resolved.

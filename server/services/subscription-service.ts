@@ -26,15 +26,17 @@ export class SubscriptionService {
       }
     }
 
-    // Get user's own subscription
-    const { data: subscription } = await supabase
+    // Get subscriptions (handle multiple)
+    const { data: subscriptions } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', userId)
-      .single();
-
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    const subscription = subscriptions?.[0];
+    
     if (!subscription) {
-      // Create trial subscription if none exists
       await this.createTrialSubscription(userId);
       return this.getSubscriptionLimits(userId);
     }
