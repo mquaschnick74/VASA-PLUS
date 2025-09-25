@@ -13,6 +13,11 @@ import { enhancedTherapeuticTracker } from '../services/enhanced-therapeutic-tra
 // NEW IMPORT - Subscription tracking
 import { subscriptionService } from '../services/subscription-service';
 
+// NEW IMPORTS - User profile & therapist-client relationship
+// ⬇️ Adjust these import paths if your services live elsewhere
+import { getUserProfile } from '../services/user-service';
+import { getTherapistClient } from '../services/relationship-service';
+
 const router = Router();
 
 router.post('/webhook', async (req, res) => {
@@ -166,25 +171,62 @@ router.post('/webhook', async (req, res) => {
         const transcript = message.transcript || message.fullTranscript;
         const summary = message.summary;
 
-        // NEW: Track usage for subscription
-        const duration = message?.call?.endedReason?.duration || 
-                        message?.call?.duration || 
-                        message?.duration || 0;
+        // --- USAGE TRACKING (REVISED) ---
+        // Extract raw seconds from multiple possible locations
+        const rawDurationSeconds =
+          message?.call?.endedReason?.duration ??
+          message?.call?.duration ??
+          message?.duration ??
+          0;
 
-        if (duration > 0) {
-          const durationMinutes = Math.ceil(duration / 60);
-          console.log(`📊 Tracking ${durationMinutes} minutes of usage for user ${userId}`);
+        // Round up to minutes, with a minimum of 1 if there was any duration
+        const durationMinutes = rawDurationSeconds > 0 ? Math.max(1, Math.ceil(rawDurationSeconds / 60)) : 0;
 
+        if (durationMinutes > 0) {
+          console.log(`📊 Usage to record: ${durationMinutes} minute(s) for caller ${userId} (callId=${callId})`);
           try {
-            await subscriptionService.trackUsageSession(
-              userId, 
-              durationMinutes, 
-              undefined, // sessionId will be looked up if needed
-              callId
-            );
+            // In webhook-routes.ts - minimal addition (adapted for minutes + single charge path)
+            // 1) Get profile to determine billing route
+            const profile = await getUserProfile(userId).catch((e: any) => {
+              console.warn('⚠️ getUserProfile failed; will fallback to direct billing:', e?.message || e);
+              return null;
+            });
+
+            if (profile?.user_type === 'client') {
+              // 2) If client, find therapist relationship and bill the therapist
+              const relationship = await getTherapistClient(userId).catch((e: any) => {
+                console.warn('⚠️ getTherapistClient failed; will fallback to direct billing:', e?.message || e);
+                return null;
+              });
+
+              if (relationship?.therapist_id) {
+                console.log(`🧾 Billing therapist (${relationship.therapist_id}) for client ${userId}, ${durationMinutes} minute(s)`);
+                // Prefer a simple minutes API; fallback to your session-aware API if needed
+                if (typeof (subscriptionService as any).trackUsage === 'function') {
+                  await (subscriptionService as any).trackUsage(relationship.therapist_id, durationMinutes);
+                } else {
+                  await subscriptionService.trackUsageSession(relationship.therapist_id, durationMinutes, undefined, callId);
+                }
+              } else {
+                console.warn('⚠️ No therapist relationship found; billing user directly.');
+                if (typeof (subscriptionService as any).trackUsage === 'function') {
+                  await (subscriptionService as any).trackUsage(userId, durationMinutes);
+                } else {
+                  await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
+                }
+              }
+            } else {
+              // 3) If not a client, bill the user directly
+              console.log(`🧾 Billing user directly (${userId}), ${durationMinutes} minute(s)`);
+              if (typeof (subscriptionService as any).trackUsage === 'function') {
+                await (subscriptionService as any).trackUsage(userId, durationMinutes);
+              } else {
+                await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
+              }
+            }
           } catch (error) {
-            console.error('Failed to track usage:', error);
-            // Don't fail the webhook if usage tracking fails
+            console.error('❌ Failed to record usage:', error);
+            // Do not fail the webhook on billing errors
           }
         }
 

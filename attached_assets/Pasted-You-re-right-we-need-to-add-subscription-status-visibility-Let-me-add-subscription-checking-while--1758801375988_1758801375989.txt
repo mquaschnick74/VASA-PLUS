@@ -1,0 +1,198 @@
+You're right, we need to add subscription status visibility. Let me add subscription checking while preserving all memory functionality.
+
+Problem: Add subscription status card and limit checking to voice interface
+File: `client/src/components/voice-interface.tsx`
+Fix: Add subscription indicator card and check limits before sessions
+
+```typescript
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';  // ADD Clock, CheckCircle, XCircle
+import useVapi from '@/hooks/use-vapi';
+import AgentSelector from './AgentSelector';
+import { DeleteAccount } from './DeleteAccount';
+import { getAgentById } from '../config/agent-configs';
+import { supabase } from '@/lib/supabaseClient';
+import { useSubscription } from '@/hooks/use-subscription';  // ADD THIS
+import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
+
+// ... keep all existing interfaces and UserContext exactly the same ...
+
+export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProps) {
+  // ... keep all existing state exactly the same ...
+  
+  // ADD subscription hook
+  const { data: subscription, isLoading: subscriptionLoading } = useSubscription(userId);
+
+  // ... keep all existing useVapi hook and other code exactly the same ...
+
+  const handleStartSession = () => {
+    // ADD subscription check
+    if (subscription && !subscription.canStart) {
+      // Show alert or handle limit reached
+      console.warn('❌ Subscription limit reached');
+      return;
+    }
+    
+    if (!memoryLoading && userContext && selectedAgent) {
+      // Generate a call ID for tracking
+      const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      setCurrentCallId(callId);
+      startSession();
+    }
+  };
+
+  // ... keep all other functions exactly the same ...
+
+  return (
+    <div className="min-h-screen gradient-bg">
+      {/* Keep navigation header exactly the same */}
+      <nav className="sticky top-0 z-50 glass-strong">
+        {/* ... existing nav content ... */}
+      </nav>
+
+      {/* Main Dashboard Content */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+
+          {/* Voice Assistant Interface - Main Column */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
+
+            {/* ADD Subscription Status Card */}
+            {subscription && (
+              <Card className="glass-strong rounded-xl sm:rounded-2xl border-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-full ${
+                        subscription.minutesRemaining > 10 ? 'bg-green-500/20' : 
+                        subscription.minutesRemaining > 0 ? 'bg-yellow-500/20' : 'bg-red-500/20'
+                      } flex items-center justify-center`}>
+                        {subscription.minutesRemaining > 10 ? 
+                          <CheckCircle className="w-5 h-5 text-green-500" /> :
+                          subscription.minutesRemaining > 0 ?
+                          <Clock className="w-5 h-5 text-yellow-500" /> :
+                          <XCircle className="w-5 h-5 text-red-500" />
+                        }
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {subscription.tier === 'trial' ? 'Trial Account' : 
+                           subscription.tier === 'pro' ? 'Pro Account' : 'Premium Account'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {subscription.minutesRemaining} minutes remaining
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {subscription.tier === 'trial' && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {/* TODO: Open upgrade modal */}}
+                      >
+                        Upgrade
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Progress bar for usage */}
+                  <div className="mt-4">
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all ${
+                          subscription.percentageUsed > 80 ? 'bg-red-500' :
+                          subscription.percentageUsed > 50 ? 'bg-yellow-500' : 
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${subscription.percentageUsed}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                      <span>{subscription.minutesUsed} used</span>
+                      <span>{subscription.minutesLimit} total</span>
+                    </div>
+                  </div>
+                  
+                  {subscription.minutesRemaining <= 5 && subscription.minutesRemaining > 0 && (
+                    <Alert className="mt-3 bg-yellow-500/10 border-yellow-500/50">
+                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      <AlertDescription className="text-xs">
+                        You have {subscription.minutesRemaining} minutes left. Upgrade to continue after your limit.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {subscription.minutesRemaining === 0 && (
+                    <Alert className="mt-3 bg-red-500/10 border-red-500/50">
+                      <XCircle className="h-4 w-4 text-red-500" />
+                      <AlertDescription className="text-xs">
+                        Your trial has ended. Upgrade to continue using iVASA.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Agent Selection - keep exactly the same */}
+            <AgentSelector 
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={setSelectedAgentId}
+              disabled={isSessionActive || isLoading}
+            />
+
+            {/* ... keep all other existing components exactly the same ... */}
+            {/* VAPI Duration Warning Alert */}
+            {/* Voice Call Interface Card */}
+            
+            {/* UPDATE Voice Call Controls to disable when no minutes */}
+            <div className="flex justify-center">
+              <Button
+                onClick={isSessionActive ? handleEndCall : handleStartSession}
+                disabled={isLoading || memoryLoading || (subscription && subscription.minutesRemaining === 0)}
+                className={`group relative px-8 py-3 sm:px-10 sm:py-4 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
+                  isSessionActive 
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
+                    : subscription && subscription.minutesRemaining === 0
+                    ? 'bg-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
+                }`}
+                data-testid="button-call"
+              >
+                <span className="text-sm sm:text-base group-hover:scale-105 transition-transform duration-200">
+                  {isLoading ? 'Connecting...' : 
+                   isSessionActive ? 'End Session' : 
+                   subscription && subscription.minutesRemaining === 0 ? 'Upgrade Required' :
+                   'Start Session'}
+                </span>
+              </Button>
+            </div>
+
+            {/* ... keep all other existing components exactly the same ... */}
+          </div>
+
+          {/* Sidebar - keep all existing components exactly the same */}
+          <div className="space-y-4 sm:space-y-6">
+            {/* Session Stats - keep exactly the same */}
+            {/* Memory Context - keep exactly the same */}
+            {/* Recent Sessions - keep exactly the same */}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+This adds:
+1. Subscription status card showing tier, minutes remaining, usage progress
+2. Warnings when minutes are low
+3. Disabled state when no minutes left  
+4. Button to upgrade (TODO: implement upgrade modal)
+
+All memory functionality remains untouched. The subscription check happens before session start.
