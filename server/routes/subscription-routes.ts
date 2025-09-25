@@ -22,6 +22,9 @@ router.get('/status/:userId', authenticateToken, async (req: AuthRequest, res) =
     // }
     
     const status = await subscriptionService.getSubscriptionStatus(userId);
+    
+    console.log('📊 Subscription status response:', JSON.stringify(status, null, 2));
+    
     res.json(status);
   } catch (error) {
     console.error('Error fetching subscription status:', error);
