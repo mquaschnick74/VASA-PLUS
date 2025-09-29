@@ -1,40 +1,40 @@
-// Updated schema.ts with CSS tracking fixes
+// Updated schema.ts with correct ID relationships
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, real, jsonb, uuid, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table - NO CHANGES
+// Users table - PRIMARY IDENTITY TABLE
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   first_name: text("first_name"),
   created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
   updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
-  auth_user_id: uuid("auth_user_id"),
+  auth_user_id: uuid("auth_user_id"), // Only for Supabase auth
   role: text("role").default("client"),
   subscription_type: text("subscription_type").default("free"),
   subscription_status: text("subscription_status").default("active"),
 });
 
-// User profiles table (NEW)
+// User profiles table - FIXED to use users.id
 export const userProfiles = pgTable("user_profiles", {
-  id: uuid("id").primaryKey(), // Same as auth user ID
+  id: uuid("id").primaryKey().references(() => users.id, { onDelete: "cascade" }), // FIXED: References users.id
   email: varchar("email").notNull(),
   full_name: varchar("full_name"),
   user_type: varchar("user_type").default('individual'), // 'individual', 'therapist', 'client'
-  invited_by: uuid("invited_by"),
+  invited_by: uuid("invited_by").references(() => users.id), // FIXED: References users.id
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });
 
-// Subscriptions table (NEW)
+// Subscriptions table - FIXED to reference users.id
 export const subscriptions = pgTable("subscriptions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  user_id: uuid("user_id").notNull(),
-  subscription_tier: varchar("subscription_tier").notNull(), // 'trial', 'basic', 'premium', 'enterprise', 'plus'
-  subscription_status: varchar("subscription_status").notNull(), // 'trialing', 'active', 'canceled', 'past_due', 'expired'
-  plan_type: varchar("plan_type").notNull(), // 'recurring', 'one-time'
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), // FIXED: Added reference
+  subscription_tier: varchar("subscription_tier").notNull(),
+  subscription_status: varchar("subscription_status").notNull(),
+  plan_type: varchar("plan_type").notNull(),
   trial_ends_at: timestamp("trial_ends_at"),
   trial_minutes_limit: integer("trial_minutes_limit").default(45),
   usage_minutes_limit: integer("usage_minutes_limit"),
@@ -48,35 +48,35 @@ export const subscriptions = pgTable("subscriptions", {
   updated_at: timestamp("updated_at").defaultNow(),
 });
 
-// Usage sessions tracking (NEW)
+// Usage sessions tracking - FIXED to reference users.id
 export const usageSessions = pgTable("usage_sessions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  user_id: uuid("user_id").notNull(),
-  therapeutic_session_id: uuid("therapeutic_session_id"),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), // FIXED
+  therapeutic_session_id: uuid("therapeutic_session_id").references(() => therapeuticSessions.id),
   duration_minutes: integer("duration_minutes").notNull(),
   vapi_call_id: varchar("vapi_call_id"),
   session_date: timestamp("session_date").defaultNow(),
   created_at: timestamp("created_at").defaultNow(),
 });
 
-// Therapist-client relationships (NEW)
+// Therapist-client relationships - FIXED to reference users.id
 export const therapistClientRelationships = pgTable("therapist_client_relationships", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  therapist_id: uuid("therapist_id").notNull(),
-  client_id: uuid("client_id").notNull(),
-  invitation_id: uuid("invitation_id"),
-  status: varchar("status").default('active'), // 'active', 'inactive'
+  therapist_id: uuid("therapist_id").notNull().references(() => users.id, { onDelete: "cascade" }), // FIXED
+  client_id: uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }), // FIXED
+  invitation_id: uuid("invitation_id").references(() => therapistInvitations.id),
+  status: varchar("status").default('active'),
   created_at: timestamp("created_at").defaultNow(),
 });
 
-// Therapist invitations (NEW)
+// Therapist invitations - FIXED to reference users.id
 export const therapistInvitations = pgTable("therapist_invitations", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  therapist_id: uuid("therapist_id").notNull(),
+  therapist_id: uuid("therapist_id").notNull().references(() => users.id, { onDelete: "cascade" }), // FIXED
   client_email: varchar("client_email").notNull(),
-  invitation_token: varchar("invitation_token").notNull(), // 6-digit code
-  magic_token: varchar("magic_token"), // 32-char secure token
-  status: varchar("status").default('pending'), // 'pending', 'accepted', 'cancelled'
+  invitation_token: varchar("invitation_token").notNull(),
+  magic_token: varchar("magic_token"),
+  status: varchar("status").default('pending'),
   personal_message: text("personal_message"),
   sent_at: timestamp("sent_at").defaultNow(),
   accepted_at: timestamp("accepted_at"),

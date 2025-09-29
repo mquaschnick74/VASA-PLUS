@@ -163,18 +163,18 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Get user profile for user_type
+    // Get user profile for user_type - use users.id
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('id', user.auth_user_id || userId)
+      .eq('id', userId)
       .single();
 
-    // Get subscription status
+    // Get subscription status - use users.id
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('user_id', user.auth_user_id || userId)
+      .eq('user_id', userId)
       .single();
 
     // Build memory context for AI agents
