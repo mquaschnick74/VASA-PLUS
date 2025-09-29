@@ -13,12 +13,20 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
-  const ensureUserProfile = async (session: any) => {
+  const ensureUserProfile = async (session: any, retryCount = 0): Promise<string | null> => {
     const token = session.access_token;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
 
     try {
+      setMessage(retryCount > 0 ? `Setting up profile... (attempt ${retryCount + 1})` : 'Setting up your profile...');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout per request
+
       const response = await fetch('/api/auth/user', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -30,6 +38,8 @@ export default function Dashboard() {
           userType: session.user.user_metadata?.user_type || 'individual'
         })
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const { user } = await response.json();
@@ -46,21 +56,36 @@ export default function Dashboard() {
           setUserType(profile.user_type || 'individual');
         }
 
+        setMessage(null);
         return user.id;
+      } else if (response.status >= 500 && retryCount < maxRetries) {
+        // Server error - retry
+        console.log(`Server error (${response.status}), retrying in ${retryDelay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return ensureUserProfile(session, retryCount + 1);
       } else {
-        // ANY error - sign out immediately
+        // Client error or max retries reached - sign out
         console.error('Profile creation/fetch failed with status:', response.status);
         await supabase.auth.signOut();
         localStorage.clear();
         sessionStorage.clear();
         return null;
       }
-    } catch (error) {
-      // Network error or other failure
+    } catch (error: any) {
       console.error('Profile operation failed:', error);
+
+      // Check if it's a network/timeout error and we can retry
+      if ((error.name === 'AbortError' || error.message?.includes('fetch')) && retryCount < maxRetries) {
+        console.log(`Network error, retrying in ${retryDelay}ms... (attempt ${retryCount + 1})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return ensureUserProfile(session, retryCount + 1);
+      }
+
+      // Max retries reached or non-recoverable error
       await supabase.auth.signOut();
       localStorage.clear();
       sessionStorage.clear();
+      setMessage('Network error. Please check your connection and try again.');
       return null;
     }
   };
@@ -70,17 +95,17 @@ export default function Dashboard() {
 
     const checkAuthStatus = async () => {
       try {
-        // Set timeout to prevent infinite loading
+        // Set timeout to prevent infinite loading (increased for deployment)
         timeoutId = setTimeout(() => {
           if (loading) {
-            console.error('Loading timeout - forcing logout');
+            console.error('Loading timeout - authentication took too long');
             supabase.auth.signOut();
             localStorage.clear();
             sessionStorage.clear();
             setLoading(false);
-            setMessage('Session timeout. Please sign in again.');
+            setMessage('Loading timeout. Please refresh the page or try signing in again.');
           }
-        }, 10000); // 10 second timeout
+        }, 30000); // 30 second timeout for deployment
 
         // Check for email confirmation in URL
         const urlParams = new URLSearchParams(window.location.search);
