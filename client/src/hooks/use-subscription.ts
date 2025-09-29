@@ -1,5 +1,5 @@
-// Location: client/src/hooks/use-subscription.ts
-// CORRECT VERSION - Returns nested structure that matches your component
+// client/src/hooks/use-subscription.ts
+// FIXED VERSION - Returns correct nested structure for your components
 
 import { useState, useEffect } from 'react';
 
@@ -16,11 +16,11 @@ interface SubscriptionLimits {
 }
 
 interface SubscriptionData {
-  limits: SubscriptionLimits;  // NESTED under 'limits'
+  limits: SubscriptionLimits;  // Your component expects data.limits.minutes_remaining
 }
 
 const DEFAULT_SUBSCRIPTION: SubscriptionData = {
-  limits: {  // NESTED structure
+  limits: {
     can_use_voice: true,
     minutes_remaining: 45,
     minutes_used: 0,
@@ -35,7 +35,7 @@ const DEFAULT_SUBSCRIPTION: SubscriptionData = {
 
 export function useSubscription(userId: string | null) {
   const [data, setData] = useState<SubscriptionData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);  // Changed from 'loading' to 'isLoading' to match your component
+  const [isLoading, setIsLoading] = useState(true);  // Your component uses 'isLoading'
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,31 +56,35 @@ export function useSubscription(userId: string | null) {
 
         if (!response.ok) {
           console.warn('Subscription API returned:', response.status);
-          // Use defaults instead of crashing
           setData(DEFAULT_SUBSCRIPTION);
           setError(`API returned ${response.status}`);
-        } else {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const subData = await response.json();
-            console.log('Raw subscription data received:', subData);
-
-            // Wrap the response in the expected structure
-            const formattedData: SubscriptionData = {
-              limits: subData  // Nest under 'limits'
-            };
-
-            console.log('Formatted subscription data:', formattedData);
-            setData(formattedData);
-          } else {
-            console.error('Response is not JSON');
-            setData(DEFAULT_SUBSCRIPTION);
-            setError('Invalid response format');
-          }
+          setIsLoading(false);
+          return;
         }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Response is not JSON, got:', contentType);
+          setData(DEFAULT_SUBSCRIPTION);
+          setError('Invalid response format');
+          setIsLoading(false);
+          return;
+        }
+
+        const subData = await response.json();
+        console.log('Raw subscription data:', subData);
+
+        // Wrap the flat response in the expected nested structure
+        const formattedData: SubscriptionData = {
+          limits: subData  // Nest under 'limits'
+        };
+
+        console.log('Formatted subscription data:', formattedData);
+        setData(formattedData);
+        setError(null);
+
       } catch (err) {
         console.error('Subscription fetch error:', err);
-        // Always return safe defaults on error
         setData(DEFAULT_SUBSCRIPTION);
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
@@ -91,14 +95,14 @@ export function useSubscription(userId: string | null) {
     fetchSubscription();
   }, [userId]);
 
-  // Return with the property names your component expects
+  // Return with the exact property names your component expects
   return { 
-    data,      // Can be null during loading
-    isLoading, // Changed from 'loading'
+    data,      // Will be null initially, then have .limits nested structure
+    isLoading, // Not 'loading' - your component uses 'isLoading'
     error 
   };
 }
 
-// Export for components that need the type
+// Export types for other components
 export type { SubscriptionData, SubscriptionLimits };
 export { DEFAULT_SUBSCRIPTION };

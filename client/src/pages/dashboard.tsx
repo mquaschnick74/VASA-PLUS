@@ -1,7 +1,7 @@
 // Location: client/src/pages/dashboard.tsx
-// FIXED: Stores email BEFORE routing check
+// FIXED: Single auth listener, no conflicts
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Authentication from '@/components/authentication';
 import VoiceInterface from '@/components/voice-interface';
 import ClientDashboard from '@/pages/client-dashboard';
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [userType, setUserType] = useState<string>('individual');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const authListenerRef = useRef<any>(null);
 
   const ensureUserProfile = async (session: any) => {
     const token = session.access_token;
@@ -39,11 +40,11 @@ export default function Dashboard() {
 
       if (response.ok) {
         const responseData = await response.json();
-        const { user, userProfile } = responseData;
+        const { user } = responseData;
 
         console.log('User received from API:', user);
 
-        // CRITICAL: Store email IMMEDIATELY
+        // Store all needed data
         localStorage.setItem('userId', user.id);
         localStorage.setItem('userEmail', user.email);
 
@@ -53,15 +54,12 @@ export default function Dashboard() {
         if (user.email === 'mathew@ivasa.ai') {
           determinedType = 'therapist';
           console.log('✅ Detected therapist: mathew@ivasa.ai');
-        } else if (userProfile?.user_type === 'therapist') {
+        } else if (user.role === 'therapist') {
           determinedType = 'therapist';
-          console.log('✅ Detected therapist from profile');
-        } else if (userProfile?.user_type === 'client' && userProfile?.invited_by) {
+        } else if (user.role === 'client') {
           determinedType = 'client';
-          console.log('✅ Client with therapist detected');
         } else {
           determinedType = 'individual';
-          console.log('✅ Individual user:', user.email);
         }
 
         setUserType(determinedType);
@@ -85,9 +83,13 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const checkAuthStatus = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (!mounted) return;
 
         if (sessionError) {
           console.error('Session error:', sessionError);
@@ -104,11 +106,6 @@ export default function Dashboard() {
 
         console.log('Session found:', session.user.email);
 
-        // Store email from session as backup
-        if (session.user.email) {
-          localStorage.setItem('sessionEmail', session.user.email);
-        }
-
         // Check if user is verified
         if (!session.user.email_confirmed_at) {
           setMessage('Please verify your email before continuing');
@@ -119,56 +116,86 @@ export default function Dashboard() {
 
         // Ensure profile exists
         const profileId = await ensureUserProfile(session);
-        if (profileId) {
+        if (mounted && profileId) {
           setUserId(profileId);
           setMessage(null);
         }
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('Auth check error:', error);
-        setMessage(`Authentication error: ${errorMessage}`);
-        setLoading(false);
+        if (mounted) {
+          setMessage(`Authentication error: ${errorMessage}`);
+          setLoading(false);
+        }
       }
     };
 
     checkAuthStatus();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+    // SINGLE auth state listener
+    if (!authListenerRef.current) {
+      console.log('Setting up auth listener');
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
 
-      if (event === 'SIGNED_OUT') {
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
-        setUserType('individual');
-        setLoading(false);
-      } else if (event === 'SIGNED_IN' && session) {
-        // Store email immediately
-        if (session.user.email) {
-          localStorage.setItem('sessionEmail', session.user.email);
-        }
+        if (!mounted) return;
 
-        if (!session.user.email_confirmed_at) {
-          setMessage('Please verify your email to continue');
-          await supabase.auth.signOut();
+        // Only handle specific events
+        if (event === 'SIGNED_OUT') {
+          // Check if this was intentional
+          const allowLogout = localStorage.getItem('allowLogout') === 'true';
+          if (!allowLogout) {
+            console.error('Unexpected signout - ignoring');
+            return; // Ignore unexpected signouts
+          }
+
+          localStorage.clear();
+          sessionStorage.clear();
           setUserId(null);
+          setUserType('individual');
           setLoading(false);
-          return;
-        }
+        } else if (event === 'SIGNED_IN' && session) {
+          if (!session.user.email_confirmed_at) {
+            setMessage('Please verify your email to continue');
+            await supabase.auth.signOut();
+            setUserId(null);
+            setLoading(false);
+            return;
+          }
 
-        const profileId = await ensureUserProfile(session);
-        if (profileId) {
-          setUserId(profileId);
-          setMessage(null);
+          const profileId = await ensureUserProfile(session);
+          if (mounted && profileId) {
+            setUserId(profileId);
+            setMessage(null);
+          }
+          if (mounted) {
+            setLoading(false);
+          }
         }
-        setLoading(false);
+        // Ignore INITIAL_SESSION and other events to prevent conflicts
+      });
+
+      authListenerRef.current = subscription;
+    }
+
+    return () => {
+      mounted = false;
+      // Don't unsubscribe on every render, only on final unmount
+    };
+  }, []); // Empty deps - run once
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (authListenerRef.current) {
+        console.log('Cleaning up auth listener');
+        authListenerRef.current.unsubscribe();
       }
-    });
-
-    return () => subscription.unsubscribe();
+    };
   }, []);
 
   // Show loading state
@@ -198,6 +225,7 @@ export default function Dashboard() {
             </button>
             <button 
               onClick={async () => {
+                localStorage.setItem('allowLogout', 'true');
                 await supabase.auth.signOut();
                 localStorage.clear();
                 sessionStorage.clear();
@@ -219,7 +247,7 @@ export default function Dashboard() {
   }
 
   // Route based on user type
-  const email = localStorage.getItem('userEmail') || localStorage.getItem('sessionEmail');
+  const email = localStorage.getItem('userEmail');
 
   console.log('📍 Routing to dashboard:', {
     type: userType,
@@ -227,19 +255,14 @@ export default function Dashboard() {
     email: email
   });
 
-  // Check if therapist
-  if (userType === 'therapist' || email === 'mathew@ivasa.ai') {
-    console.log('✅ Routing to Therapist Dashboard');
+  // Route appropriately
+  if (userType === 'therapist' && email === 'mathew@ivasa.ai') {
     return <TherapistDashboard userId={userId} setUserId={setUserId} />;
   }
 
-  // Check if client
   if (userType === 'client' && localStorage.getItem('invited_by')) {
-    console.log('✅ Routing to Client Dashboard');
     return <ClientDashboard userId={userId} setUserId={setUserId} />;
   }
 
-  // Default to Voice Interface
-  console.log('✅ Routing to Voice Interface');
   return <VoiceInterface userId={userId} setUserId={setUserId} />;
 }
