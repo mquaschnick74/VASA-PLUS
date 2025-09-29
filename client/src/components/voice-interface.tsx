@@ -55,6 +55,9 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
   // ADD subscription hook
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription(userId);
+
+  // Add this to voice-interface.tsx right after useSubscription
+  console.log('Full subscription data:', JSON.stringify(subscription, null, 2));
   
   // Debug logging for subscription
   console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
