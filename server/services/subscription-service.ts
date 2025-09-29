@@ -1,8 +1,21 @@
 // server/services/subscription-service.ts
 import { supabase } from './supabase-service';
 
+// ADD THIS INTERFACE HERE (lines 3-13)
+interface SubscriptionLimits {
+  can_use_voice: boolean;
+  minutes_remaining: number;
+  minutes_used: number;
+  minutes_limit: number;
+  subscription_active: boolean;
+  is_trial: boolean;
+  trial_days_left: number;
+  subscription_tier: string;
+  user_type: string;
+}
+
 export class SubscriptionService {
-  async getSubscriptionLimits(userId: string) {
+  async getSubscriptionLimits(userId: string): Promise<SubscriptionLimits> {
     // Check if user is a client with therapist
     const { data: profile } = await supabase
       .from('user_profiles')
@@ -104,26 +117,38 @@ export class SubscriptionService {
       console.log('✅ Usage session created:', usageData);
 
       // Update subscription
-      const { error: updateError } = await supabase
+      // First get current usage
+      const { data: currentSub } = await supabase
         .from('subscriptions')
-        .update({ 
-          usage_minutes_used: supabase.sql`usage_minutes_used + ${Math.ceil(minutes)}`,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
+        .select('usage_minutes_used')
+        .eq('user_id', userId)
+        .single();
 
-      if (updateError) {
-        console.error('❌ Failed to update subscription:', updateError);
-        throw updateError;
+      if (currentSub) {
+        const newUsage = (currentSub.usage_minutes_used || 0) + Math.ceil(minutes);
+
+        const { error: updateError } = await supabase
+          .from('subscriptions')
+          .update({ 
+            usage_minutes_used: newUsage,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId);
+
+        if (updateError) {
+          console.error('❌ Failed to update subscription:', updateError);
+          throw updateError;
+        }
+
+        console.log(`✅ Subscription updated for user ${userId}: ${newUsage} minutes used`);
       }
 
-      console.log('✅ Subscription updated for user:', userId);
       return true;
-    } catch (error) {
-      console.error('❌ trackUsageSession failed:', error);
-      return false;
-    }
-  }
+      } catch (error) {
+        console.error('❌ trackUsageSession failed:', error);
+        return false;
+      }
+      }
 
   async createTrialSubscription(userId: string) {
     const trialEndDate = new Date();
