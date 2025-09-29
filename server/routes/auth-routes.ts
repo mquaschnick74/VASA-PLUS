@@ -26,6 +26,15 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
         full_name: firstName || email.split('@')[0],
         user_type: userType
       });
+  } else if (profile.user_type !== userType) {
+    // UPDATE user_type if it's different
+    await supabase
+      .from('user_profiles')
+      .update({
+        user_type: userType,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
   }
 
   // Check subscriptions using users.id
