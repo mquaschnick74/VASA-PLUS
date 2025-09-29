@@ -1,5 +1,5 @@
 // Location: client/src/pages/dashboard.tsx
-// TYPESCRIPT ERRORS FIXED VERSION
+// FIXED: Correct user type detection
 
 import { useState, useEffect } from 'react';
 import Authentication from '@/components/authentication';
@@ -18,9 +18,7 @@ export default function Dashboard() {
     const token = session.access_token;
 
     try {
-      // Use relative URL for API calls
       const apiUrl = '/api/auth/user';
-
       console.log('Calling API:', apiUrl);
 
       const response = await fetch(apiUrl, {
@@ -44,22 +42,28 @@ export default function Dashboard() {
         console.log('User received from API:', user);
         localStorage.setItem('userId', user.id);
 
-        // DON'T FETCH PROFILE - IT'S BROKEN
-        // Skipping profile fetch - using role:', user.role || 'individual'
-        console.log('Skipping profile fetch - using role:', user.role || 'individual');
+        // CRITICAL FIX: Only set as therapist if EXPLICITLY a therapist
+        let determinedType = 'individual'; // DEFAULT TO INDIVIDUAL
 
-        // Determine user type from email or role
-        if (user.email === 'mathew@ivasa.ai' || user.role === 'therapist') {
-          console.log('✅ Detected therapist account');
-          setUserType('therapist');
-          localStorage.setItem('userType', 'therapist');
-        } else if (user.role === 'client') {
-          setUserType('client');
-          localStorage.setItem('userType', 'client');
+        if (user.email === 'mathew@ivasa.ai') {
+          // ONLY mathew@ivasa.ai is a therapist
+          determinedType = 'therapist';
+          console.log('✅ Detected therapist: mathew@ivasa.ai');
+        } else if (user.role === 'therapist' && user.email === 'mathew@ivasa.ai') {
+          // Double check - only if both conditions match
+          determinedType = 'therapist';
+        } else if (user.role === 'client' || user.user_type === 'client') {
+          determinedType = 'client';
+          console.log('Detected client user');
         } else {
-          setUserType('individual');
-          localStorage.setItem('userType', 'individual');
+          // EVERYONE ELSE IS INDIVIDUAL
+          determinedType = 'individual';
+          console.log('Standard individual user:', user.email);
         }
+
+        setUserType(determinedType);
+        localStorage.setItem('userType', determinedType);
+        console.log('User type set to:', determinedType);
 
         return user.id;
       } else {
@@ -69,7 +73,6 @@ export default function Dashboard() {
         return null;
       }
     } catch (error) {
-      // Fix TypeScript error by properly typing the error
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Profile operation failed:', error);
       setMessage(`Connection error: ${errorMessage}`);
@@ -78,22 +81,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    // CHECK FOR BYPASS MODE FIRST
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('bypass') === 'true') {
-      console.log('🚨 Bypass mode activated');
-      const bypassType = urlParams.get('type') || localStorage.getItem('userType') || 'therapist';
-      const bypassId = localStorage.getItem('userId') || '8317bdd5-bce0-4e72-bb3c-72dc378da7ce';
-
-      setUserId(bypassId);
-      setUserType(bypassType);
-      setLoading(false);
-
-      // Clean URL
-      window.history.replaceState({}, document.title, '/dashboard');
-      return;
-    }
-
+    // NO MORE BYPASS MODE - Remove it entirely
     const checkAuthStatus = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -113,20 +101,18 @@ export default function Dashboard() {
 
         console.log('✅ Session found:', { 
           email: session.user.email,
-          userId: session.user.id,
-          confirmed: session.user.email_confirmed_at 
+          userId: session.user.id
         });
 
         // Check if user is verified
         if (!session.user.email_confirmed_at) {
-          console.log('❌ No active session. Please sign in first.');
           setMessage('Please verify your email before continuing');
           await supabase.auth.signOut();
           setLoading(false);
           return;
         }
 
-        // Try to ensure profile exists
+        // Ensure profile exists
         const profileId = await ensureUserProfile(session);
         if (profileId) {
           setUserId(profileId);
@@ -135,7 +121,6 @@ export default function Dashboard() {
         setLoading(false);
 
       } catch (error) {
-        // Fix TypeScript error by properly typing the error
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('Auth check error:', error);
         setMessage(`Authentication error: ${errorMessage}`);
@@ -182,20 +167,6 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading...</p>
-          <button 
-            onClick={() => {
-              console.log('🔴 Bypass mode activated');
-              const bypassId = localStorage.getItem('userId') || '8317bdd5-bce0-4e72-bb3c-72dc378da7ce';
-              const bypassType = localStorage.getItem('userType') || 'therapist';
-
-              setUserId(bypassId);
-              setUserType(bypassType);
-              setLoading(false);
-            }}
-            className="mt-4 text-xs text-blue-500 underline"
-          >
-            Click here if stuck loading
-          </button>
         </div>
       </div>
     );
@@ -237,13 +208,27 @@ export default function Dashboard() {
   }
 
   // Route based on user type
-  console.log('Routing to dashboard - Type:', userType, 'ID:', userId);
+  console.log('📍 Routing to dashboard:', {
+    type: userType,
+    userId: userId,
+    email: localStorage.getItem('userEmail')
+  });
 
   switch(userType) {
     case 'therapist':
-      return <TherapistDashboard userId={userId} setUserId={setUserId} />;
+      // ONLY show therapist dashboard for actual therapists
+      if (localStorage.getItem('userEmail') === 'mathew@ivasa.ai' || 
+          userId === '8317bdd5-bce0-4e72-bb3c-72dc378da7ce') {
+        return <TherapistDashboard userId={userId} setUserId={setUserId} />;
+      }
+      // Otherwise fall through to voice interface
+      console.warn('Non-therapist trying to access therapist dashboard, redirecting to voice interface');
+      setUserType('individual');
+      return <VoiceInterface userId={userId} setUserId={setUserId} />;
+
     case 'client':
       return <ClientDashboard userId={userId} setUserId={setUserId} />;
+
     default:
       return <VoiceInterface userId={userId} setUserId={setUserId} />;
   }
