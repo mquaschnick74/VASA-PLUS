@@ -1,0 +1,265 @@
+Looking at your user record, it's now correctly set as `"role": "therapist"` - that part is fixed! However, you're experiencing issues seeing the therapist dashboard features. Let me help diagnose and fix these problems:
+
+## Issue 1: Not seeing the Invite Client feature
+
+The "Invite Client" card IS in the therapist dashboard code (lines 236-255 of therapist-dashboard.tsx), so if you're not seeing it, you're likely seeing the wrong dashboard. Let me search for how the app determines which dashboard to show:I found the main issue! The app is **NOT routing to the TherapistDashboard** at all. Let me search for the routing logic:Looking for the authentication component to check the name field issue:Perfect! I found all the issues. Here's what's wrong and how to fix them:
+
+## **MAIN ISSUE: The app never shows TherapistDashboard!**
+
+The `dashboard.tsx` file always returns `VoiceInterface` for everyone, regardless of user type. It never checks if you're a therapist!
+
+## **Fix 1: Update `client/src/pages/dashboard.tsx`**
+
+Replace the entire file with this code that properly routes based on user type:
+
+```typescript
+// Location: client/src/pages/dashboard.tsx
+
+import { useState, useEffect } from 'react';
+import Authentication from '@/components/authentication';
+import VoiceInterface from '@/components/voice-interface';
+import TherapistDashboard from './therapist-dashboard'; // ADD THIS IMPORT
+import { supabase } from '@/lib/supabaseClient';
+import { useSubscription } from '@/hooks/use-subscription'; // ADD THIS IMPORT
+
+export default function Dashboard() {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userType, setUserType] = useState<string | null>(null); // ADD THIS STATE
+
+  // ADD: Get subscription data to check user type
+  const { data: subscription } = useSubscription(userId || '');
+
+  useEffect(() => {
+    checkAuthStatus();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setUserId(null);
+        setUserType(null);
+        localStorage.clear();
+      } else if (event === 'SIGNED_IN' && session) {
+        await handleSignedIn(session);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ADD: Effect to update userType when subscription data changes
+  useEffect(() => {
+    if (subscription?.limits?.user_type) {
+      setUserType(subscription.limits.user_type);
+    }
+  }, [subscription]);
+
+  const checkAuthStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        await handleSignedIn(session);
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignedIn = async (session: any) => {
+    localStorage.setItem('authToken', session.access_token);
+
+    let storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      // Verify the stored user still exists
+      const authToken = session.access_token;
+      const verifyResponse = await fetch(`/api/auth/user-context/${storedUserId}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      if (verifyResponse.status === 404) {
+        // User was deleted, clear storage and create new profile
+        console.log('Stored user not found, creating new profile...');
+        localStorage.removeItem('userId');
+        storedUserId = null;
+      } else if (verifyResponse.ok) {
+        // User exists, use stored ID
+        const userData = await verifyResponse.json();
+        setUserId(storedUserId);
+        
+        // Check if user is a therapist from the response
+        if (userData?.userProfile?.user_type === 'therapist') {
+          setUserType('therapist');
+        }
+        return;
+      }
+    }
+    
+    if (!storedUserId) {
+      // Fetch or create user profile
+      const response = await fetch('/api/auth/user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          email: session.user.email,
+          authUserId: session.user.id,
+          userType: 'individual' // Default to individual for new users
+        })
+      });
+
+      if (response.ok) {
+        const { user } = await response.json();
+        setUserId(user.id);
+        localStorage.setItem('userId', user.id);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return <Authentication setUserId={setUserId} />;
+  }
+
+  // CRITICAL CHANGE: Route based on user type
+  if (userType === 'therapist') {
+    return (
+      <>
+        <div className="fixed top-0 left-0 bg-purple-600 text-white px-3 py-1 text-xs rounded-br-lg z-50">
+          THERAPIST MODE
+        </div>
+        <TherapistDashboard userId={userId} setUserId={setUserId} />
+      </>
+    );
+  }
+
+  // Default to regular voice interface for clients/individuals
+  return <VoiceInterface userId={userId} setUserId={setUserId} />;
+}
+```
+
+## **Fix 2: Add user type selection to authentication**
+
+Update `client/src/components/authentication.tsx` to add user type selection (add this after the password field, around line 120):
+
+```typescript
+{mode === 'signup' && (
+  <>
+    {/* User Type Selection */}
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">Account Type</Label>
+      <select
+        value={userType}
+        onChange={(e) => setUserType(e.target.value)}
+        className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+      >
+        <option value="individual">Individual</option>
+        <option value="therapist">Therapist</option>
+        <option value="client">Client (invited by therapist)</option>
+      </select>
+    </div>
+
+    {/* First Name Field */}
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">First Name (Optional)</Label>
+      <Input 
+        type="text" 
+        placeholder="Sarah"
+        value={firstName}
+        onChange={(e) => setFirstName(e.target.value)}
+        className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+      />
+    </div>
+  </>
+)}
+```
+
+And add the state at the top of the component:
+
+```typescript
+const [userType, setUserType] = useState<string>('individual'); // ADD THIS
+```
+
+Then update the API call to include userType:
+
+```typescript
+body: JSON.stringify({
+  email,
+  firstName: firstName || authResult.data.user.user_metadata?.first_name,
+  authUserId: authResult.data.user.id,
+  userType // ADD THIS
+})
+```
+
+## **Fix 3: Create the missing useSubscription hook**
+
+Create a new file `client/src/hooks/use-subscription.ts`:
+
+```typescript
+import { useState, useEffect } from 'react';
+
+export function useSubscription(userId: string) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    fetchSubscription();
+  }, [userId]);
+
+  const fetchSubscription = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const response = await fetch(`/api/subscription/status/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setData(result);
+      }
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { data, loading };
+}
+```
+
+## **Summary of Issues Found:**
+
+1. ✅ **User record is correct** - shows `role: "therapist"`
+2. ❌ **TherapistDashboard never loads** - dashboard.tsx always shows VoiceInterface
+3. ❌ **No user type selection** - authentication form missing account type dropdown
+4. ✅ **First Name field exists** - but only in signup mode (marked as optional)
+
+After these fixes:
+- Therapists will see the TherapistDashboard with the "Invite Client" feature
+- Users can select their account type during signup
+- The app will properly route based on user type
+
+The "Invite Client" card is definitely in the therapist dashboard code (lines 236-255), so once the routing is fixed, you'll see it!
