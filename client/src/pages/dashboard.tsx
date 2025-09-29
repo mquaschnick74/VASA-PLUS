@@ -3,134 +3,238 @@
 import { useState, useEffect } from 'react';
 import Authentication from '@/components/authentication';
 import VoiceInterface from '@/components/voice-interface';
-import TherapistDashboard from './therapist-dashboard'; // ADD THIS IMPORT
+import ClientDashboard from '@/pages/client-dashboard';
+import TherapistDashboard from '@/pages/therapist-dashboard';
 import { supabase } from '@/lib/supabaseClient';
-import { useSubscription } from '@/hooks/use-subscription'; // ADD THIS IMPORT
 
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [userType, setUserType] = useState<string>('individual');
   const [loading, setLoading] = useState(true);
-  const [userType, setUserType] = useState<string | null>(null); // ADD THIS STATE
+  const [message, setMessage] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
-  // ADD: Get subscription data to check user type
-  const { data: subscription } = useSubscription(userId || '');
+  const ensureUserProfile = async (session: any) => {
+    const token = session.access_token;
+
+    try {
+      // Use relative URL for API calls - this will work in both dev and production
+      const apiUrl = '/api/auth/user';
+
+      console.log('Calling API:', apiUrl);
+      setDebugInfo(prev => prev + '\nCalling API: ' + apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: session.user.email,
+          firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
+          authUserId: session.user.id,
+          userType: session.user.user_metadata?.user_type || 'individual'
+        })
+      });
+
+      console.log('API Response status:', response.status);
+      setDebugInfo(prev => prev + '\nAPI Response: ' + response.status);
+
+      if (response.ok) {
+        const { user } = await response.json();
+        localStorage.setItem('userId', user.id);
+
+        // Get user profile to determine type
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('user_type')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          setUserType(profile.user_type || 'individual');
+        }
+
+        return user.id;
+      } else {
+        const errorText = await response.text();
+        console.error('Profile API error:', response.status, errorText);
+        setDebugInfo(prev => prev + '\nAPI Error: ' + errorText);
+
+        // Don't immediately sign out - let user see the error
+        setMessage(`API Error (${response.status}): ${errorText.substring(0, 100)}`);
+        return null;
+      }
+    } catch (error) {
+      console.error('Profile operation failed:', error);
+      setDebugInfo(prev => prev + '\nFetch Error: ' + error.message);
+      setMessage(`Connection error: ${error.message}`);
+      return null;
+    }
+  };
 
   useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        setDebugInfo('Starting auth check...');
+
+        // Check for email confirmation in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const isConfirming = urlParams.has('type') && urlParams.get('type') === 'signup';
+
+        if (isConfirming) {
+          setMessage('Email confirmed! Setting up your account...');
+        }
+
+        // First, just check if Supabase is working
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          setDebugInfo(prev => prev + '\nSupabase Error: ' + sessionError.message);
+          setMessage('Supabase connection error. Check console for details.');
+          setLoading(false);
+          return;
+        }
+
+        if (!session) {
+          console.log('No session found');
+          setDebugInfo(prev => prev + '\nNo session found');
+          setLoading(false);
+          return;
+        }
+
+        // We have a session
+        console.log('Session found for:', session.user.email);
+        setDebugInfo(prev => prev + '\nSession found: ' + session.user.email);
+
+        // Check if user is verified
+        if (!session.user.email_confirmed_at) {
+          setMessage('Please verify your email before continuing');
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        // Try to ensure profile exists
+        const profileId = await ensureUserProfile(session);
+        if (profileId) {
+          setUserId(profileId);
+          setMessage(null);
+          setDebugInfo(''); // Clear debug info on success
+        }
+        setLoading(false);
+
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setDebugInfo(prev => prev + '\nAuth Error: ' + error.message);
+        setMessage('Authentication error. Check console for details.');
+        setLoading(false);
+      }
+    };
+
     checkAuthStatus();
 
-    // Listen for auth state changes
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+
       if (event === 'SIGNED_OUT') {
-        setUserId(null);
-        setUserType(null);
         localStorage.clear();
+        sessionStorage.clear();
+        setUserId(null);
+        setLoading(false);
       } else if (event === 'SIGNED_IN' && session) {
-        await handleSignedIn(session);
+        if (!session.user.email_confirmed_at) {
+          setMessage('Please verify your email to continue');
+          await supabase.auth.signOut();
+          setUserId(null);
+          setLoading(false);
+          return;
+        }
+
+        const profileId = await ensureUserProfile(session);
+        if (profileId) {
+          setUserId(profileId);
+          setMessage(null);
+          setDebugInfo(''); // Clear debug info on success
+        }
+        setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // ADD: Effect to update userType when subscription data changes
-  useEffect(() => {
-    if (subscription?.limits?.user_type) {
-      setUserType(subscription.limits.user_type);
-    }
-  }, [subscription]);
-
-  const checkAuthStatus = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session) {
-        await handleSignedIn(session);
-      }
-    } catch (error) {
-      console.error('Auth check error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignedIn = async (session: any) => {
-    localStorage.setItem('authToken', session.access_token);
-
-    let storedUserId = localStorage.getItem('userId');
-    if (storedUserId) {
-      // Verify the stored user still exists
-      const authToken = session.access_token;
-      const verifyResponse = await fetch(`/api/auth/user-context/${storedUserId}`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
-
-      if (verifyResponse.status === 404) {
-        // User was deleted, clear storage and create new profile
-        console.log('Stored user not found, creating new profile...');
-        localStorage.removeItem('userId');
-        storedUserId = null;
-      } else if (verifyResponse.ok) {
-        // User exists, use stored ID
-        const userData = await verifyResponse.json();
-        setUserId(storedUserId);
-
-        // Check if user is a therapist from the response
-        if (userData?.userProfile?.user_type === 'therapist') {
-          setUserType('therapist');
-        }
-        return;
-      }
-    }
-
-    if (!storedUserId) {
-      // Fetch or create user profile
-      const response = await fetch('/api/auth/user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          email: session.user.email,
-          authUserId: session.user.id,
-          userType: 'individual' // Default to individual for new users
-        })
-      });
-
-      if (response.ok) {
-        const { user } = await response.json();
-        setUserId(user.id);
-        localStorage.setItem('userId', user.id);
-      }
-    }
-  };
-
+  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
-        <div className="animate-pulse">Loading...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+          {debugInfo && (
+            <pre className="mt-4 text-xs text-left max-w-md mx-auto bg-black/20 p-2 rounded">
+              {debugInfo}
+            </pre>
+          )}
+        </div>
       </div>
     );
   }
 
+  // Show message if exists but no user
+  if (message && !userId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center max-w-md">
+          <p className="text-lg mb-4">{message}</p>
+          {debugInfo && (
+            <pre className="mb-4 text-xs text-left bg-black/20 p-2 rounded">
+              {debugInfo}
+            </pre>
+          )}
+          <div className="space-y-2">
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.reload();
+              }}
+              className="text-primary hover:underline block w-full"
+            >
+              Refresh Page
+            </button>
+            <button 
+              onClick={async () => {
+                await supabase.auth.signOut();
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.reload();
+              }}
+              className="text-primary hover:underline block w-full"
+            >
+              Sign Out & Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth if no user
   if (!userId) {
     return <Authentication setUserId={setUserId} />;
   }
 
-  // CRITICAL CHANGE: Route based on user type
-  if (userType === 'therapist') {
-    return (
-      <>
-        <div className="fixed top-0 left-0 bg-purple-600 text-white px-3 py-1 text-xs rounded-br-lg z-50">
-          THERAPIST MODE
-        </div>
-        <TherapistDashboard userId={userId} setUserId={setUserId} />
-      </>
-    );
+  // Route based on user type
+  switch(userType) {
+    case 'therapist':
+      return <TherapistDashboard userId={userId} setUserId={setUserId} />;
+    case 'client':
+      return <ClientDashboard userId={userId} setUserId={setUserId} />;
+    default:
+      return <VoiceInterface userId={userId} setUserId={setUserId} />;
   }
-
-  // Default to regular voice interface for clients/individuals
-  return <VoiceInterface userId={userId} setUserId={setUserId} />;
 }
