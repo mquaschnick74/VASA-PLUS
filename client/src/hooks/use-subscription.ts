@@ -1,9 +1,9 @@
 // Location: client/src/hooks/use-subscription.ts
-// SAFE VERSION - Won't cause dashboard to fail
+// CORRECT VERSION - Returns nested structure that matches your component
 
 import { useState, useEffect } from 'react';
 
-interface SubscriptionData {
+interface SubscriptionLimits {
   can_use_voice: boolean;
   minutes_remaining: number;
   minutes_used: number;
@@ -15,64 +15,90 @@ interface SubscriptionData {
   user_type: string;
 }
 
+interface SubscriptionData {
+  limits: SubscriptionLimits;  // NESTED under 'limits'
+}
+
+const DEFAULT_SUBSCRIPTION: SubscriptionData = {
+  limits: {  // NESTED structure
+    can_use_voice: true,
+    minutes_remaining: 45,
+    minutes_used: 0,
+    minutes_limit: 45,
+    subscription_active: true,
+    is_trial: true,
+    trial_days_left: 30,
+    subscription_tier: 'trial',
+    user_type: 'individual'
+  }
+};
+
 export function useSubscription(userId: string | null) {
   const [data, setData] = useState<SubscriptionData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);  // Changed from 'loading' to 'isLoading' to match your component
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) {
-      setLoading(false);
+      console.log('No userId for subscription');
+      setData(DEFAULT_SUBSCRIPTION);
+      setIsLoading(false);
       return;
     }
 
     const fetchSubscription = async () => {
       try {
         console.log('Fetching subscription for:', userId);
+        setIsLoading(true);
+        setError(null);
 
         const response = await fetch(`/api/subscription/limits?userId=${userId}`);
 
-        if (response.ok) {
-          const subData = await response.json();
-          console.log('Subscription data received:', subData);
-          setData(subData);
+        if (!response.ok) {
+          console.warn('Subscription API returned:', response.status);
+          // Use defaults instead of crashing
+          setData(DEFAULT_SUBSCRIPTION);
+          setError(`API returned ${response.status}`);
         } else {
-          // Don't fail catastrophically - just return defaults
-          console.warn('Subscription fetch failed, using defaults');
-          setData({
-            can_use_voice: true,
-            minutes_remaining: 45,
-            minutes_used: 0,
-            minutes_limit: 45,
-            subscription_active: true,
-            is_trial: true,
-            trial_days_left: 30,
-            subscription_tier: 'trial',
-            user_type: 'therapist'
-          });
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const subData = await response.json();
+            console.log('Raw subscription data received:', subData);
+
+            // Wrap the response in the expected structure
+            const formattedData: SubscriptionData = {
+              limits: subData  // Nest under 'limits'
+            };
+
+            console.log('Formatted subscription data:', formattedData);
+            setData(formattedData);
+          } else {
+            console.error('Response is not JSON');
+            setData(DEFAULT_SUBSCRIPTION);
+            setError('Invalid response format');
+          }
         }
       } catch (err) {
         console.error('Subscription fetch error:', err);
-        // Return safe defaults instead of failing
-        setData({
-          can_use_voice: true,
-          minutes_remaining: 45,
-          minutes_used: 0,
-          minutes_limit: 45,
-          subscription_active: true,
-          is_trial: true,
-          trial_days_left: 30,
-          subscription_tier: 'trial',
-          user_type: 'therapist'
-        });
-        setError('Failed to load subscription');
+        // Always return safe defaults on error
+        setData(DEFAULT_SUBSCRIPTION);
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
     fetchSubscription();
   }, [userId]);
 
-  return { data, loading, error };
+  // Return with the property names your component expects
+  return { 
+    data,      // Can be null during loading
+    isLoading, // Changed from 'loading'
+    error 
+  };
 }
+
+// Export for components that need the type
+export type { SubscriptionData, SubscriptionLimits };
+export { DEFAULT_SUBSCRIPTION };

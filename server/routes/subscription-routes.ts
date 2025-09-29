@@ -1,82 +1,88 @@
-// server/routes/subscription-routes.ts
+// Location: server/routes/subscription-routes.ts
+// Returns FLAT structure - the hook will nest it under 'limits'
+
 import { Router } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { subscriptionService } from '../services/subscription-service';
+import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
-// Get subscription status and limits for a user
-router.get('/status/:userId', authenticateToken, async (req: AuthRequest, res) => {
+// GET /api/subscription/limits
+router.get('/limits', async (req, res) => {
   try {
-    const { userId } = req.params;
-    
-    console.log('Auth check:', {
-      reqUserId: req.user?.id,
-      paramUserId: userId,
-      match: req.user?.id === userId
-    });
-    
-    // For now, skip this check to test:
-    // if (req.user?.id !== userId) {
-    //   return res.status(403).json({ error: 'Unauthorized' });
-    // }
-    
-    const status = await subscriptionService.getSubscriptionStatus(userId);
-    
-    console.log('📊 Subscription status response:', JSON.stringify(status, null, 2));
-    
-    res.json(status);
-  } catch (error) {
-    console.error('Error fetching subscription status:', error);
-    res.status(500).json({ error: 'Failed to fetch subscription status' });
-  }
-});
+    const { userId } = req.query;
 
-// Check if user can start a voice session
-router.get('/can-start-session/:userId', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const { userId } = req.params;
+    console.log('Subscription limits requested for:', userId);
 
-    // Verify the request is for the authenticated user
-    if (req.user?.id !== userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
+    if (!userId) {
+      // Return flat structure (hook will nest it)
+      return res.json({
+        can_use_voice: true,
+        minutes_remaining: 45,
+        minutes_used: 0,
+        minutes_limit: 45,
+        subscription_active: true,
+        is_trial: true,
+        trial_days_left: 30,
+        subscription_tier: 'trial',
+        user_type: 'individual'
+      });
     }
 
-    const canStart = await subscriptionService.canStartVoiceSession(userId);
-    const limits = await subscriptionService.getSubscriptionLimits(userId);
+    // Check for subscription
+    const { data: subscription, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
 
+    if (error || !subscription) {
+      console.log('No subscription found, returning trial defaults');
+      // Return flat structure
+      return res.json({
+        can_use_voice: true,
+        minutes_remaining: 45,
+        minutes_used: 0,
+        minutes_limit: 45,
+        subscription_active: true,
+        is_trial: true,
+        trial_days_left: 30,
+        subscription_tier: 'trial',
+        user_type: 'individual'
+      });
+    }
+
+    const now = new Date();
+    const trialEnds = subscription.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
+    const trialDaysLeft = trialEnds ? Math.max(0, Math.ceil((trialEnds.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0;
+    const minutesRemaining = Math.max(0, (subscription.usage_minutes_limit || 45) - (subscription.usage_minutes_used || 0));
+
+    // Return flat structure - the hook wraps it in { limits: ... }
     res.json({
-      canStart,
-      limits
+      can_use_voice: minutesRemaining > 0,
+      minutes_remaining: minutesRemaining,
+      minutes_used: subscription.usage_minutes_used || 0,
+      minutes_limit: subscription.usage_minutes_limit || 45,
+      subscription_active: subscription.subscription_status === 'active' || subscription.subscription_status === 'trialing',
+      is_trial: subscription.subscription_status === 'trialing',
+      trial_days_left: trialDaysLeft,
+      subscription_tier: subscription.subscription_tier || 'trial',
+      user_type: 'individual'
     });
+
   } catch (error) {
-    console.error('Error checking voice session permission:', error);
-    res.status(500).json({ error: 'Failed to check session permission' });
-  }
-});
-
-// Track usage (backup endpoint if webhook fails)
-router.post('/track-usage', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const { userId, duration, sessionId, callId } = req.body;
-
-    // Verify the request is for the authenticated user
-    if (req.user?.id !== userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    const durationMinutes = Math.ceil(duration / 60);
-    const tracked = await subscriptionService.trackUsageSession(
-      userId,
-      durationMinutes,
-      sessionId,
-      callId
-    );
-
-    res.json({ success: tracked });
-  } catch (error) {
-    console.error('Error tracking usage:', error);
-    res.status(500).json({ error: 'Failed to track usage' });
+    console.error('Subscription limits error:', error);
+    // Return defaults on error
+    res.json({
+      can_use_voice: true,
+      minutes_remaining: 45,
+      minutes_used: 0,
+      minutes_limit: 45,
+      subscription_active: true,
+      is_trial: true,
+      trial_days_left: 30,
+      subscription_tier: 'trial',
+      user_type: 'individual'
+    });
   }
 });
 
