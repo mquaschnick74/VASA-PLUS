@@ -1,3 +1,5 @@
+// Location: client/src/pages/client-dashboard.tsx
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,11 +30,19 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
   const loadClientData = async () => {
     try {
       // Get user profile with therapist info
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*, therapist:invited_by(*)')
         .eq('id', userId)
         .single();
+
+      if (profileError || !profile) {
+        console.error('Profile not found, signing out');
+        await supabase.auth.signOut();
+        localStorage.clear();
+        setUserId(null);
+        return;
+      }
 
       if (profile?.invited_by) {
         // Get therapist details
@@ -49,6 +59,14 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
 
       // Get user context for voice interface
       const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) {
+        console.error('No auth token, signing out');
+        await supabase.auth.signOut();
+        localStorage.clear();
+        setUserId(null);
+        return;
+      }
+
       const response = await fetch(`/api/auth/user-context/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -56,9 +74,19 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
       if (response.ok) {
         const data = await response.json();
         setUserContext(data);
+      } else if (response.status === 401 || response.status === 404) {
+        console.error('User context not found, signing out');
+        await supabase.auth.signOut();
+        localStorage.clear();
+        setUserId(null);
+        return;
       }
     } catch (error) {
       console.error('Error loading client data:', error);
+      // On critical error, sign out
+      await supabase.auth.signOut();
+      localStorage.clear();
+      setUserId(null);
     } finally {
       setLoading(false);
     }
@@ -66,7 +94,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
@@ -79,8 +107,9 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold">Client Dashboard</h1>
-            <Button onClick={() => {
-              supabase.auth.signOut();
+            <Button onClick={async () => {
+              await supabase.auth.signOut();
+              localStorage.clear();
               setUserId(null);
             }}>
               Sign Out

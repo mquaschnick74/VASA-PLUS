@@ -3,17 +3,20 @@
 import { useState, useEffect } from 'react';
 import Authentication from '@/components/authentication';
 import VoiceInterface from '@/components/voice-interface';
+import ClientDashboard from '@/pages/client-dashboard';
+import TherapistDashboard from '@/pages/therapist-dashboard';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [userType, setUserType] = useState<string>('individual');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
   const ensureUserProfile = async (session: any) => {
     const token = session.access_token;
 
-    // Always attempt to create/get profile
+    // Always attempt to create/get profile with userType from metadata
     const response = await fetch('/api/auth/user', {
       method: 'POST',
       headers: {
@@ -23,19 +26,30 @@ export default function Dashboard() {
       body: JSON.stringify({
         email: session.user.email,
         firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
-        authUserId: session.user.id
+        authUserId: session.user.id,
+        userType: session.user.user_metadata?.user_type || 'individual'
       })
     });
 
     if (response.ok) {
       const { user } = await response.json();
       localStorage.setItem('userId', user.id);
-      return user.id;
-    } else if (response.status === 401 || response.status === 500) {
-      // Handle auth mismatch or server error gracefully
-      console.error('Profile creation failed, attempting recovery');
 
-      // Sign out and reset
+      // Get user profile to determine type
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        setUserType(profile.user_type || 'individual');
+      }
+
+      return user.id;
+    } else if (response.status === 401 || response.status === 404 || response.status === 500) {
+      // Handle auth mismatch or server error gracefully
+      console.error('Profile creation failed, signing out');
       await supabase.auth.signOut();
       localStorage.clear();
       return null;
@@ -77,6 +91,8 @@ export default function Dashboard() {
           if (profileId) {
             setUserId(profileId);
             setMessage(null);
+          } else {
+            setLoading(false);
           }
         } else {
           // Check if user is verified
@@ -92,12 +108,13 @@ export default function Dashboard() {
           if (profileId) {
             setUserId(profileId);
             setMessage(null);
+          } else {
+            setLoading(false);
           }
         }
       } catch (error) {
         console.error('Auth check error:', error);
         setMessage('An error occurred. Please try signing in again.');
-      } finally {
         setLoading(false);
       }
     };
@@ -127,8 +144,9 @@ export default function Dashboard() {
         if (profileId) {
           setUserId(profileId);
           setMessage(null);
+        } else {
+          setLoading(false);
         }
-        setLoading(false);
       } else if (event === 'USER_UPDATED' && session) {
         // Handle email confirmation
         if (session.user.email_confirmed_at) {
@@ -148,7 +166,7 @@ export default function Dashboard() {
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">{message || 'Loading...'}</p>
@@ -160,7 +178,7 @@ export default function Dashboard() {
   // Show message if exists but no user
   if (message && !userId) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="text-center">
           <p className="text-lg mb-4">{message}</p>
           <button 
@@ -179,6 +197,13 @@ export default function Dashboard() {
     return <Authentication setUserId={setUserId} />;
   }
 
-  // Show voice interface
-  return <VoiceInterface userId={userId} setUserId={setUserId} />;
+  // Route based on user type
+  switch(userType) {
+    case 'therapist':
+      return <TherapistDashboard userId={userId} setUserId={setUserId} />;
+    case 'client':
+      return <ClientDashboard userId={userId} setUserId={setUserId} />;
+    default:
+      return <VoiceInterface userId={userId} setUserId={setUserId} />;
+  }
 }
