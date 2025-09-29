@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabaseClient';
 import { useSubscription } from '@/hooks/use-subscription';
 import { Users, Clock, TrendingUp, UserPlus } from 'lucide-react';
@@ -32,7 +31,19 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
   const { data: subscription } = useSubscription(userId);
 
   useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.error('Therapist dashboard loading timeout');
+        supabase.auth.signOut();
+        localStorage.clear();
+        sessionStorage.clear();
+        setUserId(null);
+      }
+    }, 10000); // 10 second timeout
+
     loadClients();
+
+    return () => clearTimeout(timeoutId);
   }, [userId]);
 
   const loadClients = async () => {
@@ -49,6 +60,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
         console.error('Therapist profile not found, signing out');
         await supabase.auth.signOut();
         localStorage.clear();
+        sessionStorage.clear();
         setUserId(null);
         return;
       }
@@ -99,6 +111,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
       // On critical error, sign out
       await supabase.auth.signOut();
       localStorage.clear();
+      sessionStorage.clear();
       setUserId(null);
     } finally {
       setLoading(false);
@@ -114,6 +127,10 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
 
       if (!token) {
         console.error('No auth token');
+        await supabase.auth.signOut();
+        localStorage.clear();
+        sessionStorage.clear();
+        setUserId(null);
         return;
       }
 
@@ -163,6 +180,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
           <Button onClick={async () => {
             await supabase.auth.signOut();
             localStorage.clear();
+            sessionStorage.clear();
             setUserId(null);
           }}>
             Sign Out

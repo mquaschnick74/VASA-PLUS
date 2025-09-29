@@ -16,51 +16,72 @@ export default function Dashboard() {
   const ensureUserProfile = async (session: any) => {
     const token = session.access_token;
 
-    // Always attempt to create/get profile with userType from metadata
-    const response = await fetch('/api/auth/user', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        email: session.user.email,
-        firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
-        authUserId: session.user.id,
-        userType: session.user.user_metadata?.user_type || 'individual'
-      })
-    });
+    try {
+      const response = await fetch('/api/auth/user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: session.user.email,
+          firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
+          authUserId: session.user.id,
+          userType: session.user.user_metadata?.user_type || 'individual'
+        })
+      });
 
-    if (response.ok) {
-      const { user } = await response.json();
-      localStorage.setItem('userId', user.id);
+      if (response.ok) {
+        const { user } = await response.json();
+        localStorage.setItem('userId', user.id);
 
-      // Get user profile to determine type
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('user_type')
-        .eq('id', user.id)
-        .single();
+        // Get user profile to determine type
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('user_type')
+          .eq('id', user.id)
+          .single();
 
-      if (profile) {
-        setUserType(profile.user_type || 'individual');
+        if (profile) {
+          setUserType(profile.user_type || 'individual');
+        }
+
+        return user.id;
+      } else {
+        // ANY error - sign out immediately
+        console.error('Profile creation/fetch failed with status:', response.status);
+        await supabase.auth.signOut();
+        localStorage.clear();
+        sessionStorage.clear();
+        return null;
       }
-
-      return user.id;
-    } else if (response.status === 401 || response.status === 404 || response.status === 500) {
-      // Handle auth mismatch or server error gracefully
-      console.error('Profile creation failed, signing out');
+    } catch (error) {
+      // Network error or other failure
+      console.error('Profile operation failed:', error);
       await supabase.auth.signOut();
       localStorage.clear();
+      sessionStorage.clear();
       return null;
     }
-
-    return null;
   };
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     const checkAuthStatus = async () => {
       try {
+        // Set timeout to prevent infinite loading
+        timeoutId = setTimeout(() => {
+          if (loading) {
+            console.error('Loading timeout - forcing logout');
+            supabase.auth.signOut();
+            localStorage.clear();
+            sessionStorage.clear();
+            setLoading(false);
+            setMessage('Session timeout. Please sign in again.');
+          }
+        }, 10000); // 10 second timeout
+
         // Check for email confirmation in URL
         const urlParams = new URLSearchParams(window.location.search);
         const isConfirming = urlParams.has('type') && urlParams.get('type') === 'signup';
@@ -73,6 +94,7 @@ export default function Dashboard() {
 
         if (sessionError) {
           console.error('Session error:', sessionError);
+          clearTimeout(timeoutId);
           setLoading(false);
           return;
         }
@@ -82,6 +104,7 @@ export default function Dashboard() {
           const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
 
           if (!refreshedSession) {
+            clearTimeout(timeoutId);
             setLoading(false);
             return;
           }
@@ -91,14 +114,15 @@ export default function Dashboard() {
           if (profileId) {
             setUserId(profileId);
             setMessage(null);
-          } else {
-            setLoading(false);
           }
+          clearTimeout(timeoutId);
+          setLoading(false);
         } else {
           // Check if user is verified
           if (!session.user.email_confirmed_at) {
             setMessage('Please verify your email before continuing');
             await supabase.auth.signOut();
+            clearTimeout(timeoutId);
             setLoading(false);
             return;
           }
@@ -108,13 +132,14 @@ export default function Dashboard() {
           if (profileId) {
             setUserId(profileId);
             setMessage(null);
-          } else {
-            setLoading(false);
           }
+          clearTimeout(timeoutId);
+          setLoading(false);
         }
       } catch (error) {
         console.error('Auth check error:', error);
         setMessage('An error occurred. Please try signing in again.');
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };
@@ -127,6 +152,7 @@ export default function Dashboard() {
 
       if (event === 'SIGNED_OUT') {
         localStorage.clear();
+        sessionStorage.clear();
         setUserId(null);
         setLoading(false);
       } else if (event === 'SIGNED_IN' && session) {
@@ -144,9 +170,8 @@ export default function Dashboard() {
         if (profileId) {
           setUserId(profileId);
           setMessage(null);
-        } else {
-          setLoading(false);
         }
+        setLoading(false);
       } else if (event === 'USER_UPDATED' && session) {
         // Handle email confirmation
         if (session.user.email_confirmed_at) {
@@ -160,7 +185,10 @@ export default function Dashboard() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Show loading state
@@ -182,7 +210,11 @@ export default function Dashboard() {
         <div className="text-center">
           <p className="text-lg mb-4">{message}</p>
           <button 
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            }}
             className="text-primary hover:underline"
           >
             Refresh Page

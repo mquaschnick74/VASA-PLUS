@@ -24,7 +24,19 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
   const [userContext, setUserContext] = useState<any>(null);
 
   useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.error('Client dashboard loading timeout');
+        supabase.auth.signOut();
+        localStorage.clear();
+        sessionStorage.clear();
+        setUserId(null);
+      }
+    }, 10000); // 10 second timeout
+
     loadClientData();
+
+    return () => clearTimeout(timeoutId);
   }, [userId]);
 
   const loadClientData = async () => {
@@ -40,6 +52,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         console.error('Profile not found, signing out');
         await supabase.auth.signOut();
         localStorage.clear();
+        sessionStorage.clear();
         setUserId(null);
         return;
       }
@@ -63,6 +76,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         console.error('No auth token, signing out');
         await supabase.auth.signOut();
         localStorage.clear();
+        sessionStorage.clear();
         setUserId(null);
         return;
       }
@@ -78,6 +92,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         console.error('User context not found, signing out');
         await supabase.auth.signOut();
         localStorage.clear();
+        sessionStorage.clear();
         setUserId(null);
         return;
       }
@@ -86,6 +101,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
       // On critical error, sign out
       await supabase.auth.signOut();
       localStorage.clear();
+      sessionStorage.clear();
       setUserId(null);
     } finally {
       setLoading(false);
@@ -100,6 +116,24 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
     );
   }
 
+  if (!userContext) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center">
+          <p className="text-lg mb-4">Unable to load dashboard</p>
+          <Button onClick={async () => {
+            await supabase.auth.signOut();
+            localStorage.clear();
+            sessionStorage.clear();
+            setUserId(null);
+          }}>
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen gradient-bg">
       {/* Header */}
@@ -110,6 +144,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
             <Button onClick={async () => {
               await supabase.auth.signOut();
               localStorage.clear();
+              sessionStorage.clear();
               setUserId(null);
             }}>
               Sign Out
@@ -123,12 +158,10 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
 
           {/* Main Voice Interface */}
           <div className="lg:col-span-2">
-            {userContext && (
-              <VoiceInterface 
-                userId={userId} 
-                setUserId={setUserId}
-              />
-            )}
+            <VoiceInterface 
+              userId={userId} 
+              setUserId={setUserId}
+            />
           </div>
 
           {/* Sidebar */}
@@ -162,8 +195,10 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Your voice sessions are managed through your therapist's account. 
-                  Contact them if you have questions about session limits.
+                  {therapist ? 
+                    "Your voice sessions are managed through your therapist's account. Contact them if you have questions about session limits." :
+                    "You're using your own subscription for voice sessions."
+                  }
                 </p>
               </CardContent>
             </Card>
