@@ -300,9 +300,22 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 </div>
 
                 {mode === 'signup' && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Account Type</Label>
-                    <RadioGroup value={userType} onValueChange={(value: any) => setUserType(value)} className="space-y-2">
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">First Name (Optional)</Label>
+                      <Input
+                        type="text"
+                        placeholder="Enter your first name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+                        data-testid="input-firstName"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Account Type</Label>
+                      <RadioGroup value={userType} onValueChange={(value: any) => setUserType(value)} className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="individual" id="individual" />
                         <Label htmlFor="individual" className="cursor-pointer font-normal">
@@ -328,6 +341,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       {userType === 'individual' && "For personal therapeutic sessions"}
                     </p>
                   </div>
+                  </>
                 )}
 
                 <Button 

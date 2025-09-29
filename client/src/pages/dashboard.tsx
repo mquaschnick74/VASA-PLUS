@@ -45,15 +45,19 @@ export default function Dashboard() {
         const { user } = await response.json();
         localStorage.setItem('userId', user.id);
 
-        // Get user profile to determine type
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('user_type')
+        // Get user role from users table (not user_profiles)
+        const { data: userRecord } = await supabase
+          .from('users')
+          .select('role')
           .eq('id', user.id)
           .single();
 
-        if (profile) {
-          setUserType(profile.user_type || 'individual');
+        if (userRecord) {
+          // Map role from users table to userType for routing
+          const mappedUserType = userRecord.role === 'therapist' ? 'therapist' : 
+                                 userRecord.role === 'client' ? 'client' : 'individual';
+          setUserType(mappedUserType);
+          console.log('User type set to:', mappedUserType, 'from role:', userRecord.role);
         }
 
         return user.id;
@@ -66,10 +70,10 @@ export default function Dashboard() {
         setMessage(`API Error (${response.status}): ${errorText.substring(0, 100)}`);
         return null;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Profile operation failed:', error);
-      setDebugInfo(prev => prev + '\nFetch Error: ' + error.message);
-      setMessage(`Connection error: ${error.message}`);
+      setDebugInfo(prev => prev + '\nFetch Error: ' + (error?.message || String(error)));
+      setMessage(`Connection error: ${error?.message || 'Unknown error'}`);
       return null;
     }
   };
@@ -126,9 +130,9 @@ export default function Dashboard() {
         }
         setLoading(false);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Auth check error:', error);
-        setDebugInfo(prev => prev + '\nAuth Error: ' + error.message);
+        setDebugInfo(prev => prev + '\nAuth Error: ' + (error?.message || String(error)));
         setMessage('Authentication error. Check console for details.');
         setLoading(false);
       }
