@@ -156,7 +156,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
   const handleStartSession = () => {
     // ADD subscription check
-    if (subscription && !subscription.canStart) {
+    if (subscription && !subscription.limits?.can_use_voice) {
       // Show alert or handle limit reached
       console.warn('❌ Subscription limit reached');
       return;
