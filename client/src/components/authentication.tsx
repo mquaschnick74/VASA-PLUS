@@ -60,7 +60,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           options: {
             data: { 
               first_name: firstName || email.split('@')[0],
-              needs_profile: true
+              needs_profile: true,
+              user_type: userType
             },
             emailRedirectTo: `${window.location.origin}/dashboard`
           }
@@ -117,7 +118,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               email: authData.user.email,
               firstName: authData.user.user_metadata?.first_name,
               authUserId: authData.user.id,
-              userType
+              userType: authData.user.user_metadata?.user_type || 'individual'
             })
           });
 
