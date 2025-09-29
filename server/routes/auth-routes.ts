@@ -14,20 +14,22 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle(); // Use maybeSingle to avoid errors
 
   if (!profile) {
     // Create user profile
     await supabase
       .from('user_profiles')
-      .insert({
+      .upsert({
         id: userId,
         email,
         full_name: firstName || email.split('@')[0],
         user_type: userType
+      }, {
+        onConflict: 'id'
       });
-  } else if (profile.user_type !== userType) {
-    // UPDATE user_type if it's different
+  } else if (profile.user_type !== userType && userType !== 'individual') {
+    // Only update user_type if it's explicitly set and different
     await supabase
       .from('user_profiles')
       .update({
@@ -37,14 +39,14 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
       .eq('id', userId);
   }
 
-  // Check subscriptions using users.id
+  // Check subscriptions
   const { data: existingSubscriptions } = await supabase
     .from('subscriptions')
     .select('*')
-    .eq('user_id', userId);  // users.id
+    .eq('user_id', userId);
 
   if (!existingSubscriptions || existingSubscriptions.length === 0) {
-    // Create trial subscription
+    // Create trial subscription only if none exists
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 7);
 
@@ -68,7 +70,6 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { email, firstName, authUserId, userType = 'individual' } = req.body;
     console.log('POST /api/auth/user - Request body:', { email, firstName, authUserId, userType });
-    console.log('POST /api/auth/user - req.user:', req.user);
 
     if (!email || !authUserId) {
       return res.status(400).json({ error: 'Email and auth ID are required' });
@@ -80,14 +81,14 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Check if user exists
+    // First, try to find user by email (most reliable)
     const { data: existingUser, error: selectError } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle(); // Use maybeSingle instead of single to avoid errors
 
-    if (selectError && selectError.code !== 'PGRST116') {
+    if (selectError) {
       console.error('Error checking existing user:', selectError);
       throw selectError;
     }
@@ -95,36 +96,49 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
     if (existingUser) {
       console.log('Found existing user:', existingUser.email);
 
-      // Update auth_user_id if not set
-      if (!existingUser.auth_user_id) {
+      // Update auth_user_id if it's different (handles auth session changes)
+      if (existingUser.auth_user_id !== authUserId) {
+        console.log('Updating auth_user_id from', existingUser.auth_user_id, 'to', authUserId);
         await supabase
           .from('users')
-          .update({ auth_user_id: authUserId })
+          .update({ 
+            auth_user_id: authUserId,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', existingUser.id);
       }
 
-      // UPDATE the name if a new one was provided
+      // Update the name if provided and different
       if (firstName && firstName !== existingUser.first_name) {
-        const { data: updatedUser, error: updateError } = await supabase
+        await supabase
           .from('users')
           .update({ 
             first_name: firstName,
             updated_at: new Date().toISOString()
           })
-          .eq('id', existingUser.id)
-          .select()
-          .single();
-
-        if (!updateError && updatedUser) {
-          // Ensure profile and subscription exist
-          await ensureUserSetup(updatedUser.id, email, firstName, userType);
-          return res.json({ user: updatedUser });
-        }
+          .eq('id', existingUser.id);
       }
 
-      // Ensure profile and subscription exist for existing user
-      await ensureUserSetup(existingUser.id, email, existingUser.first_name, userType);
+      // Ensure profile and subscription exist
+      await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType);
+
       return res.json({ user: existingUser });
+    }
+
+    // Only create new user if they truly don't exist
+    console.log('Creating new user for:', email);
+
+    // Double-check one more time to prevent race conditions
+    const { data: doubleCheck } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (doubleCheck) {
+      // User was just created by another request
+      await ensureUserSetup(doubleCheck.id, email, firstName || doubleCheck.first_name, userType);
+      return res.json({ user: doubleCheck });
     }
 
     // Create new user
@@ -138,14 +152,30 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // If we get a duplicate key error here, try to fetch the user again
+      if (error.code === '23505') {
+        console.log('Duplicate key error, fetching existing user');
+        const { data: existingAfterError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (existingAfterError) {
+          await ensureUserSetup(existingAfterError.id, email, firstName || existingAfterError.first_name, userType);
+          return res.json({ user: existingAfterError });
+        }
+      }
+      throw error;
+    }
 
     // Setup profile and subscription for new user
     await ensureUserSetup(newUser.id, email, firstName || email.split('@')[0], userType);
 
     res.json({ user: newUser });
   } catch (error) {
-    console.error('Error in /user-with-auth:', error);
+    console.error('Error in /user endpoint:', error);
     res.status(500).json({ error: 'Failed to process user' });
   }
 });
