@@ -489,7 +489,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                       className={`group relative px-8 py-3 sm:px-10 sm:py-4 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
                         isSessionActive 
                           ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
-                          : subscription && subscription.minutesRemaining === 0
+                          : subscription && subscription.limits.minutes_remaining === 0  // ✅ Fixed typo
                           ? 'bg-gray-500 cursor-not-allowed'
                           : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
                       }`}

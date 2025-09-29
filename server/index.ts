@@ -3,6 +3,31 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { authenticateToken } from "./middleware/auth";
 
+// Environment variable validation for production
+function validateEnvironment() {
+  const requiredEnvVars = [
+    'SUPABASE_URL',
+    'SUPABASE_ANON_KEY', 
+    'SUPABASE_SERVICE_ROLE_KEY'
+  ];
+  
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    } else {
+      console.warn('⚠️ Running in development mode with missing environment variables');
+    }
+  } else {
+    log('✅ All required environment variables present');
+  }
+}
+
+// Validate environment on startup
+validateEnvironment();
+
 const app = express();
 
 // INCREASED LIMITS for VAPI webhooks with large transcripts
@@ -52,35 +77,52 @@ app.use((req, res, next) => {
 app.use('/api', authenticateToken);
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    log('🚀 Starting server initialization...');
+    
+    const server = await registerRoutes(app);
+    log('✅ Routes registered successfully');
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
-  });
+      res.status(status).json({ message });
+      throw err;
+    });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // importantly only setup vite in development and after
+    // setting up all the other routes so the catch-all route
+    // doesn't interfere with the other routes
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+      log('✅ Vite development server configured');
+    } else {
+      serveStatic(app);
+      log('✅ Static file serving configured for production');
+    }
+
+    // ALWAYS serve the app on the port specified in the environment variable PORT
+    // Other ports are firewalled. Default to 5000 if not specified.
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = parseInt(process.env.PORT || '5000', 10);
+    
+    // Graceful server startup with error handling
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, (error?: Error) => {
+      if (error) {
+        console.error(`❌ Failed to start server on port ${port}:`, error);
+        process.exit(1);
+      }
+      log(`✅ Server running on 0.0.0.0:${port} in ${process.env.NODE_ENV || 'development'} mode`);
+    });
+
+  } catch (error) {
+    console.error('❌ Fatal error during server startup:', error);
+    process.exit(1);
   }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
 })();

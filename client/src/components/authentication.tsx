@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -25,6 +26,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
+  const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>('individual');
 
   useEffect(() => {
     // Check if returning from email confirmation
@@ -114,7 +116,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             body: JSON.stringify({
               email: authData.user.email,
               firstName: authData.user.user_metadata?.first_name,
-              authUserId: authData.user.id
+              authUserId: authData.user.id,
+              userType
             })
           });
 
@@ -297,14 +300,32 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
                 {mode === 'signup' && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">First Name (Optional)</Label>
-                    <Input 
-                      type="text" 
-                      placeholder="Sarah"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-input border border-border"
-                    />
+                    <Label className="text-sm font-medium">Account Type</Label>
+                    <RadioGroup value={userType} onValueChange={(value: any) => setUserType(value)} className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="individual" id="individual" />
+                        <Label htmlFor="individual" className="cursor-pointer font-normal">
+                          Individual (Personal Use)
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="therapist" id="therapist" />
+                        <Label htmlFor="therapist" className="cursor-pointer font-normal">
+                          Therapist (Manage Clients)
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="client" id="client" />
+                        <Label htmlFor="client" className="cursor-pointer font-normal">
+                          Client (Invited by Therapist)
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                    <p className="text-xs text-muted-foreground">
+                      {userType === 'therapist' && "You'll be able to invite and manage clients"}
+                      {userType === 'client' && "You'll need an invitation code from your therapist"}
+                      {userType === 'individual' && "For personal therapeutic sessions"}
+                    </p>
                   </div>
                 )}
 
