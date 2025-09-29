@@ -1,108 +1,231 @@
-// client/src/hooks/use-subscription.ts
-// FIXED VERSION - Returns correct nested structure for your components
+// Location: client/src/hooks/use-subscription.ts
+// FIXED VERSION - Properly structures subscription data
 
 import { useState, useEffect } from 'react';
-
-interface SubscriptionLimits {
-  can_use_voice: boolean;
-  minutes_remaining: number;
-  minutes_used: number;
-  minutes_limit: number;
-  subscription_active: boolean;
-  is_trial: boolean;
-  trial_days_left: number;
-  subscription_tier: string;
-  user_type: string;
-}
+import { supabase } from '@/lib/supabaseClient';
 
 interface SubscriptionData {
-  limits: SubscriptionLimits;  // Your component expects data.limits.minutes_remaining
-}
-
-const DEFAULT_SUBSCRIPTION: SubscriptionData = {
   limits: {
-    can_use_voice: true,
-    minutes_remaining: 45,
-    minutes_used: 0,
-    minutes_limit: 45,
-    subscription_active: true,
-    is_trial: true,
-    trial_days_left: 30,
-    subscription_tier: 'trial',
-    user_type: 'individual'
-  }
-};
+    minutes_remaining: number;
+    subscription_tier: string;
+    subscription_status: string;
+    client_limit: number;
+  };
+  user_id: string;
+  subscription_tier: string;
+  subscription_status: string;
+  plan_type: string;
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  usage_minutes_limit: number;
+  usage_minutes_used: number;
+  client_limit: number;
+  clients_used: number;
+}
 
 export function useSubscription(userId: string | null) {
   const [data, setData] = useState<SubscriptionData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);  // Your component uses 'isLoading'
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (!userId) {
-      console.log('No userId for subscription');
-      setData(DEFAULT_SUBSCRIPTION);
+      setData(null);
       setIsLoading(false);
       return;
     }
 
-    const fetchSubscription = async () => {
+    let isMounted = true;
+
+    const loadSubscription = async () => {
       try {
-        console.log('Fetching subscription for:', userId);
+        console.log('📊 Loading subscription for user:', userId);
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/subscription/limits?userId=${userId}`);
+        // Get subscription from database
+        const { data: subscription, error: subError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
 
-        if (!response.ok) {
-          console.warn('Subscription API returned:', response.status);
-          setData(DEFAULT_SUBSCRIPTION);
-          setError(`API returned ${response.status}`);
-          setIsLoading(false);
-          return;
+        if (subError) {
+          console.error('Subscription fetch error:', subError);
+          throw new Error('Failed to load subscription');
         }
 
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          console.error('Response is not JSON, got:', contentType);
-          setData(DEFAULT_SUBSCRIPTION);
-          setError('Invalid response format');
-          setIsLoading(false);
-          return;
+        if (!isMounted) return;
+
+        if (subscription) {
+          // Calculate minutes remaining
+          const minutesRemaining = Math.max(
+            0, 
+            (subscription.usage_minutes_limit || 0) - (subscription.usage_minutes_used || 0)
+          );
+
+          // Structure the data with nested limits object
+          const structuredData: SubscriptionData = {
+            // Nested limits object for compatibility
+            limits: {
+              minutes_remaining: minutesRemaining,
+              subscription_tier: subscription.subscription_tier || 'trial',
+              subscription_status: subscription.subscription_status || 'active',
+              client_limit: subscription.client_limit || 0
+            },
+            // Original flat data
+            user_id: subscription.user_id,
+            subscription_tier: subscription.subscription_tier || 'trial',
+            subscription_status: subscription.subscription_status || 'active',
+            plan_type: subscription.plan_type || 'recurring',
+            trial_ends_at: subscription.trial_ends_at,
+            current_period_end: subscription.current_period_end,
+            usage_minutes_limit: subscription.usage_minutes_limit || 0,
+            usage_minutes_used: subscription.usage_minutes_used || 0,
+            client_limit: subscription.client_limit || 0,
+            clients_used: subscription.clients_used || 0
+          };
+
+          console.log('✅ Subscription loaded');
+          setData(structuredData);
+        } else {
+          // Default subscription data if none exists
+          const defaultData: SubscriptionData = {
+            limits: {
+              minutes_remaining: 45,
+              subscription_tier: 'trial',
+              subscription_status: 'trialing',
+              client_limit: 0
+            },
+            user_id: userId,
+            subscription_tier: 'trial',
+            subscription_status: 'trialing',
+            plan_type: 'recurring',
+            trial_ends_at: null,
+            current_period_end: null,
+            usage_minutes_limit: 45,
+            usage_minutes_used: 0,
+            client_limit: 0,
+            clients_used: 0
+          };
+
+          setData(defaultData);
         }
-
-        const subData = await response.json();
-        console.log('Raw subscription data:', subData);
-
-        // Wrap the flat response in the expected nested structure
-        const formattedData: SubscriptionData = {
-          limits: subData  // Nest under 'limits'
-        };
-
-        console.log('Formatted subscription data:', formattedData);
-        setData(formattedData);
-        setError(null);
-
       } catch (err) {
-        console.error('Subscription fetch error:', err);
-        setData(DEFAULT_SUBSCRIPTION);
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        console.error('Subscription loading error:', err);
+        if (isMounted) {
+          setError(err as Error);
+
+          // Return safe defaults on error
+          const fallbackData: SubscriptionData = {
+            limits: {
+              minutes_remaining: 0,
+              subscription_tier: 'trial',
+              subscription_status: 'error',
+              client_limit: 0
+            },
+            user_id: userId,
+            subscription_tier: 'trial',
+            subscription_status: 'error',
+            plan_type: 'recurring',
+            trial_ends_at: null,
+            current_period_end: null,
+            usage_minutes_limit: 0,
+            usage_minutes_used: 0,
+            client_limit: 0,
+            clients_used: 0
+          };
+
+          setData(fallbackData);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    fetchSubscription();
+    loadSubscription();
+
+    // Subscribe to realtime updates
+    const subscription = supabase
+      .channel(`subscription-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('📊 Subscription updated:', payload);
+          loadSubscription();
+        }
+      )
+      .subscribe();
+
+    // Cleanup
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [userId]);
 
-  // Return with the exact property names your component expects
-  return { 
-    data,      // Will be null initially, then have .limits nested structure
-    isLoading, // Not 'loading' - your component uses 'isLoading'
-    error 
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: () => {
+      if (userId) {
+        setIsLoading(true);
+        // Re-trigger effect by updating a dependency
+        const loadSubscription = async () => {
+          // Same logic as above
+          try {
+            const { data: subscription } = await supabase
+              .from('subscriptions')
+              .select('*')
+              .eq('user_id', userId)
+              .single();
+
+            if (subscription) {
+              const minutesRemaining = Math.max(
+                0,
+                (subscription.usage_minutes_limit || 0) - (subscription.usage_minutes_used || 0)
+              );
+
+              const structuredData: SubscriptionData = {
+                limits: {
+                  minutes_remaining: minutesRemaining,
+                  subscription_tier: subscription.subscription_tier || 'trial',
+                  subscription_status: subscription.subscription_status || 'active',
+                  client_limit: subscription.client_limit || 0
+                },
+                user_id: subscription.user_id,
+                subscription_tier: subscription.subscription_tier || 'trial',
+                subscription_status: subscription.subscription_status || 'active',
+                plan_type: subscription.plan_type || 'recurring',
+                trial_ends_at: subscription.trial_ends_at,
+                current_period_end: subscription.current_period_end,
+                usage_minutes_limit: subscription.usage_minutes_limit || 0,
+                usage_minutes_used: subscription.usage_minutes_used || 0,
+                client_limit: subscription.client_limit || 0,
+                clients_used: subscription.clients_used || 0
+              };
+
+              setData(structuredData);
+            }
+          } catch (err) {
+            console.error('Refetch error:', err);
+            setError(err as Error);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+
+        loadSubscription();
+      }
+    }
   };
 }
-
-// Export types for other components
-export type { SubscriptionData, SubscriptionLimits };
-export { DEFAULT_SUBSCRIPTION };
