@@ -43,21 +43,43 @@ export default function Dashboard() {
 
       if (response.ok) {
         const { user } = await response.json();
+        console.log('User received from API:', user);
         localStorage.setItem('userId', user.id);
 
-        // Get user role from users table (not user_profiles)
-        const { data: userRecord } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .single();
+        // Try to get user profile to determine type
+        try {
+          console.log('Fetching user profile for ID:', user.id);
+          setDebugInfo(prev => prev + '\nFetching profile for: ' + user.id);
 
-        if (userRecord) {
-          // Map role from users table to userType for routing
-          const mappedUserType = userRecord.role === 'therapist' ? 'therapist' : 
-                                 userRecord.role === 'client' ? 'client' : 'individual';
-          setUserType(mappedUserType);
-          console.log('User type set to:', mappedUserType, 'from role:', userRecord.role);
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('user_type')
+            .eq('id', user.id)
+            .single();
+
+          console.log('Profile query result:', { profile, error: profileError });
+          setDebugInfo(prev => prev + '\nProfile result: ' + JSON.stringify(profile || profileError));
+
+          if (profileError) {
+            console.warn('Profile fetch error (non-fatal):', profileError);
+            // Don't fail - use default or user metadata
+            const fallbackType = session.user.user_metadata?.user_type || 
+                               user.role === 'therapist' ? 'therapist' : 'individual';
+            console.log('Using fallback user type:', fallbackType);
+            setUserType(fallbackType);
+          } else if (profile) {
+            console.log('Setting user type from profile:', profile.user_type);
+            setUserType(profile.user_type || 'individual');
+          } else {
+            console.log('No profile found, using default type');
+            setUserType('individual');
+          }
+        } catch (profileErr) {
+          console.warn('Error fetching profile (non-fatal):', profileErr);
+          setDebugInfo(prev => prev + '\nProfile error (non-fatal): ' + profileErr.message);
+          // Don't fail the entire auth - just use default type
+          const fallbackType = session.user.user_metadata?.user_type || 'individual';
+          setUserType(fallbackType);
         }
 
         return user.id;
@@ -70,10 +92,10 @@ export default function Dashboard() {
         setMessage(`API Error (${response.status}): ${errorText.substring(0, 100)}`);
         return null;
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Profile operation failed:', error);
-      setDebugInfo(prev => prev + '\nFetch Error: ' + (error?.message || String(error)));
-      setMessage(`Connection error: ${error?.message || 'Unknown error'}`);
+      setDebugInfo(prev => prev + '\nFetch Error: ' + error.message);
+      setMessage(`Connection error: ${error.message}`);
       return null;
     }
   };
@@ -127,12 +149,18 @@ export default function Dashboard() {
           setUserId(profileId);
           setMessage(null);
           setDebugInfo(''); // Clear debug info on success
+
+          // Check if this is a therapist based on email (fallback)
+          if (session.user.email === 'mathew@ivasa.ai') {
+            console.log('Detected therapist email, setting type to therapist');
+            setUserType('therapist');
+          }
         }
         setLoading(false);
 
-      } catch (error: any) {
+      } catch (error) {
         console.error('Auth check error:', error);
-        setDebugInfo(prev => prev + '\nAuth Error: ' + (error?.message || String(error)));
+        setDebugInfo(prev => prev + '\nAuth Error: ' + error.message);
         setMessage('Authentication error. Check console for details.');
         setLoading(false);
       }
@@ -163,6 +191,12 @@ export default function Dashboard() {
           setUserId(profileId);
           setMessage(null);
           setDebugInfo(''); // Clear debug info on success
+
+          // Check if this is a therapist based on email (fallback)
+          if (session.user.email === 'mathew@ivasa.ai') {
+            console.log('Detected therapist email, setting type to therapist');
+            setUserType('therapist');
+          }
         }
         setLoading(false);
       }
@@ -233,6 +267,7 @@ export default function Dashboard() {
   }
 
   // Route based on user type
+  console.log('Routing to dashboard for type:', userType);
   switch(userType) {
     case 'therapist':
       return <TherapistDashboard userId={userId} setUserId={setUserId} />;
