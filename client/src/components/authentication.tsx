@@ -27,13 +27,26 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>('individual');
+  const [invitationToken, setInvitationToken] = useState('');
+  const [magicCode, setMagicCode] = useState('');
 
   useEffect(() => {
     // Check if returning from email confirmation
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const urlParams = new URLSearchParams(window.location.search);
 
-    if (hashParams.get('type') === 'signup' || urlParams.get('type') === 'signup') {
+    // Check for invitation token in URL
+    const token = urlParams.get('token');
+    const emailParam = urlParams.get('email');
+    
+    if (token && emailParam) {
+      setEmail(emailParam);
+      setInvitationToken(token);
+      setUserType('client');
+      setMode('signup');
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (hashParams.get('type') === 'signup' || urlParams.get('type') === 'signup') {
       // User just confirmed their email
       setMode('signin');
       setVerificationSent(false);
@@ -72,6 +85,24 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         if (authData.user?.identities?.length === 0) {
           setError('An account with this email already exists. Please sign in instead.');
           return;
+        }
+
+        // After successful signup, if client type with invitation
+        if (userType === 'client' && (invitationToken || magicCode)) {
+          const inviteResponse = await fetch('/api/therapist/accept-invitation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: invitationToken,
+              magic_token: magicCode,
+              client_email: email
+            })
+          });
+          
+          if (inviteResponse.ok) {
+            const result = await inviteResponse.json();
+            console.log('Invitation accepted:', result);
+          }
         }
 
         // Show verification message
@@ -341,6 +372,24 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       {userType === 'individual' && "For personal therapeutic sessions"}
                     </p>
                   </div>
+
+                  {mode === 'signup' && userType === 'client' && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Invitation Code</Label>
+                      <Input 
+                        type="text" 
+                        placeholder="Enter 6-character code from therapist"
+                        value={magicCode}
+                        onChange={(e) => setMagicCode(e.target.value.toUpperCase())}
+                        className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+                        maxLength={6}
+                        data-testid="input-magicCode"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Ask your therapist for your invitation code
+                      </p>
+                    </div>
+                  )}
                   </>
                 )}
 
