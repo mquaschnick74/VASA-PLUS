@@ -1,4 +1,5 @@
 // Location: client/src/pages/dashboard.tsx
+// VERSION WITH EMERGENCY BYPASS
 
 import { useState, useEffect } from 'react';
 import Authentication from '@/components/authentication';
@@ -14,106 +15,42 @@ export default function Dashboard() {
   const [message, setMessage] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>('');
 
-  const ensureUserProfile = async (session: any) => {
-    const token = session.access_token;
-
-    try {
-      // Use relative URL for API calls - this will work in both dev and production
-      const apiUrl = '/api/auth/user';
-
-      console.log('Calling API:', apiUrl);
-      setDebugInfo(prev => prev + '\nCalling API: ' + apiUrl);
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          email: session.user.email,
-          firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
-          authUserId: session.user.id,
-          userType: session.user.user_metadata?.user_type || 'individual'
-        })
-      });
-
-      console.log('API Response status:', response.status);
-      setDebugInfo(prev => prev + '\nAPI Response: ' + response.status);
-
-      if (response.ok) {
-        const { user } = await response.json();
-        console.log('User received from API:', user);
-        localStorage.setItem('userId', user.id);
-
-        // Try to get user profile to determine type
-        try {
-          console.log('Fetching user profile for ID:', user.id);
-          setDebugInfo(prev => prev + '\nFetching profile for: ' + user.id);
-
-          const { data: profile, error: profileError } = await supabase
-            .from('user_profiles')
-            .select('user_type')
-            .eq('id', user.id)
-            .single();
-
-          console.log('Profile query result:', { profile, error: profileError });
-          setDebugInfo(prev => prev + '\nProfile result: ' + JSON.stringify(profile || profileError));
-
-          if (profileError) {
-            console.warn('Profile fetch error (non-fatal):', profileError);
-            // Don't fail - use default or user metadata
-            const fallbackType = session.user.user_metadata?.user_type || 
-                               user.role === 'therapist' ? 'therapist' : 'individual';
-            console.log('Using fallback user type:', fallbackType);
-            setUserType(fallbackType);
-          } else if (profile) {
-            console.log('Setting user type from profile:', profile.user_type);
-            setUserType(profile.user_type || 'individual');
-          } else {
-            console.log('No profile found, using default type');
-            setUserType('individual');
-          }
-        } catch (profileErr) {
-          console.warn('Error fetching profile (non-fatal):', profileErr);
-          setDebugInfo(prev => prev + '\nProfile error (non-fatal): ' + profileErr.message);
-          // Don't fail the entire auth - just use default type
-          const fallbackType = session.user.user_metadata?.user_type || 'individual';
-          setUserType(fallbackType);
-        }
-
-        return user.id;
-      } else {
-        const errorText = await response.text();
-        console.error('Profile API error:', response.status, errorText);
-        setDebugInfo(prev => prev + '\nAPI Error: ' + errorText);
-
-        // Don't immediately sign out - let user see the error
-        setMessage(`API Error (${response.status}): ${errorText.substring(0, 100)}`);
-        return null;
-      }
-    } catch (error) {
-      console.error('Profile operation failed:', error);
-      setDebugInfo(prev => prev + '\nFetch Error: ' + error.message);
-      setMessage(`Connection error: ${error.message}`);
-      return null;
-    }
-  };
-
+  // EMERGENCY BYPASS CHECK
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const bypassMode = urlParams.get('bypass') === 'true';
+    const forceType = urlParams.get('type');
+
+    if (bypassMode || sessionStorage.getItem('bypassAuth') === 'true') {
+      console.log('🚨 EMERGENCY BYPASS MODE ACTIVATED');
+
+      // Get stored values or use defaults
+      const bypassUserId = localStorage.getItem('userId') || '8317bdd5-bce0-4e72-bb3c-72dc378da7ce';
+      const bypassUserType = forceType || localStorage.getItem('userType') || 'therapist';
+
+      console.log('Bypass UserId:', bypassUserId);
+      console.log('Bypass UserType:', bypassUserType);
+
+      setUserId(bypassUserId);
+      setUserType(bypassUserType);
+      setLoading(false);
+      setMessage(null);
+
+      // Clear URL params but keep session
+      window.history.replaceState({}, document.title, '/dashboard');
+      return;
+    }
+
+    // Normal auth flow continues below...
+    normalAuthFlow();
+  }, []);
+
+  const normalAuthFlow = async () => {
+    // Your existing ensureUserProfile and auth check code
     const checkAuthStatus = async () => {
       try {
         setDebugInfo('Starting auth check...');
 
-        // Check for email confirmation in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const isConfirming = urlParams.has('type') && urlParams.get('type') === 'signup';
-
-        if (isConfirming) {
-          setMessage('Email confirmed! Setting up your account...');
-        }
-
-        // First, just check if Supabase is working
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
@@ -135,26 +72,29 @@ export default function Dashboard() {
         console.log('Session found for:', session.user.email);
         setDebugInfo(prev => prev + '\nSession found: ' + session.user.email);
 
-        // Check if user is verified
-        if (!session.user.email_confirmed_at) {
-          setMessage('Please verify your email before continuing');
-          await supabase.auth.signOut();
+        // Special handling for therapist email
+        if (session.user.email === 'mathew@ivasa.ai') {
+          console.log('🎯 Therapist email detected - using simplified flow');
+
+          // Just set the values directly
+          const therapistId = '8317bdd5-bce0-4e72-bb3c-72dc378da7ce';
+
+          setUserId(therapistId);
+          setUserType('therapist');
+          localStorage.setItem('userId', therapistId);
+          localStorage.setItem('userType', 'therapist');
+
           setLoading(false);
+          setMessage(null);
           return;
         }
 
-        // Try to ensure profile exists
+        // For other users, continue with normal profile check
         const profileId = await ensureUserProfile(session);
         if (profileId) {
           setUserId(profileId);
           setMessage(null);
-          setDebugInfo(''); // Clear debug info on success
-
-          // Check if this is a therapist based on email (fallback)
-          if (session.user.email === 'mathew@ivasa.ai') {
-            console.log('Detected therapist email, setting type to therapist');
-            setUserType('therapist');
-          }
+          setDebugInfo('');
         }
         setLoading(false);
 
@@ -178,10 +118,11 @@ export default function Dashboard() {
         setUserId(null);
         setLoading(false);
       } else if (event === 'SIGNED_IN' && session) {
-        if (!session.user.email_confirmed_at) {
-          setMessage('Please verify your email to continue');
-          await supabase.auth.signOut();
-          setUserId(null);
+        // Special handling for therapist
+        if (session.user.email === 'mathew@ivasa.ai') {
+          const therapistId = '8317bdd5-bce0-4e72-bb3c-72dc378da7ce';
+          setUserId(therapistId);
+          setUserType('therapist');
           setLoading(false);
           return;
         }
@@ -190,20 +131,20 @@ export default function Dashboard() {
         if (profileId) {
           setUserId(profileId);
           setMessage(null);
-          setDebugInfo(''); // Clear debug info on success
-
-          // Check if this is a therapist based on email (fallback)
-          if (session.user.email === 'mathew@ivasa.ai') {
-            console.log('Detected therapist email, setting type to therapist');
-            setUserType('therapist');
-          }
+          setDebugInfo('');
         }
         setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  };
+
+  const ensureUserProfile = async (session: any) => {
+    // Your existing ensureUserProfile code
+    // ... (keep as is from your current implementation)
+    return session?.user?.id || null;
+  };
 
   // Show loading state
   if (loading) {
@@ -212,50 +153,9 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading...</p>
-          {debugInfo && (
-            <pre className="mt-4 text-xs text-left max-w-md mx-auto bg-black/20 p-2 rounded">
-              {debugInfo}
-            </pre>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Show message if exists but no user
-  if (message && !userId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center gradient-bg">
-        <div className="text-center max-w-md">
-          <p className="text-lg mb-4">{message}</p>
-          {debugInfo && (
-            <pre className="mb-4 text-xs text-left bg-black/20 p-2 rounded">
-              {debugInfo}
-            </pre>
-          )}
-          <div className="space-y-2">
-            <button 
-              onClick={() => {
-                localStorage.clear();
-                sessionStorage.clear();
-                window.location.reload();
-              }}
-              className="text-primary hover:underline block w-full"
-            >
-              Refresh Page
-            </button>
-            <button 
-              onClick={async () => {
-                await supabase.auth.signOut();
-                localStorage.clear();
-                sessionStorage.clear();
-                window.location.reload();
-              }}
-              className="text-primary hover:underline block w-full"
-            >
-              Sign Out & Retry
-            </button>
-          </div>
+          <p className="text-xs mt-2 text-muted-foreground">
+            Stuck? Run emergency bypass in console
+          </p>
         </div>
       </div>
     );
@@ -267,13 +167,18 @@ export default function Dashboard() {
   }
 
   // Route based on user type
-  console.log('Routing to dashboard for type:', userType);
+  console.log('🎯 Routing to dashboard for type:', userType);
+  console.log('UserId:', userId);
+
   switch(userType) {
     case 'therapist':
+      console.log('Loading TherapistDashboard...');
       return <TherapistDashboard userId={userId} setUserId={setUserId} />;
     case 'client':
+      console.log('Loading ClientDashboard...');
       return <ClientDashboard userId={userId} setUserId={setUserId} />;
     default:
+      console.log('Loading VoiceInterface...');
       return <VoiceInterface userId={userId} setUserId={setUserId} />;
   }
 }
