@@ -12,21 +12,20 @@ export default function Dashboard() {
   const [userType, setUserType] = useState<string>('individual');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
-  const ensureUserProfile = async (session: any, retryCount = 0): Promise<string | null> => {
+  const ensureUserProfile = async (session: any) => {
     const token = session.access_token;
-    const maxRetries = 3;
-    const retryDelay = 2000; // 2 seconds
 
     try {
-      setMessage(retryCount > 0 ? `Setting up profile... (attempt ${retryCount + 1})` : 'Setting up your profile...');
+      // Use relative URL for API calls - this will work in both dev and production
+      const apiUrl = '/api/auth/user';
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout per request
+      console.log('Calling API:', apiUrl);
+      setDebugInfo(prev => prev + '\nCalling API: ' + apiUrl);
 
-      const response = await fetch('/api/auth/user', {
+      const response = await fetch(apiUrl, {
         method: 'POST',
-        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -39,7 +38,8 @@ export default function Dashboard() {
         })
       });
 
-      clearTimeout(timeoutId);
+      console.log('API Response status:', response.status);
+      setDebugInfo(prev => prev + '\nAPI Response: ' + response.status);
 
       if (response.ok) {
         const { user } = await response.json();
@@ -56,56 +56,28 @@ export default function Dashboard() {
           setUserType(profile.user_type || 'individual');
         }
 
-        setMessage(null);
         return user.id;
-      } else if (response.status >= 500 && retryCount < maxRetries) {
-        // Server error - retry
-        console.log(`Server error (${response.status}), retrying in ${retryDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return ensureUserProfile(session, retryCount + 1);
       } else {
-        // Client error or max retries reached - sign out
-        console.error('Profile creation/fetch failed with status:', response.status);
-        await supabase.auth.signOut();
-        localStorage.clear();
-        sessionStorage.clear();
+        const errorText = await response.text();
+        console.error('Profile API error:', response.status, errorText);
+        setDebugInfo(prev => prev + '\nAPI Error: ' + errorText);
+
+        // Don't immediately sign out - let user see the error
+        setMessage(`API Error (${response.status}): ${errorText.substring(0, 100)}`);
         return null;
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Profile operation failed:', error);
-
-      // Check if it's a network/timeout error and we can retry
-      if ((error.name === 'AbortError' || error.message?.includes('fetch')) && retryCount < maxRetries) {
-        console.log(`Network error, retrying in ${retryDelay}ms... (attempt ${retryCount + 1})`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return ensureUserProfile(session, retryCount + 1);
-      }
-
-      // Max retries reached or non-recoverable error
-      await supabase.auth.signOut();
-      localStorage.clear();
-      sessionStorage.clear();
-      setMessage('Network error. Please check your connection and try again.');
+      setDebugInfo(prev => prev + '\nFetch Error: ' + error.message);
+      setMessage(`Connection error: ${error.message}`);
       return null;
     }
   };
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
     const checkAuthStatus = async () => {
       try {
-        // Set timeout to prevent infinite loading (increased for deployment)
-        timeoutId = setTimeout(() => {
-          if (loading) {
-            console.error('Loading timeout - authentication took too long');
-            supabase.auth.signOut();
-            localStorage.clear();
-            sessionStorage.clear();
-            setLoading(false);
-            setMessage('Loading timeout. Please refresh the page or try signing in again.');
-          }
-        }, 30000); // 30 second timeout for deployment
+        setDebugInfo('Starting auth check...');
 
         // Check for email confirmation in URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -115,56 +87,49 @@ export default function Dashboard() {
           setMessage('Email confirmed! Setting up your account...');
         }
 
+        // First, just check if Supabase is working
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
           console.error('Session error:', sessionError);
-          clearTimeout(timeoutId);
+          setDebugInfo(prev => prev + '\nSupabase Error: ' + sessionError.message);
+          setMessage('Supabase connection error. Check console for details.');
           setLoading(false);
           return;
         }
 
         if (!session) {
-          // Try to refresh session
-          const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-
-          if (!refreshedSession) {
-            clearTimeout(timeoutId);
-            setLoading(false);
-            return;
-          }
-
-          // Use refreshed session
-          const profileId = await ensureUserProfile(refreshedSession);
-          if (profileId) {
-            setUserId(profileId);
-            setMessage(null);
-          }
-          clearTimeout(timeoutId);
+          console.log('No session found');
+          setDebugInfo(prev => prev + '\nNo session found');
           setLoading(false);
-        } else {
-          // Check if user is verified
-          if (!session.user.email_confirmed_at) {
-            setMessage('Please verify your email before continuing');
-            await supabase.auth.signOut();
-            clearTimeout(timeoutId);
-            setLoading(false);
-            return;
-          }
-
-          // Ensure profile exists
-          const profileId = await ensureUserProfile(session);
-          if (profileId) {
-            setUserId(profileId);
-            setMessage(null);
-          }
-          clearTimeout(timeoutId);
-          setLoading(false);
+          return;
         }
+
+        // We have a session
+        console.log('Session found for:', session.user.email);
+        setDebugInfo(prev => prev + '\nSession found: ' + session.user.email);
+
+        // Check if user is verified
+        if (!session.user.email_confirmed_at) {
+          setMessage('Please verify your email before continuing');
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        // Try to ensure profile exists
+        const profileId = await ensureUserProfile(session);
+        if (profileId) {
+          setUserId(profileId);
+          setMessage(null);
+          setDebugInfo(''); // Clear debug info on success
+        }
+        setLoading(false);
+
       } catch (error) {
         console.error('Auth check error:', error);
-        setMessage('An error occurred. Please try signing in again.');
-        clearTimeout(timeoutId);
+        setDebugInfo(prev => prev + '\nAuth Error: ' + error.message);
+        setMessage('Authentication error. Check console for details.');
         setLoading(false);
       }
     };
@@ -181,7 +146,6 @@ export default function Dashboard() {
         setUserId(null);
         setLoading(false);
       } else if (event === 'SIGNED_IN' && session) {
-        // Dual auth check - ensure email is verified
         if (!session.user.email_confirmed_at) {
           setMessage('Please verify your email to continue');
           await supabase.auth.signOut();
@@ -190,30 +154,17 @@ export default function Dashboard() {
           return;
         }
 
-        // Create/get profile
         const profileId = await ensureUserProfile(session);
         if (profileId) {
           setUserId(profileId);
           setMessage(null);
+          setDebugInfo(''); // Clear debug info on success
         }
         setLoading(false);
-      } else if (event === 'USER_UPDATED' && session) {
-        // Handle email confirmation
-        if (session.user.email_confirmed_at) {
-          const profileId = await ensureUserProfile(session);
-          if (profileId) {
-            setUserId(profileId);
-            setMessage('Account verified successfully!');
-            setTimeout(() => setMessage(null), 3000);
-          }
-        }
       }
     });
 
-    return () => {
-      clearTimeout(timeoutId);
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   // Show loading state
@@ -222,7 +173,12 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">{message || 'Loading...'}</p>
+          <p className="text-muted-foreground">Loading...</p>
+          {debugInfo && (
+            <pre className="mt-4 text-xs text-left max-w-md mx-auto bg-black/20 p-2 rounded">
+              {debugInfo}
+            </pre>
+          )}
         </div>
       </div>
     );
@@ -232,18 +188,36 @@ export default function Dashboard() {
   if (message && !userId) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <p className="text-lg mb-4">{message}</p>
-          <button 
-            onClick={() => {
-              localStorage.clear();
-              sessionStorage.clear();
-              window.location.reload();
-            }}
-            className="text-primary hover:underline"
-          >
-            Refresh Page
-          </button>
+          {debugInfo && (
+            <pre className="mb-4 text-xs text-left bg-black/20 p-2 rounded">
+              {debugInfo}
+            </pre>
+          )}
+          <div className="space-y-2">
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.reload();
+              }}
+              className="text-primary hover:underline block w-full"
+            >
+              Refresh Page
+            </button>
+            <button 
+              onClick={async () => {
+                await supabase.auth.signOut();
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.reload();
+              }}
+              className="text-primary hover:underline block w-full"
+            >
+              Sign Out & Retry
+            </button>
+          </div>
         </div>
       </div>
     );
