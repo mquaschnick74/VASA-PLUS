@@ -1,0 +1,48 @@
+
+was still kicked out of diagnostic therapist dashboard: index-Dmzr-Se7.js:436 No active session. Please sign in.
+index-Dmzr-Se7.js:436 Auth state changed: INITIAL_SESSION undefined
+index-Dmzr-Se7.js:436 Auth state changed: SIGNED_IN mathew@ivasa.ai
+index-Dmzr-Se7.js:436 Calling API: /api/auth/user
+index-Dmzr-Se7.js:436 API Response status: 200
+index-Dmzr-Se7.js:436 User received from API: {id: '7165725f-602a-4786-8756-09f68c0b5d5c', email: 'mathew@ivasa.ai', first_name: 'Mathew', created_at: '2025-09-29T19:39:39.401609+00:00', updated_at: '2025-09-29T19:39:39.401609+00:00', …}
+index-Dmzr-Se7.js:436 ✅ Detected therapist: mathew@ivasa.ai
+index-Dmzr-Se7.js:436 User type set to: therapist
+index-Dmzr-Se7.js:436 📍 Routing to dashboard: {type: 'therapist', userId: '7165725f-602a-4786-8756-09f68c0b5d5c', email: 'mathew@ivasa.ai'}
+index-Dmzr-Se7.js:436 🔍 THERAPIST DASHBOARD MOUNTED
+index-Dmzr-Se7.js:436 UserId: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-Dmzr-Se7.js:436 Current time: 2025-09-29T20:52:10.597Z
+index-Dmzr-Se7.js:436 🔍 useEffect triggered
+index-Dmzr-Se7.js:436 🔍 LoadData started
+index-Dmzr-Se7.js:436 📍 Step 1: Checking session...
+index-Dmzr-Se7.js:436 ✅ Session valid: mathew@ivasa.ai
+index-Dmzr-Se7.js:436 📍 Step 2: Checking profile...
+index-Dmzr-Se7.js:436 🔔 AUTH STATE CHANGED: INITIAL_SESSION
+index-Dmzr-Se7.js:436 Session: mathew@ivasa.ai
+index-Dmzr-Se7.js:436 ✅ Profile found: {id: '7165725f-602a-4786-8756-09f68c0b5d5c', email: 'mathew@ivasa.ai', full_name: 'Mathew', user_type: 'therapist', invited_by: null, …}
+index-Dmzr-Se7.js:436 📍 Step 3: Checking relationships...
+index-Dmzr-Se7.js:436 ✅ Relationships: 0
+index-Dmzr-Se7.js:436 📍 Step 4: Checking subscription...
+index-Dmzr-Se7.js:436 🔍 THERAPIST DASHBOARD MOUNTED
+index-Dmzr-Se7.js:436 UserId: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-Dmzr-Se7.js:436 Current time: 2025-09-29T20:52:10.969Z
+index-Dmzr-Se7.js:436 ✅ Subscription data: {can_use_voice: true, minutes_remaining: 45, minutes_used: 0, minutes_limit: 45, subscription_active: true, …}
+index-Dmzr-Se7.js:436 🔍 LoadData complete
+index-Dmzr-Se7.js:436 🔍 THERAPIST DASHBOARD MOUNTED
+index-Dmzr-Se7.js:436 UserId: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-Dmzr-Se7.js:436 Current time: 2025-09-29T20:52:11.082Z
+index-Dmzr-Se7.js:436 Auth state changed: SIGNED_OUT undefined
+index-Dmzr-Se7.js:436 🔔 AUTH STATE CHANGED: SIGNED_OUT
+index-Dmzr-Se7.js:436 Session: undefined
+index-Dmzr-Se7.js:436 🚨 SIGNED OUT EVENT DETECTED!
+overrideMethod @ hook.js:608
+(anonymous) @ index-Dmzr-Se7.js:436
+(anonymous) @ index-Dmzr-Se7.js:137
+_notifyAllSubscribers @ index-Dmzr-Se7.js:137
+(anonymous) @ index-Dmzr-Se7.js:136Understand this error
+index-Dmzr-Se7.js:436 Sign out stack trace
+overrideMethod @ hook.js:608
+(anonymous) @ index-Dmzr-Se7.js:436
+(anonymous) @ index-Dmzr-Se7.js:137
+_notifyAllSubscribers @ index-Dmzr-Se7.js:137
+(anonymous) @ index-Dmzr-Se7.js:136
+index-Dmzr-Se7.js:436 🔍 Component unmounting

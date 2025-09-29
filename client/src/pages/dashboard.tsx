@@ -105,7 +105,9 @@ export default function Dashboard() {
         console.log('Session found:', session.user.email);
 
         // Store email from session as backup
-        localStorage.setItem('sessionEmail', session.user.email);
+        if (session.user.email) {
+          localStorage.setItem('sessionEmail', session.user.email);
+        }
 
         // Check if user is verified
         if (!session.user.email_confirmed_at) {
@@ -145,7 +147,9 @@ export default function Dashboard() {
         setLoading(false);
       } else if (event === 'SIGNED_IN' && session) {
         // Store email immediately
-        localStorage.setItem('sessionEmail', session.user.email);
+        if (session.user.email) {
+          localStorage.setItem('sessionEmail', session.user.email);
+        }
 
         if (!session.user.email_confirmed_at) {
           setMessage('Please verify your email to continue');

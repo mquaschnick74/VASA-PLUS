@@ -13,7 +13,7 @@ interface TherapistDashboardProps {
 }
 
 export default function TherapistDashboard({ userId, setUserId }: TherapistDashboardProps) {
-  const [clients, setClients] = useState([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -135,20 +135,6 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
     }
   };
 
-  // DIAGNOSTIC: Monitor auth state changes
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔔 AUTH STATE CHANGED:', event);
-      console.log('Session:', session?.user?.email);
-
-      if (event === 'SIGNED_OUT') {
-        console.error('🚨 SIGNED OUT EVENT DETECTED!');
-        console.trace('Sign out stack trace');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   if (loading) {
     return (
