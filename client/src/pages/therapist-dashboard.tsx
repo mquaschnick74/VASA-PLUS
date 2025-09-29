@@ -1,4 +1,5 @@
 // Location: client/src/pages/therapist-dashboard.tsx
+// FIXED: Removed aggressive timeout and better error handling
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -27,46 +28,48 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { data: subscription } = useSubscription(userId);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.error('Therapist dashboard loading timeout');
-        supabase.auth.signOut();
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
-      }
-    }, 10000); // 10 second timeout
-
+    // REMOVED THE TIMEOUT - No more auto-signout!
+    console.log('Loading therapist dashboard for:', userId);
     loadClients();
-
-    return () => clearTimeout(timeoutId);
   }, [userId]);
 
   const loadClients = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      // Verify therapist profile exists
+      // First verify the therapist profile exists
+      console.log('Checking therapist profile...');
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (profileError || !profile) {
-        console.error('Therapist profile not found, signing out');
-        await supabase.auth.signOut();
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        setError('Unable to load therapist profile. Please try refreshing.');
+        setLoading(false);
         return;
       }
 
-      // Get therapist's clients
-      const { data: relationships } = await supabase
+      if (!profile || profile.user_type !== 'therapist') {
+        console.error('Not a therapist profile:', profile);
+        setError('This account is not registered as a therapist.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Therapist profile found:', profile.email);
+
+      // Get therapist's clients (may be empty, that's OK!)
+      console.log('Loading client relationships...');
+      const { data: relationships, error: relError } = await supabase
         .from('therapist_client_relationships')
         .select(`
           *,
@@ -79,10 +82,18 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
         .eq('therapist_id', userId)
         .eq('status', 'active');
 
-      if (relationships) {
+      if (relError) {
+        console.warn('Relationships query error (non-fatal):', relError);
+        // Don't fail - just show no clients
+        setClients([]);
+      } else if (relationships && relationships.length > 0) {
+        console.log(`Found ${relationships.length} client relationships`);
+
         // Get usage stats for each client
         const clientsWithStats = await Promise.all(
           relationships.map(async (rel) => {
+            if (!rel.client) return null;
+
             const { data: sessions } = await supabase
               .from('therapeutic_sessions')
               .select('*')
@@ -104,15 +115,14 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
           })
         );
 
-        setClients(clientsWithStats);
+        setClients(clientsWithStats.filter(c => c !== null) as ClientData[]);
+      } else {
+        console.log('No client relationships found (this is normal for new therapists)');
+        setClients([]);
       }
     } catch (error) {
       console.error('Error loading clients:', error);
-      // On critical error, sign out
-      await supabase.auth.signOut();
-      localStorage.clear();
-      sessionStorage.clear();
-      setUserId(null);
+      setError('Unable to load clients. Please try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -122,15 +132,13 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
     if (!inviteEmail) return;
 
     setInviting(true);
+    setError(null);
+
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token;
 
       if (!token) {
-        console.error('No auth token');
-        await supabase.auth.signOut();
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
+        setError('Session expired. Please sign in again.');
         return;
       }
 
@@ -149,107 +157,102 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
       if (response.ok) {
         const result = await response.json();
         setInviteEmail('');
-        
-        // Show the magic code to the therapist
-        alert(`✅ Invitation sent successfully!\n\nMagic Code: ${result.invitation.magic_token}\n\nShare this code with ${inviteEmail} to complete their registration.`);
-        
-        // Reload clients list
+        alert(`✅ Invitation sent!\nMagic Code: ${result.invitation?.magic_token || 'Check email'}`);
         loadClients();
       } else {
         const error = await response.json();
-        alert(`Failed to send invitation: ${error.error}`);
+        setError(error.error || 'Failed to send invitation');
       }
     } catch (error) {
       console.error('Error inviting client:', error);
-      alert('Failed to send invitation');
+      setError('Failed to send invitation. Please try again.');
     } finally {
       setInviting(false);
     }
   };
 
-  const totalClientsMinutes = clients.reduce((sum, c) => sum + c.total_minutes, 0);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading therapist dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen gradient-bg p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-
-        {/* Header */}
+    <div className="min-h-screen gradient-bg p-4">
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Therapist Dashboard</h1>
-          <Button onClick={async () => {
-            await supabase.auth.signOut();
-            localStorage.clear();
-            sessionStorage.clear();
-            setUserId(null);
-          }}>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Therapist Dashboard</h1>
+            <p className="text-muted-foreground">Manage your clients and sessions</p>
+          </div>
+          <Button 
+            onClick={async () => {
+              await supabase.auth.signOut();
+              localStorage.clear();
+              sessionStorage.clear();
+              setUserId(null);
+            }}
+            variant="outline"
+          >
             Sign Out
           </Button>
         </div>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="glass">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <Users className="w-8 h-8 text-primary" />
-                <div>
-                  <p className="text-2xl font-bold">{clients.length}</p>
-                  <p className="text-sm text-muted-foreground">Active Clients</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <Clock className="w-8 h-8 text-accent" />
-                <div>
-                  <p className="text-2xl font-bold">{totalClientsMinutes}</p>
-                  <p className="text-sm text-muted-foreground">Minutes Used</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <TrendingUp className="w-8 h-8 text-green-500" />
-                <div>
-                  <p className="text-2xl font-bold">
-                    {subscription?.limits?.minutes_remaining || 0}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Minutes Left</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <UserPlus className="w-8 h-8 text-blue-500" />
-                <div>
-                  <p className="text-2xl font-bold">
-                    {subscription?.limits?.subscription_tier === 'pro' ? '10' : '∞'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Client Limit</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Error Display */}
+      {error && (
+        <div className="max-w-7xl mx-auto mb-4">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-500">
+            {error}
+          </div>
         </div>
+      )}
 
-        {/* Invite Client */}
+      {/* Stats Cards */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="glass">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{clients.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Minutes Used</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {subscription?.minutes_used || 0} / {subscription?.minutes_limit || 45}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Subscription</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold capitalize">
+              {subscription?.subscription_tier || 'Free'}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Invite Client */}
+      <div className="max-w-7xl mx-auto mb-8">
         <Card className="glass">
           <CardHeader>
             <CardTitle>Invite New Client</CardTitle>
@@ -262,25 +265,35 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 className="flex-1 px-4 py-2 rounded-lg bg-secondary"
+                disabled={inviting}
               />
               <Button 
                 onClick={inviteClient} 
                 disabled={inviting || !inviteEmail}
               >
+                <UserPlus className="mr-2 h-4 w-4" />
                 {inviting ? 'Sending...' : 'Send Invitation'}
               </Button>
             </div>
           </CardContent>
         </Card>
+      </div>
 
-        {/* Clients List */}
+      {/* Clients List */}
+      <div className="max-w-7xl mx-auto">
         <Card className="glass">
           <CardHeader>
             <CardTitle>Your Clients</CardTitle>
           </CardHeader>
           <CardContent>
             {clients.length === 0 ? (
-              <p className="text-muted-foreground">No clients yet. Send invitations to get started.</p>
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No clients yet</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Send invitations to get started
+                </p>
+              </div>
             ) : (
               <div className="space-y-4">
                 {clients.map((client) => (
