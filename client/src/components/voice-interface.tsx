@@ -364,28 +364,28 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className={`w-10 h-10 rounded-full ${
-                        subscription.minutesRemaining > 10 ? 'bg-green-500/20' : 
-                        subscription.minutesRemaining > 0 ? 'bg-yellow-500/20' : 'bg-red-500/20'
+                        subscription.limits.minutes_remaining > 10 ? 'bg-green-500/20' : 
+                        subscription.limits.minutes_remaining > 0 ? 'bg-yellow-500/20' : 'bg-red-500/20'
                       } flex items-center justify-center`}>
-                        {subscription.minutesRemaining > 10 ? 
+                        {subscription.limits.minutes_remaining > 10 ? 
                           <CheckCircle className="w-5 h-5 text-green-500" /> :
-                          subscription.minutesRemaining > 0 ?
+                          subscription.limits.minutes_remaining > 0 ?
                           <Clock className="w-5 h-5 text-yellow-500" /> :
                           <XCircle className="w-5 h-5 text-red-500" />
                         }
                       </div>
                       <div>
                         <p className="text-sm font-medium">
-                          {subscription.tier === 'trial' ? 'Trial Account' : 
-                           subscription.tier === 'pro' ? 'Pro Account' : 'Premium Account'}
+                          {subscription.limits.subscription_tier === 'trial' ? 'Trial Account' : 
+                           subscription.limits.subscription_tier === 'pro' ? 'Pro Account' : 'Premium Account'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {subscription.minutesRemaining} minutes remaining
+                          {subscription.limits.minutes_remaining} minutes remaining
                         </p>
                       </div>
                     </div>
-                    
-                    {subscription.tier === 'trial' && (
+
+                    {subscription.limits.subscription_tier === 'trial' && (
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -396,35 +396,35 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                       </Button>
                     )}
                   </div>
-                  
+
                   {/* Progress bar for usage */}
                   <div className="mt-4">
                     <div className="w-full bg-muted rounded-full h-2">
                       <div 
                         className={`h-2 rounded-full transition-all ${
-                          subscription.percentageUsed > 80 ? 'bg-red-500' :
-                          subscription.percentageUsed > 50 ? 'bg-yellow-500' : 
+                          ((subscription.limits.minutes_used / subscription.limits.minutes_limit) * 100) > 80 ? 'bg-red-500' :
+                          ((subscription.limits.minutes_used / subscription.limits.minutes_limit) * 100) > 50 ? 'bg-yellow-500' : 
                           'bg-green-500'
                         }`}
-                        style={{ width: `${subscription.percentageUsed}%` }}
+                        style={{ width: `${(subscription.limits.minutes_used / subscription.limits.minutes_limit) * 100}%` }}
                       />
                     </div>
                     <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                      <span>{subscription.minutesUsed} used</span>
-                      <span>{subscription.minutesLimit} total</span>
+                      <span>{subscription.limits.minutes_used} used</span>
+                      <span>{subscription.limits.minutes_limit} total</span>
                     </div>
                   </div>
-                  
-                  {subscription.minutesRemaining <= 5 && subscription.minutesRemaining > 0 && (
+
+                  {subscription.limits.minutes_remaining <= 5 && subscription.limits.minutes_remaining > 0 && (
                     <Alert className="mt-3 bg-yellow-500/10 border-yellow-500/50">
                       <AlertTriangle className="h-4 w-4 text-yellow-500" />
                       <AlertDescription className="text-xs">
-                        You have {subscription.minutesRemaining} minutes left. Upgrade to continue after your limit.
+                        You have {subscription.limits.minutes_remaining} minutes left. Upgrade to continue after your limit.
                       </AlertDescription>
                     </Alert>
                   )}
-                  
-                  {subscription.minutesRemaining === 0 && (
+
+                  {subscription.limits.minutes_remaining === 0 && (
                     <Alert className="mt-3 bg-red-500/10 border-red-500/50">
                       <XCircle className="h-4 w-4 text-red-500" />
                       <AlertDescription className="text-xs">
@@ -485,7 +485,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   <div className="flex justify-center">
                     <Button
                       onClick={isSessionActive ? handleEndCall : handleStartSession}
-                      disabled={isLoading || memoryLoading || (subscription && subscription.minutesRemaining === 0)}
+                      disabled={isLoading || memoryLoading || (subscription && subscription.limits.minutes_remaining === 0)}
                       className={`group relative px-8 py-3 sm:px-10 sm:py-4 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
                         isSessionActive 
                           ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
@@ -498,7 +498,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                       <span className="text-sm sm:text-base group-hover:scale-105 transition-transform duration-200">
                         {isLoading ? 'Connecting...' : 
                          isSessionActive ? 'End Session' : 
-                         subscription && subscription.minutesRemaining === 0 ? 'Upgrade Required' :
+                          subscription && subscription.limits.minutes_remaining === 0 ? 'Upgrade Required' :
                          'Start Session'}
                       </span>
                     </Button>
