@@ -155,18 +155,32 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
   }, [isSessionActive, showDurationWarning]);
 
   const handleStartSession = () => {
-    // ADD subscription check
-    if (subscription && !subscription.limits?.can_use_voice) {
-      // Show alert or handle limit reached
+    // DEBUG: Log exactly what we're checking
+    console.log('=== START SESSION CLICKED ===');
+    console.log('1. subscription object:', subscription);
+    console.log('2. subscription.limits:', subscription?.limits);
+    console.log('3. can_use_voice value:', subscription?.limits?.can_use_voice);
+    console.log('4. !can_use_voice (what we check):', !subscription?.limits?.can_use_voice);
+
+    // The actual check
+    if (subscription && !subscription?.limits?.can_use_voice) {
+      console.log('5. ENTERED LIMIT CHECK - blocking session');
       console.warn('❌ Subscription limit reached');
       return;
     }
-    
+
+    console.log('6. PASSED subscription check');
+    console.log('7. memoryLoading:', memoryLoading);
+    console.log('8. userContext exists:', !!userContext);
+    console.log('9. selectedAgent:', selectedAgent);
+
     if (!memoryLoading && userContext && selectedAgent) {
-      // Generate a call ID for tracking
+      console.log('10. STARTING SESSION');
       const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       setCurrentCallId(callId);
       startSession();
+    } else {
+      console.log('10. BLOCKED by other conditions');
     }
   };
 
