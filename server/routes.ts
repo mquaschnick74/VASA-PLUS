@@ -5,7 +5,8 @@ import { Router } from 'express';
 // Import route modules
 import authRoutes from './routes/auth-routes';
 import webhookRoutes from './routes/webhook-routes';
-import subscriptionRoutes from './routes/subscription-routes';  // ADD THIS
+import subscriptionRoutes from './routes/subscription-routes';
+import therapistRoutes from './routes/therapist-routes';  // ADD THIS LINE
 import { supabase } from './services/supabase-service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -14,7 +15,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount route modules
   apiRouter.use('/auth', authRoutes);
   apiRouter.use('/vapi', webhookRoutes);
-  apiRouter.use('/subscription', subscriptionRoutes);  // ADD THIS
+  apiRouter.use('/subscription', subscriptionRoutes);
+  apiRouter.use('/therapist', therapistRoutes);  // ADD THIS LINE
 
   // Health check
   apiRouter.get('/health', (req, res) => {
@@ -24,7 +26,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       routes: {
         auth: 'Mounted at /api/auth',
         vapi: 'Mounted at /api/vapi',
-        subscription: 'Mounted at /api/subscription',  // ADD THIS
+        subscription: 'Mounted at /api/subscription',
+        therapist: 'Mounted at /api/therapist',
         health: 'Mounted at /api/health'
       }
     });

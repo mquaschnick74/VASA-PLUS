@@ -147,10 +147,17 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
       });
 
       if (response.ok) {
+        const result = await response.json();
         setInviteEmail('');
-        alert('Invitation sent successfully!');
+        
+        // Show the magic code to the therapist
+        alert(`✅ Invitation sent successfully!\n\nMagic Code: ${result.invitation.magic_token}\n\nShare this code with ${inviteEmail} to complete their registration.`);
+        
+        // Reload clients list
+        loadClients();
       } else {
-        alert('Failed to send invitation');
+        const error = await response.json();
+        alert(`Failed to send invitation: ${error.error}`);
       }
     } catch (error) {
       console.error('Error inviting client:', error);
