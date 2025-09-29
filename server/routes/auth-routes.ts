@@ -119,6 +119,18 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
           .eq('id', existingUser.id);
       }
 
+      // ADD THIS: Update role if userType is therapist and role is still client
+      if (userType === 'therapist' && existingUser.role !== 'therapist') {
+        console.log('Updating role from', existingUser.role, 'to therapist');
+        await supabase
+          .from('users')
+          .update({ 
+            role: 'therapist',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingUser.id);
+      }
+
       // Ensure profile and subscription exist
       await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType);
 
@@ -141,13 +153,14 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
       return res.json({ user: doubleCheck });
     }
 
-    // Create new user
+    // Create new user with proper role
     const { data: newUser, error } = await supabase
       .from('users')
       .insert({
         email,
         first_name: firstName || email.split('@')[0],
-        auth_user_id: authUserId
+        auth_user_id: authUserId,
+        role: userType === 'therapist' ? 'therapist' : 'client'  // ADD THIS LINE
       })
       .select()
       .single();
