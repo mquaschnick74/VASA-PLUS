@@ -1,0 +1,261 @@
+Looking at your logs, I can see the auto-logout issue - you're getting stuck in a loop where you sign in successfully, then immediately get signed out. The strange part is the `SIGNED_OUT` event shows `isSignedIn: true` which is contradictory.
+
+## 🔴 THE PROBLEM
+
+The issue appears to be with auth state synchronization. You're likely having one of these issues:
+1. Multiple Supabase auth listeners conflicting
+2. Token refresh failing
+3. Backend middleware invalidating the session
+4. Multiple Supabase client instances
+
+## ✅ IMMEDIATE FIXES
+
+### **FIX 1: Check for Multiple Supabase Clients**
+
+First, make sure you're using a SINGLE Supabase client instance across your app.
+
+**File:** `/client/src/lib/supabase.ts` (or similar)
+
+```typescript
+// Make sure this is a SINGLETON instance
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Create ONCE and export
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,  // Explicitly use localStorage
+    storageKey: 'ivasa-auth-token', // Custom key to avoid conflicts
+    flowType: 'implicit'
+  }
+});
+
+// Prevent multiple instances
+if (window.supabaseClient) {
+  console.warn('⚠️ Multiple Supabase instances detected!');
+}
+window.supabaseClient = supabase;
+```
+
+### **FIX 2: Update Your Auth Listener**
+
+The auth listener might be triggering multiple times. Update your dashboard component:
+
+**File:** `/client/src/components/Dashboard.tsx` (or similar)
+
+```typescript
+useEffect(() => {
+  let mounted = true;
+  let authSubscription: any = null;
+
+  const setupAuth = async () => {
+    console.log('🚀 [DASHBOARD] Setting up auth management');
+    
+    // Get initial session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (mounted) {
+      if (session) {
+        console.log('✅ [DASHBOARD] Existing session found for:', session.user.email);
+        await handleSignIn(session);
+      } else {
+        console.log('ℹ️ [DASHBOARD] No active session. Waiting for sign in.');
+        setLoading(false);
+      }
+    }
+
+    // Set up auth listener - with debouncing
+    let lastEventTime = 0;
+    authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Prevent duplicate events within 500ms
+      const now = Date.now();
+      if (now - lastEventTime < 500) {
+        console.log('⏭️ [DASHBOARD] Skipping duplicate event:', event);
+        return;
+      }
+      lastEventTime = now;
+
+      if (!mounted) return;
+
+      console.log('🔄 [DASHBOARD] Auth event:', event, {
+        email: session?.user?.email,
+        isSignedIn: !!session,
+        lastEvent: lastAuthEvent
+      });
+
+      // Skip redundant events
+      if (event === 'INITIAL_SESSION') {
+        console.log('⏭️ [DASHBOARD] Skipping INITIAL_SESSION');
+        return;
+      }
+
+      // Handle TOKEN_REFRESHED separately
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('🔄 [DASHBOARD] Token refreshed, maintaining session');
+        return; // Don't process this as a state change
+      }
+
+      // Check for false SIGNED_OUT events
+      if (event === 'SIGNED_OUT' && session) {
+        console.warn('⚠️ [DASHBOARD] False SIGNED_OUT event detected, ignoring');
+        return;
+      }
+
+      if (event === 'SIGNED_IN' && session) {
+        await handleSignIn(session);
+      } else if (event === 'SIGNED_OUT' && !session) {
+        console.log('👋 [DASHBOARD] Processing legitimate signout');
+        setUser(null);
+        setUserType(null);
+        setLoading(false);
+      }
+    });
+  };
+
+  setupAuth();
+
+  return () => {
+    mounted = false;
+    if (authSubscription) {
+      authSubscription.unsubscribe();
+    }
+  };
+}, []); // Empty dependency array - run once
+```
+
+### **FIX 3: Update Backend Auth Middleware**
+
+The backend might be invalidating sessions. Update your auth middleware:
+
+**File:** `/server/middleware/auth.ts`
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+import { Request, Response, NextFunction } from 'express';
+
+// Use service key for verification
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
+export interface AuthRequest extends Request {
+  user?: any;
+  token?: string;
+}
+
+export async function authenticateToken(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      // Don't fail, just continue without user
+      return next();
+    }
+
+    // Verify the token without modifying it
+    const { data, error } = await supabase.auth.getUser(token);
+
+    if (!error && data.user) {
+      req.user = data.user;
+      req.token = token;
+      console.log('✅ Auth middleware - User verified:', data.user.email);
+    } else {
+      // Don't fail the request, just log
+      console.log('⚠️ Auth middleware - Token verification failed:', error?.message);
+    }
+
+    next();
+  } catch (error) {
+    console.error('❌ Auth middleware error:', error);
+    // Don't fail, continue without auth
+    next();
+  }
+}
+```
+
+### **FIX 4: Add Session Refresh Handler**
+
+Add this to your main App component to handle token refresh:
+
+```typescript
+// In your main App.tsx or similar
+useEffect(() => {
+  // Refresh token every 30 minutes
+  const interval = setInterval(async () => {
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error('Failed to refresh token:', error);
+    } else if (session) {
+      console.log('✅ Token refreshed successfully');
+    }
+  }, 30 * 60 * 1000); // 30 minutes
+
+  return () => clearInterval(interval);
+}, []);
+```
+
+### **FIX 5: Debug Script**
+
+Run this in your browser console to check for auth issues:
+
+```javascript
+// Check for multiple auth subscriptions
+const checkAuth = async () => {
+  console.log('🔍 Checking auth state...');
+  
+  // Get current session
+  const { data: { session }, error } = await supabase.auth.getSession();
+  console.log('Current session:', session);
+  console.log('Session error:', error);
+  
+  // Check localStorage
+  const storedSession = localStorage.getItem('ivasa-auth-token');
+  console.log('Stored token exists:', !!storedSession);
+  
+  // Check token expiry
+  if (session?.expires_at) {
+    const expiresAt = new Date(session.expires_at * 1000);
+    const now = new Date();
+    console.log('Token expires at:', expiresAt);
+    console.log('Time until expiry:', Math.round((expiresAt - now) / 1000 / 60), 'minutes');
+  }
+  
+  // Test refresh
+  console.log('Testing token refresh...');
+  const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+  console.log('Refresh result:', refreshData ? 'SUCCESS' : 'FAILED');
+  console.log('Refresh error:', refreshError);
+};
+
+checkAuth();
+```
+
+## 🎯 MOST LIKELY CAUSE
+
+Based on your logs showing `SIGNED_OUT {isSignedIn: true}`, this is likely a **duplicate auth listener** issue or a **token refresh problem**.
+
+## 📋 QUICK CHECKLIST
+
+1. [ ] Ensure single Supabase client instance
+2. [ ] Add event debouncing in auth listener
+3. [ ] Ignore TOKEN_REFRESHED events
+4. [ ] Check for false SIGNED_OUT events
+5. [ ] Make auth middleware non-blocking
+
+Try these fixes in order, starting with Fix #2 (updating the auth listener) as that's most likely the issue. Let me know which one resolves it!
