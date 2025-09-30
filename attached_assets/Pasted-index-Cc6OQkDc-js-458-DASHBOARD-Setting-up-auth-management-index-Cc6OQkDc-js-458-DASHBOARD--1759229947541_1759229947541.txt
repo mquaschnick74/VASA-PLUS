@@ -1,0 +1,81 @@
+index-Cc6OQkDc.js:458 🚀 [DASHBOARD] Setting up auth management
+index-Cc6OQkDc.js:458 ℹ️ [DASHBOARD] No active session. Waiting for sign in.
+index-Cc6OQkDc.js:458 🔄 [DASHBOARD] Auth event: INITIAL_SESSION {email: undefined, isSignedIn: false, lastEvent: ''}
+index-Cc6OQkDc.js:458 ⏭️ [DASHBOARD] Skipping INITIAL_SESSION
+index-Cc6OQkDc.js:458 🔄 [DASHBOARD] Auth event: SIGNED_IN {email: 'mathew@ivasa.ai', isSignedIn: false, lastEvent: 'INITIAL_SESSION-none-1759229626258'}
+index-Cc6OQkDc.js:458 🔐 [DASHBOARD] Processing SIGNED_IN event
+index-Cc6OQkDc.js:458 🔐 [DASHBOARD] Calling API: /api/auth/user
+index-Cc6OQkDc.js:458 ✅ [DASHBOARD] API Response status: 200
+index-Cc6OQkDc.js:458 👤 [DASHBOARD] User received from API: {id: '7165725f-602a-4786-8756-09f68c0b5d5c', email: 'mathew@ivasa.ai', first_name: 'Mathew', created_at: '2025-09-29T19:39:39.401609+00:00', updated_at: '2025-09-29T19:39:39.401609+00:00', …}
+index-Cc6OQkDc.js:458 ✅ [DASHBOARD] User type detected: therapist for mathew@ivasa.ai
+index-Cc6OQkDc.js:458 🎯 [DASHBOARD] Routing to therapist dashboard for user 7165725f-602a-4786-8756-09f68c0b5d5c
+index-Cc6OQkDc.js:450 📊 Loading subscription for user: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-Cc6OQkDc.js:451 🚀 [THERAPIST-DASH] Component mounted with userId: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-Cc6OQkDc.js:451 📊 [THERAPIST-DASH] Load attempt #1 starting...
+index-Cc6OQkDc.js:451 🔐 [THERAPIST-DASH] Checking auth session...
+index-Cc6OQkDc.js:451 ✅ [THERAPIST-DASH] Session valid for: mathew@ivasa.ai
+index-Cc6OQkDc.js:451 👤 [THERAPIST-DASH] Loading profile for userId: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-Cc6OQkDc.js:451 ✅ [THERAPIST-DASH] Profile loaded: {email: 'mathew@ivasa.ai', userType: 'therapist', id: '7165725f-602a-4786-8756-09f68c0b5d5c'}
+index-Cc6OQkDc.js:451 👥 [THERAPIST-DASH] Loading client relationships...
+index-Cc6OQkDc.js:451 🔍 [THERAPIST-DASH] Attempt 1: Query with user_profiles join
+index-Cc6OQkDc.js:450 ✅ Subscription loaded
+index-Cc6OQkDc.js:458 ✅ [THERAPIST-DASH] Query 1 successful
+index-Cc6OQkDc.js:458 ✅ [THERAPIST-DASH] No client relationships found (this is OK for new therapists)
+index-Cc6OQkDc.js:458 ✅ [THERAPIST-DASH] Dashboard load complete (attempt #1)
+index-Cc6OQkDc.js:458 🎨 [THERAPIST-DASH] Rendering dashboard with 0 clients
+16index-Cc6OQkDc.js:458 🎨 [THERAPIST-DASH] Rendering dashboard with 0 clients
+index-Cc6OQkDc.js:458 📧 [THERAPIST-DASH] Inviting client: support@ivasa.ai
+index-Cc6OQkDc.js:458 🎨 [THERAPIST-DASH] Rendering dashboard with 0 clients
+index-Cc6OQkDc.js:458  POST https://vasa-plus-mquaschnick.replit.app/api/therapist/invite-client 400 (Bad Request)
+g @ index-Cc6OQkDc.js:458
+await in g
+ux @ index-Cc6OQkDc.js:37
+fx @ index-Cc6OQkDc.js:37
+hx @ index-Cc6OQkDc.js:37
+Of @ index-Cc6OQkDc.js:37
+Im @ index-Cc6OQkDc.js:37
+(anonymous) @ index-Cc6OQkDc.js:37
+ud @ index-Cc6OQkDc.js:40
+sm @ index-Cc6OQkDc.js:37
+kl @ index-Cc6OQkDc.js:37
+Mu @ index-Cc6OQkDc.js:37
+Px @ index-Cc6OQkDc.js:37Understand this error
+index-Cc6OQkDc.js:458 ❌ [THERAPIST-DASH] Invite failed: {"error":"An invitation is already pending for this email address"}
+overrideMethod @ hook.js:608
+g @ index-Cc6OQkDc.js:458
+await in g
+ux @ index-Cc6OQkDc.js:37
+fx @ index-Cc6OQkDc.js:37
+hx @ index-Cc6OQkDc.js:37
+Of @ index-Cc6OQkDc.js:37
+Im @ index-Cc6OQkDc.js:37
+(anonymous) @ index-Cc6OQkDc.js:37
+ud @ index-Cc6OQkDc.js:40
+sm @ index-Cc6OQkDc.js:37
+kl @ index-Cc6OQkDc.js:37
+Mu @ index-Cc6OQkDc.js:37
+Px @ index-Cc6OQkDc.js:37Understand this error
+index-Cc6OQkDc.js:458 🎨 [THERAPIST-DASH] Rendering dashboard with 0 clients
+index-Cc6OQkDc.js:458 ✅ [DASHBOARD] Session still active
+22index-Cc6OQkDc.js:458 🎨 [THERAPIST-DASH] Rendering dashboard with 0 clients
+index-Cc6OQkDc.js:458 📧 [THERAPIST-DASH] Inviting client: mquaschnick@proton.me
+index-Cc6OQkDc.js:458 🎨 [THERAPIST-DASH] Rendering dashboard with 0 clients
+index-Cc6OQkDc.js:458 ✅ [THERAPIST-DASH] Invitation sent to mquaschnick@proton.me
+index-Cc6OQkDc.js:451 📊 [THERAPIST-DASH] Load attempt #2 starting...
+index-Cc6OQkDc.js:451 🔐 [THERAPIST-DASH] Checking auth session...
+index-Cc6OQkDc.js:451 ✅ [THERAPIST-DASH] Session valid for: mathew@ivasa.ai
+index-Cc6OQkDc.js:451 👤 [THERAPIST-DASH] Loading profile for userId: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-Cc6OQkDc.js:458 ✅ [DASHBOARD] Session still active
+index-Cc6OQkDc.js:451 ✅ [THERAPIST-DASH] Profile loaded: {email: 'mathew@ivasa.ai', userType: 'therapist', id: '7165725f-602a-4786-8756-09f68c0b5d5c'}
+index-Cc6OQkDc.js:451 👥 [THERAPIST-DASH] Loading client relationships...
+index-Cc6OQkDc.js:451 🔍 [THERAPIST-DASH] Attempt 1: Query with user_profiles join
+index-Cc6OQkDc.js:458 ✅ [THERAPIST-DASH] Query 1 successful
+index-Cc6OQkDc.js:458 ✅ [THERAPIST-DASH] No client relationships found (this is OK for new therapists)
+index-Cc6OQkDc.js:458 ✅ [THERAPIST-DASH] Dashboard load complete (attempt #2)
+index-Cc6OQkDc.js:458 🎨 [THERAPIST-DASH] Rendering dashboard with 0 clients
+6index-Cc6OQkDc.js:458 ✅ [DASHBOARD] Session still active
+index-Cc6OQkDc.js:458 🔄 [DASHBOARD] Auth event: SIGNED_IN {email: 'mathew@ivasa.ai', isSignedIn: true, lastEvent: 'SIGNED_IN-mathew@ivasa.ai-1759229629112'}
+index-Cc6OQkDc.js:458 🔐 [DASHBOARD] Processing SIGNED_IN event
+index-Cc6OQkDc.js:458 🔐 [DASHBOARD] Calling API: /api/auth/user
+index-Cc6OQkDc.js:458 ✅ [DASHBOARD] API Response status: 200
+index-Cc6OQkDc.js:458 👤 [DASHBOARD] User received from API: {id: '7165725f-602a-4786-8756-09f68c0b5d5c', email: 'mathew@ivasa.ai', first_name: 'Mathew', created_at: '2025-09-29T19:39:39.401609+00:00', updated_at: '2025-09-29T19:39:39.401609+00:00', …}
