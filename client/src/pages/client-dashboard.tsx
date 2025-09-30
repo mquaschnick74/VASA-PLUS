@@ -24,19 +24,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
   const [userContext, setUserContext] = useState<any>(null);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.error('Client dashboard loading timeout');
-        supabase.auth.signOut();
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
-      }
-    }, 10000); // 10 second timeout
-
     loadClientData();
-
-    return () => clearTimeout(timeoutId);
   }, [userId]);
 
   const loadClientData = async () => {
