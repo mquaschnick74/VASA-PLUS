@@ -425,11 +425,24 @@ router.post('/invite-client', authenticateToken, async (req: AuthRequest, res) =
 router.post('/accept-invitation', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { token } = req.body;
-    const client_user_id = req.user?.id;
+    const auth_user_id = req.user?.id;  // This is Supabase auth ID
 
-    if (!client_user_id) {
+    if (!auth_user_id) {
       return res.status(401).json({ error: 'Authentication required' });
     }
+
+    // Get the profile using the auth email
+    const { data: clientProfile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!clientProfile) {
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    const client_user_id = clientProfile.id;  // This is the profile ID
 
     // Find and validate the invitation
     const { data: invitation, error: inviteError } = await supabase
@@ -451,19 +464,6 @@ router.post('/accept-invitation', authenticateToken, async (req: AuthRequest, re
         .eq('id', invitation.id);
 
       return res.status(400).json({ error: 'This invitation has expired' });
-    }
-
-    // Get client's email to verify it matches the invitation
-    const { data: clientProfile } = await supabase
-      .from('user_profiles')
-      .select('email')
-      .eq('id', client_user_id)
-      .single();
-
-    if (!clientProfile || clientProfile.email !== invitation.client_email) {
-      return res.status(400).json({ 
-        error: 'This invitation was sent to a different email address' 
-      });
     }
 
     // Check if relationship already exists
