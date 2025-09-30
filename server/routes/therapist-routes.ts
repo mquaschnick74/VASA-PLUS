@@ -1,173 +1,370 @@
 // server/routes/therapist-routes.ts
+// COMPLETE PRODUCTION-READY IMPLEMENTATION
+
 import { Router } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { supabase } from '../services/supabase-service';
 import crypto from 'crypto';
+import { Resend } from 'resend';
 
 const router = Router();
 
-// Generate invitation token
-function generateInviteToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+// Initialize Resend email service
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Verify email service is configured
+const isEmailConfigured = (): boolean => {
+  if (!process.env.RESEND_API_KEY) {
+    console.error('❌ RESEND_API_KEY not configured in environment variables');
+    return false;
+  }
+  return true;
+};
+
+// Send invitation email using Resend
+async function sendInvitationEmail(
+  clientEmail: string,
+  therapistName: string,
+  therapistEmail: string,
+  invitationLink: string
+): Promise<boolean> {
+  try {
+    if (!isEmailConfigured()) {
+      throw new Error('Email service not configured');
+    }
+
+    const { data, error } = await resend.emails.send({
+      from: 'iVASA <notifications@ivasa.ai>',
+      to: clientEmail,
+      reply_to: therapistEmail,
+      subject: `${therapistName} has invited you to join iVASA`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f9fafb;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; padding: 40px 20px;">
+            <tr>
+              <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  <!-- Header -->
+                  <tr>
+                    <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                      <h1 style="margin: 0; color: #4F46E5; font-size: 28px; font-weight: 600;">
+                        Welcome to iVASA
+                      </h1>
+                    </td>
+                  </tr>
+
+                  <!-- Content -->
+                  <tr>
+                    <td style="padding: 20px 40px;">
+                      <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                        Hi there,
+                      </p>
+                      <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                        <strong>${therapistName}</strong> has invited you to join iVASA as their client. 
+                        iVASA is an AI-powered therapeutic assistant that provides voice-based support 
+                        for your mental health journey.
+                      </p>
+                      <p style="margin: 0 0 30px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                        By accepting this invitation, you'll be able to:
+                      </p>
+                      <ul style="margin: 0 0 30px 0; padding-left: 20px; color: #374151; font-size: 16px; line-height: 1.8;">
+                        <li>Access voice-based therapeutic sessions</li>
+                        <li>Track your mental health progress</li>
+                        <li>Connect with your therapist through the platform</li>
+                        <li>Use your therapist's subscription for sessions</li>
+                      </ul>
+
+                      <!-- CTA Button -->
+                      <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td align="center" style="padding: 20px 0 30px 0;">
+                            <a href="${invitationLink}" 
+                               style="display: inline-block; padding: 14px 32px; background-color: #4F46E5; 
+                                      color: white; text-decoration: none; font-size: 16px; font-weight: 600; 
+                                      border-radius: 8px; transition: background-color 0.2s;">
+                              Accept Invitation
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <p style="margin: 0 0 20px 0; color: #6B7280; font-size: 14px; line-height: 1.6;">
+                        Or copy and paste this link into your browser:
+                      </p>
+                      <p style="margin: 0 0 30px 0; padding: 12px; background-color: #F3F4F6; 
+                                border-radius: 6px; color: #4F46E5; font-size: 12px; 
+                                word-break: break-all; font-family: monospace;">
+                        ${invitationLink}
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #E5E7EB;">
+                      <p style="margin: 0 0 10px 0; color: #6B7280; font-size: 14px; line-height: 1.6;">
+                        <strong>Important:</strong> This invitation will expire in 7 days.
+                      </p>
+                      <p style="margin: 0 0 10px 0; color: #6B7280; font-size: 14px; line-height: 1.6;">
+                        If you have questions, please contact your therapist at 
+                        <a href="mailto:${therapistEmail}" style="color: #4F46E5; text-decoration: none;">
+                          ${therapistEmail}
+                        </a>
+                      </p>
+                      <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.6;">
+                        © 2025 iVASA. All rights reserved.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+      text: `
+        ${therapistName} has invited you to join iVASA
+
+        Hi there,
+
+        ${therapistName} has invited you to join iVASA as their client. 
+        iVASA is an AI-powered therapeutic assistant that provides voice-based support for your mental health journey.
+
+        Accept the invitation here:
+        ${invitationLink}
+
+        This invitation will expire in 7 days.
+
+        If you have questions, contact your therapist at ${therapistEmail}
+      `
+    });
+
+    if (error) {
+      console.error('❌ Resend error:', error);
+      return false;
+    }
+
+    console.log(`✅ Email sent successfully to ${clientEmail}. Email ID: ${data?.id}`);
+    return true;
+
+  } catch (error) {
+    console.error('❌ Failed to send invitation email:', error);
+    return false;
+  }
 }
 
-// Generate magic link token (shorter for email)
-function generateMagicToken(): string {
-  return crypto.randomBytes(3).toString('hex').toUpperCase();
-}
-
-// POST /api/therapist/invite-client
+// Invite a client endpoint
 router.post('/invite-client', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { therapist_id, client_email } = req.body;
 
+    console.log('📧 Processing client invitation:', {
+      therapist: therapist_id,
+      client: client_email
+    });
+
+    // Validate input
     if (!therapist_id || !client_email) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: therapist_id and client_email' 
-      });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Verify the requesting user is the therapist
-    if (req.user?.id !== therapist_id && req.userId !== therapist_id) {
-      // Check if the auth user owns this therapist account
-      const { data: therapistUser } = await supabase
-        .from('users')
-        .select('auth_user_id')
-        .eq('id', therapist_id)
-        .single();
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(client_email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
 
-      if (therapistUser?.auth_user_id !== req.user?.id) {
-        return res.status(403).json({ error: 'Unauthorized to send invitations for this therapist' });
-      }
+    // Verify the therapist is who they say they are
+    if (req.user?.id !== therapist_id) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
     // Check if therapist exists and is actually a therapist
-    const { data: therapist } = await supabase
+    const { data: therapistProfile, error: therapistError } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', therapist_id)
       .eq('user_type', 'therapist')
       .single();
 
-    if (!therapist) {
-      return res.status(404).json({ error: 'Therapist profile not found' });
+    if (therapistError || !therapistProfile) {
+      console.error('Therapist profile not found:', therapistError);
+      return res.status(400).json({ error: 'Invalid therapist account' });
     }
 
-    // Check for existing invitation
-    const { data: existingInvite } = await supabase
-      .from('therapist_invitations')
-      .select('*')
-      .eq('therapist_id', therapist_id)
-      .eq('client_email', client_email)
-      .eq('status', 'pending')
-      .single();
-
-    if (existingInvite) {
-      return res.status(400).json({ 
-        error: 'An invitation has already been sent to this email' 
-      });
-    }
-
-    // Check if client already exists and is linked
+    // Check if client email is already registered
     const { data: existingClient } = await supabase
-      .from('users')
-      .select('id')
+      .from('user_profiles')
+      .select('*')
       .eq('email', client_email)
-      .single();
+      .maybeSingle();
 
     if (existingClient) {
-      // Check if already linked
+      // Check if relationship already exists
       const { data: existingRelationship } = await supabase
         .from('therapist_client_relationships')
         .select('*')
         .eq('therapist_id', therapist_id)
         .eq('client_id', existingClient.id)
-        .single();
+        .maybeSingle();
 
       if (existingRelationship) {
+        if (existingRelationship.status === 'active') {
+          return res.status(400).json({ 
+            error: 'You already have an active relationship with this client' 
+          });
+        } else if (existingRelationship.status === 'pending') {
+          return res.status(400).json({ 
+            error: 'An invitation is already pending for this client' 
+          });
+        }
+      }
+
+      // Create relationship with existing client
+      const { error: relationshipError } = await supabase
+        .from('therapist_client_relationships')
+        .insert({
+          therapist_id,
+          client_id: existingClient.id,
+          status: 'pending'
+        });
+
+      if (relationshipError) {
+        console.error('Failed to create relationship:', relationshipError);
+        return res.status(500).json({ error: 'Failed to create relationship' });
+      }
+
+      // Send notification email to existing client
+      const emailSent = await sendInvitationEmail(
+        client_email,
+        therapistProfile.full_name || therapistProfile.email,
+        therapistProfile.email,
+        `${process.env.CLIENT_URL || 'https://ivasa.ai'}/dashboard`
+      );
+
+      if (!emailSent) {
+        // Rollback the relationship if email fails
+        await supabase
+          .from('therapist_client_relationships')
+          .delete()
+          .eq('therapist_id', therapist_id)
+          .eq('client_id', existingClient.id);
+
+        return res.status(500).json({ 
+          error: 'Failed to send notification email. Please verify email service is configured.' 
+        });
+      }
+
+      return res.json({ 
+        success: true, 
+        message: 'Relationship created with existing client',
+        type: 'existing_client'
+      });
+    }
+
+    // Check for existing pending invitation
+    const { data: existingInvitation } = await supabase
+      .from('therapist_invitations')
+      .select('*')
+      .eq('therapist_id', therapist_id)
+      .eq('client_email', client_email)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (existingInvitation) {
+      // Check if invitation is still valid
+      if (new Date(existingInvitation.expires_at) > new Date()) {
         return res.status(400).json({ 
-          error: 'This client is already linked to your account' 
+          error: 'An invitation is already pending for this email address' 
         });
       }
     }
 
-    // Create invitation
-    const invitationToken = generateInviteToken();
-    const magicToken = generateMagicToken();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+    // Generate invitation token and link
+    const invitationToken = crypto.randomBytes(32).toString('hex');
+    const invitationLink = `${process.env.CLIENT_URL || 'https://ivasa.ai'}/accept-invitation?token=${invitationToken}&therapist=${therapist_id}`;
 
+    // Create invitation record
     const { data: invitation, error: inviteError } = await supabase
       .from('therapist_invitations')
       .insert({
         therapist_id,
         client_email,
         invitation_token: invitationToken,
-        magic_token: magicToken,
         status: 'pending',
-        sent_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString()
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
       })
       .select()
       .single();
 
     if (inviteError) {
-      console.error('Error creating invitation:', inviteError);
+      console.error('Failed to create invitation:', inviteError);
       return res.status(500).json({ error: 'Failed to create invitation' });
     }
 
-    // Send invitation email (you'll need to implement email service)
-    // For now, return the invitation details
-    const inviteLink = `${process.env.APP_URL || 'https://your-app.com'}/join?token=${invitationToken}&email=${encodeURIComponent(client_email)}`;
+    // Send invitation email
+    const emailSent = await sendInvitationEmail(
+      client_email,
+      therapistProfile.full_name || therapistProfile.email,
+      therapistProfile.email,
+      invitationLink
+    );
 
-    res.json({
-      success: true,
-      invitation: {
-        id: invitation.id,
-        magic_token: magicToken,
-        invite_link: inviteLink,
-        expires_at: invitation.expires_at
-      },
-      message: `Invitation sent to ${client_email}. They can use magic code: ${magicToken}`
+    if (!emailSent) {
+      // Delete the invitation if email fails
+      await supabase
+        .from('therapist_invitations')
+        .delete()
+        .eq('id', invitation.id);
+
+      return res.status(500).json({ 
+        error: 'Failed to send invitation email. Please verify email service is configured and try again.' 
+      });
+    }
+
+    console.log(`✅ Invitation sent successfully to ${client_email}`);
+    res.json({ 
+      success: true, 
+      message: 'Invitation sent successfully',
+      invitation_id: invitation.id
     });
 
   } catch (error) {
     console.error('Error in invite-client:', error);
-    res.status(500).json({ error: 'Failed to send invitation' });
+    res.status(500).json({ error: 'Failed to process invitation' });
   }
 });
 
-// POST /api/therapist/accept-invitation
-router.post('/accept-invitation', async (req, res) => {
+// Accept invitation endpoint
+router.post('/accept-invitation', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { token, magic_token, client_email } = req.body;
+    const { token } = req.body;
+    const client_user_id = req.user?.id;
 
-    if ((!token && !magic_token) || !client_email) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: (token or magic_token) and client_email' 
-      });
+    if (!client_user_id) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Find the invitation
-    let query = supabase
+    // Find and validate the invitation
+    const { data: invitation, error: inviteError } = await supabase
       .from('therapist_invitations')
       .select('*')
-      .eq('client_email', client_email)
-      .eq('status', 'pending');
-
-    if (token) {
-      query = query.eq('invitation_token', token);
-    } else if (magic_token) {
-      query = query.eq('magic_token', magic_token.toUpperCase());
-    }
-
-    const { data: invitation, error: inviteError } = await query.single();
+      .eq('invitation_token', token)
+      .eq('status', 'pending')
+      .single();
 
     if (inviteError || !invitation) {
-      return res.status(404).json({ error: 'Invalid or expired invitation' });
+      return res.status(400).json({ error: 'Invalid or expired invitation' });
     }
 
-    // Check if invitation is expired
+    // Check if invitation has expired
     if (new Date(invitation.expires_at) < new Date()) {
       await supabase
         .from('therapist_invitations')
@@ -177,68 +374,79 @@ router.post('/accept-invitation', async (req, res) => {
       return res.status(400).json({ error: 'This invitation has expired' });
     }
 
-    // Get or create the client user
-    const { data: clientUser } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', client_email)
+    // Get client's email to verify it matches the invitation
+    const { data: clientProfile } = await supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('id', client_user_id)
       .single();
 
-    if (!clientUser) {
-      return res.json({
-        success: false,
-        needs_registration: true,
-        therapist_id: invitation.therapist_id,
-        invitation_id: invitation.id,
-        message: 'Please complete registration to accept the invitation'
+    if (!clientProfile || clientProfile.email !== invitation.client_email) {
+      return res.status(400).json({ 
+        error: 'This invitation was sent to a different email address' 
       });
     }
 
-    // Update the client's profile to link to therapist
-    await supabase
-      .from('user_profiles')
-      .update({
-        user_type: 'client',
-        invited_by: invitation.therapist_id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', clientUser.id);
-
-    // Create the therapist-client relationship
-    const { error: relationshipError } = await supabase
+    // Check if relationship already exists
+    const { data: existingRelationship } = await supabase
       .from('therapist_client_relationships')
-      .insert({
-        therapist_id: invitation.therapist_id,
-        client_id: clientUser.id,
-        invitation_id: invitation.id,
-        status: 'active'
-      });
+      .select('*')
+      .eq('therapist_id', invitation.therapist_id)
+      .eq('client_id', client_user_id)
+      .maybeSingle();
 
-    if (relationshipError) {
-      // Check if relationship already exists
-      if (relationshipError.code === '23505') {
-        return res.json({
-          success: true,
-          message: 'You are already connected with this therapist'
-        });
+    if (existingRelationship) {
+      if (existingRelationship.status === 'active') {
+        return res.status(400).json({ error: 'Relationship already exists' });
       }
-      throw relationshipError;
+
+      // Update existing relationship
+      await supabase
+        .from('therapist_client_relationships')
+        .update({ 
+          status: 'active',
+          invitation_id: invitation.id
+        })
+        .eq('id', existingRelationship.id);
+    } else {
+      // Create new relationship
+      const { error: relationshipError } = await supabase
+        .from('therapist_client_relationships')
+        .insert({
+          therapist_id: invitation.therapist_id,
+          client_id: client_user_id,
+          invitation_id: invitation.id,
+          status: 'active'
+        });
+
+      if (relationshipError) {
+        console.error('Failed to create relationship:', relationshipError);
+        return res.status(500).json({ error: 'Failed to create relationship' });
+      }
     }
 
-    // Update invitation status
+    // Mark invitation as accepted
     await supabase
       .from('therapist_invitations')
-      .update({
+      .update({ 
         status: 'accepted',
         accepted_at: new Date().toISOString()
       })
       .eq('id', invitation.id);
 
-    res.json({
-      success: true,
-      message: 'Successfully connected with therapist',
-      therapist_id: invitation.therapist_id,
-      client_id: clientUser.id
+    // Update client profile
+    await supabase
+      .from('user_profiles')
+      .update({
+        invited_by: invitation.therapist_id,
+        user_type: 'client'
+      })
+      .eq('id', client_user_id);
+
+    res.json({ 
+      success: true, 
+      message: 'Invitation accepted successfully',
+      therapist_id: invitation.therapist_id
     });
 
   } catch (error) {
@@ -247,58 +455,113 @@ router.post('/accept-invitation', async (req, res) => {
   }
 });
 
-// GET /api/therapist/check-invitation
-router.get('/check-invitation', async (req, res) => {
+// Get all clients for a therapist
+router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { email, token, magic_token } = req.query;
+    const therapist_id = req.user?.id;
 
-    if (!email || (!token && !magic_token)) {
-      return res.status(400).json({ error: 'Missing email and token' });
+    if (!therapist_id) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    let query = supabase
-      .from('therapist_invitations')
+    // Verify user is a therapist
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('user_type')
+      .eq('id', therapist_id)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can access this endpoint' });
+    }
+
+    // Get all relationships with full client profiles
+    const { data: relationships, error } = await supabase
+      .from('therapist_client_relationships')
       .select(`
         *,
-        therapist:therapist_id(
-          id,
-          email,
-          first_name
-        )
+        client:user_profiles!client_id(*)
       `)
-      .eq('client_email', email)
-      .eq('status', 'pending');
+      .eq('therapist_id', therapist_id)
+      .order('created_at', { ascending: false });
 
-    if (token) {
-      query = query.eq('invitation_token', token);
-    } else if (magic_token) {
-      query = query.eq('magic_token', magic_token);
+    if (error) {
+      console.error('Error fetching clients:', error);
+      return res.status(500).json({ error: 'Failed to fetch clients' });
     }
 
-    const { data: invitation } = await query.single();
+    res.json({ clients: relationships || [] });
+  } catch (error) {
+    console.error('Error in get clients:', error);
+    res.status(500).json({ error: 'Failed to fetch clients' });
+  }
+});
+
+// Get pending invitations
+router.get('/invitations', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const therapist_id = req.user?.id;
+
+    if (!therapist_id) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { data: invitations, error } = await supabase
+      .from('therapist_invitations')
+      .select('*')
+      .eq('therapist_id', therapist_id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching invitations:', error);
+      return res.status(500).json({ error: 'Failed to fetch invitations' });
+    }
+
+    res.json({ invitations: invitations || [] });
+  } catch (error) {
+    console.error('Error fetching invitations:', error);
+    res.status(500).json({ error: 'Failed to fetch invitations' });
+  }
+});
+
+// Cancel an invitation
+router.delete('/invitation/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const therapist_id = req.user?.id;
+    const invitation_id = req.params.id;
+
+    if (!therapist_id) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Verify the invitation belongs to this therapist
+    const { data: invitation } = await supabase
+      .from('therapist_invitations')
+      .select('*')
+      .eq('id', invitation_id)
+      .eq('therapist_id', therapist_id)
+      .single();
 
     if (!invitation) {
-      return res.status(404).json({ error: 'Invalid invitation' });
+      return res.status(404).json({ error: 'Invitation not found' });
     }
 
-    // Check expiry
-    if (new Date(invitation.expires_at) < new Date()) {
-      return res.status(400).json({ error: 'Invitation has expired' });
+    // Delete the invitation
+    const { error } = await supabase
+      .from('therapist_invitations')
+      .delete()
+      .eq('id', invitation_id);
+
+    if (error) {
+      console.error('Error canceling invitation:', error);
+      return res.status(500).json({ error: 'Failed to cancel invitation' });
     }
 
-    res.json({
-      valid: true,
-      therapist: {
-        id: invitation.therapist.id,
-        name: invitation.therapist.first_name || invitation.therapist.email,
-        email: invitation.therapist.email
-      },
-      invitation_id: invitation.id
-    });
-
+    res.json({ success: true, message: 'Invitation canceled' });
   } catch (error) {
-    console.error('Error checking invitation:', error);
-    res.status(500).json({ error: 'Failed to check invitation' });
+    console.error('Error canceling invitation:', error);
+    res.status(500).json({ error: 'Failed to cancel invitation' });
   }
 });
 
