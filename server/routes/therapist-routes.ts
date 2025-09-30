@@ -355,7 +355,7 @@ router.post('/invite-client', authenticateToken, async (req: AuthRequest, res) =
 
     // Generate invitation token and link
     const invitationToken = crypto.randomBytes(32).toString('hex');
-    const invitationLink = `${process.env.CLIENT_URL || 'https://ivasa.ai'}/accept-invitation?token=${invitationToken}&therapist=${therapist_id}`;
+    const invitationLink = `${process.env.CLIENT_URL || 'https://ivasa.ai'}/?token=${invitationToken}&therapist=${therapist_id}`;
 
     // Create invitation record
     const { data: invitation, error: inviteError } = await supabase
