@@ -1,7 +1,7 @@
 // Location: client/src/pages/therapist-dashboard.tsx
-// FIXED VERSION - No timeout, no auth listeners
+// DIAGNOSTIC VERSION - Extensive logging and proper error handling
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabaseClient';
@@ -29,41 +29,102 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const loadAttemptRef = useRef(0);
 
   const { data: subscription, isLoading } = useSubscription(userId);
 
   useEffect(() => {
-    console.log(`✅ Therapist Dashboard Rendered - User: ${userId}`);
-    loadClients();
+    mountedRef.current = true;
+    console.log(`🚀 [THERAPIST-DASH] Component mounted with userId: ${userId}`);
+
+    // NO TIMEOUT - We'll handle errors gracefully instead
+    loadDashboardData();
+
+    return () => {
+      console.log('🔚 [THERAPIST-DASH] Component unmounting');
+      mountedRef.current = false;
+    };
   }, [userId]);
 
-  const loadClients = async () => {
-    console.log('📍 Loading therapist dashboard data...');
+  const loadDashboardData = async () => {
+    loadAttemptRef.current++;
+    const attemptNumber = loadAttemptRef.current;
+
+    console.log(`📊 [THERAPIST-DASH] Load attempt #${attemptNumber} starting...`);
     setLoading(true);
+    setError(null);
 
     try {
-      // Get therapist profile
+      // Step 1: Verify auth session
+      console.log(`🔐 [THERAPIST-DASH] Checking auth session...`);
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('❌ [THERAPIST-DASH] Session error:', sessionError);
+        setError('Session error. Please refresh the page.');
+        setLoading(false);
+        return;
+      }
+
+      if (!session) {
+        console.log('⚠️ [THERAPIST-DASH] No session found - user might need to sign in again');
+        setError('Session expired. Please sign in again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log(`✅ [THERAPIST-DASH] Session valid for: ${session.user.email}`);
+
+      // Step 2: Get therapist profile
+      console.log(`👤 [THERAPIST-DASH] Loading profile for userId: ${userId}`);
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (profileError || !profileData) {
-        console.error('Failed to load therapist profile:', profileError);
+      if (profileError) {
+        console.error('❌ [THERAPIST-DASH] Profile error:', profileError);
+        setError('Failed to load profile. Please refresh.');
         setLoading(false);
         return;
       }
 
-      setProfile(profileData);
-      console.log(`✅ Profile loaded: ${profileData.email}`);
+      if (!profileData) {
+        console.error('❌ [THERAPIST-DASH] No profile found for user:', userId);
+        setError('Profile not found.');
+        setLoading(false);
+        return;
+      }
 
-      // Get therapist's clients
-      const { data: relationships, error: relError } = await supabase
+      if (!mountedRef.current) {
+        console.log('⚠️ [THERAPIST-DASH] Component unmounted, aborting load');
+        return;
+      }
+
+      setProfile(profileData);
+      console.log(`✅ [THERAPIST-DASH] Profile loaded:`, {
+        email: profileData.email,
+        userType: profileData.user_type,
+        id: profileData.id
+      });
+
+      // Step 3: Load client relationships - with multiple query attempts
+      console.log(`👥 [THERAPIST-DASH] Loading client relationships...`);
+
+      // Try different query formats to handle Supabase foreign key issues
+      let relationships = null;
+      let relationshipError = null;
+
+      // Attempt 1: Query with user_profiles join
+      console.log('🔍 [THERAPIST-DASH] Attempt 1: Query with user_profiles join');
+      const attempt1 = await supabase
         .from('therapist_client_relationships')
         .select(`
           *,
-          client:client_id(
+          user_profiles!therapist_client_relationships_client_id_fkey(
             id,
             email,
             full_name
@@ -72,37 +133,97 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
         .eq('therapist_id', userId)
         .eq('status', 'active');
 
-      if (relError) {
-        console.error('Failed to load client relationships:', relError);
+      if (!attempt1.error) {
+        console.log('✅ [THERAPIST-DASH] Query 1 successful');
+        relationships = attempt1.data;
+      } else {
+        console.log('⚠️ [THERAPIST-DASH] Query 1 failed:', attempt1.error.message);
+
+        // Attempt 2: Simple query without joins
+        console.log('🔍 [THERAPIST-DASH] Attempt 2: Simple query without joins');
+        const attempt2 = await supabase
+          .from('therapist_client_relationships')
+          .select('*')
+          .eq('therapist_id', userId)
+          .eq('status', 'active');
+
+        if (!attempt2.error) {
+          console.log('✅ [THERAPIST-DASH] Query 2 successful, will fetch profiles separately');
+
+          // Fetch client profiles separately
+          if (attempt2.data && attempt2.data.length > 0) {
+            const clientIds = attempt2.data.map(r => r.client_id);
+            const { data: clientProfiles } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .in('id', clientIds);
+
+            // Merge the data
+            relationships = attempt2.data.map(rel => {
+              const clientProfile = clientProfiles?.find(p => p.id === rel.client_id);
+              return {
+                ...rel,
+                client: clientProfile || { 
+                  id: rel.client_id, 
+                  email: 'Unknown', 
+                  full_name: 'Unknown Client' 
+                }
+              };
+            });
+          } else {
+            relationships = [];
+          }
+        } else {
+          console.error('❌ [THERAPIST-DASH] Query 2 also failed:', attempt2.error.message);
+          relationshipError = attempt2.error;
+        }
+      }
+
+      if (!mountedRef.current) {
+        console.log('⚠️ [THERAPIST-DASH] Component unmounted, aborting load');
+        return;
+      }
+
+      if (relationshipError) {
+        console.log('⚠️ [THERAPIST-DASH] No client relationships loaded, but continuing...');
         setClients([]);
       } else if (relationships && relationships.length > 0) {
-        console.log(`✅ Found ${relationships.length} client relationships`);
+        console.log(`✅ [THERAPIST-DASH] Found ${relationships.length} client relationships`);
 
         // Get usage stats for each client
         const clientsWithStats = await Promise.all(
           relationships.map(async (rel) => {
-            // Skip if client data is missing
-            if (!rel.client) {
+            const clientData = rel.client || rel.user_profiles || rel;
+
+            if (!clientData) {
+              console.log(`⚠️ [THERAPIST-DASH] No client data for relationship ${rel.id}`);
               return null;
             }
 
-            const { data: sessions } = await supabase
+            const clientId = rel.client_id || clientData.id;
+            console.log(`📈 [THERAPIST-DASH] Loading stats for client: ${clientId}`);
+
+            const { data: sessions, error: sessionsError } = await supabase
               .from('therapeutic_sessions')
               .select('*')
-              .eq('user_id', rel.client_id)
+              .eq('user_id', clientId)
               .order('created_at', { ascending: false });
+
+            if (sessionsError) {
+              console.log(`⚠️ [THERAPIST-DASH] Sessions query failed for ${clientId}:`, sessionsError.message);
+            }
 
             const totalMinutes = sessions?.reduce((sum, s) => 
               sum + Math.ceil((s.duration_seconds || 0) / 60), 0) || 0;
 
             return {
-              id: rel.client_id,
-              email: rel.client.email,
-              full_name: rel.client.full_name || rel.client.email.split('@')[0],
+              id: clientId,
+              email: clientData.email || 'Unknown',
+              full_name: clientData.full_name || clientData.email?.split('@')[0] || 'Unknown',
               total_sessions: sessions?.length || 0,
               total_minutes: totalMinutes,
               last_session: sessions?.[0]?.created_at || null,
-              relationship_status: rel.status
+              relationship_status: rel.status || 'active'
             };
           })
         );
@@ -110,30 +231,35 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
         // Filter out any null results
         const validClients = clientsWithStats.filter(c => c !== null);
         setClients(validClients);
+        console.log(`✅ [THERAPIST-DASH] Loaded ${validClients.length} valid clients`);
       } else {
-        console.log('✅ Found 0 client relationships');
+        console.log('✅ [THERAPIST-DASH] No client relationships found (this is OK for new therapists)');
         setClients([]);
       }
 
     } catch (error) {
-      console.error('Error loading therapist dashboard:', error);
-      setClients([]);
+      console.error('❌ [THERAPIST-DASH] Unexpected error:', error);
+      setError('An unexpected error occurred. Please refresh the page.');
     } finally {
-      setLoading(false);
-      console.log('✅ Therapist Dashboard Rendered - User:', userId);
+      if (mountedRef.current) {
+        setLoading(false);
+        console.log(`✅ [THERAPIST-DASH] Dashboard load complete (attempt #${attemptNumber})`);
+      }
     }
   };
 
   const inviteClient = async () => {
     if (!inviteEmail) return;
 
+    console.log(`📧 [THERAPIST-DASH] Inviting client: ${inviteEmail}`);
     setInviting(true);
-    try {
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
 
-      if (!token) {
-        console.error('No auth token available');
-        alert('Session expired. Please refresh the page and try again.');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        console.error('❌ [THERAPIST-DASH] No session for invite');
+        alert('Session expired. Please refresh the page.');
         setInviting(false);
         return;
       }
@@ -142,7 +268,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           therapist_id: userId,
@@ -151,15 +277,17 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
       });
 
       if (response.ok) {
+        console.log(`✅ [THERAPIST-DASH] Invitation sent to ${inviteEmail}`);
         setInviteEmail('');
         alert('Invitation sent successfully!');
-        loadClients(); // Refresh the client list
+        loadDashboardData(); // Refresh the client list
       } else {
-        const error = await response.text();
-        alert(`Failed to send invitation: ${error}`);
+        const errorText = await response.text();
+        console.error('❌ [THERAPIST-DASH] Invite failed:', errorText);
+        alert(`Failed to send invitation: ${errorText}`);
       }
     } catch (error) {
-      console.error('Error inviting client:', error);
+      console.error('❌ [THERAPIST-DASH] Invite error:', error);
       alert('Failed to send invitation. Please try again.');
     } finally {
       setInviting(false);
@@ -171,7 +299,23 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading therapist dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center max-w-md">
+          <p className="text-lg mb-4 text-red-500">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Refresh Page
+          </Button>
+        </div>
       </div>
     );
   }
@@ -182,6 +326,8 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
   const clientLimit = subscriptionTier === 'pro' ? 'Unlimited' : 
                       subscriptionTier === 'plus' ? '10' : '3';
 
+  console.log(`🎨 [THERAPIST-DASH] Rendering dashboard with ${clients.length} clients`);
+
   return (
     <div className="min-h-screen gradient-bg p-4 sm:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -191,10 +337,13 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
           <div>
             <h1 className="text-3xl font-bold">Therapist Dashboard</h1>
             {profile && (
-              <p className="text-sm text-muted-foreground mt-1">{profile.email}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {profile.email} • {profile.user_type}
+              </p>
             )}
           </div>
           <Button onClick={async () => {
+            console.log('👋 [THERAPIST-DASH] User signing out...');
             await supabase.auth.signOut();
             localStorage.clear();
             sessionStorage.clear();
@@ -310,27 +459,6 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
             )}
           </CardContent>
         </Card>
-
-        {/* Subscription Info */}
-        {!isLoading && subscription && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle>Subscription Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Plan</p>
-                  <p className="font-medium capitalize">{subscriptionTier}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <p className="font-medium capitalize">{subscription.limits?.subscription_status || 'Active'}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
