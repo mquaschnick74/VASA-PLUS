@@ -134,6 +134,12 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         // Show verification message
         setVerificationEmail(email);
         setVerificationSent(true);
+
+        // NEW: Store invitation token so we can use it after email verification
+        if (invitationToken) {
+          localStorage.setItem('pendingInvitation', invitationToken);
+        }
+
         setPassword('');
         setShowPassword(false);
         return;
@@ -184,12 +190,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             setUserId(user.id);
             localStorage.setItem('userId', user.id);
 
-            // ============= NEW: Accept invitation if signing in from invitation link =============
-            if (invitationToken) {
+            // ============= NEW: Accept invitation if signing in from invitation link OR after signup =============
+            const storedToken = localStorage.getItem('pendingInvitation');
+            if (invitationToken || storedToken) {
+              const tokenToUse = invitationToken || storedToken;
               console.log('Sign-in completed, now accepting invitation...');
-              await acceptInvitation(invitationToken, user.id);
+              await acceptInvitation(tokenToUse, user.id);
+              localStorage.removeItem('pendingInvitation'); // Clear after use
             }
-            // ====================================================================================
+            // =====================================================================================================
           } else {
             // If profile creation fails, redirect to dashboard anyway
             window.location.href = '/dashboard';
