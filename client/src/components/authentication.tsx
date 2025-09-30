@@ -1,4 +1,5 @@
-// Location: client/src/components/authentication.tsx
+// client/src/components/authentication.tsx
+// UPDATED VERSION - Handles invitation tokens from URL
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -27,26 +28,34 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>('individual');
-  const [invitationToken, setInvitationToken] = useState('');
-  const [magicCode, setMagicCode] = useState('');
+
+  // ============= NEW: Invitation handling state =============
+  const [invitationToken, setInvitationToken] = useState<string | null>(null);
+  const [therapistId, setTherapistId] = useState<string | null>(null);
+  const [invitationMode, setInvitationMode] = useState(false);
+  // ==========================================================
 
   useEffect(() => {
+    // Check URL parameters for invitation token
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const therapist = urlParams.get('therapist');
+
+    // ============= NEW: Handle invitation links =============
+    if (token && therapist) {
+      console.log('Invitation detected:', { token: token.substring(0, 10) + '...', therapist });
+      setInvitationToken(token);
+      setTherapistId(therapist);
+      setInvitationMode(true);
+      setMode('signup');  // Force signup mode
+      setUserType('client');  // Pre-select client type
+    }
+    // =======================================================
+
     // Check if returning from email confirmation
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const urlParams = new URLSearchParams(window.location.search);
 
-    // Check for invitation token in URL
-    const token = urlParams.get('token');
-    const emailParam = urlParams.get('email');
-    
-    if (token && emailParam) {
-      setEmail(emailParam);
-      setInvitationToken(token);
-      setUserType('client');
-      setMode('signup');
-      // Clear URL params
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (hashParams.get('type') === 'signup' || urlParams.get('type') === 'signup') {
+    if (hashParams.get('type') === 'signup' || urlParams.get('type') === 'signup') {
       // User just confirmed their email
       setMode('signin');
       setVerificationSent(false);
@@ -56,6 +65,41 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
+
+  // ============= NEW: Function to accept invitation after signup =============
+  const acceptInvitation = async (token: string, userId: string) => {
+    try {
+      console.log('Accepting invitation with token:', token.substring(0, 10) + '...');
+
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!authToken) {
+        console.error('No auth token available');
+        return false;
+      }
+
+      const response = await fetch('/api/therapist/accept-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ token })
+      });
+
+      if (response.ok) {
+        console.log('✅ Invitation accepted successfully');
+        return true;
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to accept invitation:', errorData);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      return false;
+    }
+  };
+  // ===========================================================================
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,24 +129,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         if (authData.user?.identities?.length === 0) {
           setError('An account with this email already exists. Please sign in instead.');
           return;
-        }
-
-        // After successful signup, if client type with invitation
-        if (userType === 'client' && (invitationToken || magicCode)) {
-          const inviteResponse = await fetch('/api/therapist/accept-invitation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              token: invitationToken,
-              magic_token: magicCode,
-              client_email: email
-            })
-          });
-          
-          if (inviteResponse.ok) {
-            const result = await inviteResponse.json();
-            console.log('Invitation accepted:', result);
-          }
         }
 
         // Show verification message
@@ -157,6 +183,13 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             const { user } = await response.json();
             setUserId(user.id);
             localStorage.setItem('userId', user.id);
+
+            // ============= NEW: Accept invitation if signing in from invitation link =============
+            if (invitationToken) {
+              console.log('Sign-in completed, now accepting invitation...');
+              await acceptInvitation(invitationToken, user.id);
+            }
+            // ====================================================================================
           } else {
             // If profile creation fails, redirect to dashboard anyway
             window.location.href = '/dashboard';
@@ -186,6 +219,18 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   <i className="fas fa-envelope-circle-check text-4xl text-primary"></i>
                 </div>
                 <h2 className="text-2xl font-semibold mb-4">Check Your Email</h2>
+
+                {/* ============= NEW: Special message for invitation signups ============= */}
+                {invitationMode && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+                    <p className="text-sm font-semibold mb-2">Client Invitation</p>
+                    <p className="text-sm">
+                      After verifying your email, you'll be connected to your therapist automatically.
+                    </p>
+                  </div>
+                )}
+                {/* ====================================================================== */}
+
                 <p className="text-muted-foreground mb-2">
                   We've sent a verification link to:
                 </p>
@@ -243,7 +288,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             </h1>
           </div>
           <p className="text-muted-foreground text-lg whitespace-nowrap">Your Voice. Your Journey. Your AI Therapeutic Assistant</p>
-          </div>
         </div>
 
         {/* Authentication Form */}
@@ -252,9 +296,25 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             <Card className="glass rounded-2xl border-0">
           <CardContent className="p-8">
             <div className="space-y-6">
+              {/* ============= NEW: Invitation banner ============= */}
+              {invitationMode && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <i className="fas fa-user-plus text-blue-500 mt-1"></i>
+                    <div>
+                      <p className="font-semibold text-sm">Therapist Invitation</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Create your client account to connect with your therapist
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* ================================================= */}
+
               <div className="text-center relative">
                 <h2 className="text-2xl font-semibold mb-2">
-                  {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
+                  {invitationMode ? 'Create Client Account' : (mode === 'signup' ? 'Create Account' : 'Welcome Back')}
                 </h2>
                 <div className="flex items-center justify-center gap-2">
                   <p className="text-muted-foreground">
@@ -274,7 +334,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               )}
 
               {/* Dual Auth Notice for Signup */}
-              {mode === 'signup' && (
+              {mode === 'signup' && !invitationMode && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-sm">
                   <i className="fas fa-shield-halved mr-2"></i>
                   Email verification required for account security
@@ -299,31 +359,27 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   <Label className="text-sm font-medium">Password</Label>
                   <div className="relative">
                     <Input 
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-3 pr-12 rounded-xl bg-input border border-border"
+                      className="w-full px-4 py-3 rounded-xl bg-input border border-border pr-12"
                       required
                       minLength={6}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
+                      <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                     </button>
                   </div>
-                  {mode === 'signup' && (
-                    <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
-                  )}
                   {mode === 'signin' && (
                     <button
                       type="button"
                       onClick={() => setShowPasswordReset(true)}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-xs text-primary hover:underline"
                     >
                       Forgot password?
                     </button>
@@ -331,22 +387,23 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 </div>
 
                 {mode === 'signup' && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">First Name (Optional)</Label>
-                      <Input
-                        type="text"
-                        placeholder="Enter your first name"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-input border border-border"
-                        data-testid="input-firstName"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Account Type</Label>
-                      <RadioGroup value={userType} onValueChange={(value: any) => setUserType(value)} className="space-y-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">First Name (Optional)</Label>
+                    <Input 
+                      type="text" 
+                      placeholder="Sarah"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+                    />
+                  </div>
+                )}
+
+                {/* ============= MODIFIED: Hide user type selection for invitations ============= */}
+                {mode === 'signup' && !invitationMode && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Account Type</Label>
+                    <RadioGroup value={userType} onValueChange={(value: any) => setUserType(value)} className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="individual" id="individual" />
                         <Label htmlFor="individual" className="cursor-pointer font-normal">
@@ -372,26 +429,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       {userType === 'individual' && "For personal therapeutic sessions"}
                     </p>
                   </div>
-
-                  {mode === 'signup' && userType === 'client' && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Invitation Code</Label>
-                      <Input 
-                        type="text" 
-                        placeholder="Enter 6-character code from therapist"
-                        value={magicCode}
-                        onChange={(e) => setMagicCode(e.target.value.toUpperCase())}
-                        className="w-full px-4 py-3 rounded-xl bg-input border border-border"
-                        maxLength={6}
-                        data-testid="input-magicCode"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Ask your therapist for your invitation code
-                      </p>
-                    </div>
-                  )}
-                  </>
                 )}
+                {/* =============================================================================== */}
 
                 <Button 
                   type="submit"
@@ -402,21 +441,25 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 </Button>
               </form>
 
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode(mode === 'signin' ? 'signup' : 'signin');
-                    setError(null);
-                    setShowPassword(false);
-                  }}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {mode === 'signin' 
-                    ? "Don't have an account? Sign up" 
-                    : 'Already have an account? Sign in'}
-                </button>
-              </div>
+              {/* ============= MODIFIED: Hide toggle for invitation mode ============= */}
+              {!invitationMode && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === 'signin' ? 'signup' : 'signin');
+                      setError(null);
+                      setShowPassword(false);
+                    }}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {mode === 'signin' 
+                      ? "Don't have an account? Sign up" 
+                      : 'Already have an account? Sign in'}
+                  </button>
+                </div>
+              )}
+              {/* ==================================================================== */}
 
               <div className="text-center text-sm text-muted-foreground">
                 <p>Your conversations are private and secure</p>
@@ -427,5 +470,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           </div>
         </div>
       </div>
-    );
+    </div>
+  );
 }
