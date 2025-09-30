@@ -49,6 +49,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       setInvitationMode(true);
       setMode('signup');  // Force signup mode
       setUserType('client');  // Pre-select client type
+      
+      // Store immediately so it survives email verification
+      localStorage.setItem('pendingInvitation', token);
     }
     // =======================================================
 
@@ -134,12 +137,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         // Show verification message
         setVerificationEmail(email);
         setVerificationSent(true);
-
-        // NEW: Store invitation token so we can use it after email verification
-        if (invitationToken) {
-          localStorage.setItem('pendingInvitation', invitationToken);
-        }
-
         setPassword('');
         setShowPassword(false);
         return;
