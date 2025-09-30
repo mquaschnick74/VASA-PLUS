@@ -505,17 +505,20 @@ router.post('/accept-invitation', authenticateToken, async (req: AuthRequest, re
     }
 
     // Mark invitation as accepted
-    const { error: updateError } = await supabase
+    console.log('📧 Updating invitation status:', invitation.id);
+    const { data: updateData, error: updateError } = await supabase
       .from('therapist_invitations')
       .update({ 
         status: 'accepted',
         accepted_at: new Date().toISOString()
       })
-      .eq('id', invitation.id);
+      .eq('id', invitation.id)
+      .select();
+
+    console.log('📧 Update result:', { data: updateData, error: updateError });
 
     if (updateError) {
-      console.error('Failed to update invitation status:', updateError);
-      // Don't fail the whole request - relationship is already created
+      console.error('❌ Failed to update invitation status:', updateError);
     }
 
     // Update client profile
