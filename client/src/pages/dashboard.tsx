@@ -78,8 +78,9 @@ export default function Dashboard() {
         return null;
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('❌ [DASHBOARD] Profile operation failed:', error);
-      setMessage(`Connection error: ${error.message}`);
+      setMessage(`Connection error: ${errorMessage}`);
       return null;
     }
   };
