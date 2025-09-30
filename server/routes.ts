@@ -1,3 +1,4 @@
+// server/routes.ts
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Router } from 'express';
@@ -8,7 +9,6 @@ import webhookRoutes from './routes/webhook-routes';
 import subscriptionRoutes from './routes/subscription-routes';
 import therapistRoutes from './routes/therapist-routes';  // ADD THIS LINE
 import { supabase } from './services/supabase-service';
-
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const apiRouter = Router();
@@ -28,7 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         auth: 'Mounted at /api/auth',
         vapi: 'Mounted at /api/vapi',
         subscription: 'Mounted at /api/subscription',
-        therapist: 'Mounted at /api/therapist',
+        therapist: 'Mounted at /api/therapist',  // ADD THIS LINE
         health: 'Mounted at /api/health'
       }
     });
@@ -45,7 +45,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         supabase.from('css_patterns').select('count').limit(1),
         supabase.from('session_transcripts').select('count').limit(1),
         supabase.from('css_progressions').select('count').limit(1),
-        // ADD THESE NEW TABLE CHECKS:
         supabase.from('user_profiles').select('count').limit(1),
         supabase.from('subscriptions').select('count').limit(1),
         supabase.from('usage_sessions').select('count').limit(1),
@@ -60,7 +59,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         css_patterns: tableChecks[3].status === 'fulfilled' ? 'exists' : 'missing',
         session_transcripts: tableChecks[4].status === 'fulfilled' ? 'exists' : 'missing',
         css_progressions: tableChecks[5].status === 'fulfilled' ? 'exists' : 'missing',
-        // ADD THESE NEW TABLE STATUS CHECKS:
         user_profiles: tableChecks[6].status === 'fulfilled' ? 'exists' : 'missing',
         subscriptions: tableChecks[7].status === 'fulfilled' ? 'exists' : 'missing',
         usage_sessions: tableChecks[8].status === 'fulfilled' ? 'exists' : 'missing',
@@ -77,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tables: tableStatus,
         missingTables,
         message: missingTables.length > 0 
-          ? `Missing tables: ${missingTables.join(', ')}. Run 'npm run db:push --force' to create them.`
+          ? `Missing tables: ${missingTables.join(', ')}. Run database migrations to create them.`
           : 'All tables present'
       });
 
