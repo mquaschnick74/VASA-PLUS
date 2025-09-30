@@ -73,7 +73,7 @@ async function sendInvitationEmail(
     }
 
     const { data, error } = await resend.emails.send({
-      from: 'iVASA <notifications@ivasa.ai>',
+      from: 'iVASA <onboarding@resend.dev>',  // Using Resend's test email
       to: clientEmail,
       reply_to: therapistEmail,
       subject: `${therapistName} has invited you to join iVASA`,
@@ -398,12 +398,11 @@ router.post('/invite-client', authenticateToken, async (req: AuthRequest, res) =
         .delete()
         .eq('id', invitation.id);
 
-      // Return a partial success with manual link
-      return res.json({ 
-        success: true,
-        message: 'Invitation created. Email service not configured - please share this link with your client manually.',
-        invitation_id: invitation.id,
-        invitation_link: invitationLink
+      // Return error with manual link as fallback
+      return res.status(500).json({ 
+        error: 'Failed to send email. Please verify your email service configuration.',
+        invitation_link: invitationLink,
+        suggestion: 'Share this link with your client manually'
       });
     }
 
