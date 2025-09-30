@@ -193,7 +193,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             // ============= NEW: Accept invitation if signing in from invitation link OR after signup =============
             const storedToken = localStorage.getItem('pendingInvitation');
             if (invitationToken || storedToken) {
-              const tokenToUse = invitationToken || storedToken;
+              const tokenToUse = (invitationToken || storedToken)!;
               console.log('Sign-in completed, now accepting invitation...');
               await acceptInvitation(tokenToUse, user.id);
               localStorage.removeItem('pendingInvitation'); // Clear after use

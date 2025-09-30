@@ -72,7 +72,7 @@ export default function Dashboard() {
 
         // Check for pending invitation
         const pendingToken = localStorage.getItem('pendingInvitation');
-        if (pendingToken && user.user_type === 'client') {
+        if (pendingToken) {
           console.log('Processing pending invitation...');
           
           const inviteResponse = await fetch('/api/therapist/accept-invitation', {
