@@ -49,6 +49,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       setInvitationMode(true);
       setMode('signup');  // Force signup mode
       setUserType('client');  // Pre-select client type
+
+      localStorage.setItem('pendingInvitation', token);
     }
     // =======================================================
 
