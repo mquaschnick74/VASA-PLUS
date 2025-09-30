@@ -70,6 +70,28 @@ export default function Dashboard() {
           }
         }
 
+        // Check for pending invitation
+        const pendingToken = localStorage.getItem('pendingInvitation');
+        if (pendingToken && user.user_type === 'client') {
+          console.log('Processing pending invitation...');
+          
+          const inviteResponse = await fetch('/api/therapist/accept-invitation', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ token: pendingToken })
+          });
+          
+          if (inviteResponse.ok) {
+            console.log('✅ Invitation accepted successfully');
+            localStorage.removeItem('pendingInvitation');
+          } else {
+            console.error('Failed to accept invitation:', await inviteResponse.json());
+          }
+        }
+
         return user.id;
       } else {
         const errorText = await response.text();
