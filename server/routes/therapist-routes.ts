@@ -73,7 +73,7 @@ async function sendInvitationEmail(
     }
 
     const { data, error } = await resend.emails.send({
-      from: 'iVASA <onboarding@resend.dev>',  // Using Resend's test email
+      from: 'iVASA <notifications@ivasa.ai>',  // Using Resend's test email
       to: clientEmail,
       reply_to: therapistEmail,
       subject: `${therapistName} has invited you to join iVASA`,
