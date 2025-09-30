@@ -9,6 +9,7 @@ import subscriptionRoutes from './routes/subscription-routes';
 import therapistRoutes from './routes/therapist-routes';  // ADD THIS LINE
 import { supabase } from './services/supabase-service';
 
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const apiRouter = Router();
 
