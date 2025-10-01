@@ -344,6 +344,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
           </div>
           <Button onClick={async () => {
             console.log('👋 [THERAPIST-DASH] User signing out...');
+            sessionStorage.setItem('intentionalSignOut', 'true');
             await supabase.auth.signOut();
             localStorage.clear();
             sessionStorage.clear();

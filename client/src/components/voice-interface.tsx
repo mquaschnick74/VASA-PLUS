@@ -227,11 +227,17 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
 
 
   const handleSignOut = async () => {
+    console.log('👋 [VOICE-INTERFACE] User signing out...');
+
+    // Signal intentional logout
+    sessionStorage.setItem('intentionalSignOut', 'true');
+
     // Sign out from Supabase authentication
     await supabase.auth.signOut();
 
     // Clear ALL stored data from browser
     localStorage.clear();
+    sessionStorage.clear();
 
     // Reset the user ID state
     setUserId(null);

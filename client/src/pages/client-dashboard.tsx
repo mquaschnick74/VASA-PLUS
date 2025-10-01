@@ -110,6 +110,8 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         <div className="text-center">
           <p className="text-lg mb-4">Unable to load dashboard</p>
           <Button onClick={async () => {
+            console.log('👋 [CLIENT-DASH] User signing out...');
+            sessionStorage.setItem('intentionalSignOut', 'true');
             await supabase.auth.signOut();
             localStorage.clear();
             sessionStorage.clear();
@@ -130,6 +132,8 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
           <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold">Client Dashboard</h1>
             <Button onClick={async () => {
+              console.log('👋 [CLIENT-DASH] User signing out...');
+              sessionStorage.setItem('intentionalSignOut', 'true');
               await supabase.auth.signOut();
               localStorage.clear();
               sessionStorage.clear();

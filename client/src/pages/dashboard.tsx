@@ -74,7 +74,7 @@ export default function Dashboard() {
         const pendingToken = localStorage.getItem('pendingInvitation');
         if (pendingToken) {
           console.log('Processing pending invitation...');
-          
+
           const inviteResponse = await fetch('/api/therapist/accept-invitation', {
             method: 'POST',
             headers: {
@@ -83,7 +83,7 @@ export default function Dashboard() {
             },
             body: JSON.stringify({ token: pendingToken })
           });
-          
+
           if (inviteResponse.ok) {
             console.log('✅ Invitation accepted successfully');
             localStorage.removeItem('pendingInvitation');
@@ -169,6 +169,20 @@ export default function Dashboard() {
             }
 
             if (event === 'SIGNED_OUT') {
+              // ✅ CHANGE #1: Check if this is intentional sign-out
+              const intentional = sessionStorage.getItem('intentionalSignOut');
+              if (intentional === 'true') {
+                console.log('✅ [DASHBOARD] Intentional sign-out detected - processing immediately');
+                sessionStorage.removeItem('intentionalSignOut');
+                localStorage.clear();
+                sessionStorage.clear();
+                setUserId(null);
+                setUserType('individual');
+                isSignedInRef.current = false;
+                setLoading(false);
+                return;
+              }
+
               // Check if this is an expected signout
               if (!isSignedInRef.current) {
                 console.log('⏭️ [DASHBOARD] Ignoring SIGNED_OUT - user was not signed in');
@@ -199,6 +213,7 @@ export default function Dashboard() {
               localStorage.clear();
               sessionStorage.clear();
               setUserId(null);
+              setUserType('individual');
               isSignedInRef.current = false;
               setLoading(false);
 
