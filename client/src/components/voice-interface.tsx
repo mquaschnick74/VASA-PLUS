@@ -162,7 +162,7 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     console.log('3. can_use_voice value:', subscription?.limits?.can_use_voice);
     console.log('4. !can_use_voice (what we check):', !subscription?.limits?.can_use_voice);
 
-    if (subscription && !subscription?.limits?.can_use_voice) {
+    if (subscription && subscription.limits?.can_use_voice === false) {
       console.error('❌ Cannot start session:', {
         minutes_remaining: subscription.limits.minutes_remaining,
         is_using_therapist_subscription: subscription.limits.is_using_therapist_subscription
