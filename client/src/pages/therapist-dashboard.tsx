@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import SubscriptionStatus from '@/components/SubscriptionStatus';
 import { supabase } from '@/lib/supabaseClient';
 import { useSubscription } from '@/hooks/use-subscription';
 import { Users, Clock, TrendingUp, UserPlus } from 'lucide-react';
@@ -342,20 +343,33 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
               </p>
             )}
           </div>
-          <Button onClick={async () => {
-            console.log('👋 [THERAPIST-DASH] User signing out...');
-            sessionStorage.setItem('intentionalSignOut', 'true');
-            await supabase.auth.signOut();
-            localStorage.clear();
-            sessionStorage.clear();
-            setUserId(null);
-          }}>
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => window.location.href = '/pricing'}
+            >
+              View Pricing
+            </Button>
+            <Button onClick={async () => {
+              console.log('👋 [THERAPIST-DASH] User signing out...');
+              sessionStorage.setItem('intentionalSignOut', 'true');
+              await supabase.auth.signOut();
+              localStorage.clear();
+              sessionStorage.clear();
+              setUserId(null);
+            }}>
+              Sign Out
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Subscription Status Card - Full Width on Mobile */}
+          <div className="md:col-span-2 lg:col-span-4">
+            <SubscriptionStatus userId={userId} />
+          </div>
+
           <Card className="glass">
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
