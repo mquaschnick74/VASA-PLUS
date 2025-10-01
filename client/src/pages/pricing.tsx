@@ -17,17 +17,19 @@ export default function Pricing() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        setUserId(user.id);
         setUserEmail(user.email || '');
 
-        // Get user profile
+        // Query by EMAIL instead of ID (email is unique and indexed)
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('user_type')
-          .eq('id', user.id)
+          .select('id, user_type')
+          .eq('email', user.email)
           .single();
 
-        setUserType(profile?.user_type || 'individual');
+        if (profile) {
+          setUserId(profile.id);  // Use the app user ID, not auth ID
+          setUserType(profile.user_type || 'individual');
+        }
       }
     };
 
