@@ -146,56 +146,51 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
-
-          {/* Main Voice Interface */}
-          <div className="lg:col-span-2">
-            <VoiceInterface 
-              userId={userId} 
-              setUserId={setUserId}
-            />
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Therapist Info Card */}
-            {therapist && (
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle>Your Therapist</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="font-medium">{therapist.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{therapist.email}</p>
-                    <div className="pt-4">
-                      <Alert>
-                        <AlertDescription>
-                          You're using your therapist's subscription for voice sessions.
-                        </AlertDescription>
-                      </Alert>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Session Info */}
+        {/* Top Row - Therapist and Session Info Cards */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* Therapist Info Card */}
+          {therapist && (
             <Card className="glass">
               <CardHeader>
-                <CardTitle>Session Information</CardTitle>
+                <CardTitle>Your Therapist</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {therapist ? 
-                    "Your voice sessions are managed through your therapist's account. Contact them if you have questions about session limits." :
-                    "You're using your own subscription for voice sessions."
-                  }
-                </p>
+                <div className="space-y-2">
+                  <p className="font-medium">{therapist.full_name}</p>
+                  <p className="text-sm text-muted-foreground">{therapist.email}</p>
+                  <div className="pt-4">
+                    <Alert>
+                      <AlertDescription>
+                        You're using your therapist's subscription for voice sessions.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          </div>
+          )}
+
+          {/* Session Info */}
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle>Session Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {therapist ? 
+                  "Your voice sessions are managed through your therapist's account. Contact them if you have questions about session limits." :
+                  "You're using your own subscription for voice sessions."
+                }
+              </p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Main Voice Interface */}
+        <VoiceInterface 
+          userId={userId} 
+          setUserId={setUserId}
+        />
       </div>
     </div>
   );
