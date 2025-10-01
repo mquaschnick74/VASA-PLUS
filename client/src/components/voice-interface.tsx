@@ -337,10 +337,9 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
               />
               <Button 
                 onClick={handleSignOut}
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full glass hover:glass-strong transition-all duration-200 p-0"
                 data-testid="button-signOut"
               >
-                <i className="fas fa-user text-muted-foreground text-sm sm:text-base"></i>
+                Log Out
               </Button>
             </div>
           </div>
