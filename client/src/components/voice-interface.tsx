@@ -14,6 +14,7 @@ import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 interface VoiceInterfaceProps {
   userId: string;
   setUserId: (id: string | null) => void;
+  hideLogoutButton?: boolean;
 }
 
 interface UserContext {
@@ -27,7 +28,7 @@ interface UserContext {
   sessionCount: number;
 }
 
-export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProps) {
+export default function VoiceInterface({ userId, setUserId, hideLogoutButton = false }: VoiceInterfaceProps) {
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [callTimer, setCallTimer] = useState(0);
@@ -333,12 +334,14 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                   window.location.href = '/';
                 }}
               />
-              <Button 
-                onClick={handleSignOut}
-                data-testid="button-signOut"
-              >
-                Log Out
-              </Button>
+              {!hideLogoutButton && (
+                <Button 
+                  onClick={handleSignOut}
+                  data-testid="button-signOut"
+                >
+                  Log Out
+                </Button>
+              )}
             </div>
           </div>
         </div>

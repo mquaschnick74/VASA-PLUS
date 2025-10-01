@@ -190,6 +190,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         <VoiceInterface 
           userId={userId} 
           setUserId={setUserId}
+          hideLogoutButton={true}
         />
       </div>
     </div>
