@@ -259,12 +259,17 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // MODIFIED: Helper function to get display insights
+  // Helper function to get display insights
   const getDisplayInsights = () => {
     // Use displayMemoryContext if available, otherwise fall back to memoryContext
     const contextToDisplay = userContext?.displayMemoryContext || userContext?.memoryContext || '';
 
-    // Filter out technical/JSON content and empty lines
+    // If the displayMemoryContext is a simple paragraph (not multi-line structured data), return it directly
+    if (contextToDisplay && !contextToDisplay.includes('\n\n') && contextToDisplay.length > 50) {
+      return [contextToDisplay];
+    }
+
+    // Otherwise, filter out technical/JSON content and empty lines
     const lines = contextToDisplay.split('\n').filter(line => {
       const trimmed = line.trim();
       if (!trimmed) return false;
@@ -281,15 +286,8 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
              !trimmed.startsWith('}');
     });
 
-    // Further filter to only keep the narrative insights (numbered lines)
-    const insights = lines.filter(line => {
-      // Keep lines that start with numbers (1., 2., etc.) or are part of Key insights
-      return /^\d+\./.test(line.trim()) || 
-             line.includes('Key insights from previous sessions') ||
-             line.includes('Therapeutic Progress');
-    });
-
-    return insights.length > 0 ? insights : ['Starting your therapeutic journey'];
+    // Return filtered lines if they exist, otherwise return the fallback
+    return lines.length > 0 ? lines : ['Starting your therapeutic journey'];
   };
 
   if (memoryLoading || !userContext) {
