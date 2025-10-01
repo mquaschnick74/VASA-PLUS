@@ -162,10 +162,17 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
     console.log('3. can_use_voice value:', subscription?.limits?.can_use_voice);
     console.log('4. !can_use_voice (what we check):', !subscription?.limits?.can_use_voice);
 
-    // The actual check
     if (subscription && !subscription?.limits?.can_use_voice) {
-      console.log('5. ENTERED LIMIT CHECK - blocking session');
-      console.warn('❌ Subscription limit reached');
+      console.error('❌ Cannot start session:', {
+        minutes_remaining: subscription.limits.minutes_remaining,
+        is_using_therapist_subscription: subscription.limits.is_using_therapist_subscription
+      });
+
+      alert(
+        subscription.limits.is_using_therapist_subscription
+          ? `Your therapist's subscription has no minutes remaining. They need to upgrade.`
+          : `You have used all your available minutes. Please upgrade your subscription.`
+      );
       return;
     }
 
@@ -384,9 +391,15 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                         <p className="text-sm font-medium">
                           {subscription.limits.subscription_tier === 'trial' ? 'Trial Account' : 
                            subscription.limits.subscription_tier === 'pro' ? 'Pro Account' : 'Premium Account'}
+                          {subscription.limits.is_using_therapist_subscription && (
+                            <span className="ml-2 text-xs text-muted-foreground">(via therapist)</span>
+                          )}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {subscription.limits.minutes_remaining} minutes remaining
+                          {subscription.limits.is_using_therapist_subscription && subscription.limits.subscription_owner_email && (
+                            <span className="block mt-1">Therapist: {subscription.limits.subscription_owner_email}</span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -425,7 +438,10 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                     <Alert className="mt-3 bg-yellow-500/10 border-yellow-500/50">
                       <AlertTriangle className="h-4 w-4 text-yellow-500" />
                       <AlertDescription className="text-xs">
-                        You have {subscription.limits.minutes_remaining} minutes left. Upgrade to continue after your limit.
+                        {subscription.limits.is_using_therapist_subscription
+                          ? `Your therapist has ${subscription.limits.minutes_remaining} minutes left.`
+                          : `You have ${subscription.limits.minutes_remaining} minutes left. Upgrade to continue after your limit.`
+                        }
                       </AlertDescription>
                     </Alert>
                   )}
@@ -434,7 +450,10 @@ export default function VoiceInterface({ userId, setUserId }: VoiceInterfaceProp
                     <Alert className="mt-3 bg-red-500/10 border-red-500/50">
                       <XCircle className="h-4 w-4 text-red-500" />
                       <AlertDescription className="text-xs">
-                        Your trial has ended. Upgrade to continue using iVASA.
+                        {subscription.limits.is_using_therapist_subscription
+                          ? `Your therapist's subscription has no minutes remaining. They need to purchase more minutes or upgrade their plan.`
+                          : `Your trial has ended. Upgrade to continue using iVASA.`
+                        }
                       </AlertDescription>
                     </Alert>
                   )}
