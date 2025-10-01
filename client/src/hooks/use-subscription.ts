@@ -1,5 +1,5 @@
 // Location: client/src/hooks/use-subscription.ts
-// FIXED VERSION - Properly structures subscription data
+// FIXED VERSION - Uses backend API to properly handle therapist-client relationships
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -43,53 +43,59 @@ export function useSubscription(userId: string | null) {
         setIsLoading(true);
         setError(null);
 
-        // Get subscription from database
-        const { data: subscription, error: subError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
+        // Get auth token
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
 
-        if (subError) {
-          console.error('Subscription fetch error:', subError);
-          throw new Error('Failed to load subscription');
+        if (!token) {
+          throw new Error('No authentication token available');
         }
+
+        // FIXED: Use backend API which handles therapist-client relationships
+        const response = await fetch(`/api/subscription/status/${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load subscription: ${response.status}`);
+        }
+
+        const apiData = await response.json();
 
         if (!isMounted) return;
 
-        if (subscription) {
-          // Calculate minutes remaining
-          const minutesRemaining = Math.max(
-            0, 
-            (subscription.usage_minutes_limit || 0) - (subscription.usage_minutes_used || 0)
-          );
-
-          // Structure the data with nested limits object
+        if (apiData.success && apiData.limits) {
+          // Structure the data from API response
           const structuredData: SubscriptionData = {
             // Nested limits object for compatibility
             limits: {
-              minutes_remaining: minutesRemaining,
-              subscription_tier: subscription.subscription_tier || 'trial',
-              subscription_status: subscription.subscription_status || 'active',
-              client_limit: subscription.client_limit || 0
+              minutes_remaining: apiData.limits.minutes_remaining || 0,
+              subscription_tier: apiData.limits.subscription_tier || 'trial',
+              subscription_status: apiData.subscription?.subscription_status || 'active',
+              client_limit: apiData.subscription?.client_limit || 0
             },
             // Original flat data
-            user_id: subscription.user_id,
-            subscription_tier: subscription.subscription_tier || 'trial',
-            subscription_status: subscription.subscription_status || 'active',
-            plan_type: subscription.plan_type || 'recurring',
-            trial_ends_at: subscription.trial_ends_at,
-            current_period_end: subscription.current_period_end,
-            usage_minutes_limit: subscription.usage_minutes_limit || 0,
-            usage_minutes_used: subscription.usage_minutes_used || 0,
-            client_limit: subscription.client_limit || 0,
-            clients_used: subscription.clients_used || 0
+            user_id: userId,
+            subscription_tier: apiData.limits.subscription_tier || 'trial',
+            subscription_status: apiData.subscription?.subscription_status || 'active',
+            plan_type: apiData.subscription?.plan_type || 'recurring',
+            trial_ends_at: null,
+            current_period_end: null,
+            usage_minutes_limit: apiData.limits.minutes_limit || 0,
+            usage_minutes_used: apiData.limits.minutes_used || 0,
+            client_limit: apiData.subscription?.client_limit || 0,
+            clients_used: apiData.subscription?.clients_used || 0
           };
 
-          console.log('✅ Subscription loaded');
+          console.log('✅ Subscription loaded via API');
+          console.log('Full subscription data:', JSON.stringify(structuredData, null, 2));
+          console.log('Subscription data:', structuredData, 'Loading:', false);
           setData(structuredData);
         } else {
-          // Default subscription data if none exists
+          // Default subscription data if API returns invalid response
           const defaultData: SubscriptionData = {
             limits: {
               minutes_remaining: 45,
@@ -109,6 +115,7 @@ export function useSubscription(userId: string | null) {
             clients_used: 0
           };
 
+          console.log('⚠️ Using default subscription data');
           setData(defaultData);
         }
       } catch (err) {
@@ -147,7 +154,9 @@ export function useSubscription(userId: string | null) {
 
     loadSubscription();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates on subscriptions table
+    // Listen to ALL subscription changes (not filtered by user_id)
+    // because clients need to hear about their therapist's subscription updates
     const subscription = supabase
       .channel(`subscription-${userId}`)
       .on(
@@ -155,11 +164,29 @@ export function useSubscription(userId: string | null) {
         {
           event: '*',
           schema: 'public',
-          table: 'subscriptions',
-          filter: `user_id=eq.${userId}`
+          table: 'subscriptions'
+          // No filter - we need to catch therapist subscription updates too
         },
         (payload) => {
           console.log('📊 Subscription updated:', payload);
+          loadSubscription();
+        }
+      )
+      .subscribe();
+
+    // Also listen to relationship changes
+    const relationshipSubscription = supabase
+      .channel(`relationships-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'therapist_client_relationships',
+          filter: `client_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('👥 Relationship changed, reloading subscription:', payload);
           loadSubscription();
         }
       )
@@ -169,6 +196,7 @@ export function useSubscription(userId: string | null) {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      relationshipSubscription.unsubscribe();
     };
   }, [userId]);
 
@@ -176,55 +204,62 @@ export function useSubscription(userId: string | null) {
     data,
     isLoading,
     error,
-    refetch: () => {
+    refetch: async () => {
       if (userId) {
         setIsLoading(true);
-        // Re-trigger effect by updating a dependency
-        const loadSubscription = async () => {
-          // Same logic as above
-          try {
-            const { data: subscription } = await supabase
-              .from('subscriptions')
-              .select('*')
-              .eq('user_id', userId)
-              .single();
 
-            if (subscription) {
-              const minutesRemaining = Math.max(
-                0,
-                (subscription.usage_minutes_limit || 0) - (subscription.usage_minutes_used || 0)
-              );
+        try {
+          // Get auth token
+          const session = await supabase.auth.getSession();
+          const token = session.data.session?.access_token;
 
-              const structuredData: SubscriptionData = {
-                limits: {
-                  minutes_remaining: minutesRemaining,
-                  subscription_tier: subscription.subscription_tier || 'trial',
-                  subscription_status: subscription.subscription_status || 'active',
-                  client_limit: subscription.client_limit || 0
-                },
-                user_id: subscription.user_id,
-                subscription_tier: subscription.subscription_tier || 'trial',
-                subscription_status: subscription.subscription_status || 'active',
-                plan_type: subscription.plan_type || 'recurring',
-                trial_ends_at: subscription.trial_ends_at,
-                current_period_end: subscription.current_period_end,
-                usage_minutes_limit: subscription.usage_minutes_limit || 0,
-                usage_minutes_used: subscription.usage_minutes_used || 0,
-                client_limit: subscription.client_limit || 0,
-                clients_used: subscription.clients_used || 0
-              };
-
-              setData(structuredData);
-            }
-          } catch (err) {
-            console.error('Refetch error:', err);
-            setError(err as Error);
-          } finally {
-            setIsLoading(false);
+          if (!token) {
+            throw new Error('No authentication token available');
           }
-        };
 
-        loadSubscription();
+          // Use backend API
+          const response = await fetch(`/api/subscription/status/${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to load subscription: ${response.status}`);
+          }
+
+          const apiData = await response.json();
+
+          if (apiData.success && apiData.limits) {
+            const structuredData: SubscriptionData = {
+              limits: {
+                minutes_remaining: apiData.limits.minutes_remaining || 0,
+                subscription_tier: apiData.limits.subscription_tier || 'trial',
+                subscription_status: apiData.subscription?.subscription_status || 'active',
+                client_limit: apiData.subscription?.client_limit || 0
+              },
+              user_id: userId,
+              subscription_tier: apiData.limits.subscription_tier || 'trial',
+              subscription_status: apiData.subscription?.subscription_status || 'active',
+              plan_type: apiData.subscription?.plan_type || 'recurring',
+              trial_ends_at: null,
+              current_period_end: null,
+              usage_minutes_limit: apiData.limits.minutes_limit || 0,
+              usage_minutes_used: apiData.limits.minutes_used || 0,
+              client_limit: apiData.subscription?.client_limit || 0,
+              clients_used: apiData.subscription?.clients_used || 0
+            };
+
+            setData(structuredData);
+            console.log('✅ Subscription refetched successfully');
+          }
+        } catch (err) {
+          console.error('Refetch error:', err);
+          setError(err as Error);
+        } finally {
+          setIsLoading(false);
+        }
       }
     }
   };
