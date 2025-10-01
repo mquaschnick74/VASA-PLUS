@@ -6,10 +6,16 @@ import { supabase } from '@/lib/supabaseClient';
 
 interface SubscriptionData {
   limits: {
+    can_use_voice: boolean;
     minutes_remaining: number;
+    minutes_used: number;
+    minutes_limit: number;
     subscription_tier: string;
     subscription_status: string;
     client_limit: number;
+    is_using_therapist_subscription?: boolean;
+    subscription_owner_id?: string;
+    subscription_owner_email?: string;
   };
   user_id: string;
   subscription_tier: string;
@@ -72,10 +78,16 @@ export function useSubscription(userId: string | null) {
           const structuredData: SubscriptionData = {
             // Nested limits object for compatibility
             limits: {
+              can_use_voice: apiData.limits.can_use_voice ?? true,
               minutes_remaining: apiData.limits.minutes_remaining || 0,
+              minutes_used: apiData.limits.minutes_used || 0,
+              minutes_limit: apiData.limits.minutes_limit || 0,
               subscription_tier: apiData.limits.subscription_tier || 'trial',
               subscription_status: apiData.subscription?.subscription_status || 'active',
-              client_limit: apiData.subscription?.client_limit || 0
+              client_limit: apiData.subscription?.client_limit || 0,
+              is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
+              subscription_owner_id: apiData.limits.subscription_owner_id,
+              subscription_owner_email: apiData.limits.subscription_owner_email
             },
             // Original flat data
             user_id: userId,
@@ -98,7 +110,10 @@ export function useSubscription(userId: string | null) {
           // Default subscription data if API returns invalid response
           const defaultData: SubscriptionData = {
             limits: {
+              can_use_voice: true,
               minutes_remaining: 45,
+              minutes_used: 0,
+              minutes_limit: 45,
               subscription_tier: 'trial',
               subscription_status: 'trialing',
               client_limit: 0
@@ -126,7 +141,10 @@ export function useSubscription(userId: string | null) {
           // Return safe defaults on error
           const fallbackData: SubscriptionData = {
             limits: {
+              can_use_voice: false,
               minutes_remaining: 0,
+              minutes_used: 0,
+              minutes_limit: 0,
               subscription_tier: 'trial',
               subscription_status: 'error',
               client_limit: 0
@@ -234,10 +252,16 @@ export function useSubscription(userId: string | null) {
           if (apiData.success && apiData.limits) {
             const structuredData: SubscriptionData = {
               limits: {
+                can_use_voice: apiData.limits.can_use_voice ?? true,
                 minutes_remaining: apiData.limits.minutes_remaining || 0,
+                minutes_used: apiData.limits.minutes_used || 0,
+                minutes_limit: apiData.limits.minutes_limit || 0,
                 subscription_tier: apiData.limits.subscription_tier || 'trial',
                 subscription_status: apiData.subscription?.subscription_status || 'active',
-                client_limit: apiData.subscription?.client_limit || 0
+                client_limit: apiData.subscription?.client_limit || 0,
+                is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
+                subscription_owner_id: apiData.limits.subscription_owner_id,
+                subscription_owner_email: apiData.limits.subscription_owner_email
               },
               user_id: userId,
               subscription_tier: apiData.limits.subscription_tier || 'trial',

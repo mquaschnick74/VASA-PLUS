@@ -404,21 +404,21 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
                       </div>
                     </div>
 
-                    {subscription.limits.subscription_tier === 'trial' && (
+                    {subscription.limits.subscription_tier === 'trial' && !subscription.limits.is_using_therapist_subscription && (
                       <Button 
                         variant="outline" 
                         size="sm"
                         className="text-xs"
-                        onClick={() => {/* TODO: Open upgrade modal */}}
+                        onClick={() => window.location.href = '/pricing'}
                       >
                         Upgrade
                       </Button>
                     )}
                   </div>
 
-                  {/* Progress bar for usage */}
+                  {/* Progress Bar */}
                   <div className="mt-4">
-                    <div className="w-full bg-muted rounded-full h-2">
+                    <div className="bg-secondary/20 rounded-full h-2 overflow-hidden">
                       <div 
                         className={`h-2 rounded-full transition-all ${
                           ((subscription.limits.minutes_used / subscription.limits.minutes_limit) * 100) > 80 ? 'bg-red-500' :
@@ -452,8 +452,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
                       <AlertDescription className="text-xs">
                         {subscription.limits.is_using_therapist_subscription
                           ? `Your therapist's subscription has no minutes remaining. They need to purchase more minutes or upgrade their plan.`
-                          : `Your trial has ended. Upgrade to continue using iVASA.`
-                        }
+                          : `Your subscription has no minutes remaining. Please upgrade to continue using iVASA.`}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -510,7 +509,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
                   <div className="flex justify-center">
                     <Button
                       onClick={isSessionActive ? handleEndCall : handleStartSession}
-                      disabled={isLoading || memoryLoading || (subscription && subscription.limits.minutes_remaining === 0)}
+                      disabled={isLoading || memoryLoading || (subscription?.limits.minutes_remaining === 0)}
                       className={`group relative px-8 py-3 sm:px-10 sm:py-4 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
                         isSessionActive 
                           ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
