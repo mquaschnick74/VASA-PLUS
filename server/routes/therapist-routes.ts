@@ -667,4 +667,136 @@ router.delete('/invitation/:id', authenticateToken, async (req: AuthRequest, res
   }
 });
 
+// GET /api/therapist/client/:clientId/sessions
+router.get('/client/:clientId/sessions', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!profile || profile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const hasAccess = await therapistDataService.verifyTherapistClientRelationship(profile.id, req.params.clientId);
+    if (!hasAccess) return res.status(403).json({ error: 'No access to this client' });
+
+    const result = await therapistDataService.getClientSessions(req.params.clientId);
+    
+    await therapistDataService.logAccess(
+      profile.id, 
+      req.params.clientId, 
+      'session_list', 
+      undefined,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch sessions' });
+  }
+});
+
+// GET /api/therapist/client/:clientId/session/:sessionId/summary
+router.get('/client/:clientId/session/:sessionId/summary', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!profile || profile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const hasAccess = await therapistDataService.verifyTherapistClientRelationship(profile.id, req.params.clientId);
+    if (!hasAccess) return res.status(403).json({ error: 'No access to this client' });
+
+    const result = await therapistDataService.getSessionSummary(req.params.clientId, req.params.sessionId);
+    
+    await therapistDataService.logAccess(
+      profile.id,
+      req.params.clientId,
+      'session_summary',
+      req.params.sessionId,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error fetching summary:', error);
+    if (error.message === 'Session not found' || error.message === 'Summary not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to fetch summary' });
+  }
+});
+
+// GET /api/therapist/client/:clientId/session/:sessionId/transcript
+router.get('/client/:clientId/session/:sessionId/transcript', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!profile || profile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const hasAccess = await therapistDataService.verifyTherapistClientRelationship(profile.id, req.params.clientId);
+    if (!hasAccess) return res.status(403).json({ error: 'No access to this client' });
+
+    const result = await therapistDataService.getSessionTranscript(req.params.clientId, req.params.sessionId);
+    
+    await therapistDataService.logAccess(
+      profile.id,
+      req.params.clientId,
+      'session_transcript',
+      req.params.sessionId,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error fetching transcript:', error);
+    if (error.message === 'Session not found' || error.message === 'Transcript not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to fetch transcript' });
+  }
+});
+
+// GET /api/therapist/client/:clientId/stats
+router.get('/client/:clientId/stats', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!profile || profile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const hasAccess = await therapistDataService.verifyTherapistClientRelationship(profile.id, req.params.clientId);
+    if (!hasAccess) return res.status(403).json({ error: 'No access to this client' });
+
+    const result = await therapistDataService.getClientStats(req.params.clientId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
 export default router;
