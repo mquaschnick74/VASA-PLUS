@@ -34,7 +34,6 @@ export const DeleteAccount: React.FC<DeleteAccountProps> = ({
       
       if (response.ok) {
         console.log('✅ Account deleted:', result);
-        localStorage.clear();
         
         if (onAccountDeleted) {
           onAccountDeleted();

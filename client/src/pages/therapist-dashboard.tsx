@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SubscriptionStatus from '@/components/SubscriptionStatus';
 import { supabase } from '@/lib/supabaseClient';
+import { handleLogout } from '@/lib/auth-helpers';
 import { useSubscription } from '@/hooks/use-subscription';
 import { Users, Clock, TrendingUp, UserPlus } from 'lucide-react';
 import { useLocation } from 'wouter';
@@ -364,14 +365,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
             >
               Copy API Token
             </Button>
-            <Button onClick={async () => {
-              console.log('👋 [THERAPIST-DASH] User signing out...');
-              sessionStorage.setItem('intentionalSignOut', 'true');
-              await supabase.auth.signOut();
-              localStorage.clear();
-              sessionStorage.clear();
-              setUserId(null);
-            }}>
+            <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout">
               Sign Out
             </Button>
           </div>

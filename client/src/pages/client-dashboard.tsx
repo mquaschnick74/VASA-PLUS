@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import VoiceInterface from '@/components/voice-interface';
 import { supabase } from '@/lib/supabaseClient';
+import { handleLogout } from '@/lib/auth-helpers';
 
 interface ClientDashboardProps {
   userId: string;
@@ -38,10 +39,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
 
       if (profileError || !profile) {
         console.error('Profile not found, signing out');
-        await supabase.auth.signOut();
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
+        handleLogout(setUserId);
         return;
       }
 
@@ -62,10 +60,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       if (!token) {
         console.error('No auth token, signing out');
-        await supabase.auth.signOut();
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
+        handleLogout(setUserId);
         return;
       }
 
@@ -78,19 +73,12 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         setUserContext(data);
       } else if (response.status === 401 || response.status === 404) {
         console.error('User context not found, signing out');
-        await supabase.auth.signOut();
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
+        handleLogout(setUserId);
         return;
       }
     } catch (error) {
       console.error('Error loading client data:', error);
-      // On critical error, sign out
-      await supabase.auth.signOut();
-      localStorage.clear();
-      sessionStorage.clear();
-      setUserId(null);
+      handleLogout(setUserId);
     } finally {
       setLoading(false);
     }
@@ -109,14 +97,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
       <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="text-center">
           <p className="text-lg mb-4">Unable to load dashboard</p>
-          <Button onClick={async () => {
-            console.log('👋 [CLIENT-DASH] User signing out...');
-            sessionStorage.setItem('intentionalSignOut', 'true');
-            await supabase.auth.signOut();
-            localStorage.clear();
-            sessionStorage.clear();
-            setUserId(null);
-          }}>
+          <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout">
             Sign Out
           </Button>
         </div>
@@ -131,14 +112,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold">Client Dashboard</h1>
-            <Button onClick={async () => {
-              console.log('👋 [CLIENT-DASH] User signing out...');
-              sessionStorage.setItem('intentionalSignOut', 'true');
-              await supabase.auth.signOut();
-              localStorage.clear();
-              sessionStorage.clear();
-              setUserId(null);
-            }}>
+            <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout">
               Sign Out
             </Button>
           </div>

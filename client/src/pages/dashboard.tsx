@@ -7,6 +7,7 @@ import VoiceInterface from '@/components/voice-interface';
 import ClientDashboard from '@/pages/client-dashboard';
 import TherapistDashboard from '@/pages/therapist-dashboard';
 import { supabase } from '@/lib/supabaseClient';
+import { handleLogout } from '@/lib/auth-helpers';
 
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -169,13 +170,10 @@ export default function Dashboard() {
             }
 
             if (event === 'SIGNED_OUT') {
-              // ✅ CHANGE #1: Check if this is intentional sign-out
               const intentional = sessionStorage.getItem('intentionalSignOut');
               if (intentional === 'true') {
-                console.log('✅ [DASHBOARD] Intentional sign-out detected - processing immediately');
+                console.log('✅ [DASHBOARD] Intentional sign-out detected');
                 sessionStorage.removeItem('intentionalSignOut');
-                localStorage.clear();
-                sessionStorage.clear();
                 setUserId(null);
                 setUserType('individual');
                 isSignedInRef.current = false;
@@ -208,10 +206,7 @@ export default function Dashboard() {
                 }
               }
 
-              // This appears to be a legitimate signout
               console.log('👋 [DASHBOARD] Processing legitimate signout');
-              localStorage.clear();
-              sessionStorage.clear();
               setUserId(null);
               setUserType('individual');
               isSignedInRef.current = false;
@@ -285,9 +280,7 @@ export default function Dashboard() {
         localStorage.setItem('lastAuthCheck', new Date().toISOString());
       } else if (isSignedInRef.current) {
         console.log('⚠️ [DASHBOARD] Session lost - signing out');
-        localStorage.clear();
-        sessionStorage.clear();
-        setUserId(null);
+        handleLogout(setUserId);
         isSignedInRef.current = false;
       }
     }, 30000); // Check every 30 seconds
