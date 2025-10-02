@@ -283,6 +283,57 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
   }
 });
 
+// Accept consent - REQUIRES AUTHENTICATION
+router.post('/accept-consent', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Verify user exists
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify ownership
+    if (req.user && user.auth_user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Update consent timestamp
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update({ 
+        consent_accepted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating consent:', updateError);
+      throw updateError;
+    }
+
+    console.log(`✅ Consent accepted for user ${userId}`);
+
+    res.json({ 
+      success: true,
+      message: 'Consent recorded successfully'
+    });
+  } catch (error) {
+    console.error('Error recording consent:', error);
+    res.status(500).json({ error: 'Failed to record consent' });
+  }
+});
+
 // Delete user - REQUIRES AUTHENTICATION
 router.delete('/user/:userId', authenticateToken, async (req: AuthRequest, res) => {
   try {

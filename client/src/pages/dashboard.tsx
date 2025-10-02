@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import Authentication from '@/components/authentication';
 import VoiceInterface from '@/components/voice-interface';
 import ClientDashboard from '@/pages/client-dashboard';
+import ConsentPopup from '@/components/ConsentPopup';
 import TherapistDashboard from '@/pages/therapist-dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
@@ -15,6 +16,8 @@ export default function Dashboard() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [showConsent, setShowConsent] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const authListenerRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
@@ -54,10 +57,10 @@ export default function Dashboard() {
 
         // Get user profile to determine type
         const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('user_type, email')
-          .eq('id', user.id)
-          .single();
+        .from('user_profiles')
+        .select('user_type, email, consent_accepted_at')
+        .eq('id', user.id)
+        .single();
 
         if (profile) {
           const detectedType = profile.user_type || 'individual';
@@ -68,6 +71,15 @@ export default function Dashboard() {
             setUserType(detectedType);
             setUserEmail(profile.email);
             isSignedInRef.current = true;
+
+            // CHECK FOR CONSENT - NEW CODE
+            if (!profile.consent_accepted_at) {
+              console.log('⚠️ [DASHBOARD] Consent not yet accepted, showing popup');
+              setShowConsent(true);
+            } else {
+              console.log('✅ [DASHBOARD] Consent already accepted');
+              setConsentChecked(true);
+            }
           }
         }
 
@@ -272,6 +284,13 @@ export default function Dashboard() {
     return () => clearInterval(checkInterval);
   }, [userId]);
 
+  // Handle consent acceptance
+  const handleConsentAccepted = () => {
+    console.log('✅ [DASHBOARD] Consent accepted');
+    setShowConsent(false);
+    setConsentChecked(true);
+  };
+
   // Show loading state
   if (loading) {
     return (
@@ -306,8 +325,26 @@ export default function Dashboard() {
   }
 
   // Show auth if no user
+  // Show auth if no user
   if (!userId) {
     return <Authentication setUserId={setUserId} />;
+  }
+
+  // Show consent popup if not yet accepted
+  if (showConsent) {
+    return <ConsentPopup userId={userId} userEmail={userEmail} onConsentAccepted={handleConsentAccepted} />;
+  }
+
+  // Wait for consent check to complete before showing dashboard
+  if (!consentChecked && !showConsent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking account status...</p>
+        </div>
+      </div>
+    );
   }
 
   // Route based on user type

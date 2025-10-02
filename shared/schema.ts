@@ -26,6 +26,7 @@ export const userProfiles = pgTable("user_profiles", {
   invited_by: uuid("invited_by").references(() => users.id), // FIXED: References users.id
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
+  consent_accepted_at: timestamp("consent_accepted_at"),
 });
 
 // Subscriptions table - FIXED to reference users.id
