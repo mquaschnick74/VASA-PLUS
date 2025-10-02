@@ -350,6 +350,18 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
             >
               View Pricing
             </Button>
+            {/* TEMPORARY: API Token Copy Button for Testing */}
+            <Button 
+              variant="outline"
+              onClick={async () => {
+                const { data } = await supabase.auth.getSession();
+                console.log('TOKEN:', data.session?.access_token);
+                navigator.clipboard.writeText(data.session?.access_token || '');
+                alert('Token copied to clipboard!');
+              }}
+            >
+              Copy API Token
+            </Button>
             <Button onClick={async () => {
               console.log('👋 [THERAPIST-DASH] User signing out...');
               sessionStorage.setItem('intentionalSignOut', 'true');
