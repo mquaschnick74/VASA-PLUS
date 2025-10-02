@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
-import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
+import vasaLogo from '@assets/iVASA Dark_1759424106928.png';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 interface AuthenticationProps {
@@ -286,17 +286,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       <div className="w-full max-w-2xl">
         {/* Logo and Branding */}
         <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-16 h-16 animate-float">
+          <div className="flex items-center justify-center mb-4">
+            <div className="w-48 h-auto animate-float">
               <img 
                 src={vasaLogo} 
                 alt="iVASA Logo" 
                 className="w-full h-full object-contain"
               />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              iVASA
-            </h1>
           </div>
           <p className="text-muted-foreground text-lg whitespace-nowrap">Your Voice. Your Journey. Your AI Therapeutic Assistant</p>
         </div>
