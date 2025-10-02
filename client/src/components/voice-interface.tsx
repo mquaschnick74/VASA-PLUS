@@ -414,7 +414,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
                       />
                     </div>
                     <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                      <span>{subscription.limits.minutes_used} used</span>
+                      <span>
+                        {subscription.limits.minutes_used} used
+                        {subscription.limits.is_using_therapist_subscription && ' by ALL clients'}
+                      </span>
                       <span>{subscription.limits.minutes_limit} total</span>
                     </div>
                   </div>
