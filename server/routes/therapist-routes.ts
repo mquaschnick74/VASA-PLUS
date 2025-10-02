@@ -2,7 +2,7 @@
 // COMPLETE PRODUCTION-READY IMPLEMENTATION WITH AUTH FIX
 
 import { Router } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken, requireAuth, AuthRequest } from '../middleware/auth';
 import { supabase } from '../services/supabase-service';
 import crypto from 'crypto';
 import { Resend } from 'resend';
@@ -673,7 +673,7 @@ router.delete('/invitation/:id', authenticateToken, async (req: AuthRequest, res
 // ============================================================================
 
 // Get all sessions for a client
-router.get('/client/:clientId/sessions', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/client/:clientId/sessions', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { clientId } = req.params;
 
@@ -723,7 +723,7 @@ router.get('/client/:clientId/sessions', authenticateToken, async (req: AuthRequ
 });
 
 // Get session summary
-router.get('/client/:clientId/session/:sessionId/summary', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/client/:clientId/session/:sessionId/summary', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { clientId, sessionId } = req.params;
 
@@ -779,7 +779,7 @@ router.get('/client/:clientId/session/:sessionId/summary', authenticateToken, as
 });
 
 // Get session transcript
-router.get('/client/:clientId/session/:sessionId/transcript', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/client/:clientId/session/:sessionId/transcript', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { clientId, sessionId } = req.params;
 
@@ -835,7 +835,7 @@ router.get('/client/:clientId/session/:sessionId/transcript', authenticateToken,
 });
 
 // Get client statistics
-router.get('/client/:clientId/stats', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/client/:clientId/stats', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { clientId } = req.params;
 

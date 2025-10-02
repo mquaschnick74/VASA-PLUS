@@ -1,0 +1,63 @@
+🚀 [DASHBOARD] Setting up auth management
+index-CDOueRx5.js:495 ✅ [DASHBOARD] Existing session found for: mathew@ivasa.ai
+index-CDOueRx5.js:495 🔐 [DASHBOARD] Calling API: /api/auth/user
+index-CDOueRx5.js:495 ✅ [DASHBOARD] API Response status: 200
+index-CDOueRx5.js:495 👤 [DASHBOARD] User received from API: {id: '7165725f-602a-4786-8756-09f68c0b5d5c', email: 'mathew@ivasa.ai', first_name: 'Mathew', created_at: '2025-09-29T19:39:39.401609+00:00', updated_at: '2025-09-29T19:39:39.401609+00:00', …}
+index-CDOueRx5.js:495 ✅ [DASHBOARD] User type detected: therapist for mathew@ivasa.ai
+index-CDOueRx5.js:495 🎯 [DASHBOARD] Routing to therapist dashboard for user 7165725f-602a-4786-8756-09f68c0b5d5c
+index-CDOueRx5.js:480 📊 Loading subscription for user: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-CDOueRx5.js:488 🚀 [THERAPIST-DASH] Component mounted with userId: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-CDOueRx5.js:488 📊 [THERAPIST-DASH] Load attempt #1 starting...
+index-CDOueRx5.js:488 🔐 [THERAPIST-DASH] Checking auth session...
+index-CDOueRx5.js:495 🔄 [DASHBOARD] Auth event: INITIAL_SESSION {email: 'mathew@ivasa.ai', isSignedIn: true, lastEvent: ''}
+index-CDOueRx5.js:495 ⏭️ [DASHBOARD] Skipping INITIAL_SESSION
+index-CDOueRx5.js:488 ✅ [THERAPIST-DASH] Session valid for: mathew@ivasa.ai
+index-CDOueRx5.js:488 👤 [THERAPIST-DASH] Loading profile for userId: 7165725f-602a-4786-8756-09f68c0b5d5c
+index-CDOueRx5.js:488 ✅ [THERAPIST-DASH] Profile loaded: {email: 'mathew@ivasa.ai', userType: 'therapist', id: '7165725f-602a-4786-8756-09f68c0b5d5c'}
+index-CDOueRx5.js:488 👥 [THERAPIST-DASH] Loading client relationships...
+index-CDOueRx5.js:488 🔍 [THERAPIST-DASH] Attempt 1: Query with user_profiles join
+index-CDOueRx5.js:180  GET https://sleknpdkazcbtpfzdwdp.supabase.co/rest/v1/therapist_client_relationships?select=*%2Cuser_profiles%21therapist_client_relationships_client_id_fkey%28id%2Cemail%2Cfull_name%29&therapist_id=eq.7165725f-602a-4786-8756-09f68c0b5d5c&status=eq.active 400 (Bad Request)
+(anonymous) @ index-CDOueRx5.js:180
+(anonymous) @ index-CDOueRx5.js:180
+a @ index-CDOueRx5.js:180
+Promise.then
+u @ index-CDOueRx5.js:180
+(anonymous) @ index-CDOueRx5.js:180
+eN @ index-CDOueRx5.js:180
+(anonymous) @ index-CDOueRx5.js:180
+then @ index-CDOueRx5.js:158Understand this error
+index-CDOueRx5.js:495 ⚠️ [THERAPIST-DASH] Query 1 failed: Could not find a relationship between 'therapist_client_relationships' and 'user_profiles' in the schema cache
+index-CDOueRx5.js:495 🔍 [THERAPIST-DASH] Attempt 2: Simple query without joins
+index-CDOueRx5.js:495 ✅ [THERAPIST-DASH] Query 2 successful, will fetch profiles separately
+index-CDOueRx5.js:480 ✅ Subscription loaded via API
+index-CDOueRx5.js:480 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 42,
+    "minutes_used": 3,
+    "minutes_limit": 45,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "7165725f-602a-4786-8756-09f68c0b5d5c",
+    "subscription_owner_email": "mathew@ivasa.ai"
+  },
+  "user_id": "7165725f-602a-4786-8756-09f68c0b5d5c",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 45,
+  "usage_minutes_used": 3,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-CDOueRx5.js:480 Subscription data: {limits: {…}, user_id: '7165725f-602a-4786-8756-09f68c0b5d5c', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-CDOueRx5.js:495 ✅ [THERAPIST-DASH] Found 1 client relationships
+index-CDOueRx5.js:495 📈 [THERAPIST-DASH] Loading stats for client: 5cd8ca2a-3ae6-400a-8e99-d6cd942070d4
+index-CDOueRx5.js:495 ✅ [THERAPIST-DASH] Loaded 1 valid clients
+index-CDOueRx5.js:495 ✅ [THERAPIST-DASH] Dashboard load complete (attempt #1)
+index-CDOueRx5.js:495 🎨 [THERAPIST-DASH] Rendering dashboard with 1 clients
+index-CDOueRx5.js:495 🔚 [DASHBOARD] Cleaning up
+index-CDOueRx5.js:488 🔚 [THERAPIST-DASH] Component unmounting
