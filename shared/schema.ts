@@ -83,6 +83,18 @@ export const therapistInvitations = pgTable("therapist_invitations", {
   expires_at: timestamp("expires_at").notNull(),
 });
 
+// Therapist access logs for compliance and audit trail
+export const therapistAccessLogs = pgTable("therapist_access_logs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  therapist_id: uuid("therapist_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  client_id: uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  access_type: varchar("access_type", { length: 50 }).notNull(),
+  session_id: uuid("session_id").references(() => therapeuticSessions.id, { onDelete: "set null" }),
+  accessed_at: timestamp("accessed_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+  ip_address: varchar("ip_address", { length: 45 }),
+  user_agent: varchar("user_agent", { length: 255 }),
+});
+
 // Therapeutic sessions table - NO CHANGES
 export const therapeuticSessions = pgTable("therapeutic_sessions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -263,3 +275,4 @@ export const MOVEMENT_TYPES = {
 export type CssStage = typeof CSS_STAGES[keyof typeof CSS_STAGES];
 export type PatternType = typeof PATTERN_TYPES[keyof typeof PATTERN_TYPES];
 export type MovementType = typeof MOVEMENT_TYPES[keyof typeof MOVEMENT_TYPES];
+export type TherapistAccessLog = typeof therapistAccessLogs.$inferSelect;

@@ -6,6 +6,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { supabase } from '../services/supabase-service';
 import crypto from 'crypto';
 import { Resend } from 'resend';
+import { therapistDataService } from '../services/therapist-data-service';
 
 const router = Router();
 
