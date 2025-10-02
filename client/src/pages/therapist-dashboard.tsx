@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SubscriptionStatus from '@/components/SubscriptionStatus';
+import VoiceInterface from '@/components/voice-interface';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -487,6 +488,15 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
             )}
           </CardContent>
         </Card>
+
+        {/* Voice Interface Section */}
+        <div className="mt-8">
+          <VoiceInterface 
+            userId={userId} 
+            setUserId={setUserId}
+            hideLogoutButton={true}
+          />
+        </div>
       </div>
     </div>
   );
