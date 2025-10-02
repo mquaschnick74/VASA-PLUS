@@ -667,4 +667,221 @@ router.delete('/invitation/:id', authenticateToken, async (req: AuthRequest, res
   }
 });
 
+// ============================================================================
+// COPY ALL OF THIS AND PASTE IT INTO server/routes/therapist-routes.ts
+// PASTE IT RIGHT BEFORE THE LINE: export default router;
+// ============================================================================
+
+// Get all sessions for a client
+router.get('/client/:clientId/sessions', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { clientId } = req.params;
+
+    // Get therapist profile from auth email
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can access this endpoint' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Verify therapist-client relationship
+    const hasAccess = await therapistDataService.verifyTherapistClientRelationship(
+      therapistId,
+      clientId
+    );
+
+    if (!hasAccess) {
+      return res.status(403).json({ 
+        error: 'Access denied: No active relationship with this client' 
+      });
+    }
+
+    // Get sessions
+    const sessionData = await therapistDataService.getClientSessions(clientId);
+
+    // Log access
+    await therapistDataService.logAccess(
+      therapistId,
+      clientId,
+      'session_list',
+      undefined,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.json(sessionData);
+  } catch (error) {
+    console.error('Error fetching client sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch sessions' });
+  }
+});
+
+// Get session summary
+router.get('/client/:clientId/session/:sessionId/summary', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { clientId, sessionId } = req.params;
+
+    // Get therapist profile from auth email
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can access this endpoint' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Verify therapist-client relationship
+    const hasAccess = await therapistDataService.verifyTherapistClientRelationship(
+      therapistId,
+      clientId
+    );
+
+    if (!hasAccess) {
+      return res.status(403).json({ 
+        error: 'Access denied: No active relationship with this client' 
+      });
+    }
+
+    // Get summary
+    const summary = await therapistDataService.getSessionSummary(clientId, sessionId);
+
+    // Log access
+    await therapistDataService.logAccess(
+      therapistId,
+      clientId,
+      'session_summary',
+      sessionId,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.json(summary);
+  } catch (error) {
+    console.error('Error fetching session summary:', error);
+    if (error instanceof Error && error.message === 'Session not found') {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    if (error instanceof Error && error.message === 'Summary not found') {
+      return res.status(404).json({ error: 'Summary not found for this session' });
+    }
+    res.status(500).json({ error: 'Failed to fetch summary' });
+  }
+});
+
+// Get session transcript
+router.get('/client/:clientId/session/:sessionId/transcript', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { clientId, sessionId } = req.params;
+
+    // Get therapist profile from auth email
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can access this endpoint' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Verify therapist-client relationship
+    const hasAccess = await therapistDataService.verifyTherapistClientRelationship(
+      therapistId,
+      clientId
+    );
+
+    if (!hasAccess) {
+      return res.status(403).json({ 
+        error: 'Access denied: No active relationship with this client' 
+      });
+    }
+
+    // Get transcript
+    const transcript = await therapistDataService.getSessionTranscript(clientId, sessionId);
+
+    // Log access (IMPORTANT for compliance)
+    await therapistDataService.logAccess(
+      therapistId,
+      clientId,
+      'session_transcript',
+      sessionId,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.json(transcript);
+  } catch (error) {
+    console.error('Error fetching session transcript:', error);
+    if (error instanceof Error && error.message === 'Session not found') {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    if (error instanceof Error && error.message === 'Transcript not found') {
+      return res.status(404).json({ error: 'Transcript not found for this session' });
+    }
+    res.status(500).json({ error: 'Failed to fetch transcript' });
+  }
+});
+
+// Get client statistics
+router.get('/client/:clientId/stats', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { clientId } = req.params;
+
+    // Get therapist profile from auth email
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can access this endpoint' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Verify therapist-client relationship
+    const hasAccess = await therapistDataService.verifyTherapistClientRelationship(
+      therapistId,
+      clientId
+    );
+
+    if (!hasAccess) {
+      return res.status(403).json({ 
+        error: 'Access denied: No active relationship with this client' 
+      });
+    }
+
+    // Get stats
+    const stats = await therapistDataService.getClientStats(clientId);
+
+    // Log access
+    await therapistDataService.logAccess(
+      therapistId,
+      clientId,
+      'session_list',
+      undefined,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching client stats:', error);
+    res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
 export default router;
