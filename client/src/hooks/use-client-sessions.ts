@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
 
 interface Session {
   id: string;
@@ -20,9 +21,10 @@ export function useClientSessions(clientId: string | undefined) {
   return useQuery<SessionsResponse>({
     queryKey: ['client-sessions', clientId],
     queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(`/api/therapist/client/${clientId}/sessions`, {
         headers: {
-          'Authorization': `Bearer ${(await window.supabase.auth.getSession()).data.session?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`
         }
       });
       if (!response.ok) throw new Error('Failed to fetch sessions');
