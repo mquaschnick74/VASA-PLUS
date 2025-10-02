@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useLocation } from 'wouter';
 import { useClientSessions } from '@/hooks/use-client-sessions';
 import { useClientStats } from '@/hooks/use-client-stats';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 
 export function ClientSessionsView() {
   const { clientId } = useParams<{ clientId: string }>();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const { data: sessions, isLoading: sessionsLoading } = useClientSessions(clientId);
   const { data: stats, isLoading: statsLoading } = useClientStats(clientId);
 
@@ -23,7 +23,7 @@ export function ClientSessionsView() {
     <div className="container mx-auto p-8">
       <Button 
         variant="ghost" 
-        onClick={() => navigate('/dashboard')}
+        onClick={() => setLocation('/dashboard')}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />

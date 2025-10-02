@@ -8,6 +8,7 @@ import SubscriptionStatus from '@/components/SubscriptionStatus';
 import { supabase } from '@/lib/supabaseClient';
 import { useSubscription } from '@/hooks/use-subscription';
 import { Users, Clock, TrendingUp, UserPlus } from 'lucide-react';
+import { useLocation } from 'wouter';
 
 interface TherapistDashboardProps {
   userId: string;
@@ -33,6 +34,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const loadAttemptRef = useRef(0);
+  const [, setLocation] = useLocation();
 
   const { data: subscription, isLoading } = useSubscription(userId);
 
@@ -464,7 +466,12 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
             ) : (
               <div className="space-y-3">
                 {clients.map(client => (
-                  <div key={client.id} className="p-4 rounded-lg glass-subtle">
+                  <div 
+                    key={client.id} 
+                    className="p-4 rounded-lg glass-subtle cursor-pointer hover:bg-white/5 transition-colors"
+                    onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
+                    data-testid={`card-client-${client.id}`}
+                  >
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-medium">{client.full_name}</p>

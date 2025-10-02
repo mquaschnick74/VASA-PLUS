@@ -9,6 +9,7 @@ import ResetPassword from '@/pages/reset-password';
 import Pricing from '@/pages/pricing';
 import PaymentSuccess from '@/pages/payment-success';
 import PaymentCancel from '@/pages/payment-cancel';
+import { ClientSessionsView } from '@/components/therapist/ClientSessionsView';
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/payment-success" component={PaymentSuccess} />
       <Route path="/payment-cancel" component={PaymentCancel} />
+      <Route path="/therapist/client/:clientId/sessions" component={ClientSessionsView} />
       {/* Catch-all route that redirects to dashboard */}
       <Route component={Dashboard} />
     </Switch>
