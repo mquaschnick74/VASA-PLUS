@@ -171,42 +171,26 @@ export default function Dashboard() {
 
             if (event === 'SIGNED_OUT') {
               const intentional = sessionStorage.getItem('intentionalSignOut');
+
               if (intentional === 'true') {
-                console.log('✅ [DASHBOARD] Intentional sign-out detected');
+                console.log('✅ [DASHBOARD] Intentional sign-out detected - cleaning up');
                 sessionStorage.removeItem('intentionalSignOut');
                 setUserId(null);
                 setUserType('individual');
                 isSignedInRef.current = false;
                 setLoading(false);
+                // Don't redirect here - handleLogout already does that
                 return;
               }
 
-              // Check if this is an expected signout
+              // If not intentional, check if user was actually signed in
               if (!isSignedInRef.current) {
                 console.log('⏭️ [DASHBOARD] Ignoring SIGNED_OUT - user was not signed in');
                 return;
               }
 
-              // Check if we still have a valid session (unexpected signout)
-              const { data: { session: currentSession } } = await supabase.auth.getSession();
-              if (currentSession) {
-                console.log('⚠️ [DASHBOARD] Unexpected SIGNED_OUT event - session still exists, ignoring');
-                return;
-              }
-
-              // Check if this is a therapist experiencing the bug
-              const storedEmail = localStorage.getItem('userEmail');
-              const lastAuthCheck = localStorage.getItem('lastAuthCheck');
-
-              if (storedEmail && lastAuthCheck) {
-                const timeSinceAuth = Date.now() - new Date(lastAuthCheck).getTime();
-                if (timeSinceAuth < 15000) { // Less than 15 seconds
-                  console.log('⚠️ [DASHBOARD] Unexpected signout shortly after auth - ignoring');
-                  return;
-                }
-              }
-
-              console.log('👋 [DASHBOARD] Processing legitimate signout');
+              // Unexpected signout - treat as session loss
+              console.log('⚠️ [DASHBOARD] Unexpected SIGNED_OUT - clearing state');
               setUserId(null);
               setUserType('individual');
               isSignedInRef.current = false;
