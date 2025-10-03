@@ -222,9 +222,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   if (verificationSent) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 gradient-bg">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md mx-auto px-4">
           <Card className="glass rounded-2xl border-0">
-            <CardContent className="p-8">
+            <CardContent className="p-4 md:p-8">
               <div className="text-center">
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
                   <i className="fas fa-envelope-circle-check text-4xl text-primary"></i>
@@ -283,11 +283,11 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 gradient-bg">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-2xl mx-auto px-4">
         {/* Logo and Branding */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 md:mb-12">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-48 h-auto animate-float">
+            <div className="w-40 md:w-48 h-auto animate-float">
               <img 
                 src={vasaLogo} 
                 alt="iVASA Logo" 
@@ -295,14 +295,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               />
             </div>
           </div>
-          <p className="text-muted-foreground text-lg whitespace-nowrap">Your Voice. Your Journey. Your AI Therapeutic Assistant</p>
+          <p className="text-muted-foreground text-base md:text-lg px-4">Your Voice. Your Journey. Your AI Therapeutic Assistant</p>
         </div>
 
         {/* Authentication Form */}
         <div className="flex justify-center">
           <div className="w-full max-w-md">
             <Card className="glass rounded-2xl border-0">
-          <CardContent className="p-8">
+          <CardContent className="p-4 md:p-8">
             <div className="space-y-6">
               {/* ============= NEW: Invitation banner ============= */}
               {invitationMode && (
