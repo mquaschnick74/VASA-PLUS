@@ -338,19 +338,20 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Therapist Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Therapist Dashboard</h1>
             {profile && (
               <p className="text-sm text-muted-foreground mt-1">
                 {profile.email} • {profile.user_type}
               </p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline"
               onClick={() => window.location.href = '/pricing'}
+              className="text-sm"
             >
               View Pricing
             </Button>
@@ -363,10 +364,11 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
                 navigator.clipboard.writeText(data.session?.access_token || '');
                 alert('Token copied to clipboard!');
               }}
+              className="text-sm"
             >
               Copy API Token
             </Button>
-            <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout">
+            <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout" className="text-sm">
               Sign Out
             </Button>
           </div>
@@ -435,7 +437,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Invite Form */}
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="email"
                 placeholder="Client email address"
@@ -447,7 +449,7 @@ export default function TherapistDashboard({ userId, setUserId }: TherapistDashb
               <Button 
                 onClick={inviteClient}
                 disabled={inviting || !inviteEmail}
-                className="px-6"
+                className="px-6 w-full sm:w-auto"
               >
                 {inviting ? 'Sending...' : 'Invite Client'}
               </Button>
