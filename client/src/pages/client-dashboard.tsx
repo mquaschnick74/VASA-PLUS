@@ -111,15 +111,15 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
       <nav className="sticky top-0 z-50 glass-strong">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold">Client Dashboard</h1>
-            <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout">
+            <h1 className="text-xl sm:text-2xl font-bold">Client Dashboard</h1>
+            <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout" className="text-sm">
               Sign Out
             </Button>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Top Row - Therapist and Session Info Cards */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           {/* Therapist Info Card */}
