@@ -17,6 +17,7 @@ const router = Router();
 // PARTNER AUTHENTICATION & ACCESS CONTROL
 // ============================================================================
 
+// Middleware to check if user has partner access
 async function checkPartnerAccess(req: PartnerAuthRequest, res: any, next: any) {
   try {
     const authUserId = req.user?.id;
@@ -209,7 +210,10 @@ router.get('/revenue/transactions', authenticateToken, checkPartnerAccess, async
       .from('partner_revenue_transactions')
       .select(`
         *,
-        therapist:therapist_id(email, full_name),
+        therapist:therapist_id(
+          email,
+          user_profiles!user_profiles_id_fkey(full_name)
+        ),
         subscription:subscription_id(subscription_tier)
       `, { count: 'exact' })
       .eq('partner_id', partnerId)
@@ -222,7 +226,10 @@ router.get('/revenue/transactions', authenticateToken, checkPartnerAccess, async
 
     const { data: transactions, error, count } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('Transactions error:', error);
+      throw error;
+    }
 
     // Format transactions for display
     const formattedTransactions = transactions?.map(t => ({
@@ -232,7 +239,7 @@ router.get('/revenue/transactions', authenticateToken, checkPartnerAccess, async
       amount: (t.amount_cents || 0) / 100,
       partnerShare: (t.partner_revenue_share_cents || 0) / 100,
       shareRate: t.revenue_share_percentage_applied,
-      therapist: t.therapist?.full_name || t.therapist?.email || 'N/A',
+      therapist: t.therapist?.user_profiles?.full_name || t.therapist?.email || 'N/A',
       subscriptionTier: t.subscription?.subscription_tier || 'N/A',
       billingPeriod: t.billing_period_start && t.billing_period_end ? 
         `${new Date(t.billing_period_start).toLocaleDateString()} - ${new Date(t.billing_period_end).toLocaleDateString()}` : 
@@ -313,17 +320,20 @@ router.get('/therapists', authenticateToken, checkPartnerAccess, async (req: Par
       .select(`
         *,
         therapist:therapist_id(
-  id,
-  email,
-  user_profiles!user_profiles_id_fkey(full_name)
-)
+          id,
+          email,
+          user_profiles!user_profiles_id_fkey(full_name)
+        )
       `, { count: 'exact' })
       .eq('partner_id', partnerId)
       .eq('status', status as string)
       .order('attribution_date', { ascending: false })
       .range(offset, offset + parseInt(limit as string) - 1);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Therapists error:', error);
+      throw error;
+    }
 
     // Get usage data for each therapist
     const therapistsWithUsage = await Promise.all(
@@ -346,7 +356,7 @@ router.get('/therapists', authenticateToken, checkPartnerAccess, async (req: Par
         return {
           id: attr.id,
           therapistId: attr.therapist_id,
-          therapistName: attr.therapist?.user_profiles?.full_name || attr.therapist?.email,
+          therapistName: attr.therapist?.user_profiles?.full_name || attr.therapist?.email || 'Unknown',
           therapistEmail: attr.therapist?.email,
           attributionSource: attr.attribution_source,
           attributionDate: attr.attribution_date,
