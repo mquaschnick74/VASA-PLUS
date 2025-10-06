@@ -247,7 +247,10 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
     );
   }
 
-  const { partner, metrics } = dashboardData;
+  const { partner, metrics } = dashboardData
+
+  console.log('🎨 [RENDERING] Dashboard data:', dashboardData);
+  console.log('🎨 [RENDERING] Metrics:', metrics);
 
   return (
     <div className="min-h-screen gradient-bg">
