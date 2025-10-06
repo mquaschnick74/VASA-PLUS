@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabaseClient';
+import { handleLogout } from '@/lib/auth-helpers';
 import {
   DollarSign,
   Users,
@@ -214,11 +215,8 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    localStorage.clear();
-    sessionStorage.clear();
-    setUserId(null);
+  const handleSignOut = () => {
+    handleLogout(setUserId);
   };
 
   const getTierColor = (tier: string) => {
