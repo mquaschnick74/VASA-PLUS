@@ -1,7 +1,7 @@
 # VASA - Therapeutic Voice Assistant MVP
 
 ## Overview
-AI-powered therapeutic voice assistant with real-time CSS (Conversational State Sensing) pattern detection, multi-agent support, and persistent memory across sessions. Features role-based dashboards (Therapist/Client/Individual), subscription-based usage tracking, client invitation system, and HIPAA-compliant audit logging. Glassmorphic UI with purple theming and mobile-responsive design.
+AI-powered therapeutic voice assistant with real-time CSS (Conversational State Sensing) pattern detection, multi-agent support, and persistent memory across sessions. Features role-based dashboards (Therapist/Client/Individual/Partner), subscription-based usage tracking, client invitation system, partner revenue tracking, and HIPAA-compliant audit logging. Glassmorphic UI with purple theming and mobile-responsive design.
 
 ## File Structure
 
@@ -31,7 +31,8 @@ vasa-mvp/
 │   │   ├── pages/
 │   │   │   ├── dashboard.tsx         # Main routing page
 │   │   │   ├── therapist-dashboard.tsx  # Therapist view
-│   │   │   └── client-dashboard.tsx  # Client view
+│   │   │   ├── client-dashboard.tsx  # Client view
+│   │   │   └── partner-dashboard.tsx # Partner revenue portal
 │   │   ├── lib/
 │   │   │   ├── queryClient.ts        # TanStack Query setup
 │   │   │   ├── auth-helpers.ts       # Centralized logout handling
@@ -45,6 +46,7 @@ vasa-mvp/
 │   ├── routes/
 │   │   ├── auth-routes.ts            # Authentication endpoints
 │   │   ├── therapist-routes.ts       # Therapist data access endpoints
+│   │   ├── partner-routes.ts         # Partner revenue & analytics endpoints
 │   │   ├── vapi-routes.ts            # VAPI configuration endpoints
 │   │   └── webhook-routes.ts         # VAPI webhook handler
 │   ├── services/
@@ -77,6 +79,7 @@ vasa-mvp/
 - **Therapist Dashboard**: Client management, invitation system, usage monitoring, own voice sessions
 - **Client Dashboard**: Therapist info, voice sessions using therapist's subscription
 - **Individual Dashboard**: Personal voice sessions with own subscription
+- **Partner Dashboard**: Revenue tracking, therapist attribution, equity management, referral analytics
 
 ### Subscription System
 - **Usage Tracking**: Minutes used/remaining display with progress bars
@@ -95,6 +98,16 @@ vasa-mvp/
 - **View Summary**: Modal showing conversational summary and session insights
 - **View Transcript**: Modal showing full conversation history
 - **HIPAA Audit Logging**: All data access logged to audit_logs table
+
+### Partner Portal
+- **Revenue Dashboard**: Track total revenue, partner share, and monthly recurring revenue
+- **Therapist Attribution**: Monitor attributed therapists, their usage, and revenue generation
+- **Tier System**: Bronze/Silver/Gold/Platinum progression based on MRR thresholds
+- **Equity Management**: Vested/unvested equity tracking with vesting schedules
+- **Referral Network**: Direct/indirect referral tracking with network bonuses
+- **Analytics**: Growth metrics, usage patterns, and session analytics with visualizations
+- **Transaction History**: Detailed revenue transaction logs with filtering
+- **Partnership Models**: Support for revenue share, equity, and hybrid partnerships
 
 ### CSS Pattern Detection
 - **CVDC**: Contradiction detection between opposing desires
@@ -118,14 +131,20 @@ vasa-mvp/
 
 ### Database Schema
 ```sql
-user_profiles                    # User accounts (therapist/client/individual)
-therapist_client_relationships   # Therapist-client connections
-subscriptions                    # Subscription plans and limits
-therapeutic_sessions             # Voice session metadata
-therapeutic_context              # Persistent memory/insights
-session_transcripts              # Full conversation history (end-of-call only)
-css_patterns                     # Detected therapeutic patterns
-audit_logs                       # HIPAA-compliant access logs
+user_profiles                      # User accounts (therapist/client/individual/partner)
+therapist_client_relationships     # Therapist-client connections
+subscriptions                      # Subscription plans and limits
+therapeutic_sessions               # Voice session metadata
+therapeutic_context                # Persistent memory/insights
+session_transcripts                # Full conversation history (end-of-call only)
+css_patterns                       # Detected therapeutic patterns
+audit_logs                         # HIPAA-compliant access logs
+partner_organizations              # Partner organization details
+partner_users                      # Partner user access management
+partner_therapist_attribution      # Therapist-partner linkage & revenue tracking
+partner_revenue_transactions       # Detailed revenue transactions
+partner_metrics_snapshots          # Periodic metrics aggregation
+partner_equity_vesting_schedule    # Equity vesting timeline
 ```
 
 ## Architecture
@@ -161,7 +180,14 @@ audit_logs                       # HIPAA-compliant access logs
 - Privacy-focused data handling
 
 ## Recent Updates (Oct 2025)
-- **Role-Based System**: Therapist/client/individual dashboards with full functionality
+- **Partner Portal**: Full revenue tracking and analytics dashboard
+  - Revenue/equity/therapist/referral management tabs
+  - Tier progression system (Bronze → Silver → Gold → Platinum)
+  - Transaction history with filtering and pagination
+  - Growth analytics with visualizations (charts/graphs)
+  - Therapist attribution and performance tracking
+  - Vesting schedule management for equity partners
+- **Role-Based System**: Therapist/client/individual/partner dashboards with full functionality
 - **Subscription Management**: Usage tracking, tier-based limits, transparent client usage display
 - **Client Invitation**: Email-based invitation system with secure token handling
 - **Therapist Data Access**: View client sessions, summaries, and transcripts with audit logging
@@ -170,7 +196,7 @@ audit_logs                       # HIPAA-compliant access logs
   - Dashboard headers: Stacked buttons on mobile, responsive text sizes
   - Promotional text: "7 day free trial, No credit card required"
 - **Branding Assets**: og-image.png, favicon.png, apple-touch-icon.png
-- **Logout Bug Fix**: Removed localStorage.clear() calls causing React event handler issues
+- **Logout Bug Fix**: Fixed partner-dashboard.tsx logout button (removed localStorage.clear() calls)
 - **Auth Improvements**: requireAuth middleware returns 401 for unauthorized requests
 - Natural voice configuration (v3) with speak/meta separation
 - AI disclosure card with crisis hotline info
