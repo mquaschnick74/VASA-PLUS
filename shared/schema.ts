@@ -185,6 +185,188 @@ export const therapeuticMovements = pgTable("therapeutic_movements", {
   created_at: timestamp("created_at", { withTimezone: false }).default(sql`NOW()`),
 });
 
+// Add these tables to the END of shared/schema.ts (after therapistInvitations)
+
+// Partner organizations table
+export const partnerOrganizations = pgTable("partner_organizations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  organization_name: varchar("organization_name", { length: 255 }).notNull(),
+  organization_type: varchar("organization_type", { length: 50 }).notNull(), // 'practice_management', 'clinic_network', 'ehr_system', 'mental_health_platform'
+  contact_email: varchar("contact_email", { length: 255 }).notNull(),
+  contact_name: varchar("contact_name", { length: 255 }),
+  contact_phone: varchar("contact_phone", { length: 50 }),
+
+  // Partnership status
+  partner_status: varchar("partner_status", { length: 50 }).default('prospect'), // 'prospect', 'pilot', 'active', 'suspended', 'churned'
+  partner_tier: varchar("partner_tier", { length: 20 }), // 'bronze', 'silver', 'gold', 'platinum'
+
+  // Partnership model
+  partnership_model: varchar("partnership_model", { length: 50 }).notNull(), // 'direct_integration', 'referral_advertising', 'white_label'
+
+  // Revenue & equity tracking
+  total_revenue_generated: integer("total_revenue_generated").default(0), // Total revenue in cents
+  monthly_recurring_revenue: integer("monthly_recurring_revenue").default(0), // MRR in cents
+  equity_percentage: real("equity_percentage").default(0), // Percentage (e.g., 0.5 for 0.5%)
+  equity_vested_percentage: real("equity_vested_percentage").default(0), // Already vested
+
+  // Dates
+  pilot_start_date: timestamp("pilot_start_date"),
+  active_since: timestamp("active_since"),
+  equity_cliff_date: timestamp("equity_cliff_date"), // 6 months from active_since
+  next_vesting_date: timestamp("next_vesting_date"),
+
+  // Settings
+  revenue_share_percentage: real("revenue_share_percentage").default(15), // Default 15%
+  api_key: varchar("api_key", { length: 100 }).unique(),
+  webhook_url: varchar("webhook_url", { length: 500 }),
+
+  // Referral tracking
+  referred_by_partner_id: uuid("referred_by_partner_id").references(() => partnerOrganizations.id),
+  referral_level: integer("referral_level").default(0), // 0 = direct, 1 = level 1, 2 = level 2
+
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// Partner revenue transactions table
+export const partnerRevenueTransactions = pgTable("partner_revenue_transactions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  partner_id: uuid("partner_id").notNull().references(() => partnerOrganizations.id, { onDelete: "cascade" }),
+
+  // Transaction details
+  transaction_type: varchar("transaction_type", { length: 50 }).notNull(), // 'subscription', 'usage', 'referral_bonus', 'overage'
+  amount_cents: integer("amount_cents").notNull(), // Amount in cents
+  currency: varchar("currency", { length: 3 }).default('USD'),
+
+  // Attribution
+  therapist_id: uuid("therapist_id").references(() => users.id), // Which therapist generated this revenue
+  subscription_id: uuid("subscription_id").references(() => subscriptions.id),
+  usage_session_id: uuid("usage_session_id").references(() => usageSessions.id),
+
+  // Partner compensation
+  partner_revenue_share_cents: integer("partner_revenue_share_cents"), // What partner earns
+  revenue_share_percentage_applied: real("revenue_share_percentage_applied"), // Rate at time of transaction
+
+  // Revenue flow tracking
+  paid_to_ivasa: boolean("paid_to_ivasa").default(false),
+  paid_to_partner: boolean("paid_to_partner").default(false),
+
+  // Metadata
+  transaction_date: timestamp("transaction_date").defaultNow(),
+  billing_period_start: timestamp("billing_period_start"),
+  billing_period_end: timestamp("billing_period_end"),
+
+  notes: text("notes"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+// Partner metrics snapshots table (for historical tracking)
+export const partnerMetricsSnapshots = pgTable("partner_metrics_snapshots", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  partner_id: uuid("partner_id").notNull().references(() => partnerOrganizations.id, { onDelete: "cascade" }),
+
+  // Snapshot period
+  snapshot_date: timestamp("snapshot_date").notNull(),
+  period_type: varchar("period_type", { length: 20 }).notNull(), // 'daily', 'weekly', 'monthly', 'quarterly'
+
+  // Therapist/client counts
+  active_therapists_count: integer("active_therapists_count").default(0),
+  active_clients_count: integer("active_clients_count").default(0),
+  new_therapists_count: integer("new_therapists_count").default(0),
+  churned_therapists_count: integer("churned_therapists_count").default(0),
+
+  // Usage metrics
+  total_voice_sessions: integer("total_voice_sessions").default(0),
+  total_voice_minutes: integer("total_voice_minutes").default(0),
+  average_session_length_minutes: real("average_session_length_minutes"),
+
+  // Revenue metrics
+  revenue_generated_cents: integer("revenue_generated_cents").default(0),
+  revenue_share_paid_cents: integer("revenue_share_paid_cents").default(0),
+  mrr_cents: integer("mrr_cents").default(0), // Monthly recurring revenue
+  arr_cents: integer("arr_cents").default(0), // Annual recurring revenue
+
+  // Equity tracking
+  equity_percentage_at_snapshot: real("equity_percentage_at_snapshot"),
+  equity_vested_percentage_at_snapshot: real("equity_vested_percentage_at_snapshot"),
+
+  // Referral metrics
+  referrals_made: integer("referrals_made").default(0),
+  referral_revenue_cents: integer("referral_revenue_cents").default(0),
+
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+// Partner users table (for login access to partner portal)
+export const partnerUsers = pgTable("partner_users", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  partner_id: uuid("partner_id").notNull().references(() => partnerOrganizations.id, { onDelete: "cascade" }),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Access control
+  role: varchar("role", { length: 50 }).default('viewer'), // 'admin', 'manager', 'viewer'
+  permissions: jsonb("permissions"), // JSON array of specific permissions
+
+  // Status
+  access_status: varchar("access_status", { length: 20 }).default('active'), // 'active', 'suspended', 'revoked'
+
+  // Audit
+  last_login_at: timestamp("last_login_at"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// Partner therapist attribution (which therapists belong to which partner)
+export const partnerTherapistAttribution = pgTable("partner_therapist_attribution", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  partner_id: uuid("partner_id").notNull().references(() => partnerOrganizations.id, { onDelete: "cascade" }),
+  therapist_id: uuid("therapist_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Attribution details
+  attribution_source: varchar("attribution_source", { length: 50 }).notNull(), // 'direct_integration', 'referral_link', 'manual_assignment', 'api_signup'
+  attribution_date: timestamp("attribution_date").defaultNow(),
+
+  // Status
+  status: varchar("status", { length: 20 }).default('active'), // 'active', 'inactive', 'churned'
+
+  // Tracking
+  signup_url: varchar("signup_url", { length: 500 }), // URL they signed up from (for attribution)
+  referral_code: varchar("referral_code", { length: 50 }), // Partner's unique referral code
+  utm_source: varchar("utm_source", { length: 100 }),
+  utm_campaign: varchar("utm_campaign", { length: 100 }),
+
+  // Lifecycle
+  first_session_date: timestamp("first_session_date"),
+  last_session_date: timestamp("last_session_date"),
+  total_lifetime_revenue_cents: integer("total_lifetime_revenue_cents").default(0),
+
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// Partner equity vesting schedule
+export const partnerEquityVestingSchedule = pgTable("partner_equity_vesting_schedule", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  partner_id: uuid("partner_id").notNull().references(() => partnerOrganizations.id, { onDelete: "cascade" }),
+
+  // Vesting details
+  vesting_date: timestamp("vesting_date").notNull(),
+  equity_percentage_vesting: real("equity_percentage_vesting").notNull(), // Amount vesting on this date
+  cumulative_vested_percentage: real("cumulative_vested_percentage"), // Total vested after this event
+
+  // Status
+  vesting_status: varchar("vesting_status", { length: 20 }).default('pending'), // 'pending', 'vested', 'forfeited', 'accelerated'
+  vested_at: timestamp("vested_at"),
+
+  // Performance requirements
+  required_monthly_revenue_cents: integer("required_monthly_revenue_cents"), // Must maintain this to vest
+  actual_monthly_revenue_cents: integer("actual_monthly_revenue_cents"),
+  performance_met: boolean("performance_met"),
+
+  notes: text("notes"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
