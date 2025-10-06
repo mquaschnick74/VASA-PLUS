@@ -18,10 +18,12 @@ const router = Router();
 // PARTNER AUTHENTICATION & ACCESS CONTROL
 // ============================================================================
 
-// Middleware to check if user has partner access
 async function checkPartnerAccess(req: PartnerAuthRequest, res: any, next: any) {
   try {
     const userId = req.userId;
+
+    // ADD THIS DEBUG LOGGING
+    console.log('🔍 [PARTNER ACCESS] Checking access for userId:', userId);
 
     // Check if user is a partner user
     const { data: partnerUser, error } = await supabase
@@ -34,7 +36,11 @@ async function checkPartnerAccess(req: PartnerAuthRequest, res: any, next: any) 
       .eq('access_status', 'active')
       .single();
 
+    // ADD THIS DEBUG LOGGING
+    console.log('🔍 [PARTNER ACCESS] Query result:', { partnerUser, error });
+
     if (error || !partnerUser) {
+      console.log('❌ [PARTNER ACCESS] Access denied:', error?.message || 'No partner user found');
       return res.status(403).json({ error: 'No partner access' });
     }
 
