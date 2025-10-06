@@ -313,11 +313,11 @@ router.get('/therapists', authenticateToken, checkPartnerAccess, async (req: Par
       .select(`
         *,
         therapist:therapist_id(
-          id,
-          email,
-          full_name,
-          user_profiles(full_name)
-        )
+  id,
+  email,
+  full_name,
+  user_profiles!user_profiles_id_fkey(full_name)
+)
       `, { count: 'exact' })
       .eq('partner_id', partnerId)
       .eq('status', status as string)
