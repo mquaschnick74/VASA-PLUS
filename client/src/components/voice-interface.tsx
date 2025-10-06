@@ -314,8 +314,25 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
                 userId={userId}
                 userEmail={userContext.profile?.email}
                 sessionCount={userContext.sessionCount}
-                onAccountDeleted={() => {
+                onAccountDeleted={async () => {
+                  console.log('🔓 Account deleted callback - clearing session...');
+
+                  // Sign out from Supabase
+                  try {
+                    await supabase.auth.signOut();
+                    console.log('✅ Supabase sign out complete');
+                  } catch (error) {
+                    console.error('Error signing out:', error);
+                  }
+
+                  // Clear all storage
+                  localStorage.clear();
+                  sessionStorage.clear();
+
+                  // Update state
                   setUserId(null);
+
+                  // Force hard reload to clear React state
                   window.location.href = '/';
                 }}
               />

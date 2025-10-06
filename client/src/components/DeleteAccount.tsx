@@ -25,58 +25,83 @@ export const DeleteAccount: React.FC<DeleteAccountProps> = ({
     }
 
     setIsDeleting(true);
+
     try {
-      // Get auth token from localStorage
+      console.log('🗑️ Starting account deletion process...');
+
+      // STEP 1: Get auth token before we clear anything
       const authToken = localStorage.getItem('authToken');
 
-      // Build headers with authorization
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
+      if (!authToken) {
+        console.error('❌ No auth token found');
+        alert('Authentication error. Please try logging in again.');
+        setIsDeleting(false);
+        return;
       }
 
-      console.log('🗑️ Attempting to delete user:', userId);
-
+      // STEP 2: Delete from database first
+      console.log('📡 Sending delete request to server...');
       const response = await fetch(`/api/auth/user/${userId}`, {
         method: 'DELETE',
-        headers  // Add the authorization headers
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
       });
 
-      console.log('Delete response status:', response.status);
       const result = await response.json();
-      console.log('Delete response body:', result);
+      console.log('Server response:', response.status, result);
 
-      if (response.ok) {
-        console.log('✅ Account deleted successfully:', result);
-
-        // Clear all localStorage
-        localStorage.clear();
-        sessionStorage.clear();
-
-        // Sign out from Supabase
-        try {
-          const { supabase } = await import('@/lib/supabaseClient');
-          await supabase.auth.signOut();
-        } catch (error) {
-          console.error('Error signing out from Supabase:', error);
-        }
-
-        if (onAccountDeleted) {
-          onAccountDeleted();
-        } else {
-          window.location.href = '/';
-        }
-      } else {
-        console.error('❌ Failed to delete account:', result);
+      if (!response.ok) {
+        console.error('❌ Server rejected deletion:', result);
         alert(`Failed to delete account: ${result.error || 'Unknown error'}`);
         setIsDeleting(false);
+        return;
       }
+
+      console.log('✅ Database records deleted successfully');
+
+      // STEP 3: Sign out from Supabase Auth (prevents auto-recreation)
+      console.log('🔓 Signing out from Supabase Auth...');
+      try {
+        const { supabase } = await import('@/lib/supabaseClient');
+        const { error: signOutError } = await supabase.auth.signOut();
+
+        if (signOutError) {
+          console.error('Supabase signOut error:', signOutError);
+        } else {
+          console.log('✅ Signed out from Supabase Auth');
+        }
+      } catch (error) {
+        console.error('Error importing/calling Supabase:', error);
+      }
+
+      // STEP 4: Clear all local data
+      console.log('🧹 Clearing local storage...');
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // STEP 5: Clear cookies (if any)
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+
+      console.log('✅ Account deletion complete!');
+
+      // STEP 6: Callback or redirect
+      if (onAccountDeleted) {
+        onAccountDeleted();
+      } else {
+        // Force a hard reload to clear any in-memory state
+        window.location.href = '/';
+        window.location.reload();
+      }
+
     } catch (error) {
-      console.error('❌ Error deleting account:', error);
-      alert('Error deleting account. Please try again.');
+      console.error('❌ Unexpected error during deletion:', error);
+      alert('Error deleting account. Please try again or contact support.');
       setIsDeleting(false);
     }
   };
