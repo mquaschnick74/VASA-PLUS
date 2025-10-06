@@ -10,6 +10,7 @@ import subscriptionRoutes from './routes/subscription-routes';
 import therapistRoutes from './routes/therapist-routes';  // ADD THIS LINE
 import partnerRoutes from './routes/partner-routes';
 import influencerRoutes from './routes/influencer-routes';
+import adminRoutes from './routes/admin-routes';
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 
@@ -22,6 +23,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/subscription', subscriptionRoutes);
   apiRouter.use('/therapist', therapistRoutes);  // ADD THIS LINE
   apiRouter.use('/partner', partnerRoutes);
+  apiRouter.use('/admin', adminRoutes);
   apiRouter.use('/influencer', influencerRoutes);
   apiRouter.use('/stripe', stripeWebhookRoutes);
 
@@ -37,6 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         partner: 'Mounted at /api/partner',
         influencer: 'Mounted at /api/influencer',
         therapist: 'Mounted at /api/therapist',  // ADD THIS LINE
+        admin: 'Mounted at /api/admin',
         health: 'Mounted at /api/health'
       }
     });

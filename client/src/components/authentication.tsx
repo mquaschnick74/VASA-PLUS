@@ -465,7 +465,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       ? "Don't have an account? Sign up" 
                       : 'Already have an account? Sign in'}
                   </button>
-                  <p className="text-xs text-primary/80">
+                  <p className="text-xs text-emerald-500 font-medium">
                     7 day free trial, No credit card required.
                   </p>
                 </div>
