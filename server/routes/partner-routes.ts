@@ -19,9 +19,28 @@ const router = Router();
 
 async function checkPartnerAccess(req: PartnerAuthRequest, res: any, next: any) {
   try {
-    const userId = req.user?.id;  // ← CHANGE THIS LINE
+    const authUserId = req.user?.id;
 
-    console.log('🔍 [PARTNER ACCESS] Checking access for userId:', userId);
+    console.log('🔍 [PARTNER ACCESS] Auth user ID:', authUserId);
+
+    if (!authUserId) {
+      return res.status(403).json({ error: 'Not authenticated' });
+    }
+
+    // Get the app user ID from the users table (different from auth user ID)
+    const { data: appUser, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .single();
+
+    const userId = appUser?.id;
+
+    console.log('🔍 [PARTNER ACCESS] App user ID:', userId);
+
+    if (!userId) {
+      return res.status(403).json({ error: 'User not found in app database' });
+    }
 
     // Check if user is a partner user
     const { data: partnerUser, error } = await supabase
@@ -34,7 +53,6 @@ async function checkPartnerAccess(req: PartnerAuthRequest, res: any, next: any) 
       .eq('access_status', 'active')
       .single();
 
-    // ADD THIS DEBUG LOGGING
     console.log('🔍 [PARTNER ACCESS] Query result:', { partnerUser, error });
 
     if (error || !partnerUser) {
