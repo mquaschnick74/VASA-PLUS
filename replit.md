@@ -112,9 +112,13 @@ users                  # User profiles
 - Mobile-responsive design priority
 - Privacy-focused data handling
 
-## Recent Updates
+## Recent Updates (Oct 2025)
+- **Mobile Responsiveness**: Comprehensive mobile-first design
+  - Authentication page: Centered content, responsive text, flexible padding
+  - Dashboard headers: Stacked buttons on mobile, responsive text sizes
+  - Promotional text: "7 day free trial, No credit card required"
+- **Branding Assets**: og-image.png, favicon.png, apple-touch-icon.png
 - Natural voice configuration (v3) with speak/meta separation
-- Mobile-responsive UI with dropdown positioning fixes
 - AI disclosure card with crisis hotline info
 - Efficient transcript storage (end-of-call only)
 - CSS pattern detection with flexible regex patterns
