@@ -315,7 +315,6 @@ router.get('/therapists', authenticateToken, checkPartnerAccess, async (req: Par
         therapist:therapist_id(
   id,
   email,
-  full_name,
   user_profiles!user_profiles_id_fkey(full_name)
 )
       `, { count: 'exact' })
@@ -347,7 +346,7 @@ router.get('/therapists', authenticateToken, checkPartnerAccess, async (req: Par
         return {
           id: attr.id,
           therapistId: attr.therapist_id,
-          therapistName: attr.therapist?.user_profiles?.full_name || attr.therapist?.full_name || attr.therapist?.email,
+          therapistName: attr.therapist?.user_profiles?.full_name || attr.therapist?.email,
           therapistEmail: attr.therapist?.email,
           attributionSource: attr.attribution_source,
           attributionDate: attr.attribution_date,
