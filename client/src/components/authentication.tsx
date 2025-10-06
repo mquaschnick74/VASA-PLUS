@@ -451,7 +451,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
               {/* ============= MODIFIED: Hide toggle for invitation mode ============= */}
               {!invitationMode && (
-                <div className="text-center">
+                <div className="text-center space-y-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -465,6 +465,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       ? "Don't have an account? Sign up" 
                       : 'Already have an account? Sign in'}
                   </button>
+                  <p className="text-xs text-primary/80">
+                    7 day free trial, No credit card required.
+                  </p>
                 </div>
               )}
               {/* ==================================================================== */}
