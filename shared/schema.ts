@@ -221,7 +221,7 @@ export const partnerOrganizations = pgTable("partner_organizations", {
   webhook_url: varchar("webhook_url", { length: 500 }),
 
   // Referral tracking
-  referred_by_partner_id: uuid("referred_by_partner_id").references(() => partnerOrganizations.id),
+  referred_by_partner_id: uuid("referred_by_partner_id").references((): any => partnerOrganizations.id),
   referral_level: integer("referral_level").default(0), // 0 = direct, 1 = level 1, 2 = level 2
 
   created_at: timestamp("created_at").defaultNow(),
