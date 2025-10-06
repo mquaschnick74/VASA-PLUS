@@ -8,6 +8,7 @@ import authRoutes from './routes/auth-routes';
 import webhookRoutes from './routes/webhook-routes';
 import subscriptionRoutes from './routes/subscription-routes';
 import therapistRoutes from './routes/therapist-routes';  // ADD THIS LINE
+import partnerRoutes from './routes/partner-routes';
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 
@@ -19,6 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/vapi', webhookRoutes);
   apiRouter.use('/subscription', subscriptionRoutes);
   apiRouter.use('/therapist', therapistRoutes);  // ADD THIS LINE
+  apiRouter.use('/partner', partnerRoutes);
   apiRouter.use('/stripe', stripeWebhookRoutes);
 
   // Health check
