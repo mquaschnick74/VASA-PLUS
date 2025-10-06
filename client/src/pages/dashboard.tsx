@@ -8,6 +8,7 @@ import ClientDashboard from '@/pages/client-dashboard';
 import ConsentPopup from '@/components/ConsentPopup';
 import TherapistDashboard from '@/pages/therapist-dashboard';
 import PartnerDashboard from '@/pages/partner-dashboard';
+import InfluencerDashboard from '@/pages/influencer-dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 
@@ -326,7 +327,6 @@ export default function Dashboard() {
   }
 
   // Show auth if no user
-  // Show auth if no user
   if (!userId) {
     return <Authentication setUserId={setUserId} />;
   }
@@ -352,6 +352,8 @@ export default function Dashboard() {
   console.log(`🎯 [DASHBOARD] Routing to ${userType} dashboard for user ${userId}`);
 
   switch(userType) {
+    case 'influencer':
+      return <InfluencerDashboard userId={userId} setUserId={setUserId} />;
     case 'partner':  // ← ADD THIS CASE FIRST
       return <PartnerDashboard userId={userId} setUserId={setUserId} />;
     case 'therapist':
