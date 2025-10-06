@@ -160,11 +160,14 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
   };
 
   const loadTherapistData = async (token: string) => {
+    console.log('🔍 [THERAPISTS] Loading therapist data...');
     try {
       const response = await fetch('/api/partner/therapists', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      console.log('🔍 [THERAPISTS] API response status:', response.status);
       const data = await response.json();
+      console.log('🔍 [THERAPISTS] API returned:', data);
       setTherapists(data.therapists || []);
     } catch (error) {
       console.error('Error loading therapist data:', error);
