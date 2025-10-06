@@ -26,25 +26,56 @@ export const DeleteAccount: React.FC<DeleteAccountProps> = ({
 
     setIsDeleting(true);
     try {
+      // Get auth token from localStorage
+      const authToken = localStorage.getItem('authToken');
+
+      // Build headers with authorization
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      console.log('🗑️ Attempting to delete user:', userId);
+
       const response = await fetch(`/api/auth/user/${userId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers  // Add the authorization headers
       });
 
+      console.log('Delete response status:', response.status);
       const result = await response.json();
-      
+      console.log('Delete response body:', result);
+
       if (response.ok) {
-        console.log('✅ Account deleted:', result);
-        
+        console.log('✅ Account deleted successfully:', result);
+
+        // Clear all localStorage
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Sign out from Supabase
+        try {
+          const { supabase } = await import('@/lib/supabaseClient');
+          await supabase.auth.signOut();
+        } catch (error) {
+          console.error('Error signing out from Supabase:', error);
+        }
+
         if (onAccountDeleted) {
           onAccountDeleted();
         } else {
           window.location.href = '/';
         }
       } else {
+        console.error('❌ Failed to delete account:', result);
         alert(`Failed to delete account: ${result.error || 'Unknown error'}`);
         setIsDeleting(false);
       }
     } catch (error) {
+      console.error('❌ Error deleting account:', error);
       alert('Error deleting account. Please try again.');
       setIsDeleting(false);
     }
