@@ -402,9 +402,10 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
         </Card>
 
         {/* Tabs for detailed views */}
-        <Tabs value={selectedTab} onValueChange={(val) => {
+        <Tabs value={selectedTab} onValueChange={async (val) => {
+          console.log('🔄 [TAB CHANGE] Switching to tab:', val);
           setSelectedTab(val);
-          loadDashboard();
+          await loadDashboard();
         }}>
           <TabsList className="grid w-full grid-cols-5 glass">
             <TabsTrigger value="overview">Overview</TabsTrigger>
