@@ -7,6 +7,7 @@ import VoiceInterface from '@/components/voice-interface';
 import ClientDashboard from '@/pages/client-dashboard';
 import ConsentPopup from '@/components/ConsentPopup';
 import TherapistDashboard from '@/pages/therapist-dashboard';
+import PartnerDashboard from '@/pages/partner-dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 
@@ -351,6 +352,8 @@ export default function Dashboard() {
   console.log(`🎯 [DASHBOARD] Routing to ${userType} dashboard for user ${userId}`);
 
   switch(userType) {
+    case 'partner':  // ← ADD THIS CASE FIRST
+      return <PartnerDashboard userId={userId} setUserId={setUserId} />;
     case 'therapist':
       return <TherapistDashboard userId={userId} setUserId={setUserId} />;
     case 'client':
