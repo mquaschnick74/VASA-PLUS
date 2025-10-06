@@ -7,7 +7,6 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 // Extend AuthRequest to include partner properties
 interface PartnerAuthRequest extends AuthRequest {
-  userId?: string;
   partnerId?: string;
   partnerUser?: any;
 }
@@ -20,9 +19,8 @@ const router = Router();
 
 async function checkPartnerAccess(req: PartnerAuthRequest, res: any, next: any) {
   try {
-    const userId = req.userId;
+    const userId = req.user?.id;  // ← CHANGE THIS LINE
 
-    // ADD THIS DEBUG LOGGING
     console.log('🔍 [PARTNER ACCESS] Checking access for userId:', userId);
 
     // Check if user is a partner user
