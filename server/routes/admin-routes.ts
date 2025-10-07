@@ -327,10 +327,23 @@ router.post('/influencers/onboard', async (req, res) => {
     if (accessError) throw accessError;
 
     // Update user type in user_profiles
-    await supabase
+    const { data: updateResult, error: updateError } = await supabase
       .from('user_profiles')
       .update({ user_type: 'influencer' })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .select();
+
+    if (updateError) {
+      console.error('Failed to update user_type to influencer:', updateError);
+      throw new Error(`Failed to update user type: ${updateError.message}`);
+    }
+
+    if (!updateResult || updateResult.length === 0) {
+      console.error('No rows updated when changing user_type to influencer for user:', user.id);
+      throw new Error('Failed to update user type: No rows affected');
+    }
+
+    console.log('Successfully updated user_type to influencer for user:', user.id);
 
     res.json({ 
       success: true, 
