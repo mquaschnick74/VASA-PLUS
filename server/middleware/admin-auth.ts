@@ -30,11 +30,22 @@ export async function requireAdmin(
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    // Get user profile to check if admin
+    // First, get the internal user ID from the users table using auth_user_id
+    const { data: internalUser, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (userError || !internalUser) {
+      return res.status(404).json({ error: 'User not found in system' });
+    }
+
+    // Now get user profile using the internal user ID
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('id, email, user_type')
-      .eq('id', user.id)
+      .eq('id', internalUser.id)
       .single();
 
     if (profileError || !profile) {
