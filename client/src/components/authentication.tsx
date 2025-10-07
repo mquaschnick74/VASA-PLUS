@@ -80,8 +80,54 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       console.log('Promo code detected in URL:', urlPromoCode);
       setPromoCode(urlPromoCode.toUpperCase());
       setMode('signup'); // Force signup mode when promo code present
+      
+      // Auto-validate the promo code
+      validatePromoCode(urlPromoCode);
     }
   }, []);
+
+  // ============================================================================
+  // PROMO CODE VALIDATION FUNCTION
+  // ============================================================================
+  const validatePromoCode = async (code: string) => {
+    if (!code || code.trim().length === 0) {
+      setPromoValidation(null);
+      return;
+    }
+
+    setValidatingPromo(true);
+    
+    try {
+      const response = await fetch('/api/auth/validate-promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promoCode: code })
+      });
+
+      const result = await response.json();
+      
+      if (result.valid) {
+        setPromoValidation({
+          valid: true,
+          message: result.message,
+          influencerName: result.influencer.name
+        });
+      } else {
+        setPromoValidation({
+          valid: false,
+          message: result.error || 'Invalid promo code'
+        });
+      }
+    } catch (error) {
+      console.error('Promo validation error:', error);
+      setPromoValidation({
+        valid: false,
+        message: 'Failed to validate promo code'
+      });
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
 
   // ============= NEW: Function to accept invitation after signup =============
   const acceptInvitation = async (token: string, userId: string) => {
@@ -198,7 +244,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               email: authData.user.email,
               firstName: authData.user.user_metadata?.first_name,
               authUserId: authData.user.id,
-              userType: authData.user.user_metadata?.user_type || 'individual'
+              userType: authData.user.user_metadata?.user_type || 'individual',
+              promoCode: promoCode || null
             })
           });
 
@@ -419,6 +466,62 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       onChange={(e) => setFirstName(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-input border border-border"
                     />
+                  </div>
+                )}
+
+                {mode === 'signup' && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Promo Code (Optional)
+                    </Label>
+                    <div className="relative">
+                      <Input 
+                        type="text" 
+                        placeholder="Enter promo code"
+                        value={promoCode}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setPromoCode(value);
+                          
+                          // Validate on change (debounced)
+                          if (value.length >= 4) {
+                            validatePromoCode(value);
+                          } else {
+                            setPromoValidation(null);
+                          }
+                        }}
+                        className="w-full px-4 py-3 rounded-xl bg-input border border-border pr-12"
+                        maxLength={20}
+                      />
+                      {validatingPromo && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <i className="fas fa-spinner fa-spin text-muted-foreground"></i>
+                        </div>
+                      )}
+                      {!validatingPromo && promoValidation && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {promoValidation.valid ? (
+                            <i className="fas fa-check-circle text-green-500"></i>
+                          ) : (
+                            <i className="fas fa-times-circle text-red-500"></i>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Validation message */}
+                    {promoValidation && (
+                      <div className={`text-xs ${promoValidation.valid ? 'text-green-500' : 'text-red-500'}`}>
+                        {promoValidation.message}
+                      </div>
+                    )}
+                    
+                    {/* Helpful hint */}
+                    {!promoCode && (
+                      <p className="text-xs text-muted-foreground">
+                        Have a promo code? Enter it to support your favorite creator!
+                      </p>
+                    )}
                   </div>
                 )}
 
