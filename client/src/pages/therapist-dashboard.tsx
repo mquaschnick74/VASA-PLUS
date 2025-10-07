@@ -539,26 +539,6 @@ export default function TherapistDashboard({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
-              variant="outline"
-              onClick={() => (window.location.href = "/pricing")}
-              className="text-sm"
-            >
-              View Pricing
-            </Button>
-            {/* TEMPORARY: API Token Copy Button for Testing */}
-            <Button
-              variant="outline"
-              onClick={async () => {
-                const { data } = await supabase.auth.getSession();
-                console.log("TOKEN:", data.session?.access_token);
-                navigator.clipboard.writeText(data.session?.access_token || "");
-                alert("Token copied to clipboard!");
-              }}
-              className="text-sm"
-            >
-              Copy API Token
-            </Button>
-            <Button
               onClick={() => handleLogout(setUserId)}
               data-testid="button-signout"
               className="text-sm"
