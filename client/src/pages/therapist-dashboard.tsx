@@ -28,14 +28,23 @@ interface ClientData {
   relationship_status: string;
 }
 
+interface PendingInvitation {
+  id: string;
+  client_email: string;
+  sent_at: string;
+  expires_at: string;
+}
+
 export default function TherapistDashboard({
   userId,
   setUserId,
 }: TherapistDashboardProps) {
   const [clients, setClients] = useState<ClientData[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
