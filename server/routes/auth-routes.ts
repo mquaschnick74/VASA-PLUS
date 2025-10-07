@@ -106,14 +106,14 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
         .select('access_status')
         .eq('user_id', existingUser.id)
         .eq('access_status', 'active')
-        .single();
+        .maybeSingle();
 
       // Check if user has partner access
       const { data: partnerAccess } = await supabase
         .from('partner_users')
         .select('access_level')
         .eq('user_id', existingUser.id)
-        .single();
+        .maybeSingle();
 
       // Override userType if user has special access (don't trust frontend)
       let effectiveUserType = userType;
@@ -179,7 +179,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
           .select('id, influencer_name, commission_percentage, influencer_status')
           .eq('unique_promo_code', cleanCode)
           .eq('influencer_status', 'active')
-          .single();
+          .maybeSingle();
 
         if (influencer) {
           console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
@@ -249,7 +249,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
           .select('id, influencer_name, commission_percentage, influencer_status')
           .eq('unique_promo_code', cleanCode)
           .eq('influencer_status', 'active')
-          .single();
+          .maybeSingle();
 
         if (influencer) {
           console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
@@ -314,7 +314,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
               .select('id, influencer_name, commission_percentage, influencer_status')
               .eq('unique_promo_code', cleanCode)
               .eq('influencer_status', 'active')
-              .single();
+              .maybeSingle();
 
             if (influencer) {
               console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
@@ -359,7 +359,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
         .select('id, influencer_name, commission_percentage, influencer_status')
         .eq('unique_promo_code', cleanCode)
         .eq('influencer_status', 'active')
-        .single();
+        .maybeSingle();
 
       if (influencer) {
         console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
