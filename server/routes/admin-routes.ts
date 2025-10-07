@@ -2,7 +2,7 @@
 // Admin API endpoints for managing partners and influencers
 
 import { Router } from 'express';
-import { requireAdmin } from '../middleware/admin-auth';
+import { requireAdmin, AdminRequest } from '../middleware/admin-auth';
 import { supabase } from '../services/supabase-service';
 
 const router = Router();
@@ -320,7 +320,7 @@ router.get('/content/pending', async (req, res) => {
   }
 });
 
-router.post('/content/:contentId/approve', async (req, res) => {
+router.post('/content/:contentId/approve', async (req: AdminRequest, res) => {
   try {
     const { contentId } = req.params;
     const adminUserId = req.userId;
@@ -343,7 +343,7 @@ router.post('/content/:contentId/approve', async (req, res) => {
   }
 });
 
-router.post('/content/:contentId/reject', async (req, res) => {
+router.post('/content/:contentId/reject', async (req: AdminRequest, res) => {
   try {
     const { contentId } = req.params;
     const { reason } = req.body;
