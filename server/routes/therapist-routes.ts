@@ -604,7 +604,7 @@ router.get('/invitations', authenticateToken, async (req: AuthRequest, res) => {
       .select('*')
       .eq('therapist_id', therapist_id)
       .eq('status', 'pending')
-      .order('created_at', { ascending: false });
+      .order('sent_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching invitations:', error);
