@@ -40,6 +40,12 @@ app.use('/api/vapi/webhook', express.raw({
   limit: '10mb' 
 }));
 
+// Special handling for Stripe webhook endpoint with raw body for signature validation
+app.use('/api/stripe/webhook', express.raw({ 
+  type: 'application/json',
+  limit: '10mb' 
+}));
+
 // Rest of your existing code...
 app.use((req, res, next) => {
   const start = Date.now();

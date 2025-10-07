@@ -5,7 +5,7 @@ import { supabase } from '../services/supabase-service';
 const router = Router();
 
 // Stripe webhook endpoint - processes payment events
-router.post('/api/stripe/webhook', async (req, res) => {
+router.post('/webhook', async (req, res) => {
   try {
     const signature = req.headers['stripe-signature'] as string;
 
