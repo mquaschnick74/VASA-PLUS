@@ -326,24 +326,45 @@ router.post('/influencers/onboard', async (req, res) => {
 
     if (accessError) throw accessError;
 
-    // Update user type in user_profiles
-    const { data: updateResult, error: updateError } = await supabase
+    // Update user type in BOTH tables to prevent auth sync from reverting the change
+    // Step 1: Update user_profiles.user_type
+    const { data: profileUpdate, error: profileError } = await supabase
       .from('user_profiles')
       .update({ user_type: 'influencer' })
       .eq('id', user.id)
       .select();
 
-    if (updateError) {
-      console.error('Failed to update user_type to influencer:', updateError);
-      throw new Error(`Failed to update user type: ${updateError.message}`);
+    if (profileError) {
+      console.error('Failed to update user_profiles.user_type:', profileError);
+      throw new Error(`Failed to update user profile: ${profileError.message}`);
     }
 
-    if (!updateResult || updateResult.length === 0) {
-      console.error('No rows updated when changing user_type to influencer for user:', user.id);
-      throw new Error('Failed to update user type: No rows affected');
+    if (!profileUpdate || profileUpdate.length === 0) {
+      console.error('No rows updated in user_profiles for user:', user.id);
+      throw new Error('Failed to update user profile: No rows affected');
     }
 
-    console.log('Successfully updated user_type to influencer for user:', user.id);
+    console.log('✅ Successfully updated user_profiles.user_type to influencer for user:', user.id);
+
+    // Step 2: Update users.role to match (prevents ensureUserSetup from reverting)
+    const { data: roleUpdate, error: roleError } = await supabase
+      .from('users')
+      .update({ role: 'influencer' })
+      .eq('id', user.id)
+      .select();
+
+    if (roleError) {
+      console.error('Failed to update users.role:', roleError);
+      throw new Error(`Failed to update user role: ${roleError.message}`);
+    }
+
+    if (!roleUpdate || roleUpdate.length === 0) {
+      console.error('No rows updated in users table for user:', user.id);
+      throw new Error('Failed to update user role: No rows affected');
+    }
+
+    console.log('✅ Successfully updated users.role to influencer for user:', user.id);
+    console.log('✅ Influencer onboarding complete - both tables synchronized');
 
     res.json({ 
       success: true, 
