@@ -11,6 +11,7 @@ import { handleLogout } from "@/lib/auth-helpers";
 import { useSubscription } from "@/hooks/use-subscription";
 import { Users, Clock, TrendingUp, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface TherapistDashboardProps {
   userId: string;
@@ -40,6 +41,7 @@ export default function TherapistDashboard({
   const mountedRef = useRef(true);
   const loadAttemptRef = useRef(0);
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const { data: subscription, isLoading } = useSubscription(userId);
 
@@ -316,8 +318,11 @@ export default function TherapistDashboard({
 
       if (!session) {
         console.error("❌ [THERAPIST-DASH] No session for invite");
-        alert("Session expired. Please refresh the page.");
-        setInviting(false);
+        toast({
+          title: "Session Expired",
+          description: "Please refresh the page and try again.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -335,19 +340,33 @@ export default function TherapistDashboard({
 
       if (response.ok) {
         console.log(`✅ [THERAPIST-DASH] Invitation sent to ${inviteEmail}`);
+        const emailToSave = inviteEmail;
         setInviteEmail("");
-        alert("Invitation sent successfully!");
-        loadDashboardData(); // Refresh the client list
+        toast({
+          title: "Invitation Sent",
+          description: `Successfully sent invitation to ${emailToSave}`,
+        });
+        await loadDashboardData(); // Refresh the client list
       } else {
         const errorText = await response.text();
         console.error("❌ [THERAPIST-DASH] Invite failed:", errorText);
-        alert(`Failed to send invitation: ${errorText}`);
+        toast({
+          title: "Invitation Failed",
+          description: errorText || "Failed to send invitation",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("❌ [THERAPIST-DASH] Invite error:", error);
-      alert("Failed to send invitation. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to send invitation. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setInviting(false);
+      if (mountedRef.current) {
+        setInviting(false);
+      }
     }
   };
 
