@@ -19,6 +19,134 @@ import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
+// ============================================================================
+// INFLUENCER CONVERSION TRACKING
+// ============================================================================
+async function trackInfluencerConversion(userId: string, subscriptionAmount: number) {
+  try {
+    console.log(`💰 Tracking influencer conversion for user: ${userId}`);
+
+    // Check if user has a promo code
+    const { data: user } = await supabase
+      .from('users')
+      .select('referred_by_promo_code')
+      .eq('id', userId)
+      .single();
+
+    if (!user || !user.referred_by_promo_code) {
+      console.log('No promo code for this user');
+      return;
+    }
+
+    const promoCode = user.referred_by_promo_code;
+    console.log(`🎟️ User has promo code: ${promoCode}`);
+
+    // Find the influencer
+    const { data: influencer } = await supabase
+      .from('influencer_profiles')
+      .select('id, influencer_name, commission_percentage, total_conversions, total_earnings_cents, total_clicks')
+      .eq('unique_promo_code', promoCode)
+      .single();
+
+    if (!influencer) {
+      console.log('❌ Influencer not found for promo code');
+      return;
+    }
+
+    console.log(`✅ Found influencer: ${influencer.influencer_name}`);
+
+    // Check if conversion already exists
+    const { data: existingConversion } = await supabase
+      .from('influencer_conversions')
+      .select('id, conversion_status')
+      .eq('influencer_id', influencer.id)
+      .eq('converted_user_id', userId)
+      .single();
+
+    if (existingConversion && existingConversion.conversion_status === 'active') {
+      console.log('⚠️ Conversion already tracked as active');
+      return;
+    }
+
+    // Calculate commission
+    const subscriptionCents = Math.round(subscriptionAmount * 100);
+    const commissionCents = Math.round(subscriptionCents * (influencer.commission_percentage / 100));
+
+    console.log(`💵 Subscription: $${subscriptionAmount} | Commission: $${commissionCents / 100}`);
+
+    if (existingConversion) {
+      // Update existing conversion to active
+      await supabase
+        .from('influencer_conversions')
+        .update({
+          conversion_status: 'active',
+          initial_revenue_cents: subscriptionCents,
+          lifetime_value_cents: subscriptionCents,
+          first_payment_date: new Date().toISOString()
+        })
+        .eq('id', existingConversion.id);
+
+      console.log('✅ Updated conversion to active');
+    } else {
+      // Create new conversion record
+      await supabase
+        .from('influencer_conversions')
+        .insert({
+          influencer_id: influencer.id,
+          converted_user_id: userId,
+          conversion_type: 'subscription',
+          promo_code_used: promoCode,
+          commission_percentage_applied: influencer.commission_percentage,
+          initial_revenue_cents: subscriptionCents,
+          lifetime_value_cents: subscriptionCents,
+          conversion_status: 'active',
+          conversion_date: new Date().toISOString(),
+          first_payment_date: new Date().toISOString()
+        });
+
+      console.log('✅ Created new active conversion');
+    }
+
+    // Create commission transaction
+    await supabase
+      .from('influencer_commission_transactions')
+      .insert({
+        influencer_id: influencer.id,
+        transaction_type: 'initial_conversion',
+        amount_cents: subscriptionCents,
+        converted_user_id: userId,
+        commission_cents: commissionCents,
+        commission_percentage_applied: influencer.commission_percentage,
+        paid_to_ivasa: true,
+        paid_to_influencer: false,
+        transaction_date: new Date().toISOString()
+      });
+
+    console.log('✅ Created commission transaction');
+
+    // Update influencer totals
+    const newTotalConversions = (influencer.total_conversions || 0) + 1;
+    const newTotalEarnings = (influencer.total_earnings_cents || 0) + commissionCents;
+
+    await supabase
+      .from('influencer_profiles')
+      .update({
+        total_conversions: newTotalConversions,
+        total_earnings_cents: newTotalEarnings,
+        conversion_rate: newTotalConversions / (influencer.total_clicks || 1) * 100
+      })
+      .eq('id', influencer.id);
+
+    console.log(`✅ Updated influencer stats: ${newTotalConversions} conversions, $${newTotalEarnings / 100} earned`);
+
+  } catch (error) {
+    console.error('❌ Error tracking influencer conversion:', error);
+  }
+}
+
+// Export for use in other routes
+export { trackInfluencerConversion };
+
 router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI webhook received:', req.body.message?.type);
 
