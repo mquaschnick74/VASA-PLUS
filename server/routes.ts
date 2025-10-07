@@ -24,6 +24,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/therapist', therapistRoutes);  // ADD THIS LINE
   apiRouter.use('/partner', partnerRoutes);
   apiRouter.use('/admin', adminRoutes);
+  console.log('✅ Admin routes mounted at /api/admin');
   apiRouter.use('/influencer', influencerRoutes);
   apiRouter.use('/stripe', stripeWebhookRoutes);
 
