@@ -69,9 +69,9 @@ router.get('/partners', async (req, res) => {
         *,
         partner_users!partner_users_partner_id_fkey(
           user_id,
-          user_profiles!partner_users_user_id_fkey(
+          users!partner_users_user_id_fkey(
             email,
-            full_name
+            first_name
           )
         )
       `)
@@ -183,9 +183,9 @@ router.get('/influencers', async (req, res) => {
       .from('influencer_profiles')
       .select(`
         *,
-        user_profiles!influencer_profiles_user_id_fkey(
+        users!influencer_profiles_user_id_fkey(
           email,
-          full_name
+          first_name
         )
       `)
       .order('created_at', { ascending: false });

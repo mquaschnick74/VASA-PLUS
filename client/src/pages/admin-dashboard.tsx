@@ -53,9 +53,9 @@ interface Influencer {
   total_conversions: number;
   total_earnings_cents: number;
   unique_promo_code: string;
-  user_profiles: {
+  users: {  // ← Changed from user_profiles
     email: string;
-    full_name: string;
+    first_name: string;  // ← Changed from full_name
   };
 }
 
