@@ -96,6 +96,40 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
     if (existingUser) {
       console.log('Found existing user:', existingUser.email);
 
+      // ============================================================================
+      // CHECK IF USER IS AN INFLUENCER OR PARTNER - PROTECT THEIR TYPE
+      // ============================================================================
+      
+      // Check if user has influencer access
+      const { data: influencerAccess } = await supabase
+        .from('influencer_users')
+        .select('access_status')
+        .eq('user_id', existingUser.id)
+        .eq('access_status', 'active')
+        .single();
+
+      // Check if user has partner access
+      const { data: partnerAccess } = await supabase
+        .from('partner_users')
+        .select('access_level')
+        .eq('user_id', existingUser.id)
+        .single();
+
+      // Override userType if user has special access (don't trust frontend)
+      let effectiveUserType = userType;
+      
+      if (influencerAccess) {
+        effectiveUserType = 'influencer';
+        console.log('🔒 User has influencer access - protecting type as influencer');
+      } else if (partnerAccess) {
+        effectiveUserType = 'partner';
+        console.log('🔒 User has partner access - protecting type as partner');
+      }
+
+      // ============================================================================
+      // END PROTECTION CHECK
+      // ============================================================================
+
       // Update auth_user_id if it's different (handles auth session changes)
       if (existingUser.auth_user_id !== authUserId) {
         console.log('Updating auth_user_id from', existingUser.auth_user_id, 'to', authUserId);
@@ -187,7 +221,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
       // ============================================================================
 
       // Ensure profile and subscription exist
-      await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType);
+      await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, effectiveUserType);
 
       return res.json({ user: existingUser });
     }
