@@ -1,0 +1,77 @@
+// Location: server/routes/auth-routes.ts
+// INSTRUCTION: Find the POST /api/auth/user endpoint and UPDATE it
+// Add promoCode handling to the existing logic
+
+// The endpoint signature should change from:
+// router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
+//   const { email, firstName, authUserId, userType } = req.body;
+
+// To include promoCode:
+router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
+  const { email, firstName, authUserId, userType, promoCode } = req.body; // ADD promoCode here
+
+  // ... existing validation code ...
+
+  // ============================================================================
+  // NEW: PROMO CODE TRACKING
+  // Add this section AFTER the user is created/found and BEFORE ensureUserSetup
+  // ============================================================================
+
+  if (promoCode && promoCode.trim().length > 0) {
+    const cleanCode = promoCode.trim().toUpperCase();
+    
+    console.log(`🎟️ Processing promo code: ${cleanCode} for user: ${email}`);
+
+    // Verify promo code is valid
+    const { data: influencer } = await supabase
+      .from('influencer_profiles')
+      .select('id, influencer_name, commission_percentage, influencer_status')
+      .eq('unique_promo_code', cleanCode)
+      .eq('influencer_status', 'active')
+      .single();
+
+    if (influencer) {
+      console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
+
+      // Store promo code in users table
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ referred_by_promo_code: cleanCode })
+        .eq('id', existingUser.id); // Use the user ID you already have
+
+      if (updateError) {
+        console.error('Failed to save promo code:', updateError);
+      }
+
+      // Create initial conversion record (status: pending)
+      const { error: conversionError } = await supabase
+        .from('influencer_conversions')
+        .insert({
+          influencer_id: influencer.id,
+          converted_user_id: existingUser.id,
+          conversion_type: 'trial',
+          promo_code_used: cleanCode,
+          commission_percentage_applied: influencer.commission_percentage,
+          conversion_status: 'pending', // Will update to 'active' on first payment
+          conversion_date: new Date().toISOString()
+        });
+
+      if (conversionError) {
+        console.error('Failed to create conversion record:', conversionError);
+      } else {
+        console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+      }
+    } else {
+      console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
+    }
+  }
+
+  // ============================================================================
+  // END PROMO CODE TRACKING
+  // ============================================================================
+
+  // Continue with existing ensureUserSetup call...
+  await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType);
+
+  return res.json({ user: existingUser });
+});

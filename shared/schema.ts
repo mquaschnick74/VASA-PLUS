@@ -15,6 +15,9 @@ export const users = pgTable("users", {
   role: text("role").default("client"),
   subscription_type: text("subscription_type").default("free"),
   subscription_status: text("subscription_status").default("active"),
+
+  // NEW: Influencer promo code tracking
+  referred_by_promo_code: varchar("referred_by_promo_code", { length: 50 }),
 });
 
 // User profiles table - FIXED to use users.id

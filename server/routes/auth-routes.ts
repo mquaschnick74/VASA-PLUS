@@ -68,8 +68,8 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
 // Create or get user - REQUIRES AUTHENTICATION
 router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { email, firstName, authUserId, userType = 'individual' } = req.body;
-    console.log('POST /api/auth/user - Request body:', { email, firstName, authUserId, userType });
+    const { email, firstName, authUserId, userType = 'individual', promoCode } = req.body;
+    console.log('POST /api/auth/user - Request body:', { email, firstName, authUserId, userType, promoCode });
 
     if (!email || !authUserId) {
       return res.status(400).json({ error: 'Email and auth ID are required' });
@@ -131,6 +131,61 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
           .eq('id', existingUser.id);
       }
 
+      // ============================================================================
+      // PROMO CODE TRACKING
+      // ============================================================================
+      if (promoCode && promoCode.trim().length > 0) {
+        const cleanCode = promoCode.trim().toUpperCase();
+        
+        console.log(`🎟️ Processing promo code: ${cleanCode} for user: ${email}`);
+
+        // Verify promo code is valid
+        const { data: influencer } = await supabase
+          .from('influencer_profiles')
+          .select('id, influencer_name, commission_percentage, influencer_status')
+          .eq('unique_promo_code', cleanCode)
+          .eq('influencer_status', 'active')
+          .single();
+
+        if (influencer) {
+          console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
+
+          // Store promo code in users table
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ referred_by_promo_code: cleanCode })
+            .eq('id', existingUser.id);
+
+          if (updateError) {
+            console.error('Failed to save promo code:', updateError);
+          }
+
+          // Create initial conversion record (status: pending)
+          const { error: conversionError } = await supabase
+            .from('influencer_conversions')
+            .insert({
+              influencer_id: influencer.id,
+              converted_user_id: existingUser.id,
+              conversion_type: 'trial',
+              promo_code_used: cleanCode,
+              commission_percentage_applied: influencer.commission_percentage,
+              conversion_status: 'pending',
+              conversion_date: new Date().toISOString()
+            });
+
+          if (conversionError) {
+            console.error('Failed to create conversion record:', conversionError);
+          } else {
+            console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+          }
+        } else {
+          console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
+        }
+      }
+      // ============================================================================
+      // END PROMO CODE TRACKING
+      // ============================================================================
+
       // Ensure profile and subscription exist
       await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType);
 
@@ -149,6 +204,45 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
 
     if (doubleCheck) {
       // User was just created by another request
+      
+      // PROMO CODE TRACKING
+      if (promoCode && promoCode.trim().length > 0) {
+        const cleanCode = promoCode.trim().toUpperCase();
+        console.log(`🎟️ Processing promo code: ${cleanCode} for user: ${email}`);
+
+        const { data: influencer } = await supabase
+          .from('influencer_profiles')
+          .select('id, influencer_name, commission_percentage, influencer_status')
+          .eq('unique_promo_code', cleanCode)
+          .eq('influencer_status', 'active')
+          .single();
+
+        if (influencer) {
+          console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
+
+          await supabase
+            .from('users')
+            .update({ referred_by_promo_code: cleanCode })
+            .eq('id', doubleCheck.id);
+
+          await supabase
+            .from('influencer_conversions')
+            .insert({
+              influencer_id: influencer.id,
+              converted_user_id: doubleCheck.id,
+              conversion_type: 'trial',
+              promo_code_used: cleanCode,
+              commission_percentage_applied: influencer.commission_percentage,
+              conversion_status: 'pending',
+              conversion_date: new Date().toISOString()
+            });
+
+          console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+        } else {
+          console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
+        }
+      }
+      
       await ensureUserSetup(doubleCheck.id, email, firstName || doubleCheck.first_name, userType);
       return res.json({ user: doubleCheck });
     }
@@ -176,11 +270,87 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
           .maybeSingle();
 
         if (existingAfterError) {
+          // PROMO CODE TRACKING
+          if (promoCode && promoCode.trim().length > 0) {
+            const cleanCode = promoCode.trim().toUpperCase();
+            console.log(`🎟️ Processing promo code: ${cleanCode} for user: ${email}`);
+
+            const { data: influencer } = await supabase
+              .from('influencer_profiles')
+              .select('id, influencer_name, commission_percentage, influencer_status')
+              .eq('unique_promo_code', cleanCode)
+              .eq('influencer_status', 'active')
+              .single();
+
+            if (influencer) {
+              console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
+
+              await supabase
+                .from('users')
+                .update({ referred_by_promo_code: cleanCode })
+                .eq('id', existingAfterError.id);
+
+              await supabase
+                .from('influencer_conversions')
+                .insert({
+                  influencer_id: influencer.id,
+                  converted_user_id: existingAfterError.id,
+                  conversion_type: 'trial',
+                  promo_code_used: cleanCode,
+                  commission_percentage_applied: influencer.commission_percentage,
+                  conversion_status: 'pending',
+                  conversion_date: new Date().toISOString()
+                });
+
+              console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+            } else {
+              console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
+            }
+          }
+          
           await ensureUserSetup(existingAfterError.id, email, firstName || existingAfterError.first_name, userType);
           return res.json({ user: existingAfterError });
         }
       }
       throw error;
+    }
+
+    // PROMO CODE TRACKING
+    if (promoCode && promoCode.trim().length > 0) {
+      const cleanCode = promoCode.trim().toUpperCase();
+      console.log(`🎟️ Processing promo code: ${cleanCode} for user: ${email}`);
+
+      const { data: influencer } = await supabase
+        .from('influencer_profiles')
+        .select('id, influencer_name, commission_percentage, influencer_status')
+        .eq('unique_promo_code', cleanCode)
+        .eq('influencer_status', 'active')
+        .single();
+
+      if (influencer) {
+        console.log(`✅ Valid promo code from influencer: ${influencer.influencer_name}`);
+
+        await supabase
+          .from('users')
+          .update({ referred_by_promo_code: cleanCode })
+          .eq('id', newUser.id);
+
+        await supabase
+          .from('influencer_conversions')
+          .insert({
+            influencer_id: influencer.id,
+            converted_user_id: newUser.id,
+            conversion_type: 'trial',
+            promo_code_used: cleanCode,
+            commission_percentage_applied: influencer.commission_percentage,
+            conversion_status: 'pending',
+            conversion_date: new Date().toISOString()
+          });
+
+        console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+      } else {
+        console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
+      }
     }
 
     // Setup profile and subscription for new user
@@ -370,5 +540,76 @@ router.delete('/user/:userId', authenticateToken, async (req: AuthRequest, res) 
     res.status(500).json({ error: 'Failed to delete user' });
   }
 });
+
+// ============================================================================
+// PROMO CODE VALIDATION
+// ============================================================================
+
+// POST /api/auth/validate-promo - Check if promo code is valid
+router.post('/validate-promo', async (req, res) => {
+  try {
+    const { promoCode } = req.body;
+
+    if (!promoCode || promoCode.trim().length === 0) {
+      return res.status(400).json({ 
+        valid: false,
+        error: 'Promo code is required' 
+      });
+    }
+
+    // Clean and uppercase the promo code
+    const cleanCode = promoCode.trim().toUpperCase();
+
+    // Look up influencer by promo code
+    const { data: influencer, error } = await supabase
+      .from('influencer_profiles')
+      .select(`
+        id,
+        influencer_name,
+        platform,
+        platform_handle,
+        commission_percentage,
+        influencer_status,
+        unique_promo_code
+      `)
+      .eq('unique_promo_code', cleanCode)
+      .single();
+
+    if (error || !influencer) {
+      return res.json({ 
+        valid: false,
+        error: 'Invalid promo code'
+      });
+    }
+
+    // Check if influencer is active
+    if (influencer.influencer_status !== 'active') {
+      return res.json({ 
+        valid: false,
+        error: 'This promo code is no longer active'
+      });
+    }
+
+    // Valid promo code
+    return res.json({ 
+      valid: true,
+      influencer: {
+        name: influencer.influencer_name,
+        handle: influencer.platform_handle,
+        platform: influencer.platform,
+        discount: influencer.commission_percentage // Could show this as a "discount" to user
+      },
+      message: `Promo code from ${influencer.influencer_name} applied!`
+    });
+
+  } catch (error) {
+    console.error('Promo code validation error:', error);
+    res.status(500).json({ 
+      valid: false,
+      error: 'Failed to validate promo code' 
+    });
+  }
+});
+
 
 export default router;

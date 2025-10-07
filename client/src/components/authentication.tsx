@@ -28,6 +28,13 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>('individual');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoValidation, setPromoValidation] = useState<{
+    valid: boolean;
+    message: string;
+    influencerName?: string;
+  } | null>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
 
   // ============= NEW: Invitation handling state =============
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
@@ -65,6 +72,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Check URL parameters for promo code
+    const urlPromoCode = urlParams.get('promo');
+    if (urlPromoCode) {
+      console.log('Promo code detected in URL:', urlPromoCode);
+      setPromoCode(urlPromoCode.toUpperCase());
+      setMode('signup'); // Force signup mode when promo code present
     }
   }, []);
 

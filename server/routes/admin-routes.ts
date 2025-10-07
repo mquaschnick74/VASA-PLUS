@@ -199,6 +199,10 @@ router.get('/influencers', async (req, res) => {
   }
 });
 
+// Location: server/routes/admin-routes.ts
+// INSTRUCTION: REPLACE the entire influencers onboarding endpoint (router.post('/influencers/onboard'))
+// with this updated version:
+
 router.post('/influencers/onboard', async (req, res) => {
   try {
     const {
@@ -221,9 +225,9 @@ router.post('/influencers/onboard', async (req, res) => {
       });
     }
 
-    // Find user
+    // Find user by email in users table (not user_profiles)
     const { data: user } = await supabase
-      .from('user_profiles')
+      .from('users')
       .select('id')
       .eq('email', userEmail)
       .single();
@@ -234,9 +238,56 @@ router.post('/influencers/onboard', async (req, res) => {
       });
     }
 
-    // Generate promo code and referral link
-    const promoCode = `${platformHandle.replace('@', '').toUpperCase().substring(0, 10)}${commissionPercentage || 15}`;
-    const referralLink = `https://ivasa.ai/signup?ref=${promoCode.toLowerCase()}`;
+    // ============================================================================
+    // IMPROVED PROMO CODE GENERATION
+    // ============================================================================
+
+    // Extract base from handle (remove @ and special chars, take first 6-8 chars)
+    const cleanHandle = platformHandle
+      .replace(/[@#]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toUpperCase()
+      .substring(0, 8);
+
+    // Generate random suffix (4 alphanumeric characters)
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+
+    // Combine for unique code
+    let promoCode = `${cleanHandle}${randomSuffix}`;
+
+    // Ensure uniqueness - check database and regenerate if needed
+    let isUnique = false;
+    let attempts = 0;
+
+    while (!isUnique && attempts < 10) {
+      const { data: existing } = await supabase
+        .from('influencer_profiles')
+        .select('id')
+        .eq('unique_promo_code', promoCode)
+        .single();
+
+      if (!existing) {
+        isUnique = true;
+      } else {
+        // Regenerate with new random suffix
+        const newSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        promoCode = `${cleanHandle}${newSuffix}`;
+        attempts++;
+      }
+    }
+
+    if (!isUnique) {
+      return res.status(500).json({ 
+        error: 'Failed to generate unique promo code after 10 attempts' 
+      });
+    }
+
+    // ============================================================================
+    // END PROMO CODE GENERATION
+    // ============================================================================
+
+    // Generate referral link with promo code
+    const referralLink = `https://ivasa.ai/signup?promo=${promoCode}`;
     const utmCampaign = `${platformHandle.replace('@', '')}_${platform}`;
 
     // Create influencer profile
@@ -275,7 +326,7 @@ router.post('/influencers/onboard', async (req, res) => {
 
     if (accessError) throw accessError;
 
-    // Update user type
+    // Update user type in user_profiles
     await supabase
       .from('user_profiles')
       .update({ user_type: 'influencer' })
@@ -284,7 +335,9 @@ router.post('/influencers/onboard', async (req, res) => {
     res.json({ 
       success: true, 
       influencer,
-      message: 'Influencer onboarded successfully'
+      promoCode: promoCode,
+      referralLink: referralLink,
+      message: `Influencer onboarded successfully! Promo code: ${promoCode}`
     });
   } catch (error) {
     console.error('Influencer onboarding error:', error);
