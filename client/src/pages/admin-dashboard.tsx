@@ -169,8 +169,8 @@ export default function AdminDashboard({ userId, setUserId }: AdminDashboardProp
           targetUserId: data.userId,
           targetUserType: data.userType,
           viewAsName: data.viewAsName,
-          partnerId: type === 'partner' ? id : null,        // ADD THIS LINE
-          influencerId: type === 'influencer' ? id : null   // ADD THIS LINE
+          partnerId: type === 'partner' ? id : null,
+          influencerId: type === 'influencer' ? id : null
         }));
 
         window.location.reload();

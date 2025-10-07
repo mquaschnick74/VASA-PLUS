@@ -28,7 +28,7 @@ async function checkInfluencerAccess(req: InfluencerAuthRequest, res: any, next:
       return res.status(403).json({ error: 'Not authenticated' });
     }
 
-    // Get the app user ID from the users table (different from auth user ID)
+    // Get the app user ID from the users table
     const { data: appUser, error: userError } = await supabase
       .from('users')
       .select('id')
@@ -43,7 +43,40 @@ async function checkInfluencerAccess(req: InfluencerAuthRequest, res: any, next:
       return res.status(403).json({ error: 'User not found in app database' });
     }
 
-    // Check if user is an influencer user
+    // Check if user is admin
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('user_type')
+      .eq('id', userId)
+      .single();
+
+    // If admin, allow access with influencerId from query parameter
+    if (userProfile?.user_type === 'admin') {
+      const influencerIdFromQuery = req.query.influencerId as string;
+
+      if (influencerIdFromQuery) {
+        req.influencerId = influencerIdFromQuery;
+        console.log('✅ [INFLUENCER ACCESS] Admin viewing influencer:', influencerIdFromQuery);
+        return next();
+      }
+
+      // If no influencerId in query, get the first influencer
+      const { data: firstInfluencer } = await supabase
+        .from('influencer_profiles')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (firstInfluencer) {
+        req.influencerId = firstInfluencer.id;
+        console.log('✅ [INFLUENCER ACCESS] Admin viewing first influencer:', firstInfluencer.id);
+        return next();
+      }
+
+      return res.status(404).json({ error: 'No influencers found' });
+    }
+
+    // Normal user - check if user is an influencer user
     const { data: influencerUser, error } = await supabase
       .from('influencer_users')
       .select(`
