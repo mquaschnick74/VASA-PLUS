@@ -42,6 +42,7 @@ export default function TherapistDashboard({
   const [clients, setClients] = useState<ClientData[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
@@ -301,6 +302,40 @@ export default function TherapistDashboard({
         );
         setClients([]);
       }
+
+      // Load pending invitations
+      console.log("📨 [THERAPIST-DASH] Loading pending invitations...");
+      setInvitationsLoading(true);
+      try {
+        const inviteResponse = await fetch("/api/therapist/invitations", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (inviteResponse.ok) {
+          const { invitations } = await inviteResponse.json();
+          setPendingInvitations(invitations || []);
+          console.log(`✅ [THERAPIST-DASH] Loaded ${invitations?.length || 0} pending invitations`);
+        } else if (inviteResponse.status === 401) {
+          console.error("❌ [THERAPIST-DASH] Unauthorized - logging out");
+          setPendingInvitations([]); // Clear stale data
+          handleLogout(setUserId);
+          return;
+        } else {
+          console.error("❌ [THERAPIST-DASH] Failed to load invitations:", inviteResponse.status);
+          setPendingInvitations([]); // Clear stale data
+          toast({
+            title: "Warning",
+            description: "Could not load pending invitations",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (mountedRef.current) {
+          setInvitationsLoading(false);
+        }
+      }
     } catch (error) {
       console.error("❌ [THERAPIST-DASH] Unexpected error:", error);
       setError("An unexpected error occurred. Please refresh the page.");
@@ -375,6 +410,71 @@ export default function TherapistDashboard({
     } finally {
       if (mountedRef.current) {
         setInviting(false);
+      }
+    }
+  };
+
+  const cancelInvitation = async (invitationId: string, email: string) => {
+    setCancelingId(invitationId);
+    
+    // Optimistically remove invitation
+    const previousInvitations = [...pendingInvitations];
+    setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        // Revert on auth failure
+        setPendingInvitations(previousInvitations);
+        toast({
+          title: "Session Expired",
+          description: "Please refresh the page and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(`/api/therapist/invitation/${invitationId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Invitation Canceled",
+          description: `Canceled invitation for ${email}`,
+        });
+      } else {
+        // Revert on failure
+        setPendingInvitations(previousInvitations);
+        
+        if (response.status === 401) {
+          handleLogout(setUserId);
+          return;
+        }
+        
+        const errorText = await response.text();
+        toast({
+          title: "Failed to Cancel",
+          description: errorText || "Could not cancel invitation",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      // Revert on error
+      setPendingInvitations(previousInvitations);
+      console.error("❌ [THERAPIST-DASH] Cancel error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel invitation",
+        variant: "destructive",
+      });
+    } finally {
+      if (mountedRef.current) {
+        setCancelingId(null);
       }
     }
   };
@@ -550,6 +650,44 @@ export default function TherapistDashboard({
                 {inviting ? "Sending..." : "Invite Client"}
               </Button>
             </div>
+
+            {/* Pending Invitations */}
+            {(invitationsLoading || pendingInvitations.length > 0) && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Pending Invitations {invitationsLoading && <span className="ml-2 text-xs">(Loading...)</span>}
+                </h3>
+                {invitationsLoading ? (
+                  <div className="p-3 rounded-lg glass-subtle">
+                    <p className="text-sm text-muted-foreground">Loading invitations...</p>
+                  </div>
+                ) : pendingInvitations.map((invite) => (
+                  <div
+                    key={invite.id}
+                    className="flex items-center justify-between p-3 rounded-lg glass-subtle border border-yellow-500/20"
+                    data-testid={`pending-invite-${invite.id}`}
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{invite.client_email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sent {new Date(invite.sent_at).toLocaleDateString()} • 
+                        Expires {new Date(invite.expires_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => cancelInvitation(invite.id, invite.client_email)}
+                      disabled={cancelingId === invite.id}
+                      className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                      data-testid={`button-cancel-invite-${invite.id}`}
+                    >
+                      {cancelingId === invite.id ? "Canceling..." : "Cancel"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Clients List */}
             {clients.length === 0 ? (
