@@ -28,7 +28,7 @@ async function checkPartnerAccess(req: PartnerAuthRequest, res: any, next: any) 
       return res.status(403).json({ error: 'Not authenticated' });
     }
 
-    // Get the app user ID from the users table (different from auth user ID)
+    // Get the app user ID from the users table
     const { data: appUser, error: userError } = await supabase
       .from('users')
       .select('id')
@@ -43,7 +43,40 @@ async function checkPartnerAccess(req: PartnerAuthRequest, res: any, next: any) 
       return res.status(403).json({ error: 'User not found in app database' });
     }
 
-    // Check if user is a partner user
+    // Check if user is admin
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('user_type')
+      .eq('id', userId)
+      .single();
+
+    // If admin, allow access with partnerId from query parameter
+    if (userProfile?.user_type === 'admin') {
+      const partnerIdFromQuery = req.query.partnerId as string;
+
+      if (partnerIdFromQuery) {
+        req.partnerId = partnerIdFromQuery;
+        console.log('✅ [PARTNER ACCESS] Admin viewing partner:', partnerIdFromQuery);
+        return next();
+      }
+
+      // If no partnerId in query, get the first partner
+      const { data: firstPartner } = await supabase
+        .from('partner_organizations')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (firstPartner) {
+        req.partnerId = firstPartner.id;
+        console.log('✅ [PARTNER ACCESS] Admin viewing first partner:', firstPartner.id);
+        return next();
+      }
+
+      return res.status(404).json({ error: 'No partners found' });
+    }
+
+    // Normal user - check if user is a partner user
     const { data: partnerUser, error } = await supabase
       .from('partner_users')
       .select(`

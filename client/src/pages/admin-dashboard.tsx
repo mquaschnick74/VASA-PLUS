@@ -163,15 +163,16 @@ export default function AdminDashboard({ userId, setUserId }: AdminDashboardProp
       if (res.ok) {
         const data = await res.json();
 
-        // Store view-as context
+        // Store view-as context with IDs
         sessionStorage.setItem('adminViewAs', JSON.stringify({
           adminUserId: userId,
           targetUserId: data.userId,
           targetUserType: data.userType,
-          viewAsName: data.viewAsName
+          viewAsName: data.viewAsName,
+          partnerId: type === 'partner' ? id : null,        // ADD THIS LINE
+          influencerId: type === 'influencer' ? id : null   // ADD THIS LINE
         }));
 
-        // Reload to trigger dashboard with new context
         window.location.reload();
       } else {
         const error = await res.json();

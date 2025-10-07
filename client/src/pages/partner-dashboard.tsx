@@ -73,6 +73,8 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedTab, setSelectedTab] = useState('overview');
   const [timeframe, setTimeframe] = useState('30');
+  const viewAsData = sessionStorage.getItem('adminViewAs');
+  const partnerId = viewAsData ? JSON.parse(viewAsData).partnerId : null;
 
   // Revenue data
   const [revenueTransactions, setRevenueTransactions] = useState<any[]>([]);
