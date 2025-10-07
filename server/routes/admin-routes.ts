@@ -372,7 +372,7 @@ router.post('/content/:contentId/reject', async (req: AdminRequest, res) => {
 // VIEW-AS FUNCTIONALITY
 // ============================================================================
 
-router.get('/view-as/partner/:partnerId', async (req, res) => {
+router.get('/view-as/partner/:partnerId', async (req: AdminRequest, res) => {
   try {
     const { partnerId } = req.params;
 
@@ -390,7 +390,7 @@ router.get('/view-as/partner/:partnerId', async (req, res) => {
     // Get first partner user for this organization
     const { data: partnerUser } = await supabase
       .from('partner_users')
-      .select('user_id, user_profiles!partner_users_user_id_fkey(*)')
+      .select('user_id')
       .eq('partner_id', partnerId)
       .limit(1)
       .single();
@@ -410,7 +410,7 @@ router.get('/view-as/partner/:partnerId', async (req, res) => {
   }
 });
 
-router.get('/view-as/influencer/:influencerId', async (req, res) => {
+router.get('/view-as/influencer/:influencerId', async (req: AdminRequest, res) => {
   try {
     const { influencerId } = req.params;
 

@@ -294,6 +294,40 @@ export default function Dashboard() {
     setConsentChecked(true);
   };
 
+  // ============================================================================
+  // ADMIN VIEW-AS MODE
+  // ============================================================================
+  const viewAsData = sessionStorage.getItem('adminViewAs');
+  if (viewAsData && userId) {
+    const { targetUserId, targetUserType, viewAsName } = JSON.parse(viewAsData);
+
+    return (
+      <div className="min-h-screen gradient-bg">
+        <div className="bg-yellow-400 text-black p-3 flex justify-between items-center">
+          <span className="font-semibold">
+            👁️ Viewing as {targetUserType}: <strong>{viewAsName}</strong>
+          </span>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem('adminViewAs');
+              window.location.reload();
+            }}
+            className="bg-black text-yellow-400 px-4 py-2 rounded font-semibold hover:bg-gray-800"
+          >
+            ← Return to Admin Dashboard
+          </button>
+        </div>
+
+        <div>
+          {targetUserType === 'partner' && <PartnerDashboard userId={targetUserId} setUserId={setUserId} />}
+          {targetUserType === 'influencer' && <InfluencerDashboard userId={targetUserId} setUserId={setUserId} />}
+          {targetUserType === 'therapist' && <TherapistDashboard userId={targetUserId} setUserId={setUserId} />}
+          {targetUserType === 'client' && <ClientDashboard userId={targetUserId} setUserId={setUserId} />}
+        </div>
+      </div>
+    );
+  }
+
   // Show loading state
   if (loading) {
     return (

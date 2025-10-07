@@ -162,14 +162,20 @@ export default function AdminDashboard({ userId, setUserId }: AdminDashboardProp
 
       if (res.ok) {
         const data = await res.json();
-        // Store admin return info
+
+        // Store view-as context
         sessionStorage.setItem('adminViewAs', JSON.stringify({
           adminUserId: userId,
-          viewingAs: data.viewAsName,
-          viewingType: type
+          targetUserId: data.userId,
+          targetUserType: data.userType,
+          viewAsName: data.viewAsName
         }));
-        // Reload page with new context
+
+        // Reload to trigger dashboard with new context
         window.location.reload();
+      } else {
+        const error = await res.json();
+        alert(`Failed to switch view: ${error.error}`);
       }
     } catch (error) {
       console.error('View-as error:', error);
