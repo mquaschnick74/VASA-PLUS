@@ -80,9 +80,17 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       console.log('Promo code detected in URL:', urlPromoCode);
       setPromoCode(urlPromoCode.toUpperCase());
       setMode('signup'); // Force signup mode when promo code present
-      
+
       // Auto-validate the promo code
       validatePromoCode(urlPromoCode);
+    }
+
+    // 🆕 CHECK LOCALSTORAGE FOR SAVED PROMO CODE (from previous signup)
+    const savedPromo = localStorage.getItem('pendingPromoCode');
+    if (savedPromo && !urlPromoCode) {  // Only use saved if no URL promo
+      console.log('Found saved promo code:', savedPromo);
+      setPromoCode(savedPromo);
+      validatePromoCode(savedPromo);
     }
   }, []);
 
@@ -199,8 +207,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         setVerificationSent(true);
 
         // NEW: Store invitation token so we can use it after email verification
-        if (invitationToken) {
-          localStorage.setItem('pendingInvitation', invitationToken);
+        if (promoCode && promoValidation?.valid) {
+          localStorage.setItem('pendingPromoCode', promoCode);
         }
 
         setPassword('');
