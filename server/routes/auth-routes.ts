@@ -658,42 +658,4 @@ router.post('/validate-promo', async (req, res) => {
   }
 });
 
-// Validate promo code
-router.post('/validate-promo', async (req, res) => {
-  try {
-    const { promoCode } = req.body;
-
-    if (!promoCode) {
-      return res.status(400).json({ valid: false, message: 'Promo code required' });
-    }
-
-    // List of valid influencer promo codes
-    const validPromoCodes = [
-      'INFLUENCER10',
-      'CREATOR2025',
-      'THERAPY50',
-      // Add more promo codes here
-    ];
-
-    const isValid = validPromoCodes.includes(promoCode.toUpperCase());
-
-    if (isValid) {
-      res.json({ 
-        valid: true, 
-        message: '50% off your first month!',
-        discountPercentage: 50
-      });
-    } else {
-      res.json({ 
-        valid: false, 
-        message: 'Invalid promo code' 
-      });
-    }
-  } catch (error) {
-    console.error('Promo validation error:', error);
-    res.status(500).json({ valid: false, message: 'Validation failed' });
-  }
-});
-
-
 export default router;
