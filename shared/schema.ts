@@ -23,7 +23,7 @@ export const users = pgTable("users", {
 // User profiles table - FIXED to use users.id
 export const userProfiles = pgTable("user_profiles", {
   id: uuid("id").primaryKey().references(() => users.id, { onDelete: "cascade" }), // FIXED: References users.id
-  email: varchar("email").notNull(),
+  email: varchar("email").notNull().unique(), // Added unique constraint for data integrity
   full_name: varchar("full_name"),
   user_type: varchar("user_type").default('individual'), // 'individual', 'therapist', 'client'
   invited_by: uuid("invited_by").references(() => users.id), // FIXED: References users.id
