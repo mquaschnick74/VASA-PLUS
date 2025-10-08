@@ -85,6 +85,7 @@ export const therapistInvitations = pgTable("therapist_invitations", {
   sent_at: timestamp("sent_at", { withTimezone: true }).defaultNow(),
   accepted_at: timestamp("accepted_at", { withTimezone: true }),
   expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 // Therapist access logs for compliance and audit trail
