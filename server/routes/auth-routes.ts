@@ -8,7 +8,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 const router = Router();
 
 // Helper function to ensure user has profile and subscription
-async function ensureUserSetup(userId: string, email: string, firstName?: string, userType: string = 'individual') {
+async function ensureUserSetup(userId: string, email: string, firstName?: string, userType: string = 'individual', promoCode?: string) {
   // Check for user profile
   const { data: profile } = await supabase
     .from('user_profiles')
@@ -18,13 +18,25 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
 
   if (!profile) {
     // Create user profile
+    // Calculate promo expiry (7 days from signup)
+    let promoData = {};
+    if (promoCode) {
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + 7);
+      promoData = {
+        promo_code: promoCode,
+        promo_discount_expires_at: trialEndDate.toISOString()
+      };
+    }
+
     await supabase
       .from('user_profiles')
       .upsert({
         id: userId,
         email,
         full_name: firstName || email.split('@')[0],
-        user_type: userType
+        user_type: userType,
+        ...promoData
       }, {
         onConflict: 'id'
       });
@@ -221,7 +233,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
       // ============================================================================
 
       // Ensure profile and subscription exist
-      await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, effectiveUserType);
+      await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType, promoCode);
 
       return res.json({ user: existingUser });
     }
@@ -277,7 +289,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
         }
       }
       
-      await ensureUserSetup(doubleCheck.id, email, firstName || doubleCheck.first_name, userType);
+      await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType, promoCode);
       return res.json({ user: doubleCheck });
     }
 
@@ -343,7 +355,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
             }
           }
           
-          await ensureUserSetup(existingAfterError.id, email, firstName || existingAfterError.first_name, userType);
+          await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType, promoCode);
           return res.json({ user: existingAfterError });
         }
       }
@@ -643,6 +655,43 @@ router.post('/validate-promo', async (req, res) => {
       valid: false,
       error: 'Failed to validate promo code' 
     });
+  }
+});
+
+// Validate promo code
+router.post('/validate-promo', async (req, res) => {
+  try {
+    const { promoCode } = req.body;
+
+    if (!promoCode) {
+      return res.status(400).json({ valid: false, message: 'Promo code required' });
+    }
+
+    // List of valid influencer promo codes
+    const validPromoCodes = [
+      'INFLUENCER10',
+      'CREATOR2025',
+      'THERAPY50',
+      // Add more promo codes here
+    ];
+
+    const isValid = validPromoCodes.includes(promoCode.toUpperCase());
+
+    if (isValid) {
+      res.json({ 
+        valid: true, 
+        message: '50% off your first month!',
+        discountPercentage: 50
+      });
+    } else {
+      res.json({ 
+        valid: false, 
+        message: 'Invalid promo code' 
+      });
+    }
+  } catch (error) {
+    console.error('Promo validation error:', error);
+    res.status(500).json({ valid: false, message: 'Validation failed' });
   }
 });
 

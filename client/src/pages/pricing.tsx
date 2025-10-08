@@ -20,6 +20,8 @@ export default function Pricing() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [userType, setUserType] = useState<string>('individual');
+  const [isPromoActive, setIsPromoActive] = useState<boolean>(false);
+  const [promoCode, setPromoCode] = useState<string>('');
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
   useEffect(() => {
@@ -29,16 +31,23 @@ export default function Pricing() {
       if (user) {
         setUserEmail(user.email || '');
 
-        // Query by EMAIL instead of ID (email is unique and indexed)
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('id, user_type')
+          .select('id, user_type, promo_code, promo_discount_expires_at')
           .eq('email', user.email)
           .single();
 
         if (profile) {
-          setUserId(profile.id);  // Use the app user ID, not auth ID
+          setUserId(profile.id);
           setUserType(profile.user_type || 'individual');
+          setPromoCode(profile.promo_code || '');
+
+          // Check if promo is still active
+          if (profile.promo_discount_expires_at) {
+            const expiryDate = new Date(profile.promo_discount_expires_at);
+            const now = new Date();
+            setIsPromoActive(expiryDate > now);
+          }
         }
       }
     };
@@ -200,13 +209,33 @@ export default function Pricing() {
                 )}
 
                 {scriptLoaded && userId && userEmail ? (
-                  <stripe-pricing-table 
-                    pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
-                    publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
-                    client-reference-id={userId}
-                    customer-email={userEmail}
-                  >
-                  </stripe-pricing-table>
+                  isPromoActive ? (
+                    // DISCOUNTED PRICING - Shows when user has active promo
+                    <div>
+                      <div className="text-center mb-4">
+                        <Badge className="bg-green-500">
+                          🎉 50% OFF First Month - Code: {promoCode}
+                        </Badge>
+                      </div>
+                      <stripe-pricing-table 
+                        pricing-table-id="prctbl_YOUR_NEW_DISCOUNTED_TABLE_ID_HERE"
+                        publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                        client-reference-id={userId}
+                        customer-email={userEmail}
+                        customer-promo-code="INFLUENCER_50"
+                      >
+                      </stripe-pricing-table>
+                    </div>
+                  ) : (
+                    // NORMAL PRICING - Shows when no promo or promo expired
+                    <stripe-pricing-table 
+                      pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
+                      publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                      client-reference-id={userId}
+                      customer-email={userEmail}
+                    >
+                    </stripe-pricing-table>
+                  )
                 ) : scriptLoaded && (!userId || !userEmail) ? (
                   <div className="text-center py-12">
                     <p className="text-muted-foreground mb-4">Please sign in to view pricing options.</p>

@@ -160,6 +160,47 @@ router.post('/webhook', async (req, res) => {
         } else {
           console.log(`✅ Activated ${tier} ${planType} subscription for user ${userId} with ${minutesLimit} minutes`);
         }
+
+        // ============================================================================
+        // NEW: PROMO CODE TRACKING - Extend discount if user has active promo
+        // ============================================================================
+        try {
+          // Check if user has an active promo code
+          const { data: userProfile } = await supabase
+            .from('user_profiles')
+            .select('promo_code, promo_discount_expires_at')
+            .eq('id', userId)
+            .single();
+
+          // If user has a promo code and it hasn't expired yet
+          if (userProfile?.promo_code && userProfile?.promo_discount_expires_at) {
+            const expiryDate = new Date(userProfile.promo_discount_expires_at);
+            const now = new Date();
+
+            // Only extend if promo is still active (hasn't expired yet)
+            if (expiryDate > now) {
+              // Extend promo to end of first billing cycle (30 days from purchase)
+              const firstBillingEnd = new Date();
+              firstBillingEnd.setDate(firstBillingEnd.getDate() + 30);
+
+              await supabase
+                .from('user_profiles')
+                .update({
+                  promo_discount_expires_at: firstBillingEnd.toISOString()
+                })
+                .eq('id', userId);
+
+              console.log(`🎉 Extended promo "${userProfile.promo_code}" for user ${userId} until ${firstBillingEnd.toISOString()}`);
+            } else {
+              console.log(`ℹ️ User ${userId} had promo "${userProfile.promo_code}" but it already expired`);
+            }
+          }
+        } catch (promoError) {
+          console.error('⚠️ Failed to process promo extension:', promoError);
+          // Don't fail the webhook - promo is secondary to subscription activation
+        }
+        // ============================================================================
+
         break;
       }
 
@@ -191,7 +232,7 @@ router.post('/webhook', async (req, res) => {
           // Get current subscription to check if period changed
           const { data: currentSub } = await supabase
             .from('subscriptions')
-            .select('current_period_end, plan_type')
+            .select('current_period_end, plan_type, user_id')
             .eq('stripe_subscription_id', subscription.id)
             .single();
 
@@ -203,6 +244,36 @@ router.post('/webhook', async (req, res) => {
             if (newPeriodEnd > oldPeriodEnd) {
               updateData.usage_minutes_used = 0;
               console.log('🔄 Subscription renewed - resetting usage minutes');
+
+              // ============================================================================
+              // NEW: PROMO CODE TRACKING - Clear promo on renewal (second billing cycle)
+              // ============================================================================
+              try {
+                if (currentSub.user_id) {
+                  // Check if user has an active promo
+                  const { data: userProfile } = await supabase
+                    .from('user_profiles')
+                    .select('promo_code, promo_discount_expires_at')
+                    .eq('id', currentSub.user_id)
+                    .single();
+
+                  if (userProfile?.promo_discount_expires_at) {
+                    // Clear the promo expiry since they're now on full price
+                    await supabase
+                      .from('user_profiles')
+                      .update({
+                        promo_discount_expires_at: null
+                      })
+                      .eq('id', currentSub.user_id);
+
+                    console.log(`✅ Cleared promo discount for user ${currentSub.user_id} after renewal - now paying full price`);
+                  }
+                }
+              } catch (promoError) {
+                console.error('⚠️ Failed to clear promo on renewal:', promoError);
+                // Don't fail the webhook - promo is secondary to subscription update
+              }
+              // ============================================================================
             }
           }
         }

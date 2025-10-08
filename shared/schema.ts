@@ -29,6 +29,8 @@ export const userProfiles = pgTable("user_profiles", {
   invited_by: uuid("invited_by").references(() => users.id), // FIXED: References users.id
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  promo_code: varchar("promo_code", { length: 50 }),
+  promo_discount_expires_at: timestamp("promo_discount_expires_at"),
   consent_accepted_at: timestamp("consent_accepted_at", { withTimezone: true }),
 });
 
