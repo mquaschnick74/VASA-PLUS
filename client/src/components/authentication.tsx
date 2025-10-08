@@ -357,7 +357,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         {/* Logo and Branding */}
         <div className="text-center mb-8 md:mb-12">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-40 md:w-48 h-auto animate-float">
+            <div className="w-80 md:w-96 h-auto animate-float">
               <img 
                 src={vasaLogo} 
                 alt="iVASA Logo" 
