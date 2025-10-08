@@ -203,7 +203,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
               conversion_type: 'trial',
               promo_code_used: cleanCode,
               commission_percentage_applied: influencer.commission_percentage,
-              conversion_status: 'pending',
+              conversion_status: 'active',
               conversion_date: new Date().toISOString()
             });
 
@@ -267,7 +267,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
               conversion_type: 'trial',
               promo_code_used: cleanCode,
               commission_percentage_applied: influencer.commission_percentage,
-              conversion_status: 'pending',
+              conversion_status: 'active',
               conversion_date: new Date().toISOString()
             });
 
@@ -332,7 +332,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
                   conversion_type: 'trial',
                   promo_code_used: cleanCode,
                   commission_percentage_applied: influencer.commission_percentage,
-                  conversion_status: 'pending',
+                  conversion_status: 'active',
                   conversion_date: new Date().toISOString()
                 });
 
@@ -377,7 +377,7 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
             conversion_type: 'trial',
             promo_code_used: cleanCode,
             commission_percentage_applied: influencer.commission_percentage,
-            conversion_status: 'pending',
+            conversion_status: 'active',
             conversion_date: new Date().toISOString()
           });
 
