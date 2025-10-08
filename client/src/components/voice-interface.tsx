@@ -398,7 +398,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
                           )}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {subscription.limits.minutes_remaining} minutes remaining
+                          {subscription.limits.is_trial && subscription.limits.trial_days_left > 0 && (
+                            <span className="block">
+                              {subscription.limits.trial_days_left} day{subscription.limits.trial_days_left !== 1 ? 's' : ''} remaining
+                            </span>
+                          )}
+                          <span className="block">{subscription.limits.minutes_remaining} minutes remaining</span>
                           {subscription.limits.is_using_therapist_subscription && subscription.limits.subscription_owner_email && (
                             <span className="block mt-1">Therapist: {subscription.limits.subscription_owner_email}</span>
                           )}
