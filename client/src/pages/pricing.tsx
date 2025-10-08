@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,11 +6,21 @@ import { Check, Sparkles, Users, Clock, TrendingUp, Shield } from 'lucide-react'
 import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabaseClient';
 
+// Declare the custom Stripe element for TypeScript
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'stripe-pricing-table': any;
+    }
+  }
+}
+
 export default function Pricing() {
   const [, setLocation] = useLocation();
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [userType, setUserType] = useState<string>('individual');
+  const [scriptLoaded, setScriptLoaded] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -36,22 +46,36 @@ export default function Pricing() {
     loadUser();
   }, []);
 
-  // Inject user context into Stripe pricing table once it loads
+  // Load Stripe pricing table script
   useEffect(() => {
-    if (!userId || !userEmail) return;
+    // Check if script already exists
+    const existingScript = document.querySelector('script[src="https://js.stripe.com/v3/pricing-table.js"]');
 
-    const injectUserContext = () => {
-      const pricingTable = document.querySelector('stripe-pricing-table');
-      if (pricingTable) {
-        pricingTable.setAttribute('client-reference-id', userId);
-        pricingTable.setAttribute('customer-email', userEmail);
-      }
+    if (existingScript) {
+      setScriptLoaded(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://js.stripe.com/v3/pricing-table.js';
+    script.async = true;
+    script.onload = () => {
+      console.log('✅ Stripe pricing table script loaded');
+      setScriptLoaded(true);
+    };
+    script.onerror = () => {
+      console.error('❌ Failed to load Stripe pricing table script');
     };
 
-    // Wait for pricing table to load
-    const timer = setTimeout(injectUserContext, 500);
-    return () => clearTimeout(timer);
-  }, [userId, userEmail]);
+    document.body.appendChild(script);
+
+    return () => {
+      // Cleanup: remove script when component unmounts
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
 
   // Redirect to Stripe checkout with user metadata (for therapist plans)
   const handleCheckout = (tier: string, planType: string, checkoutUrl: string) => {
@@ -153,22 +177,27 @@ export default function Pricing() {
             {/* Individual Plans - Stripe Pricing Table */}
             <div className="max-w-5xl mx-auto mb-16">
               <div className="glass rounded-2xl p-8">
-                {userId && userEmail ? (
-                  <>
-                    <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
-                    <stripe-pricing-table 
-                      pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
-                      publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
-                      client-reference-id={userId}
-                      customer-email={userEmail}
-                    >
-                    </stripe-pricing-table>
-                  </>
-                ) : (
+                {!scriptLoaded && (
                   <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
                     <p className="text-muted-foreground">Loading pricing options...</p>
                   </div>
                 )}
+
+                {scriptLoaded && userId && userEmail ? (
+                  <stripe-pricing-table 
+                    pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
+                    publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                    client-reference-id={userId}
+                    customer-email={userEmail}
+                  >
+                  </stripe-pricing-table>
+                ) : scriptLoaded && (!userId || !userEmail) ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground mb-4">Please sign in to view pricing options.</p>
+                    <Button onClick={() => setLocation('/')}>Sign In</Button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </>
