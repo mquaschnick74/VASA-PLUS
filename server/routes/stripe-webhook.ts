@@ -48,34 +48,91 @@ router.post('/webhook', async (req, res) => {
           return res.json({ received: true });
         }
 
-        // Get metadata from session
-        const metadata = session.metadata || {};
-        const tier = metadata.tier || 'basic';
-        const planType = metadata.plan_type || 'recurring';
-        const userType = metadata.user_type || 'individual';
+        // Get metadata from the LINE ITEMS (this is where product metadata lives)
+        let tier = 'intro'; // default
+        let minutesLimit = 45; // default
+        let planType = 'recurring';
+        let userType = 'individual';
+
+        try {
+          // Fetch line items to get product metadata
+          const lineItemsResponse = await fetch(
+            `https://api.stripe.com/v1/checkout/sessions/${session.id}/line_items`,
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`
+              }
+            }
+          );
+
+          if (lineItemsResponse.ok) {
+            const lineItemsData = await lineItemsResponse.json();
+            const firstItem = lineItemsData.data[0];
+
+            if (firstItem?.price?.product) {
+              // Fetch the product to get its metadata
+              const productResponse = await fetch(
+                `https://api.stripe.com/v1/products/${firstItem.price.product}`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`
+                  }
+                }
+              );
+
+              if (productResponse.ok) {
+                const product = await productResponse.json();
+                const metadata = product.metadata || {};
+
+                console.log('📦 Product metadata:', metadata);
+
+                // Read from metadata (added in Stripe Dashboard)
+                tier = metadata.tier || 'intro';
+                minutesLimit = parseInt(metadata.minutes_limit) || 45;
+                planType = metadata.plan_type || 'recurring';
+                userType = metadata.user_type || 'individual';
+              }
+            }
+          }
+        } catch (fetchError) {
+          console.error('⚠️ Failed to fetch product metadata, using defaults:', fetchError);
+        }
+
+        // Get user profile to determine if therapist
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('user_type')
+          .eq('id', userId)
+          .single();
+
+        if (profile?.user_type === 'therapist') {
+          userType = 'therapist';
+          // Therapist-specific limits
+          if (tier === 'premium') {
+            minutesLimit = 600; // 10 hours
+          } else if (tier === 'basic') {
+            minutesLimit = 180; // 3 hours
+          }
+        }
 
         console.log('📊 Activating subscription:', {
           userId,
           tier,
           planType,
           userType,
+          minutesLimit,
           customerId: session.customer,
           subscriptionId: session.subscription
         });
 
-        // Calculate limits based on plan tier
-        let minutesLimit: number;
+        // Calculate client limit for therapists
         let clientLimit: number = 0;
-
         if (userType === 'therapist') {
-          minutesLimit = tier === 'premium' ? 600 : 180; // 10 hours or 3 hours
           clientLimit = tier === 'premium' ? 10 : 3;
-        } else {
-          // Individual plans
-          minutesLimit = tier === 'plus' ? 220 : 180;
         }
 
         // Update or create subscription record
+        // CRITICAL: Always reset usage_minutes_used to 0 on new subscription
         const { error } = await supabase
           .from('subscriptions')
           .upsert({
@@ -85,7 +142,7 @@ router.post('/webhook', async (req, res) => {
             plan_type: planType,
             trial_ends_at: null, // Clear trial since they paid
             usage_minutes_limit: minutesLimit,
-            usage_minutes_used: 0, // Reset usage for new subscription
+            usage_minutes_used: 0, // ✅ ALWAYS RESET TO 0 - FRESH START
             client_limit: clientLimit,
             clients_used: 0,
             stripe_customer_id: session.customer as string,
@@ -101,7 +158,7 @@ router.post('/webhook', async (req, res) => {
         if (error) {
           console.error('❌ Failed to activate subscription:', error);
         } else {
-          console.log(`✅ Activated ${tier} ${planType} subscription for user ${userId}`);
+          console.log(`✅ Activated ${tier} ${planType} subscription for user ${userId} with ${minutesLimit} minutes`);
         }
         break;
       }
@@ -121,13 +178,38 @@ router.post('/webhook', async (req, res) => {
           mappedStatus: status
         });
 
+        // On subscription renewal, reset usage for recurring plans
+        const updateData: any = {
+          subscription_status: status,
+          current_period_end: new Date(subscription.current_period_end * 1000),
+          updated_at: new Date().toISOString()
+        };
+
+        // If the subscription just renewed (status is active and period changed)
+        // Reset usage minutes for the new billing period
+        if (status === 'active') {
+          // Get current subscription to check if period changed
+          const { data: currentSub } = await supabase
+            .from('subscriptions')
+            .select('current_period_end, plan_type')
+            .eq('stripe_subscription_id', subscription.id)
+            .single();
+
+          if (currentSub?.plan_type === 'recurring') {
+            const oldPeriodEnd = new Date(currentSub.current_period_end || 0);
+            const newPeriodEnd = new Date(subscription.current_period_end * 1000);
+
+            // If period end changed, it's a renewal - reset usage
+            if (newPeriodEnd > oldPeriodEnd) {
+              updateData.usage_minutes_used = 0;
+              console.log('🔄 Subscription renewed - resetting usage minutes');
+            }
+          }
+        }
+
         const { error } = await supabase
           .from('subscriptions')
-          .update({
-            subscription_status: status,
-            current_period_end: new Date(subscription.current_period_end * 1000),
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('stripe_subscription_id', subscription.id);
 
         if (!error) {
