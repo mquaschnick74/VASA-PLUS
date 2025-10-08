@@ -16,6 +16,8 @@ interface SubscriptionData {
     is_using_therapist_subscription?: boolean;
     subscription_owner_id?: string;
     subscription_owner_email?: string;
+    is_trial?: boolean;
+    trial_days_left?: number;
   };
   user_id: string;
   subscription_tier: string;
@@ -75,20 +77,22 @@ export function useSubscription(userId: string | null) {
 
         if (apiData.success && apiData.limits) {
           // Structure the data from API response
-          const structuredData: SubscriptionData = {
-            // Nested limits object for compatibility
-            limits: {
-              can_use_voice: apiData.limits.can_use_voice ?? true,
-              minutes_remaining: apiData.limits.minutes_remaining || 0,
-              minutes_used: apiData.limits.minutes_used || 0,
-              minutes_limit: apiData.limits.minutes_limit || 0,
-              subscription_tier: apiData.limits.subscription_tier || 'trial',
-              subscription_status: apiData.subscription?.subscription_status || 'active',
-              client_limit: apiData.subscription?.client_limit || 0,
-              is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
-              subscription_owner_id: apiData.limits.subscription_owner_id,
-              subscription_owner_email: apiData.limits.subscription_owner_email
-            },
+            const structuredData: SubscriptionData = {
+              // Nested limits object for compatibility
+              limits: {
+                can_use_voice: apiData.limits.can_use_voice ?? true,
+                minutes_remaining: apiData.limits.minutes_remaining || 0,
+                minutes_used: apiData.limits.minutes_used || 0,
+                minutes_limit: apiData.limits.minutes_limit || 0,
+                subscription_tier: apiData.limits.subscription_tier || 'trial',
+                subscription_status: apiData.subscription?.subscription_status || 'active',
+                client_limit: apiData.subscription?.client_limit || 0,
+                is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
+                subscription_owner_id: apiData.limits.subscription_owner_id,
+                subscription_owner_email: apiData.limits.subscription_owner_email,
+                is_trial: apiData.limits.is_trial,
+                trial_days_left: apiData.limits.trial_days_left
+              },
             // Original flat data
             user_id: userId,
             subscription_tier: apiData.limits.subscription_tier || 'trial',
@@ -250,19 +254,21 @@ export function useSubscription(userId: string | null) {
           const apiData = await response.json();
 
           if (apiData.success && apiData.limits) {
-            const structuredData: SubscriptionData = {
-              limits: {
-                can_use_voice: apiData.limits.can_use_voice ?? true,
-                minutes_remaining: apiData.limits.minutes_remaining || 0,
-                minutes_used: apiData.limits.minutes_used || 0,
-                minutes_limit: apiData.limits.minutes_limit || 0,
-                subscription_tier: apiData.limits.subscription_tier || 'trial',
-                subscription_status: apiData.subscription?.subscription_status || 'active',
-                client_limit: apiData.subscription?.client_limit || 0,
-                is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
-                subscription_owner_id: apiData.limits.subscription_owner_id,
-                subscription_owner_email: apiData.limits.subscription_owner_email
-              },
+              const structuredData: SubscriptionData = {
+                limits: {
+                  can_use_voice: apiData.limits.can_use_voice ?? true,
+                  minutes_remaining: apiData.limits.minutes_remaining || 0,
+                  minutes_used: apiData.limits.minutes_used || 0,
+                  minutes_limit: apiData.limits.minutes_limit || 0,
+                  subscription_tier: apiData.limits.subscription_tier || 'trial',
+                  subscription_status: apiData.subscription?.subscription_status || 'active',
+                  client_limit: apiData.subscription?.client_limit || 0,
+                  is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
+                  subscription_owner_id: apiData.limits.subscription_owner_id,
+                  subscription_owner_email: apiData.limits.subscription_owner_email,
+                  is_trial: apiData.limits.is_trial,
+                  trial_days_left: apiData.limits.trial_days_left
+                },
               user_id: userId,
               subscription_tier: apiData.limits.subscription_tier || 'trial',
               subscription_status: apiData.subscription?.subscription_status || 'active',

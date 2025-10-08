@@ -12,7 +12,6 @@ interface SubscriptionLimits {
   trial_days_left: number;
   subscription_tier: string;
   user_type: string;
-  // NEW: Track who owns the subscription being used
   subscription_owner_id?: string;
   subscription_owner_email?: string;
   is_using_therapist_subscription?: boolean;
