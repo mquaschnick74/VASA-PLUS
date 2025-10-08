@@ -151,6 +151,7 @@ export default function Dashboard() {
           }
         } else {
           console.log('ℹ️ [DASHBOARD] No active session. Waiting for sign in.');
+          setLoading(false);
         }
 
         // Set up auth listener with better event handling
