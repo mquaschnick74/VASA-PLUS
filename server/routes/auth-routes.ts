@@ -288,7 +288,8 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
         email,
         first_name: firstName || email.split('@')[0],
         auth_user_id: authUserId,
-        role: userType === 'therapist' ? 'therapist' : 'client'  // ADD THIS LINE
+        role: userType === 'therapist' ? 'therapist' : 'client',
+        referred_by_promo_code: promoCode || null  // ✅ ADD THIS LINE
       })
       .select()
       .single();
