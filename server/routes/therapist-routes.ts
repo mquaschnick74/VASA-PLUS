@@ -294,44 +294,77 @@ router.post('/invite-client', authenticateToken, async (req: AuthRequest, res) =
         }
       }
 
+      // Generate invitation token for existing client
+      const invitationToken = crypto.randomBytes(32).toString('hex');
+      const invitationLink = `${process.env.CLIENT_URL || 'https://ivasa.ai'}/?token=${invitationToken}&therapist=${therapist_id}`;
+
+      // Create invitation record for existing client
+      const { data: invitation, error: inviteError } = await supabase
+        .from('therapist_invitations')
+        .insert({
+          therapist_id,
+          client_email,
+          invitation_token: invitationToken,
+          status: 'pending',
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .select()
+        .single();
+
+      if (inviteError) {
+        console.error('Failed to create invitation:', inviteError);
+        return res.status(500).json({ error: 'Failed to create invitation' });
+      }
+
       // Create relationship with existing client
       const { error: relationshipError } = await supabase
         .from('therapist_client_relationships')
         .insert({
           therapist_id,
           client_id: existingClient.id,
+          invitation_id: invitation.id,
           status: 'pending'
         });
 
       if (relationshipError) {
         console.error('Failed to create relationship:', relationshipError);
+        // Rollback invitation
+        await supabase
+          .from('therapist_invitations')
+          .delete()
+          .eq('id', invitation.id);
         return res.status(500).json({ error: 'Failed to create relationship' });
       }
 
-      // Send notification email to existing client
+      // Send notification email to existing client with invitation link
       const emailSent = await sendInvitationEmail(
         client_email,
         therapistProfile.full_name || therapistProfile.email,
         therapistProfile.email,
-        `${process.env.CLIENT_URL || 'https://ivasa.ai'}/dashboard`
+        invitationLink
       );
 
       if (!emailSent) {
-        // Rollback the relationship if email fails
+        // Rollback both invitation and relationship if email fails
         await supabase
           .from('therapist_client_relationships')
           .delete()
           .eq('therapist_id', therapist_id)
           .eq('client_id', existingClient.id);
+        await supabase
+          .from('therapist_invitations')
+          .delete()
+          .eq('id', invitation.id);
 
         return res.status(500).json({ 
           error: 'Failed to send notification email. Please verify email service is configured.' 
         });
       }
 
+      console.log(`✅ Invitation sent successfully to existing client ${client_email}`);
       return res.json({ 
         success: true, 
-        message: 'Relationship created with existing client',
+        message: 'Invitation sent to existing client',
         type: 'existing_client'
       });
     }

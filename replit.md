@@ -180,6 +180,11 @@ partner_equity_vesting_schedule    # Equity vesting timeline
 - Privacy-focused data handling
 
 ## Recent Updates (Oct 2025)
+- **Invitation System Fix (Oct 8)**: Fixed silent failure when inviting existing clients
+  - Now creates `therapist_invitations` record for both new AND existing clients
+  - Fixed missing `updated_at` column causing silent database trigger failures
+  - Pending invitations now appear correctly in therapist dashboard
+  - Proper rollback on email sending failures for data integrity
 - **Partner Portal**: Full revenue tracking and analytics dashboard
   - Revenue/equity/therapist/referral management tabs
   - Tier progression system (Bronze → Silver → Gold → Platinum)
