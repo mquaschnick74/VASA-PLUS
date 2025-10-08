@@ -175,8 +175,23 @@ export default function Pricing() {
         {userType === 'individual' || userType === 'client' ? (
           <>
             {/* Individual Plans - Stripe Pricing Table */}
-            <div className="max-w-5xl mx-auto mb-16">
+            <div className="max-w-6xl mx-auto mb-16">
               <div className="glass rounded-2xl p-8">
+                <style>{`
+                  /* Force Stripe pricing table to display horizontally */
+                  stripe-pricing-table {
+                    --pricing-table-column-count: 3;
+                  }
+
+                  /* Ensure plans display side-by-side on larger screens */
+                  @media (min-width: 768px) {
+                    stripe-pricing-table::part(container) {
+                      display: grid;
+                      grid-template-columns: repeat(3, 1fr);
+                      gap: 1.5rem;
+                    }
+                  }
+                `}</style>
                 {!scriptLoaded && (
                   <div className="text-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
