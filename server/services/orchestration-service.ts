@@ -146,6 +146,7 @@ export async function initializeSession(
         call_id: callId,
         user_id: userId,
         agent_name: agentName,
+        css_stage: 'pointed_origin',
         status: 'active',
         start_time: new Date().toISOString()
       }, {
@@ -263,6 +264,12 @@ export async function processTranscript(
 
   if (patterns.currentStage !== session.currentCSSStage) {
     console.log(`🎯 CSS Stage progression: ${session.currentCSSStage} → ${patterns.currentStage}`);
+
+    await supabase
+        .from('therapeutic_sessions')
+        .update({ css_stage: patterns.currentStage })
+        .eq('call_id', callId);
+    }
 
     const previousStage = session.currentCSSStage;
     session.currentCSSStage = patterns.currentStage;

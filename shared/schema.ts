@@ -110,6 +110,7 @@ export const therapeuticSessions = pgTable("therapeutic_sessions", {
   call_id: text("call_id").notNull().unique(),
   agent_name: text("agent_name").default("Sarah"),
   status: text("status").default("active"),
+  css_stage: text("css_stage").default("pointed_origin"),
   start_time: timestamp("start_time", { withTimezone: true }).default(sql`timezone('utc', now())`),
   end_time: timestamp("end_time", { withTimezone: true }),
   duration_seconds: integer("duration_seconds"),
@@ -191,6 +192,56 @@ export const therapeuticMovements = pgTable("therapeutic_movements", {
   detected_at: timestamp("detected_at", { withTimezone: false }).default(sql`NOW()`),
   created_at: timestamp("created_at", { withTimezone: false }).default(sql`NOW()`),
 });
+
+// Knowledge Base Documents table
+export const knowledgeBaseDocuments = pgTable("knowledge_base_documents", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Document identification
+  document_id: varchar("document_id", { length: 100 }).notNull().unique(),
+  document_type: varchar("document_type", { length: 50 }).notNull(), // 'crisis_protocol', 'css_stage_guide', 'pattern_intervention', 'procedural_protocol'
+
+  // Content
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+
+  // Metadata for retrieval
+  metadata: jsonb("metadata").notNull(), // Stores all the metadata from your seed documents
+
+  // Retrieval optimization
+  trigger_keywords: jsonb("trigger_keywords"), // Array of strings for keyword matching
+  css_stage: varchar("css_stage", { length: 50 }), // 'pointed_origin', 'focus_bind', etc.
+  pattern_type: varchar("pattern_type", { length: 20 }), // 'CVDC', 'IBM', 'THEND', 'CYVC'
+  crisis_type: varchar("crisis_type", { length: 50 }), // 'acute_overwhelm', 'dysregulation', 'safety_assessment'
+
+  // Priority and injection rules
+  priority: integer("priority").notNull().default(5), // 1-10, higher = more important
+  immediate_inject: boolean("immediate_inject").default(false), // Auto-inject for crisis
+
+  // Agent recommendations
+  agent_recommendation: varchar("agent_recommendation", { length: 50 }), // 'Sarah', 'Mathew', or null
+
+  // Token management
+  token_count: integer("token_count").notNull(),
+
+  // Status
+  is_active: boolean("is_active").default(true),
+
+  // Timestamps
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// Insert schema
+export const insertKnowledgeBaseDocumentSchema = createInsertSchema(knowledgeBaseDocuments).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+
+// Types
+export type KnowledgeBaseDocument = typeof knowledgeBaseDocuments.$inferSelect;
+export type InsertKnowledgeBaseDocument = z.infer<typeof insertKnowledgeBaseDocumentSchema>;
 
 // Add these tables to the END of shared/schema.ts (after therapistInvitations)
 
