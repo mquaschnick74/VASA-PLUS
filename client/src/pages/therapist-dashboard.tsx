@@ -26,6 +26,7 @@ interface ClientData {
   total_minutes: number;
   last_session: string | null;
   relationship_status: string;
+  session_duration_limit: number;
 }
 
 interface PendingInvitation {
@@ -53,7 +54,7 @@ export default function TherapistDashboard({
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const { data: subscription, isLoading } = useSubscription(userId);
+  const { data: subscription } = useSubscription(userId);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -152,19 +153,20 @@ export default function TherapistDashboard({
         "🔍 [THERAPIST-DASH] Attempt 1: Query with user_profiles join",
       );
       const attempt1 = await supabase
-        .from("therapist_client_relationships")
-        .select(
-          `
-          *,
-          user_profiles!therapist_client_relationships_client_id_fkey(
-            id,
-            email,
-            full_name
-          )
-        `,
+      .from("therapist_client_relationships")
+      .select(
+        `
+        *,
+        session_duration_limit,
+        user_profiles!therapist_client_relationships_client_id_fkey(
+          id,
+          email,
+          full_name
         )
-        .eq("therapist_id", userId)
-        .eq("status", "active");
+      `,
+      )
+      .eq("therapist_id", userId)
+      .eq("status", "active");
 
       if (!attempt1.error) {
         console.log("✅ [THERAPIST-DASH] Query 1 successful");
@@ -286,6 +288,7 @@ export default function TherapistDashboard({
               total_minutes: totalMinutes,
               last_session: sessions?.[0]?.created_at || null,
               relationship_status: rel.status || "active",
+              session_duration_limit: rel.session_duration_limit || 900,
             };
           }),
         );
@@ -507,6 +510,13 @@ export default function TherapistDashboard({
           title: "Time Limit Updated",
           description: `Session limit set to ${minutes} minutes`,
         });
+
+        // ⬇️ ADD THESE 3 LINES - Reload dashboard to show updated value
+        if (mountedRef.current) {
+          await loadDashboardData();
+        }
+        // ⬆️ END OF ADDITION
+
       } else {
         const errorText = await response.text();
         toast({
@@ -754,7 +764,7 @@ export default function TherapistDashboard({
                           type="number"
                           min="1"
                           max="120"
-                          defaultValue={15}
+                          defaultValue={Math.floor(client.session_duration_limit / 60)}
                           className="w-16 px-2 py-1 text-sm rounded bg-white/5 border border-white/10"
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => {
