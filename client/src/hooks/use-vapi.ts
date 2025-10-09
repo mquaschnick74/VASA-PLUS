@@ -8,6 +8,7 @@ interface UseVapiProps {
   shouldReferenceLastSession?: boolean; // ADD: Session continuity  
   firstName: string;
   selectedAgent: TherapeuticAgent;
+  sessionDurationLimit?: number;
 }
 
 interface UseVapiReturn {
@@ -24,7 +25,8 @@ const useVapi = ({
   lastSessionSummary, 
   shouldReferenceLastSession,
   firstName, 
-  selectedAgent 
+  selectedAgent,
+  sessionDurationLimit = 7200
 }: UseVapiProps): UseVapiReturn => {
   const [vapi, setVapi] = useState<any>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -158,6 +160,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         name: `VASA-${selectedAgent.name}`,
         model: {
           provider: 'openai',
+          maxDurationSeconds: sessionDurationLimit,
           model: selectedAgent.model.model,
           temperature: selectedAgent.model.temperature,
           messages: [

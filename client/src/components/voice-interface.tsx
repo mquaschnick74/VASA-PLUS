@@ -27,6 +27,7 @@ interface UserContext {
   sessions: any[];
   firstName: string;
   sessionCount: number;
+  sessionDurationLimit?: number;
 }
 
 export default function VoiceInterface({ userId, setUserId, hideLogoutButton = false }: VoiceInterfaceProps) {
@@ -52,7 +53,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
     lastSessionSummary: userContext?.lastSessionSummary || null, // ADD: Pass session summary
     shouldReferenceLastSession: userContext?.shouldReferenceLastSession || false, // ADD: Pass reference flag
     firstName: userContext?.firstName || 'there',
-    selectedAgent: selectedAgent!
+    selectedAgent: selectedAgent!,
+    sessionDurationLimit: userContext?.sessionDurationLimit || 7200
   });
 
   // ADD subscription hook
@@ -124,14 +126,18 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
         setCallTimer(prev => {
           const newTimer = prev + 1;
 
-          // Show warning at 9 minutes (540 seconds) - VAPI has a 10-minute limitation
-          if (newTimer === 540 && !showDurationWarning) {
+          // Get the actual session duration limit (default to 2 hours if not set)
+          const durationLimit = userContext?.sessionDurationLimit || 7200;
+          const warningTime = Math.max(durationLimit - 60, 0); // Warn 1 minute before end
+
+          // Show warning 1 minute before limit
+          if (newTimer === warningTime && !showDurationWarning) {
             setShowDurationWarning(true);
           }
 
-          // Auto-end call at 10 minutes (600 seconds) due to VAPI limitation
-          if (newTimer >= 600) {
-            console.log('⏰ Call duration limit reached (10 minutes) - ending call');
+          // Auto-end call when limit is reached
+          if (newTimer >= durationLimit) {
+            console.log(`⏰ Call duration limit reached (${Math.floor(durationLimit / 60)} minutes) - ending call`);
             handleEndCall();
             return prev;
           }
@@ -482,8 +488,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
               <Alert className="glass-strong border-yellow-500/50 rounded-xl sm:rounded-2xl">
                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
                 <AlertDescription className="text-sm sm:text-base">
-                  <strong>Session Time Limit:</strong> Your call will automatically end in {600 - callTimer} seconds due to VAPI platform limitations. 
-                  Please wrap up your conversation or start a new session after this one ends.
+                  <strong>Session Time Limit:</strong> Your call will automatically end in {(userContext?.sessionDurationLimit || 7200) - callTimer} seconds. 
+                  Please wrap up your conversation.
                 </AlertDescription>
               </Alert>
             )}
