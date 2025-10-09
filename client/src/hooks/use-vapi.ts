@@ -188,7 +188,6 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         name: `VASA-${selectedAgent.name}`,
         model: {
           provider: 'openai',
-          maxDurationSeconds: sessionDurationLimit,
           model: selectedAgent.model.model,
           temperature: selectedAgent.model.temperature,
           messages: [

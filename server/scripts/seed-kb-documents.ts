@@ -1,43 +1,41 @@
 import { supabase } from '../services/supabase-service';
-
-const seedDocuments = [
-  {
-    document_id: 'crisis_grounding_001',
-    document_type: 'crisis_protocol',
-    title: 'Crisis Grounding Protocol',
-    content: `[Full content from Document 1 you provided]`,
-    metadata: {
-      crisis_type: 'acute_overwhelm',
-      priority: 9,
-      immediate_inject: true
-    },
-    trigger_keywords: ['overwhelmed', 'panic', 'losing control', 'can\'t breathe'],
-    css_stage: null, // Applies to all stages
-    pattern_type: null,
-    crisis_type: 'acute_overwhelm',
-    priority: 9,
-    immediate_inject: true,
-    agent_recommendation: null,
-    token_count: 465,
-    is_active: true
-  },
-  // ... 9 more documents
-];
+import { seedDocuments } from './kb-seed-data';
 
 async function seedKB() {
-  console.log('🌱 Seeding knowledge base...');
+  console.log('🌱 Seeding knowledge base with 10 therapeutic protocols...');
 
-  const { data, error } = await supabase
-    .from('knowledge_base_documents')
-    .insert(seedDocuments);
+  try {
+    // Clear existing documents (optional - remove this if you want to keep existing)
+    const { error: deleteError } = await supabase
+      .from('knowledge_base_documents')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
 
-  if (error) {
-    console.error('❌ Seed failed:', error);
+    if (deleteError) {
+      console.warn('⚠️ Could not clear existing documents:', deleteError.message);
+    }
+
+    // Insert all 10 documents
+    const { data, error } = await supabase
+      .from('knowledge_base_documents')
+      .insert(seedDocuments);
+
+    if (error) {
+      console.error('❌ Seed failed:', error);
+      process.exit(1);
+    }
+
+    console.log(`✅ Successfully seeded ${seedDocuments.length} KB documents`);
+    console.log('\nDocuments seeded:');
+    seedDocuments.forEach((doc, i) => {
+      console.log(`  ${i + 1}. ${doc.title} (${doc.token_count} tokens)`);
+    });
+
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Seed error:', error);
     process.exit(1);
   }
-
-  console.log(`✅ Successfully seeded ${seedDocuments.length} KB documents`);
-  process.exit(0);
 }
 
 seedKB();
