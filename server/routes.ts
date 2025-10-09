@@ -11,6 +11,7 @@ import therapistRoutes from './routes/therapist-routes';  // ADD THIS LINE
 import partnerRoutes from './routes/partner-routes';
 import influencerRoutes from './routes/influencer-routes';
 import adminRoutes from './routes/admin-routes';
+import kbRoutes from './routes/kb-routes';
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 
@@ -26,6 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/admin', adminRoutes);
   console.log('✅ Admin routes mounted at /api/admin');
   apiRouter.use('/influencer', influencerRoutes);
+  apiRouter.use('/kb', kbRoutes);
   apiRouter.use('/stripe', stripeWebhookRoutes);
 
   // Health check
@@ -41,6 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         influencer: 'Mounted at /api/influencer',
         therapist: 'Mounted at /api/therapist',  // ADD THIS LINE
         admin: 'Mounted at /api/admin',
+        kb: 'Mounted at /api/kb',
         health: 'Mounted at /api/health'
       }
     });

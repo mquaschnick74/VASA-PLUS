@@ -203,14 +203,14 @@ export async function processTranscript(
     }
 
     // Update narrative phase if present in metadata
-    if (parsed.meta?.phase) {
-      session.narrativePhase = parsed.meta.phase;
-      console.log(`📖 Narrative phase: ${parsed.meta.phase}`);
+    if (parsed.meta && 'phase' in parsed.meta) {
+      session.narrativePhase = (parsed.meta as any).phase;
+      console.log(`📖 Narrative phase: ${(parsed.meta as any).phase}`);
     }
 
     // Update exchange count if present
-    if (parsed.meta?.exchange_count !== undefined) {
-      session.exchangeCount = parsed.meta.exchange_count;
+    if (parsed.meta && 'exchange_count' in parsed.meta) {
+      session.exchangeCount = (parsed.meta as any).exchange_count;
     }
 
     // Store metadata in database if present
@@ -225,13 +225,17 @@ export async function processTranscript(
           css_stage: parsed.meta.css?.stage || 'NONE',
           confidence: parsed.meta.css?.confidence || 0,
           safety_flag: parsed.meta.safety?.flag || false,
-          crisis_flag: parsed.meta.safety?.crisis || false,
+          crisis_flag: (parsed.meta.safety as any)?.crisis || false,
           detected_at: new Date().toISOString()
         });
 
       // Check for safety interventions
       if (needsSafetyIntervention(parsed.meta)) {
-        console.log(`🚨 Safety intervention triggered: ${parsed.meta.safety?.reason}`);
+        // Check for safety interventions
+        if (needsSafetyIntervention(parsed.meta)) {
+          console.log(`🚨 Safety intervention triggered: ${(parsed.meta.safety as any)?.reason || 'Safety flag detected'}`);
+          // TODO: Trigger safety protocol workflow
+        }
         // TODO: Trigger safety protocol workflow
       }
     }

@@ -513,6 +513,13 @@ export const MOVEMENT_TYPES = {
   EXPLORATION: 'exploration'
 } as const;
 
+export const DOCUMENT_TYPES = {
+  CRISIS_PROTOCOL: 'crisis_protocol',
+  CSS_STAGE_GUIDE: 'css_stage_guide',
+  PATTERN_INTERVENTION: 'pattern_intervention',
+  PROCEDURAL_PROTOCOL: 'procedural_protocol'
+} as const;
+
 export type CssStage = typeof CSS_STAGES[keyof typeof CSS_STAGES];
 export type PatternType = typeof PATTERN_TYPES[keyof typeof PATTERN_TYPES];
 export type MovementType = typeof MOVEMENT_TYPES[keyof typeof MOVEMENT_TYPES];
