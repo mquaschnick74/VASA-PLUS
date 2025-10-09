@@ -150,12 +150,24 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
               <CardTitle>Session Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {therapist ? 
-                  "Your voice sessions are managed through your therapist's account. Contact them if you have questions about session limits." :
-                  "You're using your own subscription for voice sessions."
-                }
-              </p>
+              {therapist ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Your voice sessions are managed through your therapist's account.
+                  </p>
+                  {userContext?.sessionDurationLimit && (
+                    <Alert>
+                      <AlertDescription>
+                        <strong>Session Limit:</strong> Your therapist has set a {Math.floor(userContext.sessionDurationLimit / 60)}-minute limit for sessions.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  You're using your own subscription for voice sessions.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

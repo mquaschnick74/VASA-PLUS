@@ -479,6 +479,52 @@ export default function TherapistDashboard({
     }
   };
 
+  const updateClientTimeLimit = async (clientId: string, minutes: number) => {
+    try {
+      const seconds = minutes * 60;
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        toast({
+          title: "Session Expired",
+          description: "Please refresh and try again",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(`/api/therapist/client/${clientId}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ session_duration_limit: seconds }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Time Limit Updated",
+          description: `Session limit set to ${minutes} minutes`,
+        });
+      } else {
+        const errorText = await response.text();
+        toast({
+          title: "Update Failed",
+          description: errorText || "Could not update time limit",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error updating time limit:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update time limit",
+        variant: "destructive",
+      });
+    }
+  };
+
   const totalClientsMinutes = clients.reduce(
     (sum, c) => sum + c.total_minutes,
     0,
@@ -679,32 +725,46 @@ export default function TherapistDashboard({
                 {clients.map((client) => (
                   <div
                     key={client.id}
-                    className="p-4 rounded-lg glass-subtle cursor-pointer hover:bg-white/5 transition-colors"
-                    onClick={() =>
-                      setLocation(`/therapist/client/${client.id}/sessions`)
-                    }
+                    className="p-4 rounded-lg glass-subtle border border-white/10"
                     data-testid={`card-client-${client.id}`}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                      <div 
+                        className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
+                      >
                         <p className="font-medium">{client.full_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {client.email}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{client.email}</p>
                         {client.last_session && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            Last session:{" "}
-                            {new Date(client.last_session).toLocaleDateString()}
+                            Last session: {new Date(client.last_session).toLocaleDateString()}
                           </p>
                         )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {client.total_sessions} sessions • {client.total_minutes} minutes
+                        </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm">
-                          {client.total_sessions} sessions
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {client.total_minutes} minutes
-                        </p>
+
+                      {/* Time Limit Control */}
+                      <div className="flex items-center gap-2 min-w-[200px]">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">
+                          Session limit:
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="120"
+                          defaultValue={15}
+                          className="w-16 px-2 py-1 text-sm rounded bg-white/5 border border-white/10"
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            const minutes = parseInt(e.target.value);
+                            if (minutes >= 1 && minutes <= 120) {
+                              updateClientTimeLimit(client.id, minutes);
+                            }
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground">min</span>
                       </div>
                     </div>
                   </div>

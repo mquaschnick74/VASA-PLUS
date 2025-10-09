@@ -917,4 +917,68 @@ router.get('/client/:clientId/stats', requireAuth, async (req: AuthRequest, res)
   }
 });
 
+// Update client settings (time limit)
+router.patch('/client/:clientId/settings', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { clientId } = req.params;
+    const { session_duration_limit } = req.body;
+
+    // Validate input
+    if (session_duration_limit && (session_duration_limit < 60 || session_duration_limit > 7200)) {
+      return res.status(400).json({ 
+        error: 'Session duration must be between 60 and 7200 seconds (1 minute to 2 hours)' 
+      });
+    }
+
+    // Get therapist profile
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can update client settings' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Verify relationship exists
+    const { data: relationship } = await supabase
+      .from('therapist_client_relationships')
+      .select('*')
+      .eq('therapist_id', therapistId)
+      .eq('client_id', clientId)
+      .eq('status', 'active')
+      .single();
+
+    if (!relationship) {
+      return res.status(403).json({ error: 'No active relationship with this client' });
+    }
+
+    // Update the time limit
+    const { error: updateError } = await supabase
+      .from('therapist_client_relationships')
+      .update({ session_duration_limit })
+      .eq('therapist_id', therapistId)
+      .eq('client_id', clientId);
+
+    if (updateError) {
+      console.error('Error updating client settings:', updateError);
+      return res.status(500).json({ error: 'Failed to update settings' });
+    }
+
+    console.log(`✅ Updated session limit for client ${clientId}: ${session_duration_limit} seconds`);
+    res.json({ 
+      success: true, 
+      message: 'Settings updated successfully',
+      session_duration_limit 
+    });
+
+  } catch (error) {
+    console.error('Error updating client settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
 export default router;

@@ -68,10 +68,11 @@ export const usageSessions = pgTable("usage_sessions", {
 // Therapist-client relationships - FIXED to reference users.id
 export const therapistClientRelationships = pgTable("therapist_client_relationships", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  therapist_id: uuid("therapist_id").notNull().references(() => users.id, { onDelete: "cascade" }), // FIXED
-  client_id: uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }), // FIXED
+  therapist_id: uuid("therapist_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  client_id: uuid("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   invitation_id: uuid("invitation_id").references(() => therapistInvitations.id),
   status: varchar("status").default('active'),
+  session_duration_limit: integer("session_duration_limit").default(900), // ADD THIS LINE (900 = 15 minutes)
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

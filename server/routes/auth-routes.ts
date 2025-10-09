@@ -481,18 +481,36 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       .order('created_at', { ascending: false })
       .limit(10);
 
+    // Get session duration limit if client has therapist
+    let sessionDurationLimit = 7200; // Default 2 hours for individuals
+
+    if (profile?.user_type === 'client' && profile?.invited_by) {
+      const { data: relationship } = await supabase
+        .from('therapist_client_relationships')
+        .select('session_duration_limit')
+        .eq('client_id', userId)
+        .eq('therapist_id', profile.invited_by)
+        .eq('status', 'active')
+        .single();
+
+      if (relationship?.session_duration_limit) {
+        sessionDurationLimit = relationship.session_duration_limit;
+      }
+    }
+
     res.json({
       success: true,
       profile: user,
-      userProfile: profile, // Include user profile with user_type
-      subscription, // Include subscription data
-      memoryContext,  // Full context for AI agents
-      displayMemoryContext,  // NEW: Clean context for UI display
+      userProfile: profile,
+      subscription,
+      memoryContext,
+      displayMemoryContext,
       lastSessionSummary,
       shouldReferenceLastSession,
       sessions: sessions || [],
       firstName: user.first_name || 'there',
-      sessionCount: sessions?.length || 0
+      sessionCount: sessions?.length || 0,
+      sessionDurationLimit // ADD THIS LINE
     });
   } catch (error) {
     console.error('Error fetching user context:', error);

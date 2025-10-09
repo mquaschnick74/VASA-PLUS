@@ -15,6 +15,7 @@ interface SubscriptionLimits {
   subscription_owner_id?: string;
   subscription_owner_email?: string;
   is_using_therapist_subscription?: boolean;
+  session_duration_limit?: number; // ADD THIS LINE
 }
 
 export class SubscriptionService {
@@ -61,17 +62,16 @@ export class SubscriptionService {
 
       if (relError) {
         console.warn(`⚠️ [Depth ${depth}] No active relationship found:`, relError.message);
-        // Fall through to check client's own subscription
       } else if (relationship) {
         console.log(`✅ [Depth ${depth}] Active relationship found, using therapist's subscription`);
-        // Recursively get therapist's subscription
         const therapistLimits = await this.getSubscriptionLimits(profile.invited_by, depth + 1);
 
-        // Mark that this is a therapist's subscription being used by a client
+        // ADD THIS: Include the client's specific session duration limit
         return {
           ...therapistLimits,
           is_using_therapist_subscription: true,
-          user_type: 'client' // Keep the original user type
+          user_type: 'client',
+          session_duration_limit: relationship.session_duration_limit || 900 // ADD THIS LINE
         };
       }
     }
