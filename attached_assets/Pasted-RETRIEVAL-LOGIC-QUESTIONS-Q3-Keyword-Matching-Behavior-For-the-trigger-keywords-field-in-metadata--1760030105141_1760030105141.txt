@@ -1,0 +1,56 @@
+RETRIEVAL LOGIC QUESTIONS
+Q3: Keyword Matching Behavior
+For the trigger_keywords field in metadata:
+
+Should keywords be exact match ("can't breathe" only matches "can't breathe")?
+Should keywords be partial/contains match ("breathe" matches "can't breathe", "breathing hard", "I can't catch my breath")?
+Should matching be case-sensitive or case-insensitive?
+
+My recommendation: Partial match, case-insensitive - More flexible, catches natural variations in user language.
+
+Q4: Priority Weighting System
+Documents have priority levels (7-10). How should priority affect retrieval when multiple documents match?
+Example scenario: User says "I feel overwhelmed and unworthy"
+
+Matches: Crisis grounding (priority 9) + CVDC protocol (priority 8) + CSS stage guide (priority 7)
+Token budget only allows 2 documents
+
+Should the system:
+
+Option A: Always take highest priority first (Crisis 9, then CVDC 8)
+Option B: Weight by relevance score, use priority as tiebreaker
+Option C: Auto-inject priority 9+ (crisis), then fit lower priority by relevance
+
+My recommendation: Option C - Crisis is non-negotiable, then fit others by relevance.
+
+Q5: Multiple Crisis Protocol Handling
+What if user triggers multiple crisis flags in one message?
+Example: "I can't breathe and I want to hurt myself"
+
+Matches: Breathing regulation (priority 9) + Safety assessment (priority 10)
+
+Should the system:
+
+Option A: Inject both protocols (could exceed token budget)
+Option B: Inject highest priority only (Safety assessment)
+Option C: Inject both but truncate other content to fit
+
+My recommendation: Option B - Safety assessment always takes precedence over other crisis protocols.
+
+Q6: CSS Stage Determination
+How does the KB retrieval service know what CSS stage the user is currently in?
+
+Option A: Read from memory-service user state (e.g., user.css_stage: "pointed_origin")
+Option B: Read from session metadata (e.g., session_flags.css_stage)
+Option C: Explicitly passed to retrieval function as parameter
+
+My recommendation: Option A - Single source of truth in memory-service user state.
+
+Q7: Trigger Keyword Detection
+Who/what detects trigger keywords in the user's message?
+
+Option A: KB retrieval service analyzes user message text directly
+Option B: Memory service detects patterns first, passes pattern names to KB retrieval
+Option C: Separate pattern-detection service, results passed to both memory and KB retrieval
+
+My recommendation: Option A - KB retrieval service does keyword matching independently, keeps it self-contained.
