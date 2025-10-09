@@ -222,7 +222,7 @@ export default function Pricing() {
                         publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
                         client-reference-id={userId}
                         customer-email={userEmail}
-                        customer-promo-code="INFLUENCER_50"
+                        customer-promo-code="YOUR_ACTUAL_COUPON_ID"
                       >
                       </stripe-pricing-table>
                     </div>
