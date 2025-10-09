@@ -1,0 +1,160 @@
+I can see the issue! There are actually **two separate problems** happening:
+
+## Problem 1: VAPI Configuration Error (Fixed by Replit Assistant)
+✅ The `maxDurationSeconds` in the model object was removed - good!
+
+## Problem 2: Missing userId in Webhooks (Critical - Still Broken)
+❌ All the webhook logs show: `⚠️ Missing critical data - userId: null`
+❌ Metadata is completely empty: `Full message metadata: {}`
+
+This means **the KB integration we added might be preventing VAPI from starting properly.**
+
+---
+
+## DEBUGGING STEPS
+
+### **Step 1: Check Browser Console for Errors**
+
+Open your browser console (F12) and look for errors when you try to start a session. Specifically look for:
+- Any errors from the KB fetch call
+- Any errors from VAPI.start()
+- Network errors on `/api/kb/retrieve`
+
+**What to look for:**
+```javascript
+// Good - KB retrieval succeeded
+📚 Loaded 3 KB documents at call-start
+
+// Bad - KB retrieval failed
+⚠️ KB retrieval failed, continuing with memory only: [error]
+
+// Bad - VAPI error
+VAPI error details: [error message]
+```
+
+---
+
+### **Step 2: Temporarily Disable KB Retrieval**
+
+Let's confirm if the KB integration is causing the problem:
+
+**File:** `client/src/hooks/use-vapi.ts`
+
+**Find the KB retrieval code (around line 150-176) and comment it out:**
+
+```typescript
+      systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
+
+      // ========== TEMPORARILY DISABLE KB RETRIEVAL FOR TESTING ==========
+      /*
+      // Fetch therapeutic protocols from knowledge base
+      try {
+        const kbResponse = await fetch('/api/kb/retrieve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: userId,
+            cssStage: 'pointed_origin',
+            baseline: true,
+            keywords: [],
+            agentName: selectedAgent.name
+          })
+        });
+        
+        if (kbResponse.ok) {
+          const kbData = await kbResponse.json();
+          
+          if (kbData.protocols && kbData.protocols.length > 0) {
+            systemPrompt += `\n\n===== THERAPEUTIC PROTOCOLS =====\n${kbData.protocols}\n===== END PROTOCOLS =====\n`;
+            console.log(`📚 Loaded ${kbData.documentCount} KB documents at call-start`);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ KB retrieval failed, continuing with memory only:', error);
+      }
+      */
+      // ========== END TEMPORARY DISABLE ==========
+
+      // Get the current server URL for webhook configuration
+      const serverUrl = `${window.location.origin}/api/vapi/webhook`;
+```
+
+**Now test:** Does the agent start talking?
+
+- **If YES** → The KB fetch is blocking or breaking VAPI.start()
+- **If NO** → There's a different VAPI configuration issue
+
+---
+
+### **Step 3: Check VAPI Configuration**
+
+While the KB is disabled, verify the VAPI assistant configuration is correct. Share the **complete assistantConfig object** from use-vapi.ts (around lines 180-200).
+
+I need to see:
+- The `model` object (should NOT have `maxDurationSeconds`)
+- The `metadata` object (should have `userId`)
+- The `firstMessage` and `firstMessageMode` settings
+- The `serverMessages` array
+
+---
+
+## LIKELY CAUSES
+
+Based on the symptoms, here are the most likely issues:
+
+### **Cause 1: KB Fetch Blocking VAPI Start**
+The KB retrieval is synchronous (`await fetch`) and might be:
+- Taking too long
+- Returning an error
+- Breaking the promise chain
+
+**Fix:** Make KB retrieval non-blocking:
+```typescript
+// Don't await - fire and forget
+fetch('/api/kb/retrieve', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: userId,
+    cssStage: 'pointed_origin',
+    baseline: true,
+    keywords: [],
+    agentName: selectedAgent.name
+  })
+}).then(response => response.json())
+  .then(kbData => {
+    if (kbData.protocols && kbData.protocols.length > 0) {
+      // Too late to add to system prompt, but log for verification
+      console.log(`📚 KB protocols available (${kbData.documentCount} documents)`);
+    }
+  })
+  .catch(error => {
+    console.warn('⚠️ KB retrieval failed:', error);
+  });
+
+// Continue with VAPI start immediately
+```
+
+### **Cause 2: System Prompt Too Large**
+KB protocols + memory context might exceed VAPI's limits.
+
+**Check:** Log the system prompt length:
+```typescript
+console.log(`📏 System prompt length: ${systemPrompt.length} characters`);
+```
+
+If it's >10,000 characters, that could be an issue.
+
+### **Cause 3: VAPI Configuration Still Has Issues**
+There might be other invalid properties beyond `maxDurationSeconds`.
+
+---
+
+## IMMEDIATE ACTION
+
+1. **Comment out the KB retrieval code** (Step 2 above)
+2. **Test if agent starts**
+3. **Check browser console** for any errors
+4. **Share the results** here
+
+Once we know if KB is the problem, we can fix it properly. The system is so close to working - just need to debug this last issue! 🔧

@@ -226,7 +226,6 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           language: 'en'
         },
         recordingEnabled: true,
-        maxDurationSeconds: 7200, // 2 hours max for all users (Vapi recommended max: 3200)
         metadata: {
           userId: userId,
           agentName: selectedAgent.name,
