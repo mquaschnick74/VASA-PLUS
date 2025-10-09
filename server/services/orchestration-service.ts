@@ -260,20 +260,22 @@ export async function processTranscript(
   // Full transcript will be stored at end-of-call
 
   // Always detect CSS patterns regardless of emotional state
+  // Always detect CSS patterns regardless of emotional state
   const patterns = detectCSSPatterns(transcript, false);
 
   if (patterns.currentStage !== session.currentCSSStage) {
     console.log(`🎯 CSS Stage progression: ${session.currentCSSStage} → ${patterns.currentStage}`);
 
-    await supabase
-        .from('therapeutic_sessions')
-        .update({ css_stage: patterns.currentStage })
-        .eq('call_id', callId);
-    }
-
     const previousStage = session.currentCSSStage;
     session.currentCSSStage = patterns.currentStage;
 
+    // Update database with new CSS stage
+    await supabase
+      .from('therapeutic_sessions')
+      .update({ css_stage: patterns.currentStage })
+      .eq('call_id', callId);
+
+    // Record the progression
     await supabase
       .from('css_progressions')
       .insert({
