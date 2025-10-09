@@ -1,0 +1,55 @@
+SCHEMA DESIGN QUESTIONS
+Q8: Token Count Storage
+How should token_count be handled?
+
+Option A: Pre-calculated and stored in metadata (static, needs manual update if document changes)
+Option B: Calculated dynamically at retrieval time (accurate but adds processing)
+Option C: Estimated from character count formula (fast approximation)
+
+My recommendation: Option A - Pre-calculated and stored. Documents change infrequently, token accuracy matters for budget.
+
+Q9: Document Versioning
+Since these seed documents will evolve over time (refinements, additions):
+
+Option A: Simple updates (new version overwrites old, no history kept)
+Option B: Versioning system (keep previous versions, track changes)
+
+My recommendation: Option A for Phase 1 - Simple updates, no versioning complexity. Add versioning in Phase 2 if needed.
+
+Q10: Agent Recommendation Field
+Some documents have agent_recommendation: "Sarah" or "Mathew".
+
+Should this be stored as plain text (agent_recommendation TEXT)?
+Or should there be an agents lookup table (agent_id INTEGER FOREIGN KEY)?
+
+My recommendation: Plain text for Phase 1 - Simpler, fewer joins. Normalize to lookup table in Phase 2 if agents become more complex.
+
+FILE ORGANIZATION QUESTIONS
+Q11: Repository Structure
+Where should the following files live in the VASA-Plus repo?
+My recommendations (please confirm or correct):
+
+KB Retrieval Service: /server/services/kb-retrieval-service.ts
+Database Schema Migration: /server/db/migrations/XXXX_create_knowledge_base_documents.sql
+Seed Data Script: /server/db/seeds/seed_initial_kb_documents.sql
+Types/Interfaces: /server/types/kb-types.ts
+
+Should I check the current repo structure first to see existing patterns?
+
+Q12: Integration Timing
+At what point in the call flow should KB retrieval happen?
+Current flow (my assumption - please correct):
+
+User message arrives
+Memory service loads user state + episodic memories
+[WHERE DOES KB RETRIEVAL FIT?]
+Context assembled for agent
+Agent generates response
+
+Should KB retrieval happen:
+
+Before memory service (KB informs what memories to retrieve)?
+After memory service (KB supplements memory contexts)?
+Parallel to memory service (both load simultaneously)?
+
+My recommendation: After memory service - Memory provides user state (CSS stage, active patterns), then KB retrieval uses that state to select relevant documents.
