@@ -214,7 +214,7 @@ export default function Pricing() {
                     <div>
                       <div className="text-center mb-4">
                         <Badge className="bg-green-500">
-                          🎉 50% OFF First Month - Code: {promoCode}
+                          🎉 50% OFF First Month - Code: INFLUENCER50
                         </Badge>
                       </div>
                       <stripe-pricing-table 
@@ -222,7 +222,7 @@ export default function Pricing() {
                         publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
                         client-reference-id={userId}
                         customer-email={userEmail}
-                        customer-promo-code="YOUR_ACTUAL_COUPON_ID"
+                        customer-promo-code="INFLUENCER50"
                       >
                       </stripe-pricing-table>
                     </div>
