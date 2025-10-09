@@ -1,0 +1,101 @@
+Integration Architecture Questions
+Q13: KB Retrieval Service Location
+I see two possible integration points:
+Option A: Hook into buildMemoryContextWithSummary() in memory-service.ts
+
+KB documents returned as part of memory context
+Advantage: Single source of context assembly
+Called from: auth-routes.ts line 457 before VAPI call
+
+Option B: Separate call in use-vapi.ts before VAPI config
+
+KB retrieval happens client-side before starting session
+Advantage: Keeps KB logic separate from memory
+Called from: use-vapi.ts around line 130
+
+My recommendation: Option A - Add KB retrieval inside buildMemoryContextWithSummary() so all context (memory + KB) comes from one place.
+Which do you prefer?
+
+Q14: CSS Stage Storage Confirmation
+I see CSS stage referenced in orchestration-service as session.currentCSSStage, but I don't see a css_stage column in the therapeutic_sessions table in schema.ts.
+Should I:
+
+Option A: Add css_stage column to therapeutic_sessions table (persistent storage)
+Option B: Query latest css_stage from css_patterns table (derived from patterns)
+Option C: Use in-memory session state only (faster but lost on restart)
+
+My recommendation: Option A - Add column to therapeutic_sessions for persistence and fast lookup.
+
+Q15: User Message Access
+For keyword matching, KB retrieval needs to analyze the user's message. Looking at the flow:
+
+Webhook flow: User message comes in conversation-update event → processed in webhook-routes.ts
+Call-start flow: No user message exists yet at call-start (haven't spoken)
+
+Should KB retrieval at call-start:
+
+Option A: Only use CSS stage + metadata filters (no keyword matching until conversation-update)
+Option B: Retrieve baseline protocols (crisis, first session) regardless of keywords
+Option C: Skip KB entirely at call-start, only retrieve during conversation-update
+
+My recommendation: Option B - Auto-inject baseline protocols at call-start (first session protocol, session continuity), then add keyword-matched protocols during conversation-update.
+
+Q16: Crisis Protocol Injection Timing
+Crisis protocols should be "non-negotiable" per your requirements. When should they inject?
+
+Option A: Pre-inject at call-start if user has history of crisis flags (proactive)
+Option B: Inject only when crisis keywords detected in conversation-update (reactive)
+Option C: Always include condensed crisis protocols in every session (preventive)
+
+My recommendation: Option B - Inject during conversation-update when keywords detected. More token-efficient and contextually relevant.
+
+Q17: Token Budget Allocation
+Looking at your system prompt construction in use-vapi.ts (lines 82-133):
+
+Base agent prompt: ~500-1000 tokens
+Memory context: Variable (150-400 tokens)
+Last session summary: ~100-200 tokens
+KB documents: ???
+
+What's your preferred token budget for KB documents?
+
+Option A: Fixed 1000 tokens (~2 documents)
+Option B: Dynamic 1500-2500 tokens (~3-5 documents)
+Option C: Aggressive 3000+ tokens (~6-8 documents)
+
+My recommendation: Option B (1500-2500 tokens) - Enough for crisis protocol + CSS stage guide + 1-2 pattern protocols.
+
+Q18: Table Naming Convention
+I see you use both styles:
+
+therapeutic_sessions (snake_case)
+therapeuticSessions (camelCase in Drizzle schema definition)
+
+For the KB table, which should I use?
+
+Schema definition: knowledgeBaseDocuments or knowledge_base_documents?
+Database table name: knowledge_base_documents (snake_case)?
+
+My recommendation:
+typescriptexport const knowledgeBaseDocuments = pgTable("knowledge_base_documents", {
+  // columns
+});
+Matches your existing pattern.
+
+Q19: Seed Script Execution
+How do you currently run database operations?
+
+Option A: npm run db:push (as you mentioned)
+Option B: Custom seed script: npm run seed:kb or node server/scripts/seed-kb-documents.ts
+Option C: Manual SQL execution
+
+My recommendation: Option B - Create npm run seed:kb script that inserts initial 10 documents.
+
+Q20: Error Handling for Missing KB Results
+What should happen if KB retrieval fails or returns no results?
+
+Option A: Silent failure - continue session with just memory context
+Option B: Log warning but continue session
+Option C: Return fallback protocol (basic therapeutic guidelines)
+
+My recommendation: Option B - Log warning, continue normally. KB supplements but doesn't block sessions.
