@@ -30,7 +30,7 @@ interface UserContext {
   sessionDurationLimit?: number;
 }
 
-export default function VoiceInterface({ userId, setUserId, hideLogoutButton = false }: VoiceInterfaceProps) {
+export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: VoiceInterfaceProps) {
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [callTimer, setCallTimer] = useState(0);
@@ -38,6 +38,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
   const [selectedAgentId, setSelectedAgentId] = useState('sarah'); // Default to Sarah
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const [showDurationWarning, setShowDurationWarning] = useState(false);
+  const [sessionDurationLimit, setSessionDurationLimit] = useState(7200); // Default: 2 hours in seconds
 
   const selectedAgent = getAgentById(selectedAgentId);
 
@@ -50,11 +51,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
   } = useVapi({
     userId,
     memoryContext: userContext?.memoryContext || '',
-    lastSessionSummary: userContext?.lastSessionSummary || null, // ADD: Pass session summary
-    shouldReferenceLastSession: userContext?.shouldReferenceLastSession || false, // ADD: Pass reference flag
+    lastSessionSummary: userContext?.lastSessionSummary || null,
+    shouldReferenceLastSession: userContext?.shouldReferenceLastSession || false,
     firstName: userContext?.firstName || 'there',
     selectedAgent: selectedAgent!,
-    sessionDurationLimit: userContext?.sessionDurationLimit || 7200
+    sessionDurationLimit: sessionDurationLimit // Pass the duration limit to useVapi
   });
 
   // ADD subscription hook
@@ -67,6 +68,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
   console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
 
   // Load memory context
+  // Load memory context and session duration limit
   useEffect(() => {
     const loadUserContext = async () => {
       if (!userId) return;
@@ -91,22 +93,39 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
           setUserContext(data);
           console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
 
-          // ADD: Log session continuity info if available
+          // Log session continuity info if available
           if (data.shouldReferenceLastSession && data.lastSessionSummary) {
             console.log('📝 Session continuity enabled - will reference previous session');
           }
         } else {
           console.error('Failed to fetch user context');
-          
+
           // If user not found (deleted from database), clear local storage and reload
           if (response.status === 404) {
             console.log('User not found, clearing session...');
             localStorage.removeItem('userId');
             localStorage.removeItem('authToken');
-            setUserId(null);  // This will trigger return to login screen
+            setUserId(null);
             return;
           }
         }
+
+        // Check if user is a therapist's client and get their session duration limit
+        const relationshipResponse = await fetch(`/api/therapist/client-settings/${userId}`, {
+          headers
+        });
+
+        if (relationshipResponse.ok) {
+          const relationshipData = await relationshipResponse.json();
+          if (relationshipData.session_duration_limit) {
+            setSessionDurationLimit(relationshipData.session_duration_limit);
+            console.log(`⏱️ Client session limit: ${relationshipData.session_duration_limit} seconds (${Math.floor(relationshipData.session_duration_limit / 60)} minutes)`);
+          }
+        } else {
+          // Not a client or no custom limit - use default (2 hours)
+          console.log(`⏱️ Using default session limit: 7200 seconds (2 hours)`);
+        }
+
       } catch (error) {
         console.error('Error loading user context:', error);
       } finally {
@@ -120,27 +139,30 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
   // Call timer effect with VAPI 10-minute limitation warning
   // VAPI Platform Limitation: Calls automatically disconnect after 10 minutes (600 seconds)
   // We show a warning at 9 minutes (540 seconds) and auto-end at 10 minutes
+  // Call timer effect with dynamic duration warning
+  // Warning shows at 90% of session duration limit
+  // For 2-hour default: warns at 110 minutes (6600 seconds)
+  // For therapist-set limits: warns at 90% of that limit
   useEffect(() => {
     if (isSessionActive) {
+      // Calculate warning threshold: 90% of duration limit for short sessions,
+      // or 10 minutes before end for long sessions (whichever comes first)
+      const tenMinutesBeforeEnd = sessionDurationLimit - 600;
+      const ninetyPercent = Math.floor(sessionDurationLimit * 0.9);
+      const warningThreshold = Math.min(tenMinutesBeforeEnd, ninetyPercent);
+
       const interval = setInterval(() => {
         setCallTimer(prev => {
           const newTimer = prev + 1;
 
-          // Get the actual session duration limit (default to 2 hours if not set)
-          const durationLimit = userContext?.sessionDurationLimit || 7200;
-          const warningTime = Math.max(durationLimit - 60, 0); // Warn 1 minute before end
-
-          // Show warning 1 minute before limit
-          if (newTimer === warningTime && !showDurationWarning) {
+          // Show warning at calculated threshold
+          if (newTimer >= warningThreshold && !showDurationWarning) {
             setShowDurationWarning(true);
+            console.log(`⚠️ Session duration warning: ${sessionDurationLimit - newTimer} seconds remaining`);
           }
 
-          // Auto-end call when limit is reached
-          if (newTimer >= durationLimit) {
-            console.log(`⏰ Call duration limit reached (${Math.floor(durationLimit / 60)} minutes) - ending call`);
-            handleEndCall();
-            return prev;
-          }
+          // Note: Vapi will automatically end the call at maxDurationSeconds
+          // We don't need to manually end it here anymore
 
           return newTimer;
         });
@@ -160,7 +182,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
         clearInterval(timerInterval);
       }
     };
-  }, [isSessionActive, showDurationWarning]);
+  }, [isSessionActive, showDurationWarning, sessionDurationLimit]);
 
   const handleStartSession = () => {
     // DEBUG: Log exactly what we're checking
@@ -404,11 +426,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
                           )}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {subscription.limits.is_trial && subscription.limits.trial_days_left > 0 && (
+                          {subscription.limits.is_trial && (subscription.limits.trial_days_left ?? 0) > 0 && (
                             <span className="block">
-                              {subscription.limits.trial_days_left} day{subscription.limits.trial_days_left !== 1 ? 's' : ''} remaining
+                              {subscription.limits.trial_days_left} day{(subscription.limits.trial_days_left ?? 0) !== 1 ? 's' : ''} remaining
                             </span>
                           )}
+                          <span className="block">{subscription.limits.minutes_remaining} minutes remaining</span>
                           <span className="block">{subscription.limits.minutes_remaining} minutes remaining</span>
                           {subscription.limits.is_using_therapist_subscription && subscription.limits.subscription_owner_email && (
                             <span className="block mt-1">Therapist: {subscription.limits.subscription_owner_email}</span>
@@ -483,13 +506,13 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
               disabled={isSessionActive || isLoading}
             />
 
-            {/* VAPI Duration Warning Alert - shows at 9 minutes */}
+            {/* Session Duration Warning Alert - shows based on session limit */}
             {showDurationWarning && isSessionActive && (
               <Alert className="glass-strong border-yellow-500/50 rounded-xl sm:rounded-2xl">
                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
                 <AlertDescription className="text-sm sm:text-base">
-                  <strong>Session Time Limit:</strong> Your call will automatically end in {(userContext?.sessionDurationLimit || 7200) - callTimer} seconds. 
-                  Please wrap up your conversation.
+                  <strong>Session Time Limit:</strong> Your session will automatically end in {Math.floor((sessionDurationLimit - callTimer) / 60)} minutes ({sessionDurationLimit - callTimer} seconds). 
+                  Please wrap up your conversation or start a new session after this one ends.
                 </AlertDescription>
               </Alert>
             )}
@@ -557,7 +580,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton = f
                           </div>
                           {showDurationWarning && (
                             <span className="text-xs text-yellow-500 text-center">
-                              Max duration: 10 minutes (VAPI limit)
+                              Max duration: {Math.floor(sessionDurationLimit / 60)} minutes
                             </span>
                           )}
                         </div>

@@ -181,9 +181,10 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       console.log('📝 Session continuity:', shouldReferenceLastSession ? 'Enabled' : 'Disabled');
 
       // VAPI configuration with dynamic agent settings
-      // IMPORTANT: VAPI Platform Limitation - Calls automatically disconnect after 10 minutes (600 seconds)
-      // The maxCallDuration parameter is not available in the Web SDK (only in Tavus conversations)
-      // We handle this limitation in the UI by showing a warning at 9 minutes and auto-ending at 10 minutes
+      // Session duration is controlled by maxDurationSeconds property
+      // - Individual users: 2 hours (7200 seconds) by default
+      // - Therapist clients: Custom duration set by therapist per client
+      // - All users: Also limited by subscription minutes remaining
       const assistantConfig = {
         name: `VASA-${selectedAgent.name}`,
         model: {
@@ -206,26 +207,27 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           speed: selectedAgent.voice.speed || 1.0
         },
         serverUrl: serverUrl,
-        serverMessages: [  // ADD THIS ENTIRE BLOCK
+        serverMessages: [
           "conversation-update",
           "end-of-call-report",
           "status-update", 
           "speech-update",
           "transcript"
         ],
-          server: {
-            url: serverUrl,
-            timeoutSeconds: 20,  // This is for webhook timeout, not call duration
-            secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
-          },
-          firstMessage: null,  // MUST be null, not undefined or omitted
-          firstMessageMode: "assistant-speaks-first-with-model-generated-message",
-          transcriber: {
+        server: {
+          url: serverUrl,
+          timeoutSeconds: 20,  // This is for webhook timeout, not call duration
+          secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
+        },
+        firstMessage: null,  // MUST be null, not undefined or omitted
+        firstMessageMode: "assistant-speaks-first-with-model-generated-message",
+        transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
           language: 'en'
         },
         recordingEnabled: true,
+        maxDurationSeconds: sessionDurationLimit,  // ← ADD THIS LINE (Vapi will enforce this limit)
         metadata: {
           userId: userId,
           agentName: selectedAgent.name,

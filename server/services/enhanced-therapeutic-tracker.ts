@@ -171,7 +171,7 @@ class EnhancedTherapeuticTracker {
 
     const emotions = new Set<string>();
     for (const pattern of emotionPatterns) {
-      const matches = text.matchAll(pattern);
+      const matches = Array.from(text.matchAll(pattern));  // ← CHANGED: Convert iterator to array
       for (const match of matches) {
         const emotion = match[1].toLowerCase();
         // Filter out non-emotion words

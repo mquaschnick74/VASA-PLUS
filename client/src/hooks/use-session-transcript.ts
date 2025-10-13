@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
 
 interface SessionTranscript {
   session_id: string;
@@ -15,7 +16,7 @@ export function useSessionTranscript(clientId: string | undefined, sessionId: st
     queryFn: async () => {
       const response = await fetch(`/api/therapist/client/${clientId}/session/${sessionId}/transcript`, {
         headers: {
-          'Authorization': `Bearer ${(await window.supabase.auth.getSession()).data.session?.access_token}`
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
         }
       });
       if (!response.ok) throw new Error('Failed to fetch transcript');

@@ -354,7 +354,7 @@ export async function storeSessionContext(
       // Replace generic terms
       processedContent = processedContent
         .replace(/\b(the |this )?user\b/gi, userName)
-        .replace(/\b(the )?AI\b/gi, agentName);
+        .replace(/\b(the )?AI\b/gi, agentName || 'Sarah');
     }
 
     await supabase

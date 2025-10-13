@@ -917,6 +917,47 @@ router.get('/client/:clientId/stats', requireAuth, async (req: AuthRequest, res)
   }
 });
 
+// Get client settings (session duration limit)
+// This endpoint is called by voice-interface.tsx to check if user is a therapist's client
+router.get('/client-settings/:clientId', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+
+    console.log(`🔍 Fetching session limit for client: ${clientId}`);
+
+    // Check if this client has a therapist relationship
+    const { data: relationship, error } = await supabase
+      .from('therapist_client_relationships')
+      .select('session_duration_limit')
+      .eq('client_id', clientId)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching client settings:', error);
+      return res.status(500).json({ error: 'Failed to fetch settings' });
+    }
+
+    if (!relationship) {
+      // Client has no therapist - return 404 so voice-interface uses default
+      console.log(`ℹ️ Client ${clientId} has no active therapist relationship`);
+      return res.status(404).json({ message: 'No therapist relationship found' });
+    }
+
+    // Return the session duration limit (defaults to 900 seconds if not set)
+    const sessionLimit = relationship.session_duration_limit || 900;
+    console.log(`✅ Client ${clientId} session limit: ${sessionLimit} seconds`);
+
+    res.json({
+      session_duration_limit: sessionLimit
+    });
+
+  } catch (error) {
+    console.error('Error in client-settings GET:', error);
+    res.status(500).json({ error: 'Failed to fetch client settings' });
+  }
+});
+
 // Update client settings (time limit)
 router.patch('/client/:clientId/settings', authenticateToken, async (req: AuthRequest, res) => {
   try {
