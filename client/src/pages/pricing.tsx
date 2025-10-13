@@ -23,6 +23,7 @@ export default function Pricing() {
   const [isPromoActive, setIsPromoActive] = useState<boolean>(false);
   const [promoCode, setPromoCode] = useState<string>('');
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -86,22 +87,54 @@ export default function Pricing() {
     };
   }, []);
 
-  // Redirect to Stripe checkout with user metadata (for therapist plans)
-  const handleCheckout = (tier: string, planType: string, checkoutUrl: string) => {
+  // NEW: Server-side checkout handler for therapist plans
+  const handleCheckout = async (tier: string, planType: string, priceId: string) => {
     if (!userId) {
       setLocation('/');
       return;
     }
 
-    // Add user metadata to checkout URL
-    const url = new URL(checkoutUrl);
-    url.searchParams.append('client_reference_id', userId);
-    url.searchParams.append('prefilled_email', userEmail);
+    setIsCheckoutLoading(true);
 
-    // Redirect to Stripe checkout
-    window.location.href = url.toString();
+    try {
+      console.log('🛒 Starting checkout:', { tier, planType, userId, userEmail });
+
+      // Call backend to create checkout session
+      const response = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId,
+          userId,
+          userEmail,
+          tier,
+          planType
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('❌ Checkout error:', error);
+        alert('Failed to start checkout. Please try again.');
+        setIsCheckoutLoading(false);
+        return;
+      }
+
+      const { url } = await response.json();
+
+      console.log('✅ Redirecting to Stripe checkout');
+      // Redirect to Stripe checkout
+      window.location.href = url;
+    } catch (error) {
+      console.error('❌ Checkout error:', error);
+      alert('Failed to start checkout. Please try again.');
+      setIsCheckoutLoading(false);
+    }
   };
 
+  // UPDATED: Therapist plans with Stripe Price IDs instead of checkout URLs
   const therapistPlans = [
     {
       name: 'Basic',
@@ -109,7 +142,9 @@ export default function Pricing() {
       period: '/month',
       tier: 'basic',
       planType: 'recurring',
-      checkoutUrl: 'https://buy.stripe.com/eVqdR290b6yy426dGA3sI01',
+      // IMPORTANT: Replace this with your actual Stripe Price ID from Stripe Dashboard
+      // Go to: Stripe Dashboard → Products → Basic Therapist Plan → Copy the Price ID
+      priceId: 'price_1RuZLh4gtJy4JzhOgk6gagd2', // Replace with your actual price_id
       description: 'Perfect for individual practitioners',
       features: [
         '3 Client Accounts',
@@ -127,7 +162,9 @@ export default function Pricing() {
       period: '/month',
       tier: 'premium',
       planType: 'recurring',
-      checkoutUrl: 'https://buy.stripe.com/14A3co4JV7CC8imgSM3sI00',
+      // IMPORTANT: Replace this with your actual Stripe Price ID from Stripe Dashboard
+      // Go to: Stripe Dashboard → Products → Premium Therapist Plan → Copy the Price ID
+      priceId: 'price_1RuZOp4gtJy4JzhOvd4VNxys', // Replace with your actual price_id
       description: 'For growing practices',
       features: [
         '10 Client Accounts',
@@ -247,7 +284,7 @@ export default function Pricing() {
           </>
         ) : (
           <>
-            {/* Therapist Plans - Existing Cards */}
+            {/* Therapist Plans - Cards with Server-Side Checkout */}
             <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
               {therapistPlans.map((plan) => (
                 <Card 
@@ -282,14 +319,15 @@ export default function Pricing() {
                       ))}
                     </ul>
 
-                    {/* CTA Button */}
+                    {/* CTA Button - UPDATED to use new checkout handler */}
                     <Button
                       className="w-full"
                       size="lg"
-                      onClick={() => handleCheckout(plan.tier, plan.planType, plan.checkoutUrl)}
+                      onClick={() => handleCheckout(plan.tier, plan.planType, plan.priceId)}
                       variant={plan.popular ? 'default' : 'outline'}
+                      disabled={isCheckoutLoading}
                     >
-                      Get Started
+                      {isCheckoutLoading ? 'Loading...' : 'Get Started'}
                     </Button>
                   </CardContent>
                 </Card>
