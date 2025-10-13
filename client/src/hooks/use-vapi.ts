@@ -237,12 +237,14 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         }
       };
 
-      console.log('🔍 Starting VAPI call with:', {
-        assistant: assistantConfig,
-        hasPublicKey: !!import.meta.env.VITE_VAPI_PUBLIC_KEY,
-        hasSessionContinuity: shouldReferenceLastSession,
-        metadata: { userId: userId, agentName: selectedAgent.name }
+      console.log('🔍 VAPI START - Config Details:', {
+        maxDurationSeconds: assistantConfig.maxDurationSeconds,
+        sessionDurationLimit: sessionDurationLimit,
+        name: assistantConfig.name,
+        hasMaxDuration: 'maxDurationSeconds' in assistantConfig
       });
+
+      console.log('🔍 FULL ASSISTANT CONFIG:', JSON.stringify(assistantConfig, null, 2));
 
       try {
         await vapi.start(assistantConfig);

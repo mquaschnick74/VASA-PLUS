@@ -115,15 +115,18 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           headers
         });
 
+        console.log('⏱️ FETCH CLIENT SETTINGS - Status:', relationshipResponse.status);
+
         if (relationshipResponse.ok) {
           const relationshipData = await relationshipResponse.json();
+          console.log('⏱️ FETCH CLIENT SETTINGS - Data:', relationshipData);
+
           if (relationshipData.session_duration_limit) {
             setSessionDurationLimit(relationshipData.session_duration_limit);
-            console.log(`⏱️ Client session limit: ${relationshipData.session_duration_limit} seconds (${Math.floor(relationshipData.session_duration_limit / 60)} minutes)`);
+            console.log(`⏱️ SET CLIENT LIMIT: ${relationshipData.session_duration_limit} seconds`);
           }
         } else {
-          // Not a client or no custom limit - use default (2 hours)
-          console.log(`⏱️ Using default session limit: 7200 seconds (2 hours)`);
+          console.log(`⏱️ NOT A CLIENT - Using default: 7200 seconds`);
         }
 
       } catch (error) {
