@@ -311,10 +311,22 @@ export async function processEndOfCall(
       .single();
 
     if (!dbSession) {
-      const userId = callMetadata?.metadata?.userId;
-      const agentName = callMetadata?.metadata?.agentName || 'Sarah';
+      // Try multiple paths to extract userId
+      const userId = callMetadata?.metadata?.userId || 
+                     callMetadata?.userId ||
+                     callMetadata?.customer?.userId ||
+                     callMetadata?.user?.id;
 
-      if (!userId) return;
+      const agentName = callMetadata?.metadata?.agentName || 
+                        callMetadata?.agentName ||
+                        callMetadata?.assistant?.name?.replace('VASA-', '') ||
+                        'Sarah';
+
+      if (!userId) {
+        console.error(`❌ Cannot process end-of-call for ${callId}: userId not found in metadata`);
+        console.error('Available metadata paths:', Object.keys(callMetadata || {}));
+        return;
+      }
 
       let duration = callMetadata?.duration || 60;
 

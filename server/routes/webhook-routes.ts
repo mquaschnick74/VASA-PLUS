@@ -226,9 +226,9 @@ router.post('/webhook', async (req, res) => {
         await initializeSession(userId, callId, agentName);
         break;
 
-      case 'conversation-update':
-        const session = await ensureSession(callId, userId, agentName);
-        if (!session) {
+      case 'conversation-update': {
+      const session = await ensureSession(callId, userId, agentName);
+      if (!session) {
           console.warn(`⚠️ Cannot process conversation-update: failed to ensure session for ${callId}`);
           break;
         }
@@ -293,25 +293,61 @@ router.post('/webhook', async (req, res) => {
             await processTranscript(callId, lastAssistantMessage.content, 'assistant', userId, agentName);
           }
         }
-        break;
+          break;
+        }
 
       case 'end-of-call-report':
-        console.log('📊 Full end-of-call-report:', JSON.stringify(message, null, 2));
-        
-        // Duration is at the root level
-        const durationSeconds = message?.durationSeconds || 0;
-        const durationMinutes = Math.ceil(durationSeconds / 60);
-        
-        console.log('📊 Tracking usage:', { userId, durationMinutes, callId });
-        
-        if (durationMinutes > 0) {
+      console.log('📊 Full end-of-call-report received for:', callId);
+
+      // CRITICAL FIX: Ensure session exists before processing
+      let session = await ensureSession(callId, userId, agentName);
+
+      if (!session) {
+        console.warn(`⚠️ No session found for ${callId}, attempting to create from end-of-call`);
+
+        // Try to extract more metadata for session creation
+        const callMetadata = message?.call || {};
+        const startTime = callMetadata?.startedAt || message?.startedAt;
+        const endTime = callMetadata?.endedAt || message?.endedAt;
+
+        if (userId) {
           try {
-            await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
-            console.log('✅ Usage tracked successfully');
+            // Create session retroactively
+            session = await initializeSession(userId, callId, agentName);
+            console.log(`✅ Retroactive session created for ${callId}`);
+
+            // Update with actual times if available
+            if (startTime || endTime) {
+              await supabase
+                .from('therapeutic_sessions')
+                .update({
+                  start_time: startTime || new Date(Date.now() - (message?.durationSeconds * 1000 || 0)).toISOString(),
+                  end_time: endTime || new Date().toISOString(),
+                  duration_seconds: message?.durationSeconds || 0
+                })
+                .eq('call_id', callId);
+              console.log(`✅ Updated session times for ${callId}`);
+            }
           } catch (error) {
-            console.error('❌ Failed to track usage:', error);
+            console.error(`❌ Failed to create retroactive session for ${callId}:`, error);
           }
         }
+      }
+
+      // Duration tracking
+      const durationSeconds = message?.durationSeconds || 0;
+      const durationMinutes = Math.ceil(durationSeconds / 60);
+
+      console.log('📊 Tracking usage:', { userId, durationMinutes, callId });
+
+      if (durationMinutes > 0 && userId) {
+        try {
+          await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
+          console.log('✅ Usage tracked successfully');
+        } catch (error) {
+          console.error('❌ Failed to track usage:', error);
+        }
+      }
         
         // PRESERVED: Your transcript extraction logic
         const transcript = message.transcript || message.fullTranscript;
@@ -390,30 +426,100 @@ router.post('/test-css-patterns', async (req, res) => {
   }
 });
 
+// Utility endpoint to recover orphaned transcripts
+router.post('/recover-orphaned-sessions', async (req, res) => {
+  try {
+    console.log('🔧 Starting orphaned session recovery...');
+
+    // Find all transcripts that don't have a corresponding session
+    const { data: transcripts, error: transcriptError } = await supabase
+      .from('session_transcripts')
+      .select('call_id, user_id, timestamp')
+      .eq('role', 'complete')
+      .order('timestamp', { ascending: false });
+
+    if (transcriptError) {
+      throw transcriptError;
+    }
+
+    let recovered = 0;
+    let skipped = 0;
+
+    for (const transcript of transcripts || []) {
+      // Check if session exists
+      const { data: existingSession } = await supabase
+        .from('therapeutic_sessions')
+        .select('id')
+        .eq('call_id', transcript.call_id)
+        .single();
+
+      if (existingSession) {
+        skipped++;
+        continue;
+      }
+
+      // Create missing session
+      const { error: insertError } = await supabase
+        .from('therapeutic_sessions')
+        .insert({
+          call_id: transcript.call_id,
+          user_id: transcript.user_id,
+          agent_name: 'Mathew', // Default, can be improved
+          status: 'completed',
+          start_time: transcript.timestamp,
+          end_time: transcript.timestamp,
+          duration_seconds: 60 // Placeholder
+        });
+
+      if (!insertError) {
+        recovered++;
+        console.log(`✅ Recovered session for call: ${transcript.call_id}`);
+      } else {
+        console.error(`❌ Failed to recover ${transcript.call_id}:`, insertError);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Recovery complete: ${recovered} sessions recovered, ${skipped} already existed`,
+      recovered,
+      skipped
+    });
+
+  } catch (error) {
+    console.error('❌ Recovery failed:', error);
+    res.status(500).json({ error: 'Recovery failed' });
+  }
+});
+
 // PRESERVED: All your extraction functions with production debugging
 function extractUserId(message: any): string | null {
-  // Log the entire message structure in production for debugging
-  if (process.env.REPLIT_DEPLOYMENT === '1') {
-    console.log('🔍 Production webhook message structure:', JSON.stringify({
-      hasCall: !!message?.call,
-      hasCallMetadata: !!message?.call?.metadata,
-      hasDirectMetadata: !!message?.metadata,
-      hasAssistant: !!message?.assistant,
-      hasAssistantMetadata: !!message?.assistant?.metadata,
-      callMetadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : [],
-      directMetadataKeys: message?.metadata ? Object.keys(message.metadata) : []
-    }));
-  }
-
+  // Try multiple locations for userId
   const userId = message?.call?.metadata?.userId || 
          message?.metadata?.userId ||
          message?.call?.assistant?.metadata?.userId ||
          message?.assistant?.metadata?.userId ||
+         message?.call?.assistantId || // New: Try assistantId
+         message?.assistantId || // New: Direct assistantId
          null;
 
-  if (!userId && process.env.REPLIT_DEPLOYMENT === '1') {
-    console.error('❌ Failed to extract userId from webhook in production');
-    console.error('Full message:', JSON.stringify(message).substring(0, 500));
+  // If still not found, try to extract from call object deeply
+  if (!userId && message?.call) {
+    // Check if metadata is nested differently
+    const callObj = message.call;
+    if (callObj.customer?.userId) return callObj.customer.userId;
+    if (callObj.user?.id) return callObj.user.id;
+  }
+
+  if (!userId) {
+    console.warn('⚠️ Could not extract userId from webhook');
+    console.warn('Available paths:', {
+      hasCallMetadata: !!message?.call?.metadata,
+      hasDirectMetadata: !!message?.metadata,
+      callMetadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : [],
+      directMetadataKeys: message?.metadata ? Object.keys(message.metadata) : [],
+      messageKeys: Object.keys(message || {})
+    });
   }
 
   return userId;
