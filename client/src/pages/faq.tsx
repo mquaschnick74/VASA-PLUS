@@ -269,8 +269,9 @@ export default function FAQPage() {
                   </svg>
                 </div>
                 <div>
-                  <h4 className="text-white font-semibold mb-1">Phone Support</h4>
-                  <a href="tel:18880806" className="text-primary hover:underline">1 888 0806</a>
+                  <h4 className="text-white font-semibold mb-1">Non-Therapy Support</h4>
+                  <a href="tel:+19526580606" className="text-primary hover:underline">+1 (952) 658 0606</a>
+                  <p className="text-xs text-yellow-400 mt-1">NOT a therapeutic support line</p>
                 </div>
               </div>
             </div>
