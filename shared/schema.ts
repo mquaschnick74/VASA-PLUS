@@ -110,7 +110,7 @@ export const therapeuticSessions = pgTable("therapeutic_sessions", {
   call_id: text("call_id").notNull().unique(),
   agent_name: text("agent_name").default("Sarah"),
   status: text("status").default("active"),
-  css_stage: text("css_stage").default("pointed_origin"),
+  // Note: CSS stage tracked in css_patterns table, not here
   start_time: timestamp("start_time", { withTimezone: true }).default(sql`timezone('utc', now())`),
   end_time: timestamp("end_time", { withTimezone: true }),
   duration_seconds: integer("duration_seconds"),
