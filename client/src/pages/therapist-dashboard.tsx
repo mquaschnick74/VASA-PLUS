@@ -9,8 +9,8 @@ import VoiceInterface from "@/components/voice-interface";
 import { supabase } from "@/lib/supabaseClient";
 import { handleLogout } from "@/lib/auth-helpers";
 import { useSubscription } from "@/hooks/use-subscription";
-import { Users, Clock, TrendingUp, UserPlus } from "lucide-react";
-import { useLocation } from "wouter";
+import { Users, Clock, TrendingUp, UserPlus, HelpCircle } from "lucide-react";
+import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
 interface TherapistDashboardProps {
@@ -594,6 +594,16 @@ export default function TherapistDashboard({
             )}
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/faq">
+              <Button
+                variant="outline"
+                data-testid="button-faq"
+                className="text-sm"
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                FAQ
+              </Button>
+            </Link>
             <Button
               onClick={() => handleLogout(setUserId)}
               data-testid="button-signout"

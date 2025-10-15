@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
+import { Link } from 'wouter';
 import {
   DollarSign,
   Users,
@@ -18,6 +19,7 @@ import {
   FileText,
   Settings,
   LogOut,
+  HelpCircle,
 } from 'lucide-react';
 import {
   LineChart,
@@ -280,6 +282,12 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
                 <option value="90">Last 90 days</option>
                 <option value="365">Last year</option>
               </select>
+              <Link href="/faq">
+                <Button variant="outline" data-testid="button-faq">
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  FAQ
+                </Button>
+              </Link>
               <Button onClick={handleSignOut} variant="ghost">
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign Out

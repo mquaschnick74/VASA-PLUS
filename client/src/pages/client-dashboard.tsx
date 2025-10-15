@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import VoiceInterface from '@/components/voice-interface';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
+import { Link } from 'wouter';
+import { HelpCircle } from 'lucide-react';
 
 interface ClientDashboardProps {
   userId: string;
@@ -112,9 +114,17 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <h1 className="text-xl sm:text-2xl font-bold">Client Dashboard</h1>
-            <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout" className="text-sm">
-              Sign Out
-            </Button>
+            <div className="flex gap-2">
+              <Link href="/faq">
+                <Button variant="outline" data-testid="button-faq" className="text-sm">
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  FAQ
+                </Button>
+              </Link>
+              <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout" className="text-sm">
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </nav>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { useSubscription } from '@/hooks/use-subscription';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
+import { Link } from 'wouter';
 
 interface VoiceInterfaceProps {
   userId: string;
@@ -367,6 +368,15 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                   window.location.href = '/';
                 }}
               />
+              <Link href="/faq">
+                <Button 
+                  variant="outline"
+                  data-testid="button-faq"
+                >
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  FAQ
+                </Button>
+              </Link>
               {!hideLogoutButton && (
                 <Button 
                   onClick={handleSignOut}

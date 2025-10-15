@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { handleLogout } from '@/lib/auth-helpers';
 import { supabase } from '@/lib/supabaseClient';
+import { Link } from 'wouter';
 import { 
   DollarSign, 
   Users, 
@@ -20,7 +21,8 @@ import {
   Award,
   Link as LinkIcon,
   Copy,
-  Check
+  Check,
+  HelpCircle
 } from 'lucide-react';
 
 interface InfluencerDashboardProps {
@@ -184,6 +186,16 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
               <option value="30">Last 30 days</option>
               <option value="90">Last 90 days</option>
             </select>
+            <Link href="/faq">
+              <Button 
+                variant="outline" 
+                data-testid="button-faq"
+                className="bg-white/10 backdrop-blur-sm border-white/20"
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                FAQ
+              </Button>
+            </Link>
             <Button 
               variant="outline" 
               onClick={() => handleLogout(setUserId)}

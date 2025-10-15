@@ -11,6 +11,8 @@ import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
 import vasaLogo from '@assets/iVASA Dark_1759424106928.png';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Link } from 'wouter';
+import { HelpCircle } from 'lucide-react';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -598,8 +600,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               )}
               {/* ==================================================================== */}
 
-              <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-sm text-muted-foreground space-y-2">
                 <p>Your conversations are private and secure</p>
+                <Link href="/faq">
+                  <button className="text-primary hover:underline flex items-center justify-center gap-1 mx-auto" data-testid="link-faq">
+                    <HelpCircle className="w-4 h-4" />
+                    Need help? Visit our FAQ
+                  </button>
+                </Link>
               </div>
             </div>
           </CardContent>
