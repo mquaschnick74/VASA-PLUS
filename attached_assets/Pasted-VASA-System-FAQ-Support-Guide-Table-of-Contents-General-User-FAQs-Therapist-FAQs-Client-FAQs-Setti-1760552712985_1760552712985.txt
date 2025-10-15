@@ -1,0 +1,487 @@
+VASA System FAQ & Support Guide
+Table of Contents
+General User FAQs
+Therapist FAQs
+Client FAQs
+Settings & Account Management
+Subscription & Billing
+Technical Support
+General User FAQs
+Account & Access
+Q: How do I reset my password? A: Click "Forgot Password" on the login page. Enter your registered email address, and you'll receive a password reset link via email. The system uses secure email verification for password resets.
+
+Q: Why can't I log in to my account? A: Common reasons include:
+
+Incorrect username or password (passwords are case-sensitive)
+Account may need email verification (check your inbox)
+Browser cache issues (try clearing cache or using incognito mode)
+Ensure you're selecting the correct user type (Individual, Client, or Therapist)
+Q: Can I use VASA on multiple devices? A: Yes, VASA features cross-device sync. You can access the platform from any device with a web browser. The responsive design works on desktops, tablets, and smartphones. Your session history and progress sync automatically across all devices.
+
+Q: What browsers work best with VASA? A: VASA currently supports:
+
+Chrome (desktop and mobile)
+Firefox (desktop and mobile)
+Safari (desktop and mobile)
+Edge (desktop and mobile) The platform uses WebSocket technology for real-time features, so ensure JavaScript is enabled.
+Voice Sessions & AI Agents
+Q: Which AI voice agents are available? A: VASA offers four specialized AI therapeutic agents:
+
+Sarah: Empathetic and nurturing companion
+Marcus: Performance-focused motivational coach
+Elena Wise: Grounded, naturally maternal with life experience
+Mathew: PCA/PCP methodology specialist with Master PCA analysis
+Q: Do the AI agents remember our previous conversations? A: Yes! All AI agents feature memory persistence. They remember your previous conversations, personal details, and can reference past sessions to provide continuity in your therapeutic journey.
+
+Q: How long are my voice sessions recorded and stored? A: Voice sessions are automatically transcribed and stored securely with complete context preservation. You can access your full session history, including AI-generated summaries and insights, through your dashboard.
+
+Privacy & Security
+Q: Is my information secure? A: Yes, VASA uses:
+
+Encrypted storage for all voice sessions and data
+Secure multi-layer authentication
+Session privacy protection
+HIPAA-grade data handling
+Complete activity logging for security
+Q: Who can see my voice therapy sessions? A: Session visibility depends on your account type:
+
+Individual users: Your sessions are completely private
+Clients: Your assigned therapist can view your session summaries and CSS patterns
+Therapists: Only you can access your personal therapy sessions
+Therapist FAQs
+Client Management
+Q: How do I invite clients to VASA? A: VASA uses a Magic Link invitation system:
+
+Navigate to your Therapist Dashboard
+Click "Invite Client"
+Enter client's email address
+System sends a secure 6-digit code invitation
+Track pending invitations in your dashboard Clients can easily onboard using the magic link without complex setup.
+Q: How many clients can I manage? A: Client limits depend on your subscription tier:
+
+Basic Professional ($99/month): 3 clients, 180 minutes
+Plus Professional ($149/month): 3 clients, 220 minutes
+Premium Professional ($199/month): 10 clients, 600 minutes Clients inherit your subscription benefits for their sessions.
+Q: Can I view my clients' therapy sessions? A: Yes, you have access to:
+
+Client session summaries
+CSS pattern progression
+Real-time pattern monitoring via WebSocket
+Session statistics and analytics
+Transformation metrics and insights Individual session transcripts remain private unless specifically shared.
+CSS Pattern Analysis
+Q: What is CSS pattern detection? A: CSS (therapeutic stages) pattern detection automatically identifies:
+
+IBM patterns
+CVDC patterns
+Thend states
+CYVC patterns
+Stage progression through therapeutic journey Patterns update in real-time during client voice sessions.
+Q: How does Master PCA integration work? A: The Mathew AI agent provides:
+
+Advanced therapeutic pattern recognition
+Side-channel storage of Master PCA insights
+Professional validation signals (not diagnoses)
+Detailed stage tracking All patterns are treated as signals requiring professional review.
+Q: Can I monitor client patterns in real-time? A: Yes! The platform features:
+
+Live CSS pattern streams via WebSocket
+Real-time updates during client sessions
+Pattern Analytics Dashboard
+Visual CSS journey mapping
+Instant pattern detection notifications
+Professional Features
+Q: Can I use VASA for my own therapy sessions? A: Absolutely! Therapists have full access to:
+
+All four AI voice agents
+Personal voice sessions with memory persistence
+Your own CSS journey tracking
+Private session storage separate from client data
+Q: How do I track client progress? A: The platform provides:
+
+CSS Journey Visualization for each client
+Progress charts and metrics
+Session statistics and weekly trends
+Transformation metrics
+Comprehensive pattern analytics dashboard
+Client FAQs
+Getting Started
+Q: How do I join VASA as a client? A: Your therapist will send you an email invitation with:
+
+A secure Magic Link
+A 6-digit verification code
+Simple signup process
+Automatic connection to your therapist
+Inherited subscription benefits No payment required - you use your therapist's subscription.
+Q: Which AI agents can I access as a client? A: Clients have full access to all four AI therapeutic agents:
+
+Sarah (empathetic companion)
+Marcus (motivational coach)
+Elena Wise (wise, maternal guide)
+Mathew (PCA specialist) Each maintains conversation memory and continuity.
+Q: Can my therapist see everything I discuss in sessions? A: Your therapist can view:
+
+Session summaries and insights
+CSS pattern progression
+Overall therapeutic progress
+Pattern analytics The detailed conversation transcripts remain private unless you choose to share specific content.
+During Voice Sessions
+Q: How do voice sessions work? A: Voice sessions feature:
+
+Natural, human-like conversations
+Real-time voice recognition and response
+Automatic session recording and transcription
+Context-aware, empathetic responses
+Smooth conversation flow with memory of past sessions
+Q: What if I have technical issues during a session? A: The platform includes:
+
+Robust error handling and retry mechanisms
+Automatic reconnection features
+Session recovery if disconnected
+Complete mobile support for backup devices
+Q: How long can my sessions be? A: Session length depends on your therapist's subscription:
+
+Minutes are shared from your therapist's plan
+Real-time usage tracking shows remaining time
+Sessions can continue as long as minutes are available
+Automatic alerts before time expires
+Privacy & Progress
+Q: Is my therapy data secure? A: Yes, VASA provides:
+
+Encrypted storage of all sessions
+HIPAA-grade data handling
+Secure therapist-client data sharing
+Private session isolation
+Protected authentication
+Q: How do I track my progress? A: Your Client Dashboard shows:
+
+CSS Journey visualization
+Session history with summaries
+Pattern detection insights
+Progress charts
+Therapeutic stage progression This information is shared with your therapist for collaborative care.
+Q: Can I access my session history? A: Yes, you have complete access to:
+
+All past session summaries
+AI-generated insights
+Progress tracking over time
+Pattern evolution history
+Therapeutic context from all sessions
+Settings & Account Management
+Account Settings
+Q: How do I change my account information? A: Access account settings through:
+
+Click your profile/avatar in the navigation header
+Select "Account Settings" from the dropdown menu
+Update your name, email, or password
+Save changes to apply immediately
+Q: Can I change my user type (Individual to Therapist, etc.)? A: User types are set during account creation and cannot be changed directly. Contact support if you need to change your user type, as this may require creating a new account with proper verification.
+
+Q: How do I delete my account? A: Account deletion can be requested through:
+
+Settings > Account > Delete Account
+Contact support for assistance
+Note: This action is irreversible and will delete all session data
+Privacy Controls
+Q: How do I manage my data sharing preferences? A: Data sharing controls vary by user type:
+
+Individual: All data remains private by default
+Client: Choose what information to share with your therapist
+Therapist: Manage client data access through professional settings
+Q: Can I download my session data? A: Feature Coming Soon: Data export functionality will allow you to:
+
+Download session transcripts
+Export therapeutic insights
+Save progress reports
+Archive conversation history
+Notification Settings
+Q: How do I manage email notifications? A: Notification preferences can be adjusted in Settings:
+
+Session reminders
+Progress updates
+Usage alerts
+Subscription notifications
+Security alerts (required for account safety)
+Q: Can I turn off usage alerts? A: Usage alerts help prevent unexpected service interruptions, but you can adjust:
+
+Alert timing (75%, 90%, 95% of limit)
+Alert frequency
+Alert methods (email, in-app) Some critical alerts cannot be disabled for account protection.
+Subscription & Billing
+Individual Subscriptions
+Q: What individual subscription options are available? A: Individual plans include:
+
+Free Trial: 7 days with 45 minutes of voice sessions
+Basic Plan: $24.99 one-time purchase
+Premium Plan: $49.99 one-time purchase Real-time usage tracking shows your minute consumption.
+Q: How do I upgrade my individual plan? A: To upgrade your plan:
+
+Go to Settings > Subscription
+Select "Upgrade Plan"
+Choose your new plan level
+Complete payment through secure Stripe checkout
+New benefits apply immediately
+Q: What happens when my trial expires? A: When your 7-day trial ends:
+
+Voice sessions will be disabled
+You'll receive upgrade prompts
+Historical data remains accessible
+You can purchase a plan to continue sessions
+Therapist Subscriptions
+Q: What professional subscription plans are available? A: Therapist subscription tiers:
+
+Basic Professional: $99/month, 180 minutes, 3 clients
+Plus Professional: $149/month, 220 minutes, 3 clients
+Premium Professional: $199/month, 600 minutes, 10 clients All plans include advanced analytics and real-time monitoring.
+Q: How is usage tracked across multiple clients? A: Usage tracking features:
+
+Shared minute pool across all your clients
+Real-time consumption monitoring
+Per-client usage breakdowns
+Usage alerts before limits
+WebSocket-powered live updates
+Q: Can I add more clients mid-subscription? A: Client additions depend on your plan:
+
+Basic/Plus: Maximum 3 clients (upgrade required for more)
+Premium: Up to 10 clients included
+Upgrade anytime through Settings > Subscription
+Cancellation & Refunds
+Q: How do I cancel my subscription? A: Easy Cancellation Process:
+
+Click the Settings gear icon in the navigation header
+Select "Cancel Subscription" from the dropdown menu
+Confirm cancellation in the dialog that appears
+Your subscription remains active until the end of your current billing period
+You'll receive a confirmation email
+Q: What happens when I cancel? A: Upon cancellation:
+
+Immediate: Cancellation is processed, no future charges
+Until period ends: Full access to all features continues
+After period ends:
+Voice sessions become unavailable
+Historical data remains accessible (read-only)
+You can resubscribe at any time to restore full access
+Clients: If you're a therapist, clients lose voice session access when your subscription ends
+Q: Can I get a refund? A: Refund policies:
+
+Trial cancellations: No charges applied during trial period
+Monthly subscriptions: Pro-rated refunds may be available for recent charges
+One-time purchases: Refunds considered on case-by-case basis
+Contact support for refund requests and specific circumstances
+Q: How do I reactivate a cancelled subscription? A: To reactivate:
+
+Go to Settings > Subscription
+Select "Reactivate Subscription"
+Choose your desired plan
+Complete payment setup
+Access restores immediately upon successful payment
+Payment Management
+Q: How do I update my payment information? A: Payment updates are managed through:
+
+Settings > Billing > Payment Methods
+Secure Stripe payment portal
+Add new cards or update existing ones
+Set default payment method
+Changes apply to next billing cycle
+Q: What payment methods are accepted? A: VASA accepts:
+
+Major credit cards (Visa, MasterCard, American Express, Discover)
+Debit cards with major network logos
+All payments processed securely through Stripe
+International cards accepted (subject to bank approval)
+Q: When am I charged for my subscription? A: Billing schedule:
+
+Monthly plans: Charged monthly on your signup date
+Trial-to-paid: First charge occurs when trial ends
+Upgrades: Prorated immediately, new billing cycle starts
+Downgrades: Applied at next renewal cycle
+Q: How do I view my billing history? A: Access billing information through:
+
+Settings > Billing > Transaction History
+Download receipts and invoices
+View usage reports
+Track payment status
+Export billing data for records
+Usage & Limits
+Q: How do minute limits work? A: Minute tracking:
+
+Real-time monitoring: See exact minutes remaining
+Shared pools: Therapists share minutes across all clients
+Usage alerts: Notifications at 75%, 90%, and 95% of limit
+Session endings: Voice sessions end when minutes are exhausted
+Monthly reset: Minutes refresh on your billing cycle date
+Q: What happens if I exceed my minute limit? A: When limits are reached:
+
+Current voice sessions end gracefully
+New sessions cannot be started
+Historical data remains accessible
+Upgrade prompts appear
+Service restores when you upgrade or billing cycle renews
+Q: Can I purchase additional minutes? A: Feature Coming Soon: Add-on minute packages will be available for:
+
+Emergency minute top-ups
+Seasonal usage increases
+One-time session extensions
+Flexible usage management
+Technical Support
+Voice Technology Issues
+Q: My voice isn't being recognized. What should I do? A: Voice recognition troubleshooting:
+
+Check microphone permissions in browser settings
+Ensure no other apps are using your microphone
+Test with a different browser
+Check your internet connection (stable connection required)
+Restart your browser or device
+Try using headphones with a built-in microphone
+Q: The AI agent keeps cutting out during sessions. A: For connection issues:
+
+Ensure stable internet connection (minimum 1 Mbps upload)
+Close unnecessary browser tabs and applications
+Disable VPN if using one
+Try switching to a different device or browser
+Check for browser updates
+Clear browser cache and cookies
+Q: Can I use VASA on my phone? A: Yes! VASA mobile support includes:
+
+Works in mobile browsers (Chrome, Safari, Firefox)
+Full voice session capabilities
+Complete dashboard access
+Responsive design for all screen sizes
+Touch-optimized interface
+Native mobile apps coming soon
+Q: The audio quality is poor during sessions. A: Audio quality improvements:
+
+Use a quality headset or external microphone
+Ensure stable, high-speed internet connection
+Close bandwidth-heavy applications
+Check your device's audio settings
+Test in a quiet environment
+Update browser to latest version
+Platform Issues
+Q: The dashboard isn't loading properly. A: Dashboard troubleshooting:
+
+Refresh the page (Ctrl+F5 or Cmd+Shift+R)
+Clear browser cache and cookies
+Disable browser extensions temporarily
+Try incognito/private browsing mode
+Check internet connection stability
+Contact support if issues persist
+Q: I can't see my session history. A: Session history troubleshooting:
+
+Verify you're logged into the correct account
+Check if sessions were completed (not just started)
+Allow time for session processing (up to 2 minutes)
+Refresh the dashboard
+Contact support with specific session dates
+Q: Real-time features aren't working (CSS patterns, usage tracking). A: Real-time feature issues:
+
+Ensure JavaScript is enabled in your browser
+Check that WebSocket connections aren't blocked
+Disable ad blockers temporarily
+Try a different network (cellular vs WiFi)
+Contact support for persistent issues
+Account & Subscription Issues
+Q: How do I check my subscription status? A: View subscription details in:
+
+Dashboard header (shows trial/subscription status)
+Settings > Subscription (detailed information)
+Usage overview (shows minutes used/remaining)
+Billing section (payment history and next charge)
+Q: My payment failed. What should I do? A: Payment failure resolution:
+
+Check that your card hasn't expired
+Verify billing address matches card information
+Ensure sufficient funds are available
+Contact your bank about international/online transactions
+Try a different payment method
+Contact support for assistance
+Q: I'm not receiving email notifications. A: Email delivery troubleshooting:
+
+Check spam/junk folders
+Verify email address is correct in account settings
+Add VASA domain to your email whitelist
+Check that email notifications are enabled in settings
+Contact support to resend verification emails
+Q: How do I change my email address? A: Email change process:
+
+Go to Settings > Account Settings
+Enter new email address
+Confirm with current password
+Verify new email via confirmation link
+Old email will be replaced once verified
+Data & Privacy
+Q: How do I export my data? A: Feature Coming Soon: Data export will include:
+
+Complete session transcripts
+AI-generated insights and summaries
+CSS pattern progression data
+Usage statistics and history
+Account activity logs
+Q: Can I permanently delete specific sessions? A: Session deletion options:
+
+Individual sessions can be deleted from session history
+Bulk deletion tools available in Settings
+Note: Deleted sessions cannot be recovered
+Consider archiving instead of deleting for important sessions
+Q: How long is my data retained? A: Data retention policies:
+
+Active accounts: Data retained indefinitely
+Cancelled accounts: Session data kept for 90 days
+Deleted accounts: All data permanently removed after 30 days
+Legal compliance: Some data may be retained longer if required
+Getting Help
+Q: How do I contact support? A: Support options:
+
+In-app support: Settings > Help & Support
+Email support: Available through platform settings
+Documentation: Comprehensive guides and tutorials
+Community forums: Coming Soon
+Q: What information should I include when contacting support? A: When reporting issues, include:
+
+Your account email and user type
+Detailed description of the problem
+Browser type and version
+Device type (desktop/mobile)
+Screenshots or error messages
+Steps you've already tried
+Q: Are there video tutorials available? A: Feature Coming Soon: Video tutorial library will include:
+
+Account setup and navigation
+Voice session best practices
+Advanced features for therapists
+Troubleshooting common issues
+CSS pattern interpretation
+Coming Soon Features
+Feature Coming Soon - Advanced Reporting
+Detailed therapeutic progress reports
+Exportable session analytics
+Custom insight generation
+Long-term trend analysis
+Feature Coming Soon - Treatment Plan Integration
+Structured therapy programs
+Goal setting and tracking
+Milestone achievements
+Progress scheduling
+Feature Coming Soon - Group Sessions
+Multi-client voice sessions
+Group therapeutic programs
+Collaborative exercises
+Peer support features
+Feature Coming Soon - Native Mobile Apps
+iOS App Store application
+Android Google Play application
+Offline session capabilities
+Push notifications
+Feature Coming Soon - Integration APIs
+EHR system integration
+Third-party therapy tools
+Calendar integration
+Appointment scheduling
+Feature Coming Soon - Enhanced Support
+Live chat support
+Video tutorials
+Community forums
+Advanced troubleshooting tools
+Last Updated: August 21, 2025
+
+For additional support or questions not covered in this FAQ, please contact our support team through the platform settings or reach out via our support channels.
