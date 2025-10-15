@@ -241,17 +241,49 @@ export default function FAQPage() {
           </CardContent>
         </Card>
 
-        {/* Contact Support */}
+        {/* Get Help & Customer Support */}
         <Card className="glass border-white/10 mt-8" data-testid="card-support">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <h3 className="text-xl font-semibold text-white mb-2">Still have questions?</h3>
-              <p className="text-white/70 mb-4">
-                Can't find what you're looking for? Contact our support team for assistance.
+          <CardHeader>
+            <CardTitle className="text-2xl text-white text-center">Get Help & Customer Support</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Technical Questions */}
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-primary/20">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-white font-semibold mb-1">Technical Questions</h4>
+                  <a href="mailto:tech@ivasa.ai" className="text-primary hover:underline">tech@ivasa.ai</a>
+                </div>
+              </div>
+
+              {/* Phone Support */}
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-primary/20">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-white font-semibold mb-1">Phone Support</h4>
+                  <a href="tel:18880806" className="text-primary hover:underline">1 888 0806</a>
+                </div>
+              </div>
+            </div>
+
+            {/* Support Hours */}
+            <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
+              <h4 className="text-white font-semibold mb-2">Support Hours</h4>
+              <p className="text-white/70 text-sm">
+                Weekday: 9:00 AM - 6:00 PM CST
               </p>
-              <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20" data-testid="button-contact-support">
-                Contact Support
-              </Button>
+              <p className="text-white/70 text-sm">
+                Weekend: Emergency customer support only
+              </p>
             </div>
           </CardContent>
         </Card>
