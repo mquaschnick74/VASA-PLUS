@@ -275,17 +275,6 @@ export default function FAQPage() {
                 </div>
               </div>
             </div>
-
-            {/* Support Hours */}
-            <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
-              <h4 className="text-white font-semibold mb-2">Support Hours</h4>
-              <p className="text-white/70 text-sm">
-                Weekday: 9:00 AM - 6:00 PM CST
-              </p>
-              <p className="text-white/70 text-sm">
-                Weekend: Emergency customer support only
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
