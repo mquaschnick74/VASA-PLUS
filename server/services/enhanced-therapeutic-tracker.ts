@@ -295,8 +295,14 @@ class EnhancedTherapeuticTracker {
       });
 
       console.log(`📊 Process-based stage assessment: ${suggestedStage} (confidence: ${confidence}) at exchange ${state.exchangeCount}`);
-    }
-  }
+
+          // Log what criteria were met for debugging
+          console.log(`   Narrative depth: ${state.narrativeDepth.toFixed(2)}`);
+          console.log(`   Emotional range: ${state.emotionalRange.length} emotions`);
+          console.log(`   Somatic refs: ${state.somaticReferences}`);
+          console.log(`   Last movement: ${state.lastMovement || 'none'}`);
+        }
+      }
 
   /**
    * Calculate emotional intensity from state

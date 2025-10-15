@@ -225,10 +225,16 @@ Natural therapeutic conversation. No stage codes. Focus on comprehensive narrati
   "narrative_depth": "surface" | "emerging" | "rich" | "comprehensive",
   "register": "symbolic" | "imaginary" | "real" | "mixed" | "undetermined",
   "css": {
-    "stage": "NOT_STARTED" | "POINTED_ORIGIN" | "FOCUS_BIND" | "SUSPENSION" | "GESTURE_TOWARD" | "COMPLETION" | "TERMINAL",
+    "stage": "not_started" | "pointed_origin" | "focus_bind" | "suspension" | "gesture_toward" | "completion" | "terminal",
     "evidence": ["quotes from their narratives"],
     "confidence": 0.0-1.0,
     "entry_criteria_met": boolean
+  },
+  "detected_patterns": {
+    "cvdc": ["detected CVDC patterns"],
+    "ibm": ["detected IBM patterns"],
+    "thend": ["detected Thend indicators"],
+    "cyvc": ["detected CYVC patterns"]
   },
   "themes": ["recurring themes from narratives"],
   "safety": {
@@ -236,7 +242,15 @@ Natural therapeutic conversation. No stage codes. Focus on comprehensive narrati
     "crisis": boolean
   }
 }
-</meta>`;
+</meta>
+
+**IMPORTANT CSS Stage Guidance:**
+- Stay at "not_started" during narrative development (first 15-25 exchanges)
+- Only transition when you see clear evidence and criteria are met
+- If you receive stage guidance in your context (e.g., "Clinical metrics suggest: pointed_origin"), 
+  consider this but don't blindly follow - verify it matches what you're observing
+- Pattern detection (CVDC/IBM/Thend/CYVC) is SEPARATE from stage progression
+`;
 
 // MASTER VASA SYSTEM PROMPT
 const VASA_SYSTEM_PROMPT = `

@@ -111,6 +111,38 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       }
     }
 
+    // ADDED: CSS Stage Guidance from Process Metrics
+    const { data: processMetrics } = await supabase
+      .from('css_patterns')
+      .select('css_stage, confidence, content')
+      .eq('user_id', userId)
+      .eq('pattern_type', 'PROCESS')
+      .order('detected_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (processMetrics && processMetrics.css_stage) {
+      const suggestedStage = processMetrics.css_stage;
+      const confidence = processMetrics.confidence || 0.5;
+
+      // Parse the content to get metrics
+      let metricsInfo = '';
+      if (processMetrics.content) {
+        const match = processMetrics.content.match(/exchanges=(\d+)/);
+        if (match) {
+          metricsInfo = ` (${match[1]} exchanges)`;
+        }
+      }
+
+      memoryContext += `\n\n===== CSS STAGE GUIDANCE =====\n`;
+      memoryContext += `Clinical metrics suggest CSS stage: ${suggestedStage}${metricsInfo}\n`;
+      memoryContext += `Confidence: ${(confidence * 100).toFixed(0)}%\n`;
+      memoryContext += `\nThis is a suggestion based on therapeutic metrics (narrative depth, emotional range, exchange count). `;
+      memoryContext += `You should verify this matches your observations before progressing stages. `;
+      memoryContext += `Remember: Stage progression should be organic and therapeutically appropriate, not automatic.\n`;
+      memoryContext += `===== END GUIDANCE =====\n`;
+    }
+
     return memoryContext || 'This is your first session together.';
   } catch (error) {
     console.error('Error building memory context:', error);

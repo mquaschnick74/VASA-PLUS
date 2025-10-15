@@ -6,15 +6,21 @@ export interface ParsedOutput {
   meta: {
     register?: 'symbolic' | 'imaginary' | 'real' | 'mixed';
     css?: {
-      stage: 'CVDC' | 'SUSPENSION' | 'THEND' | 'CYVC' | 'NONE';
+      stage: 'not_started' | 'pointed_origin' | 'focus_bind' | 'suspension' | 'gesture_toward' | 'completion' | 'terminal';
       evidence: string[];
       confidence: number;
     };
-    patterns?: string[];
+    detected_patterns?: {
+      cvdc?: string[];
+      ibm?: string[];
+      thend?: string[];
+      cyvc?: string[];
+    };
+    themes?: string[];
     safety?: {
       flag: boolean;
       level: 'low' | 'moderate' | 'high' | 'crisis';
-      indicators: string[];
+      indicators?: string[];
     };
     session?: {
       exchange_count: number;
@@ -42,7 +48,7 @@ export function parseAssistantOutput(text: string): ParsedOutput {
       console.warn('Failed to parse meta JSON:', e);
       // If parse fails, try to extract what we can
       meta = {
-        css: { stage: 'NONE', evidence: [], confidence: 0 }
+        css: { stage: 'not_started', evidence: [], confidence: 0 }
       };
     }
   }
@@ -55,10 +61,21 @@ export function parseAssistantOutput(text: string): ParsedOutput {
 
 // Helper to extract and validate CSS stage
 export function extractCSSStage(meta: ParsedOutput['meta']): string | null {
-  const validStages = ['CVDC', 'SUSPENSION', 'THEND', 'CYVC', 'NONE'];
+  const validStages = [
+    'not_started',
+    'pointed_origin', 
+    'focus_bind', 
+    'suspension', 
+    'gesture_toward', 
+    'completion', 
+    'terminal'
+  ];
 
-  if (meta?.css?.stage && validStages.includes(meta.css.stage)) {
-    return meta.css.stage;
+  if (meta?.css?.stage) {
+    const stageLower = meta.css.stage.toLowerCase();
+    if (validStages.includes(stageLower)) {
+      return stageLower;
+    }
   }
 
   return null;
@@ -85,8 +102,18 @@ export function extractRegister(meta: ParsedOutput['meta']): string | null {
 }
 
 // Helper to get identified patterns
-export function extractPatterns(meta: ParsedOutput['meta']): string[] {
-  return meta?.patterns || [];
+export function extractPatterns(meta: ParsedOutput['meta']): {
+  cvdc: string[];
+  ibm: string[];
+  thend: string[];
+  cyvc: string[];
+} {
+  return {
+    cvdc: meta?.detected_patterns?.cvdc || [],
+    ibm: meta?.detected_patterns?.ibm || [],
+    thend: meta?.detected_patterns?.thend || [],
+    cyvc: meta?.detected_patterns?.cyvc || []
+  };
 }
 
 // Helper to assess session progress
