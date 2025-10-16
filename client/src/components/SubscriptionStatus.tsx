@@ -26,6 +26,7 @@ interface SubscriptionStatusProps {
 export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) {
   const [limits, setLimits] = useState<SubscriptionLimits | null>(null);
   const [loading, setLoading] = useState(true);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -92,6 +93,36 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
     };
     return tierMap[tier] || tier;
   };
+
+  const handleManageSubscription = async () => {
+    try {
+      setPortalLoading(true);
+      const response = await fetch('/api/stripe/create-portal-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create portal session');
+      }
+
+      const { url } = await response.json();
+      
+      // Open Stripe customer portal in new tab
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      alert('Failed to open subscription management. Please try again.');
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  // Determine if user has a paid subscription (not trial)
+  const hasPaidSubscription = limits && !limits.is_trial && limits.subscription_active;
 
   return (
     <Card className="glass">
@@ -195,20 +226,22 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
 
         {/* CTA Buttons */}
         <div className="flex gap-2 pt-2">
-          {limits.is_trial || isLowUsage ? (
+          {hasPaidSubscription ? (
             <Button 
               className="w-full" 
-              onClick={() => setLocation('/pricing')}
+              onClick={handleManageSubscription}
+              disabled={portalLoading}
+              data-testid="button-manage-subscription"
             >
-              Upgrade Plan
+              {portalLoading ? 'Loading...' : 'Manage Subscription'}
             </Button>
           ) : (
             <Button 
-              variant="outline" 
-              className="w-full"
+              className="w-full" 
               onClick={() => setLocation('/pricing')}
+              data-testid="button-upgrade-plan"
             >
-              View Plans
+              Upgrade Plan
             </Button>
           )}
         </div>

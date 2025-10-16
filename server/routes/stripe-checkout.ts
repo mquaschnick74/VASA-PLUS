@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Stripe from 'stripe';
+import { requireAuth, type AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -66,13 +67,14 @@ router.post('/create-checkout-session', async (req, res) => {
 });
 
 // Create customer portal session for subscription management
-router.post('/create-portal-session', async (req, res) => {
+router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { userId } = req.body;
+    // Get userId from authenticated session (NOT from request body)
+    const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(400).json({ 
-        error: 'Missing required field: userId' 
+      return res.status(401).json({ 
+        error: 'Authentication required' 
       });
     }
 
