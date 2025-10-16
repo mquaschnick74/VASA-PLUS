@@ -14,6 +14,7 @@ import adminRoutes from './routes/admin-routes';
 import kbRoutes from './routes/kb-routes';
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
+import stripeCheckoutRoutes from './routes/stripe-checkout';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const apiRouter = Router();
@@ -28,7 +29,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('✅ Admin routes mounted at /api/admin');
   apiRouter.use('/influencer', influencerRoutes);
   apiRouter.use('/kb', kbRoutes);
-  apiRouter.use('/stripe', stripeWebhookRoutes);
+  apiRouter.use('/stripe/webhook', stripeWebhookRoutes);
+  apiRouter.use('/stripe', stripeCheckoutRoutes);
 
   // Health check
   apiRouter.get('/health', (req, res) => {

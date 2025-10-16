@@ -2,7 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { authenticateToken } from "./middleware/auth";
-import stripeCheckoutRoutes from './routes/stripe-checkout';
 
 // Environment variable validation for production
 function validateEnvironment() {
@@ -34,7 +33,6 @@ const app = express();
 // INCREASED LIMITS for VAPI webhooks with large transcripts
 app.use(express.json({ limit: '10mb' }));  // Increased from default 100kb
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
-app.use('/api/stripe', stripeCheckoutRoutes);
 
 // Special handling for VAPI webhook endpoint with raw body for signature validation
 app.use('/api/vapi/webhook', express.raw({ 
