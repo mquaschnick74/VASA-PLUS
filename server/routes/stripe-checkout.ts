@@ -65,4 +65,59 @@ router.post('/create-checkout-session', async (req, res) => {
   }
 });
 
+// Create customer portal session for subscription management
+router.post('/create-portal-session', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ 
+        error: 'Missing required field: userId' 
+      });
+    }
+
+    console.log('🔧 Creating customer portal session for user:', userId);
+
+    // Import supabase to get customer ID
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    // Get the user's Stripe customer ID from subscriptions table
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .select('stripe_customer_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (subError || !subscription?.stripe_customer_id) {
+      console.error('❌ No Stripe customer found for user:', userId);
+      return res.status(404).json({ 
+        error: 'No active subscription found' 
+      });
+    }
+
+    console.log('✅ Found Stripe customer:', subscription.stripe_customer_id);
+
+    // Create a Stripe customer portal session
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: subscription.stripe_customer_id,
+      return_url: `${process.env.CLIENT_URL || 'https://beta.ivasa.ai'}/dashboard`,
+    });
+
+    console.log('✅ Customer portal session created');
+
+    res.json({ 
+      url: portalSession.url 
+    });
+  } catch (error: any) {
+    console.error('❌ Error creating portal session:', error);
+    res.status(500).json({ 
+      error: error.message 
+    });
+  }
+});
+
 export default router;
