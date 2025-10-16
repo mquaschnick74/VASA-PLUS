@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { supabase } from '@/lib/supabaseClient';
 import { Clock, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
 import { useLocation } from 'wouter';
 
@@ -97,11 +98,19 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
   const handleManageSubscription = async () => {
     try {
       setPortalLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        alert('Please sign in again to manage your subscription.');
+        return;
+      }
+
       const response = await fetch('/api/stripe/create-portal-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
 

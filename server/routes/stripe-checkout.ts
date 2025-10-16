@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import Stripe from 'stripe';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
+import { supabase } from '../services/supabase-service'; // USE EXISTING SERVICE
 
 const router = Router();
 
@@ -42,7 +43,7 @@ router.post('/create-checkout-session', async (req, res) => {
       success_url: `${process.env.CLIENT_URL || 'https://beta.ivasa.ai'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL || 'https://beta.ivasa.ai'}/pricing`,
       customer_email: userEmail,
-      client_reference_id: userId, // THIS IS THE CRITICAL PART - passes user ID to webhook
+      client_reference_id: userId,
       metadata: {
         userId,
         tier,
@@ -69,23 +70,16 @@ router.post('/create-checkout-session', async (req, res) => {
 // Create customer portal session for subscription management
 router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res) => {
   try {
-    // Get userId from authenticated session (NOT from request body)
     const userId = req.user?.id;
 
     if (!userId) {
+      console.error('❌ No user ID in request');
       return res.status(401).json({ 
         error: 'Authentication required' 
       });
     }
 
     console.log('🔧 Creating customer portal session for user:', userId);
-
-    // Import supabase to get customer ID
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
 
     // Get the user's Stripe customer ID from subscriptions table
     const { data: subscription, error: subError } = await supabase
@@ -94,10 +88,17 @@ router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res)
       .eq('user_id', userId)
       .single();
 
-    if (subError || !subscription?.stripe_customer_id) {
+    if (subError) {
+      console.error('❌ Supabase error:', subError);
+      return res.status(500).json({ 
+        error: 'Database error while fetching subscription' 
+      });
+    }
+
+    if (!subscription?.stripe_customer_id) {
       console.error('❌ No Stripe customer found for user:', userId);
       return res.status(404).json({ 
-        error: 'No active subscription found' 
+        error: 'No active subscription found. Please upgrade first.' 
       });
     }
 
