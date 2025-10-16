@@ -86,6 +86,10 @@ vasa-mvp/
 - **Tier-based Limits**: Trial (15 min), Plus (100 min), Pro (unlimited)
 - **Client Transparency**: Shows "used by ALL clients" for therapist subscription usage
 - **7-day free trial**: No credit card required promotional messaging
+- **Stripe Customer Portal**: Smart button that shows "Upgrade Plan" for trial users and "Manage Subscription" for paid subscribers
+  - Secure authentication-based access (requireAuth middleware)
+  - Opens Stripe portal in new tab for subscription management
+  - Users can update payment methods, view invoices, change plans, and cancel subscriptions
 
 ### Client Invitation System
 - **Email Invitations**: Therapists can invite clients via email
@@ -180,6 +184,11 @@ partner_equity_vesting_schedule    # Equity vesting timeline
 - Privacy-focused data handling
 
 ## Recent Updates (Oct 2025)
+- **Stripe Customer Portal (Oct 16)**: Integrated Stripe billing portal for subscription management
+  - Smart button: "Upgrade Plan" for trial users, "Manage Subscription" for paid subscribers
+  - Secure authentication-based access using requireAuth middleware
+  - Users can update payment methods, view invoices, change plans, and cancel subscriptions
+  - Opens portal in new tab with automatic return to dashboard
 - **Invitation System Fix (Oct 8)**: Fixed silent failure when inviting existing clients
   - Now creates `therapist_invitations` record for both new AND existing clients
   - Fixed missing `updated_at` column causing silent database trigger failures
