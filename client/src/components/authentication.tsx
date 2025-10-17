@@ -367,7 +367,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               />
             </div>
           </div>
-          <p className="text-muted-foreground text-base md:text-lg px-4">Your Voice. Your Journey. Your AI Therapeutic Assistant</p>
+          <p className="text-muted-foreground text-base md:text-lg px-4">Your Voice. Your Journey. Your AI Therapeutic Assistant.</p>
         </div>
 
         {/* Authentication Form */}
