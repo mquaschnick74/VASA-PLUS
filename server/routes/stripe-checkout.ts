@@ -70,22 +70,41 @@ router.post('/create-checkout-session', async (req, res) => {
 // Create customer portal session for subscription management
 router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id;
+    // Step 1: Get Supabase auth user ID
+    const auth_user_id = req.user?.id;
+    const auth_email = req.user?.email;
 
-    if (!userId) {
-      console.error('❌ No user ID in request');
+    if (!auth_user_id || !auth_email) {
+      console.error('❌ No auth user ID or email in request');
       return res.status(401).json({ 
         error: 'Authentication required' 
       });
     }
 
-    console.log('🔧 Creating customer portal session for user:', userId);
+    console.log('🔧 Creating customer portal session for auth user:', auth_user_id);
 
-    // Get the user's Stripe customer ID from subscriptions table
+    // Step 2: Look up the INTERNAL user profile ID
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('email', auth_email)
+      .single();
+
+    if (profileError || !userProfile) {
+      console.error('❌ User profile not found for email:', auth_email, profileError);
+      return res.status(404).json({ 
+        error: 'User profile not found' 
+      });
+    }
+
+    const internal_user_id = userProfile.id;
+    console.log('✅ Found internal user ID:', internal_user_id);
+
+    // Step 3: Get the user's Stripe customer ID using the INTERNAL ID
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
-      .eq('user_id', userId)
+      .eq('user_id', internal_user_id)  // ← NOW USING CORRECT ID
       .single();
 
     if (subError) {
@@ -96,7 +115,7 @@ router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res)
     }
 
     if (!subscription?.stripe_customer_id) {
-      console.error('❌ No Stripe customer found for user:', userId);
+      console.error('❌ No Stripe customer found for user:', internal_user_id);
       return res.status(404).json({ 
         error: 'No active subscription found. Please upgrade first.' 
       });
@@ -104,7 +123,7 @@ router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res)
 
     console.log('✅ Found Stripe customer:', subscription.stripe_customer_id);
 
-    // Create a Stripe customer portal session
+    // Step 4: Create a Stripe customer portal session
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
       return_url: `${process.env.CLIENT_URL || 'https://beta.ivasa.ai'}/dashboard`,
