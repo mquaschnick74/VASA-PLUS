@@ -20,7 +20,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       .from('therapeutic_sessions')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+      .order('start_time', { ascending: false })
       .limit(5);
 
     if (sessionsError) {

@@ -62,7 +62,7 @@ export class TherapistDataService {
       .from('therapeutic_sessions')
       .select('*')
       .eq('user_id', clientId)
-      .order('created_at', { ascending: false });
+      .order('start_time', { ascending: false });
 
     if (error) throw new Error('Failed to fetch sessions');
 
@@ -177,7 +177,7 @@ export class TherapistDataService {
       .from('therapeutic_sessions')
       .select('*')
       .eq('user_id', clientId)
-      .order('created_at', { ascending: true });
+      .order('start_time', { ascending: true });
 
     if (error) throw new Error('Failed to fetch sessions');
 
