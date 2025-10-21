@@ -144,34 +144,6 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
 
       // CHANGE 2: REMOVED the firstMessageTemplate call - no more hardcoded greetings
 
-      // ========== KB RETRIEVAL: Fetch therapeutic protocols ==========
-      try {
-        const kbResponse = await fetch('/api/kb/retrieve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: userId,
-            cssStage: 'pointed_origin', // Default at call-start
-            baseline: true, // Get baseline protocols (first session, continuity)
-            keywords: [], // No user message yet at call-start
-            agentName: selectedAgent.name
-          })
-        });
-        
-        if (kbResponse.ok) {
-          const kbData = await kbResponse.json();
-          
-          if (kbData.protocols && kbData.protocols.length > 0) {
-            systemPrompt += `\n\n===== THERAPEUTIC PROTOCOLS =====\n${kbData.protocols}\n===== END PROTOCOLS =====\n`;
-            console.log(`📚 Loaded ${kbData.documentCount} KB documents at call-start`);
-          }
-        }
-      } catch (error) {
-        console.warn('⚠️ KB retrieval failed, continuing with memory only:', error);
-        // Continue session - KB failure doesn't block
-      }
-      // ========== END KB RETRIEVAL ==========
-
       // Get the current server URL for webhook configuration
       const serverUrl = `${window.location.origin}/api/vapi/webhook`;
 
