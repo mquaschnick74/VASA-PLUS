@@ -139,14 +139,20 @@ export async function initializeSession(
   checkedSessions.add(callId);
 
   try {
-    // Add error handling for database operations
+    // ENHANCED LOGGING: Log what we're about to insert
+    console.log(`🔄 Attempting to save session to database:`, {
+      call_id: callId,
+      user_id: userId,
+      agent_name: agentName,
+      status: 'active'
+    });
+
     const { data, error } = await supabase
       .from('therapeutic_sessions')
       .upsert({
         call_id: callId,
         user_id: userId,
         agent_name: agentName,
-        css_stage: 'pointed_origin',
         status: 'active',
         start_time: new Date().toISOString()
       }, {
@@ -156,13 +162,19 @@ export async function initializeSession(
 
     if (error) {
       console.error(`❌ Failed to save session to database:`, error);
-      console.error(`Details: ${JSON.stringify(error)}`);
+      console.error(`   Error code: ${error.code}`);
+      console.error(`   Error message: ${error.message}`);
+      console.error(`   Full details: ${JSON.stringify(error, null, 2)}`);
       // Don't throw - keep session in memory even if DB fails
     } else {
-      console.log(`✅ Session saved to database:`, data);
+      console.log(`✅ Session saved to database successfully!`);
+      console.log(`   Session ID: ${data?.[0]?.id}`);
+      console.log(`   Call ID: ${data?.[0]?.call_id}`);
     }
   } catch (dbError) {
-    console.error(`❌ Database operation failed:`, dbError);
+    console.error(`❌ Database operation failed with exception:`, dbError);
+    console.error(`   Exception type: ${dbError instanceof Error ? dbError.constructor.name : typeof dbError}`);
+    console.error(`   Exception message: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
     // Continue with in-memory session even if DB fails
   }
 
@@ -273,13 +285,7 @@ export async function processTranscript(
     const previousStage = session.currentCSSStage;
     session.currentCSSStage = patterns.currentStage;
 
-    // Update database with new CSS stage
-    await supabase
-      .from('therapeutic_sessions')
-      .update({ css_stage: patterns.currentStage })
-      .eq('call_id', callId);
-
-    // Record the progression
+    // Record the progression in css_progressions table
     await supabase
       .from('css_progressions')
       .insert({

@@ -355,24 +355,25 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 gradient-bg">
-      <div className="w-full max-w-2xl mx-auto px-4">
-        {/* Logo and Branding */}
-        <div className="text-center mb-8 md:mb-12">
-          <div className="flex items-center justify-center mb-4">
-            <div className="w-80 md:w-96 h-auto animate-float glass rounded-2xl p-4">
-              <img 
-                src={vasaLogo} 
-                alt="iVASA Logo" 
-                className="w-full h-full object-contain"
-              />
+      <div className="w-full max-w-7xl mx-auto px-4">
+        {/* Two-column layout: Logo/Phrases on left, Form on right */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
+          
+          {/* LEFT COLUMN: Branding */}
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-center">
+              <p className="text-emerald-500 text-xl md:text-2xl lg:text-3xl font-medium mb-8">Your Voice.</p>
+              <p className="text-emerald-500 text-4xl md:text-5xl lg:text-6xl font-semibold mb-8">Your Journey.</p>
+              <p className="text-emerald-500 text-6xl md:text-7xl lg:text-8xl font-bold leading-tight mb-6">Your AI Therapeutic Assistant.</p>
+              <p className="text-emerald-500 text-xs md:text-sm lg:text-base font-normal max-w-2xl mx-auto">
+                Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
+              </p>
             </div>
           </div>
-          <p className="text-muted-foreground text-base md:text-lg px-4">Your Voice. Your Journey. Your AI Therapeutic Assistant.</p>
-        </div>
 
-        {/* Authentication Form */}
-        <div className="flex justify-center">
-          <div className="w-full max-w-md">
+          {/* RIGHT COLUMN: Authentication Form */}
+          <div className="flex justify-center md:justify-end">
+            <div className="w-full max-w-md">
             <Card className="glass rounded-2xl border-0">
           <CardContent className="p-4 md:p-8">
             <div className="space-y-6">
@@ -391,6 +392,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 </div>
               )}
               {/* ================================================= */}
+
+              {/* Logo */}
+              <div className="flex justify-center items-center mb-6">
+                <img 
+                  src={vasaLogo} 
+                  alt="iVASA Logo" 
+                  className="w-48 md:w-56 h-auto object-contain"
+                />
+              </div>
 
               <div className="text-center relative">
                 <h2 className="text-2xl font-semibold mb-2">
@@ -612,7 +622,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             </div>
           </CardContent>
         </Card>
+            </div>
           </div>
+          
         </div>
       </div>
     </div>

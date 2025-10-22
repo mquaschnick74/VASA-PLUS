@@ -216,6 +216,10 @@ router.post('/webhook', async (req, res) => {
 
     switch (eventType) {
       case 'call-started':
+        console.log(`🚀 CALL-STARTED event received for call: ${callId}`);
+        console.log(`   User ID: ${userId}`);
+        console.log(`   Agent Name: ${agentName}`);
+
         // PRESERVED: Monitor URL logging
         if (message?.call?.monitor) {
           console.log('🔍 MONITOR URLs FOR TESTING:');
@@ -223,7 +227,9 @@ router.post('/webhook', async (req, res) => {
           console.log(`TEST_CONTROL_URL="${message.call.monitor.controlUrl}"`);
         }
 
+        console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
+        console.log(`✅ call-started event processed successfully`);
         break;
 
       case 'conversation-update': {

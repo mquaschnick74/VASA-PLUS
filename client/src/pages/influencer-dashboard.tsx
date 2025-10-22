@@ -46,8 +46,6 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
 
   const [copied, setCopied] = useState(false);
   const [timeframe, setTimeframe] = useState('30');
-  const viewAsData = sessionStorage.getItem('adminViewAs');
-  const influencerId = viewAsData ? JSON.parse(viewAsData).influencerId : null;
 
   useEffect(() => {
     loadDashboardData();
@@ -60,10 +58,9 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
       if (!session) return;
 
       const token = session.access_token;
-      const influencerParam = influencerId ? `&influencerId=${influencerId}` : '';
 
       // Load dashboard overview
-      const dashboardRes = await fetch(`/api/influencer/dashboard?timeframe=${timeframe}${influencerParam}`, {
+      const dashboardRes = await fetch(`/api/influencer/dashboard?timeframe=${timeframe}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -74,7 +71,7 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
       }
 
       // Load content
-      const contentRes = await fetch(`/api/influencer/content?limit=10${influencerParam}`, {
+      const contentRes = await fetch('/api/influencer/content?limit=10', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (contentRes.ok) {
@@ -83,7 +80,7 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
       }
 
       // Load conversions
-      const conversionsRes = await fetch(`/api/influencer/conversions?limit=20${influencerParam}`, {
+      const conversionsRes = await fetch('/api/influencer/conversions?limit=20', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (conversionsRes.ok) {
@@ -92,7 +89,7 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
       }
 
       // Load commissions
-      const commissionsRes = await fetch(`/api/influencer/commissions?limit=20${influencerParam}`, {
+      const commissionsRes = await fetch('/api/influencer/commissions?limit=20', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (commissionsRes.ok) {
@@ -101,7 +98,7 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
       }
 
       // Load referrals
-      const referralsRes = await fetch(`/api/influencer/referrals${influencerId ? `?influencerId=${influencerId}` : ''}`, {
+      const referralsRes = await fetch('/api/influencer/referrals', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (referralsRes.ok) {
@@ -110,7 +107,7 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
       }
 
       // Load performance analytics
-      const performanceRes = await fetch(`/api/influencer/analytics/performance?months=6${influencerParam}`, {
+      const performanceRes = await fetch('/api/influencer/analytics/performance?months=6', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (performanceRes.ok) {
@@ -119,7 +116,7 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
       }
 
       // Load commission summary
-      const summaryRes = await fetch(`/api/influencer/commissions/summary?period=monthly&months=6${influencerParam}`, {
+      const summaryRes = await fetch('/api/influencer/commissions/summary?period=monthly&months=6', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (summaryRes.ok) {

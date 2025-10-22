@@ -32,8 +32,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Health check
   apiRouter.get('/health', (req, res) => {
-    res.json({
-      status: 'ok',
+    res.json({ 
+      status: 'ok', 
       timestamp: new Date().toISOString(),
       routes: {
         auth: 'Mounted at /api/auth',

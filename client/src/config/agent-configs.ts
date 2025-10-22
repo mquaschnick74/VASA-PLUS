@@ -284,7 +284,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     description: 'VASA therapeutic voice assistant',
     icon: '👱🏽‍♀️',
     color: 'purple',
-    model: { temperature: 0.7, model: 'gpt-4o-mini' },
+    model: { temperature: 0.7, model: 'gpt-4o' },
     voice: { provider: '11labs', voiceId: 'EXAVITQu4vr4xnSDxMaL', stability: 0.5, speed: 0.95 },
     systemPrompt: `Your proper name is **Sarah**.
 
@@ -302,7 +302,7 @@ ${VASA_SYSTEM_PROMPT}`,
     description: 'VASA therapeutic voice assistant',
     icon: '👨🏻‍💼',
     color: 'blue',
-    model: { temperature: 0.6, model: 'gpt-4o-mini' },
+    model: { temperature: 0.6, model: 'gpt-4o' },
     voice: { provider: '11labs', voiceId: '2hsbsDeRu57rsKFAC7uE', stability: 0.8, speed: 1.0 },
     systemPrompt: `Your proper name is **Mathew**.
 

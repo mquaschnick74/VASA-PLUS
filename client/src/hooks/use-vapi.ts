@@ -169,7 +169,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
               content: systemPrompt
             }
           ],
-          maxTokens: 150
+          maxTokens: 200
         },
         voice: {
           provider: selectedAgent.voice.provider,

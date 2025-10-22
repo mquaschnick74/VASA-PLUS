@@ -262,7 +262,7 @@ export default function TherapistDashboard({
               .from("therapeutic_sessions")
               .select("*")
               .eq("user_id", clientId)
-              .order("start_time", { ascending: false });
+              .order("created_at", { ascending: false });
 
             if (sessionsError) {
               console.log(
@@ -286,7 +286,7 @@ export default function TherapistDashboard({
                 "Unknown",
               total_sessions: sessions?.length || 0,
               total_minutes: totalMinutes,
-              last_session: sessions?.[0]?.start_time || null,
+              last_session: sessions?.[0]?.created_at || null,
               relationship_status: rel.status || "active",
               session_duration_limit: rel.session_duration_limit || 900,
             };
