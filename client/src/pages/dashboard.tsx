@@ -86,12 +86,12 @@ export default function Dashboard() {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
 
-              // CHECK FOR ONBOARDING - Only for individual users
-              if (detectedType === 'individual' && !profile.last_onboarding_completed_at) {
-                console.log('⚠️ [DASHBOARD] Onboarding not yet completed, showing questionnaire');
+              // SHOW ONBOARDING EVERY TIME - Only for individual users
+              if (detectedType === 'individual') {
+                console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login)');
                 setShowOnboarding(true);
               } else {
-                console.log('✅ [DASHBOARD] Onboarding already completed or not required');
+                console.log('✅ [DASHBOARD] Onboarding not required for user type:', detectedType);
                 setOnboardingChecked(true);
               }
             }
@@ -306,20 +306,10 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // Check if onboarding is needed (only for individual users)
+    // Show onboarding every time for individual users
     if (userType === 'individual') {
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('last_onboarding_completed_at')
-        .eq('id', userId)
-        .single();
-
-      if (!profile?.last_onboarding_completed_at) {
-        console.log('⚠️ [DASHBOARD] Onboarding not completed, showing questionnaire');
-        setShowOnboarding(true);
-      } else {
-        setOnboardingChecked(true);
-      }
+      console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login)');
+      setShowOnboarding(true);
     } else {
       setOnboardingChecked(true);
     }
