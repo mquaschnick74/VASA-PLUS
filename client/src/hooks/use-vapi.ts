@@ -1,14 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TherapeuticAgent } from '../config/agent-configs';
 
+interface OnboardingData {
+  voice: string;
+  journey: string;
+  completedAt: string;
+  wasSkipped: boolean;
+}
+
 interface UseVapiProps {
   userId: string;
   memoryContext: string;
   lastSessionSummary?: string | null;  // ADD: Session continuity
-  shouldReferenceLastSession?: boolean; // ADD: Session continuity  
+  shouldReferenceLastSession?: boolean; // ADD: Session continuity
   firstName: string;
   selectedAgent: TherapeuticAgent;
   sessionDurationLimit?: number;
+  onboarding?: OnboardingData | null;
 }
 
 interface UseVapiReturn {
@@ -19,14 +27,15 @@ interface UseVapiReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
 }
 
-const useVapi = ({ 
-  userId, 
-  memoryContext, 
-  lastSessionSummary, 
+const useVapi = ({
+  userId,
+  memoryContext,
+  lastSessionSummary,
   shouldReferenceLastSession,
-  firstName, 
+  firstName,
   selectedAgent,
-  sessionDurationLimit = 7200
+  sessionDurationLimit = 7200,
+  onboarding = null
 }: UseVapiProps): UseVapiReturn => {
   const [vapi, setVapi] = useState<any>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -116,6 +125,37 @@ DO NOT output any JSON or metadata.
 Just respond naturally with your therapeutic conversation.
 
 ` + systemPrompt;
+
+      // INJECT ONBOARDING CONTEXT - Only if exists and not skipped
+      const hasOnboarding = onboarding && !onboarding.wasSkipped;
+      const hasOnboardingContent = hasOnboarding && (
+        (onboarding.voice && onboarding.voice.trim().length > 0) ||
+        (onboarding.journey && onboarding.journey.trim().length > 0)
+      );
+
+      if (hasOnboardingContent) {
+        let onboardingContext = "\n\n===== IMPORTANT: USER'S INITIAL CONTEXT =====\n\n";
+
+        if (onboarding.voice && onboarding.voice.trim().length > 0) {
+          onboardingContext += `What they want to discuss (Your Voice):\n"${onboarding.voice}"\n\n`;
+        }
+
+        if (onboarding.journey && onboarding.journey.trim().length > 0) {
+          onboardingContext += `Their journey and experiences (Your Journey):\n"${onboarding.journey}"\n\n`;
+        }
+
+        onboardingContext += `INSTRUCTIONS:
+- Reference this context naturally in your introduction
+- Use specific details they mentioned to personalize the conversation
+- Don't simply repeat what they wrote; engage thoughtfully with their input
+- Show that you truly heard and understood what they shared
+===== END USER CONTEXT =====\n`;
+
+        systemPrompt += onboardingContext;
+      } else if (hasOnboarding && (!onboarding.voice?.trim() && !onboarding.journey?.trim())) {
+        // User submitted blank onboarding
+        systemPrompt += "\n\nNote: The user chose not to provide initial context. Start with open-ended, welcoming exploration.\n";
+      }
 
       // ENHANCED: Add session continuity context if available
       if (shouldReferenceLastSession && lastSessionSummary) {
@@ -234,7 +274,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       setIsLoading(false);
       setConnectionStatus('disconnected');
     }
-  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, firstName, isLoading, isSessionActive, selectedAgent]);
+  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {

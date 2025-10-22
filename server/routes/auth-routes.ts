@@ -498,6 +498,15 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       }
     }
 
+    // Fetch most recent onboarding response
+    const { data: onboardingData } = await supabase
+      .from('user_onboarding_responses')
+      .select('voice_response, journey_response, created_at, was_skipped')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     res.json({
       success: true,
       profile: user,
@@ -510,7 +519,13 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       sessions: sessions || [],
       firstName: user.first_name || 'there',
       sessionCount: sessions?.length || 0,
-      sessionDurationLimit // ADD THIS LINE
+      sessionDurationLimit,
+      onboarding: onboardingData ? {
+        voice: onboardingData.voice_response || '',
+        journey: onboardingData.journey_response || '',
+        completedAt: onboardingData.created_at,
+        wasSkipped: onboardingData.was_skipped
+      } : null
     });
   } catch (error) {
     console.error('Error fetching user context:', error);
@@ -566,6 +581,76 @@ router.post('/accept-consent', authenticateToken, async (req: AuthRequest, res) 
   } catch (error) {
     console.error('Error recording consent:', error);
     res.status(500).json({ error: 'Failed to record consent' });
+  }
+});
+
+// Complete onboarding - REQUIRES AUTHENTICATION
+router.post('/complete-onboarding', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { userId, voiceResponse = '', journeyResponse = '', wasSkipped = false } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Verify user exists
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify ownership
+    if (req.user && user.auth_user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Insert onboarding response (allows empty values)
+    const { data: onboardingData, error: insertError } = await supabase
+      .from('user_onboarding_responses')
+      .insert({
+        user_id: userId,
+        voice_response: voiceResponse,
+        journey_response: journeyResponse,
+        was_skipped: wasSkipped,
+        session_number: 1
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error inserting onboarding response:', insertError);
+      throw insertError;
+    }
+
+    // Update user profile timestamp
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update({
+        last_onboarding_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating onboarding timestamp:', updateError);
+      throw updateError;
+    }
+
+    console.log(`✅ Onboarding completed for user ${userId} (skipped: ${wasSkipped})`);
+
+    res.json({
+      success: true,
+      message: 'Onboarding completed successfully',
+      onboardingId: onboardingData.id
+    });
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    res.status(500).json({ error: 'Failed to complete onboarding' });
   }
 });
 
