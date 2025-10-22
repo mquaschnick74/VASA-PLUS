@@ -47,6 +47,9 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
   const [copied, setCopied] = useState(false);
   const [timeframe, setTimeframe] = useState('30');
 
+  console.log('🔍 [INFLUENCER DASHBOARD] viewAsData:', viewAsData);
+  console.log('🔍 [INFLUENCER DASHBOARD] influencerId:', influencerId);
+
   useEffect(() => {
     loadDashboardData();
   }, [timeframe]);
@@ -58,6 +61,9 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
       if (!session) return;
 
       const token = session.access_token;
+
+      console.log('🔍 [INFLUENCER DASHBOARD] Fetching dashboard with influencerId:', influencerId);
+      console.log('🔍 [INFLUENCER DASHBOARD] URL:', `/api/influencer/dashboard?timeframe=${timeframe}${influencerParam}`);
 
       // Load dashboard overview
       const dashboardRes = await fetch(`/api/influencer/dashboard?timeframe=${timeframe}`, {
