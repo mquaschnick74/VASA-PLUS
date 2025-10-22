@@ -86,9 +86,9 @@ export default function Dashboard() {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
 
-              // SHOW ONBOARDING EVERY TIME - Only for individual users
-              if (detectedType === 'individual') {
-                console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login)');
+              // SHOW ONBOARDING EVERY TIME - For individuals, clients, and therapists
+              if (detectedType === 'individual' || detectedType === 'client' || detectedType === 'therapist') {
+                console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login) for user type:', detectedType);
                 setShowOnboarding(true);
               } else {
                 console.log('✅ [DASHBOARD] Onboarding not required for user type:', detectedType);
@@ -306,9 +306,9 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // Show onboarding every time for individual users
-    if (userType === 'individual') {
-      console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login)');
+    // Show onboarding every time for individuals, clients, and therapists
+    if (userType === 'individual' || userType === 'client' || userType === 'therapist') {
+      console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login) for user type:', userType);
       setShowOnboarding(true);
     } else {
       setOnboardingChecked(true);
@@ -411,13 +411,14 @@ export default function Dashboard() {
     );
   }
 
-  // Show onboarding questionnaire if not yet completed (only for individual users)
+  // Show onboarding questionnaire for individuals, clients, and therapists
   if (showOnboarding) {
     return <OnboardingQuestionnaire userId={userId} onComplete={handleOnboardingCompleted} />;
   }
 
   // Wait for onboarding check to complete before showing dashboard
-  if (!onboardingChecked && !showOnboarding && userType === 'individual') {
+  const shouldShowOnboarding = userType === 'individual' || userType === 'client' || userType === 'therapist';
+  if (!onboardingChecked && !showOnboarding && shouldShowOnboarding) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="text-center">
