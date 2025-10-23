@@ -32,6 +32,18 @@ export const userProfiles = pgTable("user_profiles", {
   promo_code: varchar("promo_code", { length: 50 }),
   promo_discount_expires_at: timestamp("promo_discount_expires_at"),
   consent_accepted_at: timestamp("consent_accepted_at", { withTimezone: true }),
+  last_onboarding_completed_at: timestamp("last_onboarding_completed_at", { withTimezone: true }),
+});
+
+// User onboarding responses table
+export const userOnboardingResponses = pgTable("user_onboarding_responses", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  voice_response: text("voice_response"),
+  journey_response: text("journey_response"),
+  was_skipped: boolean("was_skipped").default(false),
+  session_number: integer("session_number").default(1),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 // Subscriptions table - FIXED to reference users.id
@@ -416,6 +428,7 @@ export const insertTherapeuticMovementSchema = createInsertSchema(therapeuticMov
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;
+export type UserOnboardingResponse = typeof userOnboardingResponses.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type UsageSession = typeof usageSessions.$inferSelect;
 export type TherapistClientRelationship = typeof therapistClientRelationships.$inferSelect;

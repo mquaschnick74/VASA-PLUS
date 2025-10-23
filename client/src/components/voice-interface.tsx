@@ -19,6 +19,13 @@ interface VoiceInterfaceProps {
   hideLogoutButton?: boolean;
 }
 
+interface OnboardingData {
+  voice: string;
+  journey: string;
+  completedAt: string;
+  wasSkipped: boolean;
+}
+
 interface UserContext {
   profile: any;
   memoryContext: string;
@@ -29,6 +36,7 @@ interface UserContext {
   firstName: string;
   sessionCount: number;
   sessionDurationLimit?: number;
+  onboarding?: OnboardingData | null;
 }
 
 export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: VoiceInterfaceProps) {
@@ -56,7 +64,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     shouldReferenceLastSession: userContext?.shouldReferenceLastSession || false,
     firstName: userContext?.firstName || 'there',
     selectedAgent: selectedAgent!,
-    sessionDurationLimit: sessionDurationLimit // Pass the duration limit to useVapi
+    sessionDurationLimit: sessionDurationLimit,
+    onboarding: userContext?.onboarding || null
   });
 
   // ADD subscription hook

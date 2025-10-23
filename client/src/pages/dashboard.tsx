@@ -6,6 +6,7 @@ import Authentication from '@/components/authentication';
 import VoiceInterface from '@/components/voice-interface';
 import ClientDashboard from '@/pages/client-dashboard';
 import ConsentPopup from '@/components/ConsentPopup';
+import OnboardingQuestionnaire from '@/components/OnboardingQuestionnaire';
 import TherapistDashboard from '@/pages/therapist-dashboard';
 import PartnerDashboard from '@/pages/partner-dashboard';
 import InfluencerDashboard from '@/pages/influencer-dashboard';
@@ -21,6 +22,8 @@ export default function Dashboard() {
   const [message, setMessage] = useState<string | null>(null);
   const [showConsent, setShowConsent] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
   const authListenerRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
@@ -61,7 +64,7 @@ export default function Dashboard() {
         // Get user profile to determine type
         const { data: profile } = await supabase
         .from('user_profiles')
-        .select('user_type, email, consent_accepted_at')
+        .select('user_type, email, consent_accepted_at, last_onboarding_completed_at')
         .eq('id', user.id)
         .single();
 
@@ -82,6 +85,15 @@ export default function Dashboard() {
             } else {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
+
+              // SHOW ONBOARDING EVERY TIME - For individuals, clients, and therapists
+              if (detectedType === 'individual' || detectedType === 'client' || detectedType === 'therapist') {
+                console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login) for user type:', detectedType);
+                setShowOnboarding(true);
+              } else {
+                console.log('✅ [DASHBOARD] Onboarding not required for user type:', detectedType);
+                setOnboardingChecked(true);
+              }
             }
           }
         }
@@ -289,10 +301,25 @@ export default function Dashboard() {
   }, [userId]);
 
   // Handle consent acceptance
-  const handleConsentAccepted = () => {
+  const handleConsentAccepted = async () => {
     console.log('✅ [DASHBOARD] Consent accepted');
     setShowConsent(false);
     setConsentChecked(true);
+
+    // Show onboarding every time for individuals, clients, and therapists
+    if (userType === 'individual' || userType === 'client' || userType === 'therapist') {
+      console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login) for user type:', userType);
+      setShowOnboarding(true);
+    } else {
+      setOnboardingChecked(true);
+    }
+  };
+
+  // Handle onboarding completion
+  const handleOnboardingCompleted = () => {
+    console.log('✅ [DASHBOARD] Onboarding completed');
+    setShowOnboarding(false);
+    setOnboardingChecked(true);
   };
 
   // ============================================================================
@@ -379,6 +406,24 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Checking account status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show onboarding questionnaire for individuals, clients, and therapists
+  if (showOnboarding) {
+    return <OnboardingQuestionnaire userId={userId} onComplete={handleOnboardingCompleted} />;
+  }
+
+  // Wait for onboarding check to complete before showing dashboard
+  const shouldShowOnboarding = userType === 'individual' || userType === 'client' || userType === 'therapist';
+  if (!onboardingChecked && !showOnboarding && shouldShowOnboarding) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Preparing your experience...</p>
         </div>
       </div>
     );
