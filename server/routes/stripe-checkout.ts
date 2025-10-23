@@ -142,4 +142,181 @@ router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res)
   }
 });
 
+// Sync subscription from Stripe - fallback for when webhooks fail
+router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    // Step 1: Get Supabase auth user ID
+    const auth_user_id = req.user?.id;
+    const auth_email = req.user?.email;
+
+    if (!auth_user_id || !auth_email) {
+      console.error('❌ No auth user ID or email in request');
+      return res.status(401).json({
+        error: 'Authentication required'
+      });
+    }
+
+    console.log('🔄 Syncing subscription from Stripe for auth user:', auth_user_id);
+
+    // Step 2: Look up the INTERNAL user profile ID
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', auth_email)
+      .single();
+
+    if (profileError || !userProfile) {
+      console.error('❌ User profile not found for email:', auth_email, profileError);
+      return res.status(404).json({
+        error: 'User profile not found'
+      });
+    }
+
+    const internal_user_id = userProfile.id;
+    const userType = userProfile.user_type || 'individual';
+    console.log('✅ Found internal user ID:', internal_user_id);
+
+    // Step 3: Get current subscription to find stripe_customer_id
+    const { data: currentSub, error: subError } = await supabase
+      .from('subscriptions')
+      .select('stripe_customer_id, stripe_subscription_id')
+      .eq('user_id', internal_user_id)
+      .single();
+
+    if (subError || !currentSub) {
+      console.error('❌ No subscription found for user:', internal_user_id);
+      return res.status(404).json({
+        error: 'No subscription record found'
+      });
+    }
+
+    if (!currentSub.stripe_customer_id) {
+      console.error('❌ No Stripe customer ID found for user:', internal_user_id);
+      return res.status(404).json({
+        error: 'No Stripe customer ID found. User may not have upgraded yet.'
+      });
+    }
+
+    console.log('✅ Found Stripe customer:', currentSub.stripe_customer_id);
+
+    // Step 4: Fetch subscriptions from Stripe
+    const subscriptions = await stripe.subscriptions.list({
+      customer: currentSub.stripe_customer_id,
+      status: 'all',
+      limit: 10,
+    });
+
+    if (!subscriptions.data.length) {
+      console.error('❌ No subscriptions found in Stripe for customer:', currentSub.stripe_customer_id);
+      return res.status(404).json({
+        error: 'No subscriptions found in Stripe for this customer'
+      });
+    }
+
+    // Find the active or most recent subscription
+    const activeSubscription = subscriptions.data.find(sub => sub.status === 'active')
+      || subscriptions.data[0];
+
+    console.log('📊 Found Stripe subscription:', {
+      id: activeSubscription.id,
+      status: activeSubscription.status,
+      current_period_end: activeSubscription.current_period_end,
+    });
+
+    // Step 5: Get product metadata from the subscription
+    let tier = 'intro';
+    let minutesLimit = 45;
+    let planType = 'recurring';
+
+    try {
+      const priceId = activeSubscription.items.data[0]?.price?.id;
+      if (priceId) {
+        const price = await stripe.prices.retrieve(priceId);
+        if (price.product) {
+          const product = await stripe.products.retrieve(price.product as string);
+          const metadata = product.metadata || {};
+
+          console.log('📦 Product metadata:', metadata);
+
+          tier = metadata.tier || 'intro';
+          minutesLimit = parseInt(metadata.minutes_limit) || 45;
+          planType = metadata.plan_type || 'recurring';
+        }
+      }
+    } catch (fetchError) {
+      console.error('⚠️ Failed to fetch product metadata, using defaults:', fetchError);
+    }
+
+    // Apply therapist-specific limits if needed
+    if (userType === 'therapist') {
+      if (tier === 'premium') {
+        minutesLimit = 600; // 10 hours
+      } else if (tier === 'basic') {
+        minutesLimit = 180; // 3 hours
+      }
+    }
+
+    // Calculate client limit for therapists
+    let clientLimit: number = 0;
+    if (userType === 'therapist') {
+      clientLimit = tier === 'premium' ? 10 : 3;
+    }
+
+    // Map Stripe status to our status
+    let status = 'active';
+    if (activeSubscription.status === 'canceled') status = 'canceled';
+    else if (activeSubscription.status === 'past_due') status = 'past_due';
+    else if (activeSubscription.status === 'unpaid') status = 'expired';
+
+    console.log('💾 Updating subscription in database:', {
+      tier,
+      status,
+      minutesLimit,
+      planType,
+    });
+
+    // Step 6: Update subscription in database
+    const { error: updateError } = await supabase
+      .from('subscriptions')
+      .update({
+        stripe_subscription_id: activeSubscription.id,
+        subscription_tier: tier,
+        subscription_status: status,
+        plan_type: planType,
+        trial_ends_at: null,
+        usage_minutes_limit: minutesLimit,
+        client_limit: clientLimit,
+        current_period_end: new Date(activeSubscription.current_period_end * 1000),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', internal_user_id);
+
+    if (updateError) {
+      console.error('❌ Failed to update subscription:', updateError);
+      return res.status(500).json({
+        error: 'Failed to update subscription in database'
+      });
+    }
+
+    console.log('✅ Subscription synced successfully');
+
+    res.json({
+      success: true,
+      message: 'Subscription synced successfully',
+      subscription: {
+        tier,
+        status,
+        stripe_subscription_id: activeSubscription.id,
+        stripe_customer_id: currentSub.stripe_customer_id,
+        current_period_end: new Date(activeSubscription.current_period_end * 1000),
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error syncing subscription:', error);
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
 export default router;
