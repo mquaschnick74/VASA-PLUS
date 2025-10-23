@@ -77,6 +77,21 @@ export const usageSessions = pgTable("usage_sessions", {
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+// Stripe webhook events table - for audit trail and debugging
+export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  stripe_event_id: varchar("stripe_event_id").unique(), // Stripe's event ID (evt_...)
+  event_type: varchar("event_type", { length: 100 }).notNull(), // e.g., "checkout.session.completed"
+  event_data: jsonb("event_data").notNull(), // Full event payload
+  processing_status: varchar("processing_status", { length: 20 }).default('pending'), // 'pending', 'success', 'failed', 'retrying'
+  error_message: text("error_message"), // Error details if processing failed
+  retry_count: integer("retry_count").default(0),
+  user_id: uuid("user_id").references(() => users.id), // Extracted user_id if available
+  stripe_customer_id: varchar("stripe_customer_id"), // Extracted customer_id if available
+  processed_at: timestamp("processed_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 // Therapist-client relationships - FIXED to reference users.id
 export const therapistClientRelationships = pgTable("therapist_client_relationships", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
