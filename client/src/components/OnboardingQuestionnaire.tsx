@@ -64,18 +64,18 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-purple-900 via-blue-900 to-teal-900 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-[#0f0f1a] overflow-y-auto">
       {/* Close button */}
       <button
         onClick={handleSkip}
         disabled={isSubmitting}
-        className="absolute top-4 right-4 text-white hover:text-emerald-300 transition-colors duration-200 p-2 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="absolute top-4 right-4 text-white hover:text-emerald-400 transition-colors duration-200 p-2 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Skip onboarding"
       >
         <X size={32} />
       </button>
 
-      {/* Main content */}
+      {/* Main content - centered */}
       <div className="min-h-screen flex items-center justify-center p-8">
         <div className="max-w-4xl w-full space-y-12">
           {/* Error display */}
@@ -86,60 +86,70 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
           )}
 
           {/* Section 1: Your Voice */}
-          <div className="space-y-6">
-            <h2 className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-medium">
+          <div className="space-y-6 text-center">
+            <h2 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-medium">
               Your Voice.
             </h2>
 
-            <TypewriterQuestion
-              questions={voiceQuestions}
-              intervalMs={2000}
-              className="text-lg md:text-xl min-h-[40px]"
-            />
+            <div className="flex justify-center">
+              <TypewriterQuestion
+                questions={voiceQuestions}
+                intervalMs={2000}
+                className="text-lg md:text-xl min-h-[40px]"
+              />
+            </div>
 
-            <textarea
-              value={voiceResponse}
-              onChange={(e) => setVoiceResponse(e.target.value)}
-              placeholder="Type your thoughts here... or leave blank"
-              disabled={isSubmitting}
-              className="w-full h-32 p-4 bg-white/10 border-2 border-emerald-500/50
-                       rounded-lg text-white placeholder-emerald-200/50
-                       focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/50
-                       focus:outline-none transition-all duration-200
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       resize-none"
-            />
+            <div className="flex justify-center">
+              <textarea
+                value={voiceResponse}
+                onChange={(e) => setVoiceResponse(e.target.value)}
+                placeholder="Type your thoughts here... or leave blank"
+                disabled={isSubmitting}
+                className="w-full max-w-2xl h-32 p-4 bg-white rounded-lg
+                         text-gray-900 placeholder-gray-400
+                         border-2 border-transparent
+                         focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20
+                         focus:outline-none transition-all duration-200
+                         disabled:opacity-50 disabled:cursor-not-allowed
+                         resize-none"
+              />
+            </div>
           </div>
 
           {/* Section 2: Your Journey */}
-          <div className="space-y-6">
-            <h2 className="text-emerald-500 text-4xl md:text-5xl lg:text-6xl font-semibold">
+          <div className="space-y-6 text-center">
+            <h2 className="text-emerald-400 text-4xl md:text-5xl lg:text-6xl font-semibold">
               Your Journey.
             </h2>
 
-            <TypewriterQuestion
-              questions={journeyQuestions}
-              intervalMs={2000}
-              className="text-lg md:text-xl min-h-[40px]"
-            />
+            <div className="flex justify-center">
+              <TypewriterQuestion
+                questions={journeyQuestions}
+                intervalMs={2000}
+                className="text-lg md:text-xl min-h-[40px]"
+              />
+            </div>
 
-            <textarea
-              value={journeyResponse}
-              onChange={(e) => setJourneyResponse(e.target.value)}
-              placeholder="Share your journey... or leave blank"
-              disabled={isSubmitting}
-              className="w-full h-32 p-4 bg-white/10 border-2 border-emerald-500/50
-                       rounded-lg text-white placeholder-emerald-200/50
-                       focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/50
-                       focus:outline-none transition-all duration-200
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       resize-none"
-            />
+            <div className="flex justify-center">
+              <textarea
+                value={journeyResponse}
+                onChange={(e) => setJourneyResponse(e.target.value)}
+                placeholder="Share your journey... or leave blank"
+                disabled={isSubmitting}
+                className="w-full max-w-2xl h-32 p-4 bg-white rounded-lg
+                         text-gray-900 placeholder-gray-400
+                         border-2 border-transparent
+                         focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20
+                         focus:outline-none transition-all duration-200
+                         disabled:opacity-50 disabled:cursor-not-allowed
+                         resize-none"
+              />
+            </div>
           </div>
 
           {/* Section 3: Motivational Closer */}
-          <div className="space-y-8">
-            <h2 className="text-emerald-500 text-5xl md:text-6xl lg:text-8xl font-bold leading-tight">
+          <div className="space-y-8 text-center">
+            <h2 className="text-emerald-400 text-4xl md:text-5xl lg:text-7xl font-bold leading-tight">
               Let's see what we can do to make this happen more or NEVER again!
             </h2>
 
