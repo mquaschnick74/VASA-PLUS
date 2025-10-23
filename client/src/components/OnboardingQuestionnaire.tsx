@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { TypewriterQuestion } from './TypewriterQuestion';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 
@@ -26,6 +25,30 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
   const [journeyResponse, setJourneyResponse] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Synchronized question rotation
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    // Start visible
+    setIsVisible(true);
+
+    // After 4 seconds, fade out
+    const fadeOutTimer = setTimeout(() => {
+      setIsVisible(false);
+    }, 4000);
+
+    // After fade completes (4000ms + 1000ms fade), change question and fade in
+    const changeQuestionTimer = setTimeout(() => {
+      setCurrentQuestionIndex((prev) => (prev + 1) % voiceQuestions.length);
+    }, 5000);
+
+    return () => {
+      clearTimeout(fadeOutTimer);
+      clearTimeout(changeQuestionTimer);
+    };
+  }, [currentQuestionIndex]);
 
   const handleSubmit = async (wasSkipped: boolean = false) => {
     setIsSubmitting(true);
@@ -92,27 +115,40 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
             </h2>
 
             <div className="flex justify-center">
-              <TypewriterQuestion
-                questions={voiceQuestions}
-                intervalMs={2000}
-                className="text-lg md:text-xl min-h-[40px]"
-              />
-            </div>
+              <div className="relative w-full max-w-2xl">
+                {/* Rotating question overlay */}
+                {!voiceResponse && (
+                  <div className="absolute inset-0 pointer-events-none flex items-start justify-start p-4 z-10">
+                    <p 
+                      className={`text-emerald-400 italic font-light text-lg md:text-xl transition-opacity duration-1000 ${
+                        isVisible ? 'opacity-100' : 'opacity-0'
+                      }`}
+                    >
+                      {voiceQuestions[currentQuestionIndex]}
+                    </p>
+                  </div>
+                )}
 
-            <div className="flex justify-center">
-              <textarea
-                value={voiceResponse}
-                onChange={(e) => setVoiceResponse(e.target.value)}
-                placeholder="Type your thoughts here... or leave blank"
-                disabled={isSubmitting}
-                className="w-full max-w-2xl h-32 p-4 bg-white rounded-lg
-                         text-gray-900 placeholder-gray-400
-                         border-2 border-transparent
-                         focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20
-                         focus:outline-none transition-all duration-200
-                         disabled:opacity-50 disabled:cursor-not-allowed
-                         resize-none"
-              />
+                <textarea
+                  value={voiceResponse}
+                  onChange={(e) => setVoiceResponse(e.target.value)}
+                  placeholder=""
+                  disabled={isSubmitting}
+                  className="w-full h-32 p-4 rounded-lg
+                           text-emerald-400 placeholder-transparent
+                           bg-[#1a1a2e]
+                           border border-emerald-500/30
+                           focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20
+                           focus:outline-none transition-all duration-200
+                           disabled:opacity-50 disabled:cursor-not-allowed
+                           resize-none
+                           shadow-[0_0_20px_rgba(16,185,129,0.15)]
+                           focus:shadow-[0_0_30px_rgba(16,185,129,0.25)]"
+                  style={{
+                    boxShadow: '0 0 20px rgba(16, 185, 129, 0.15), 0 0 40px rgba(16, 185, 129, 0.1)'
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -123,34 +159,47 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
             </h2>
 
             <div className="flex justify-center">
-              <TypewriterQuestion
-                questions={journeyQuestions}
-                intervalMs={2000}
-                className="text-lg md:text-xl min-h-[40px]"
-              />
-            </div>
+              <div className="relative w-full max-w-2xl">
+                {/* Rotating question overlay */}
+                {!journeyResponse && (
+                  <div className="absolute inset-0 pointer-events-none flex items-start justify-start p-4 z-10">
+                    <p 
+                      className={`text-emerald-400 italic font-light text-lg md:text-xl transition-opacity duration-1000 ${
+                        isVisible ? 'opacity-100' : 'opacity-0'
+                      }`}
+                    >
+                      {journeyQuestions[currentQuestionIndex]}
+                    </p>
+                  </div>
+                )}
 
-            <div className="flex justify-center">
-              <textarea
-                value={journeyResponse}
-                onChange={(e) => setJourneyResponse(e.target.value)}
-                placeholder="Share your journey... or leave blank"
-                disabled={isSubmitting}
-                className="w-full max-w-2xl h-32 p-4 bg-white rounded-lg
-                         text-gray-900 placeholder-gray-400
-                         border-2 border-transparent
-                         focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20
-                         focus:outline-none transition-all duration-200
-                         disabled:opacity-50 disabled:cursor-not-allowed
-                         resize-none"
-              />
+                <textarea
+                  value={journeyResponse}
+                  onChange={(e) => setJourneyResponse(e.target.value)}
+                  placeholder=""
+                  disabled={isSubmitting}
+                  className="w-full h-32 p-4 rounded-lg
+                           text-emerald-400 placeholder-transparent
+                           bg-[#1a1a2e]
+                           border border-emerald-500/30
+                           focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20
+                           focus:outline-none transition-all duration-200
+                           disabled:opacity-50 disabled:cursor-not-allowed
+                           resize-none
+                           shadow-[0_0_20px_rgba(16,185,129,0.15)]
+                           focus:shadow-[0_0_30px_rgba(16,185,129,0.25)]"
+                  style={{
+                    boxShadow: '0 0 20px rgba(16, 185, 129, 0.15), 0 0 40px rgba(16, 185, 129, 0.1)'
+                  }}
+                />
+              </div>
             </div>
           </div>
 
           {/* Section 3: Motivational Closer */}
           <div className="space-y-8 text-center">
             <h2 className="text-emerald-400 text-4xl md:text-5xl lg:text-7xl font-bold leading-tight">
-              Let's see what we can do to make this happen more or NEVER again!
+              Let's see what we can do to make this happen MORE or NEVER again!
             </h2>
 
             {/* Submit button */}
@@ -161,7 +210,9 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
                 className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold
                          py-6 px-12 rounded-lg text-xl
                          transition-all duration-200 transform hover:scale-105
-                         disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                         disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                         shadow-[0_0_20px_rgba(16,185,129,0.3)]
+                         hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]"
               >
                 {isSubmitting ? 'Submitting...' : 'Submit'}
               </Button>
