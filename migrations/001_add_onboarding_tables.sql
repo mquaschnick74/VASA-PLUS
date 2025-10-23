@@ -23,15 +23,28 @@ CREATE INDEX IF NOT EXISTS idx_onboarding_user_id ON user_onboarding_responses(u
 -- Enable Row Level Security
 ALTER TABLE user_onboarding_responses ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (to allow re-running)
+DROP POLICY IF EXISTS "Users can view own onboarding responses" ON user_onboarding_responses;
+DROP POLICY IF EXISTS "Users can insert own onboarding responses" ON user_onboarding_responses;
+
 -- RLS Policy: Users can only view their own onboarding responses
-CREATE POLICY IF NOT EXISTS "Users can view own onboarding responses"
+-- IMPORTANT: We check through the users table since user_id references users.id, not auth.uid()
+CREATE POLICY "Users can view own onboarding responses"
   ON user_onboarding_responses FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (
+    user_id IN (
+      SELECT id FROM users WHERE auth_user_id = auth.uid()
+    )
+  );
 
 -- RLS Policy: Users can only insert their own onboarding responses
-CREATE POLICY IF NOT EXISTS "Users can insert own onboarding responses"
+CREATE POLICY "Users can insert own onboarding responses"
   ON user_onboarding_responses FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (
+    user_id IN (
+      SELECT id FROM users WHERE auth_user_id = auth.uid()
+    )
+  );
 
 -- Comment the table for documentation
 COMMENT ON TABLE user_onboarding_responses IS 'Stores user responses from the onboarding questionnaire shown after consent acceptance';
