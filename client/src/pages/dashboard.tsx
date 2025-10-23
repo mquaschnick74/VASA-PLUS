@@ -86,10 +86,18 @@ export default function Dashboard() {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
 
-              // SHOW ONBOARDING EVERY TIME - For individuals, clients, and therapists
+              // SHOW ONBOARDING - For individuals, clients, and therapists
+              // Check sessionStorage to prevent repeated showing during navigation
+              const onboardingCompletedThisSession = sessionStorage.getItem('onboarding_completed_this_session');
+
               if (detectedType === 'individual' || detectedType === 'client' || detectedType === 'therapist') {
-                console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login) for user type:', detectedType);
-                setShowOnboarding(true);
+                if (onboardingCompletedThisSession === 'true') {
+                  console.log('✅ [DASHBOARD] Onboarding already completed this session, skipping');
+                  setOnboardingChecked(true);
+                } else {
+                  console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire for user type:', detectedType);
+                  setShowOnboarding(true);
+                }
               } else {
                 console.log('✅ [DASHBOARD] Onboarding not required for user type:', detectedType);
                 setOnboardingChecked(true);
@@ -306,10 +314,18 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // Show onboarding every time for individuals, clients, and therapists
+    // Show onboarding for individuals, clients, and therapists
+    // Check sessionStorage to prevent repeated showing during navigation
+    const onboardingCompletedThisSession = sessionStorage.getItem('onboarding_completed_this_session');
+
     if (userType === 'individual' || userType === 'client' || userType === 'therapist') {
-      console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire (shown every login) for user type:', userType);
-      setShowOnboarding(true);
+      if (onboardingCompletedThisSession === 'true') {
+        console.log('✅ [DASHBOARD] Onboarding already completed this session, skipping');
+        setOnboardingChecked(true);
+      } else {
+        console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire for user type:', userType);
+        setShowOnboarding(true);
+      }
     } else {
       setOnboardingChecked(true);
     }
@@ -318,6 +334,8 @@ export default function Dashboard() {
   // Handle onboarding completion
   const handleOnboardingCompleted = () => {
     console.log('✅ [DASHBOARD] Onboarding completed');
+    // Set sessionStorage flag to prevent re-showing during navigation
+    sessionStorage.setItem('onboarding_completed_this_session', 'true');
     setShowOnboarding(false);
     setOnboardingChecked(true);
   };
