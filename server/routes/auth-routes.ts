@@ -609,22 +609,36 @@ router.post('/complete-onboarding', authenticateToken, async (req: AuthRequest, 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Insert onboarding response (allows empty values)
-    const { data: onboardingData, error: insertError } = await supabase
-      .from('user_onboarding_responses')
-      .insert({
-        user_id: userId,
-        voice_response: voiceResponse,
-        journey_response: journeyResponse,
-        was_skipped: wasSkipped,
-        session_number: 1
-      })
-      .select()
-      .single();
+    // Check if responses contain actual content
+    const hasVoiceContent = voiceResponse && voiceResponse.trim().length > 0;
+    const hasJourneyContent = journeyResponse && journeyResponse.trim().length > 0;
+    const hasAnyContent = hasVoiceContent || hasJourneyContent;
 
-    if (insertError) {
-      console.error('Error inserting onboarding response:', insertError);
-      throw insertError;
+    let onboardingId = null;
+
+    // Only insert to database if user provided actual content
+    if (hasAnyContent) {
+      const { data: onboardingData, error: insertError } = await supabase
+        .from('user_onboarding_responses')
+        .insert({
+          user_id: userId,
+          voice_response: voiceResponse,
+          journey_response: journeyResponse,
+          was_skipped: wasSkipped,
+          session_number: 1
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error inserting onboarding response:', insertError);
+        throw insertError;
+      }
+
+      onboardingId = onboardingData.id;
+      console.log(`✅ Onboarding saved to database for user ${userId}`);
+    } else {
+      console.log(`⏭️ Skipping database insert - no content provided (user ${userId}, skipped: ${wasSkipped})`);
     }
 
     // Update user profile timestamp
@@ -641,12 +655,13 @@ router.post('/complete-onboarding', authenticateToken, async (req: AuthRequest, 
       throw updateError;
     }
 
-    console.log(`✅ Onboarding completed for user ${userId} (skipped: ${wasSkipped})`);
+    console.log(`✅ Onboarding completed for user ${userId} (content saved: ${hasAnyContent})`);
 
     res.json({
       success: true,
       message: 'Onboarding completed successfully',
-      onboardingId: onboardingData.id
+      onboardingId: onboardingId,
+      savedToDatabase: hasAnyContent
     });
   } catch (error) {
     console.error('Error completing onboarding:', error);

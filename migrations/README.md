@@ -72,5 +72,9 @@ This data is then injected into the AI agent's first prompt to personalize the i
 - Typewriter effect for rotating questions
 - No validation - empty submissions allowed
 - X button to skip entirely
-- Only shown to individual users (not therapists, partners, etc.)
-- Currently shows once per user (easily configurable for recurring)
+- Shown to individuals, clients, and therapists
+- Shows once per login session (uses sessionStorage to prevent re-showing during navigation)
+- **Smart Database Saves**: Only saves to database when users provide actual content
+  - Empty/skipped responses are NOT saved to database
+  - Keeps database clean with only meaningful responses
+  - Still updates timestamp to track completion
