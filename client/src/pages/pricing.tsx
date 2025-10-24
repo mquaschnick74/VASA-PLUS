@@ -349,7 +349,7 @@ export default function Pricing() {
                 </div>
                 <h3 className="font-semibold mb-2">AI Voice Agents</h3>
                 <p className="text-sm text-muted-foreground">
-                  Choose between Sarah (emotional support) and Mathew (analytical guidance) for personalized conversations.
+                  Choose from four specialized AI agents, each with unique voice characteristics and therapeutic approaches for personalized conversations.
                 </p>
               </CardContent>
             </Card>

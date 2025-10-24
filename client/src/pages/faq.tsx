@@ -33,7 +33,7 @@ export default function FAQPage() {
       },
       {
         q: "Which AI voice agents are available?",
-        a: "VASA offers two specialized AI therapeutic agents: Sarah (empathetic and nurturing companion) and Mathew (analytical pattern recognition specialist). Each agent maintains conversation memory and provides continuity across your sessions."
+        a: "VASA offers four specialized AI therapeutic agents, each with unique voice characteristics and therapeutic approaches. All agents maintain conversation memory and provide continuity across your sessions."
       },
       {
         q: "Do the AI agents remember our previous conversations?",
@@ -71,7 +71,7 @@ export default function FAQPage() {
       },
       {
         q: "Can I use VASA for my own therapy sessions?",
-        a: "Absolutely! Therapists have full access to both AI voice agents (Sarah and Mathew), personal voice sessions with memory persistence, your own therapeutic journey tracking, and private session storage separate from client data."
+        a: "Absolutely! Therapists have full access to all four specialized AI voice agents, personal voice sessions with memory persistence, your own therapeutic journey tracking, and private session storage separate from client data."
       },
       {
         q: "How do I track client progress?",
@@ -85,7 +85,7 @@ export default function FAQPage() {
       },
       {
         q: "Which AI agents can I access as a client?",
-        a: "Clients have full access to both AI therapeutic agents: Sarah (empathetic companion) and Mathew (analytical specialist). Each maintains conversation memory and continuity across your sessions."
+        a: "Clients have full access to all four specialized AI therapeutic agents. Each maintains conversation memory and continuity across your sessions, allowing you to choose the agent that best fits your needs."
       },
       {
         q: "Can my therapist see everything I discuss in sessions?",

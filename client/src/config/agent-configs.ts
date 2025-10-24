@@ -312,6 +312,42 @@ ${VASA_SYSTEM_PROMPT}`,
         ? `Hello ${firstName}. What's been present for you since we last spoke?`
         : `Hello ${firstName}, I'm Mathew. I would like to walk you through some very important steps.  Do you have any questions, otherwise, I do: How are you doing??`;
     }
+  },
+
+  {
+    id: 'marcus',
+    name: 'Marcus',
+    description: 'VASA therapeutic voice assistant',
+    icon: '👨🏾‍🦳',
+    color: 'orange',
+    model: { temperature: 0.8, model: 'gpt-4o' },
+    voice: { provider: '11labs', voiceId: 'ErXwobaYiN019PkySvjV', stability: 0.85, speed: 0.9 },
+    systemPrompt: `Your proper name is **Marcus**.
+
+${VASA_SYSTEM_PROMPT}`,
+    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
+      return hasMemory
+        ? `Hello ${firstName}. What's been present for you since we last spoke?`
+        : `Hello ${firstName}, I'm Marcus. I would like to walk you through some very important steps.  Do you have any questions, otherwise, I do: How are you doing?`;
+    }
+  },
+
+  {
+    id: 'zhanna',
+    name: 'Zhanna',
+    description: 'VASA therapeutic voice assistant',
+    icon: '👩🏾‍🦱',
+    color: 'amber',
+    model: { temperature: 0.85, model: 'gpt-4o' },
+    voice: { provider: '11labs', voiceId: 'Qggl4b0xRMiqOwhPtVWT', stability: 0.7, speed: 0.9 },
+    systemPrompt: `Your proper name is **Zhanna**.
+
+${VASA_SYSTEM_PROMPT}`,
+    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
+      return hasMemory
+        ? `Hello ${firstName}. What's been present for you since we last spoke?`
+        : `Hello ${firstName}, I'm Zhanna. I would like to walk you through some very important steps.  Do you have any questions, otherwise, I do: How are you doing?`;
+    }
   }
 ];
 
