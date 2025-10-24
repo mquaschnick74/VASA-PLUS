@@ -30,7 +30,21 @@ export default function Dashboard() {
   const lastEventRef = useRef<string>('');
 
   const ensureUserProfile = async (session: any) => {
-    const token = session.access_token;
+    // Try to get current session first
+    let freshSession = session;
+    
+    // If no session passed or session might be stale, get fresh one
+    if (!freshSession) {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      freshSession = currentSession;
+    }
+    
+    if (!freshSession || !freshSession.user?.email) {
+      console.error('❌ [DASHBOARD] No valid session found');
+      return null;
+    }
+
+    const token = freshSession.access_token;
 
     try {
       const apiUrl = '/api/auth/user';
@@ -43,10 +57,10 @@ export default function Dashboard() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          email: session.user.email,
-          firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
-          authUserId: session.user.id,
-          userType: session.user.user_metadata?.user_type || 'individual'
+          email: freshSession.user.email,
+          firstName: freshSession.user.user_metadata?.first_name || freshSession.user.email.split('@')[0],
+          authUserId: freshSession.user.id,
+          userType: freshSession.user.user_metadata?.user_type || 'individual'
         })
       });
 

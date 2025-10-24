@@ -218,6 +218,30 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           similarityBoost: 0.75,
           speed: selectedAgent.voice.speed || 1.0
         },
+        // 🎯 NEW: Therapeutic Speech Configuration
+        // These settings make VASA more patient and harder to interrupt accidentally
+        startSpeakingPlan: {
+          waitSeconds: 1.2,  // Wait 1.2s after user stops (vs 0.4s default)
+          smartEndpointingEnabled: true,  // Enable AI detection of incomplete thoughts
+          // Use LiveKit for sophisticated English conversation analysis
+          smartEndpointingPlan: {
+            provider: 'livekit'
+            // Uses default waitFunction: 200 + 8000 * x
+            // Where x = probability user is still speaking (0=done, 1=speaking)
+          },
+          // Fine-tune waiting based on what user said
+          transcriptionEndpointingPlan: {
+            onNumberSeconds: 1.0,          // Wait 1.0s after numbers (addresses, dates, etc.)
+            onPunctuationSeconds: 0.5,     // Wait 0.5s after punctuation
+            onNoPunctuationSeconds: 2.5    // Wait 2.5s when trailing off without punctuation
+          }
+        },
+        // Make user harder to interrupt - requires deliberate speech
+        stopSpeakingPlan: {
+          numWords: 3,         // Requires 3 words to interrupt (vs 1 word default)
+          voiceSeconds: 0.5,   // Requires 0.5s of voice activity (vs 0.2s default)
+          backoffSeconds: 1.5  // After interruption, wait 1.5s before VASA can resume
+        },
         serverUrl: serverUrl,
         serverMessages: [
           "conversation-update",

@@ -6,6 +6,7 @@ import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-r
 import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
+import { TechnicalSupportCard } from './TechnicalSupportCard';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
@@ -85,13 +86,20 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
       setMemoryLoading(true);
       try {
-        const authToken = localStorage.getItem('authToken');
-        const headers: Record<string, string> = {
-          'Cache-Control': 'no-cache'
-        };
-        if (authToken) {
-          headers['Authorization'] = `Bearer ${authToken}`;
+        // Always get fresh session token
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+          console.error('❌ [VOICE] No valid session, signing out');
+          handleLogout(setUserId);
+          return;
         }
+
+        const authToken = session.access_token;
+        const headers: Record<string, string> = {
+          'Cache-Control': 'no-cache',
+          'Authorization': `Bearer ${authToken}`
+        };
 
         const response = await fetch(`/api/auth/user-context/${userId}`, {
           cache: 'no-store',
@@ -245,8 +253,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       // Stop the vapi session
       endSession();
 
-      // Send end session request with auth token
-      const authToken = localStorage.getItem('authToken');
+      // Get fresh auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+      
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       };
@@ -520,6 +530,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 </CardContent>
               </Card>
             )}
+
+            {/* Technical Support Card */}
+            <TechnicalSupportCard />
 
             {/* Agent Selection */}
             <AgentSelector 

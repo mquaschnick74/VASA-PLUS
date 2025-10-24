@@ -8,48 +8,39 @@ interface TypewriterQuestionProps {
 
 export function TypewriterQuestion({
   questions,
-  intervalMs = 2000,
+  intervalMs = 4000,
   className = ''
 }: TypewriterQuestionProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [displayedText, setDisplayedText] = useState('');
-  const [isTyping, setIsTyping] = useState(true);
+  const [isVisible, setIsVisible] = useState(true);
 
-  // Typewriter effect - types out one character at a time
   useEffect(() => {
-    const currentQuestion = questions[currentIndex];
-    let charIndex = 0;
-    setDisplayedText('');
-    setIsTyping(true);
+    // Start visible
+    setIsVisible(true);
 
-    const typingInterval = setInterval(() => {
-      if (charIndex < currentQuestion.length) {
-        setDisplayedText(currentQuestion.slice(0, charIndex + 1));
-        charIndex++;
-      } else {
-        setIsTyping(false);
-        clearInterval(typingInterval);
-      }
-    }, 50); // 50ms per character for smooth typing
+    // After displaying for intervalMs, fade out
+    const fadeOutTimer = setTimeout(() => {
+      setIsVisible(false);
+    }, intervalMs);
 
-    return () => clearInterval(typingInterval);
-  }, [currentIndex, questions]);
+    // After fade out completes, change to next question
+    const changeQuestionTimer = setTimeout(() => {
+      setCurrentIndex((prev) => (prev + 1) % questions.length);
+    }, intervalMs + 500); // 500ms is the fade duration
 
-  // Rotate to next question after interval
-  useEffect(() => {
-    if (!isTyping) {
-      const rotationTimer = setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % questions.length);
-      }, intervalMs);
-
-      return () => clearTimeout(rotationTimer);
-    }
-  }, [isTyping, intervalMs, questions.length]);
+    return () => {
+      clearTimeout(fadeOutTimer);
+      clearTimeout(changeQuestionTimer);
+    };
+  }, [currentIndex, intervalMs, questions.length]);
 
   return (
-    <p className={`text-emerald-300 italic font-light ${className}`}>
-      {displayedText}
-      <span className="animate-pulse ml-1">|</span>
+    <p 
+      className={`text-emerald-300 italic font-light transition-opacity duration-500 ${className} ${
+        isVisible ? 'opacity-90' : 'opacity-0'
+      }`}
+    >
+      {questions[currentIndex]}
     </p>
   );
 }

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TechnicalSupportCard } from '@/components/TechnicalSupportCard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { Link } from 'wouter';
@@ -298,6 +299,11 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Technical Support Card */}
+        <div className="mb-6">
+          <TechnicalSupportCard />
+        </div>
+
         {/* Partner Info Card */}
         <Card className="glass mb-6">
           <CardContent className="p-6">

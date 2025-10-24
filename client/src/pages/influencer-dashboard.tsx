@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { TechnicalSupportCard } from '@/components/TechnicalSupportCard';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { handleLogout } from '@/lib/auth-helpers';
 import { supabase } from '@/lib/supabaseClient';
@@ -214,6 +215,9 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
             </Button>
           </div>
         </div>
+
+        {/* Technical Support Card */}
+        <TechnicalSupportCard />
 
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

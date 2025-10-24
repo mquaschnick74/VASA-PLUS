@@ -6,13 +6,15 @@ const router = Router();
 
 // Stripe webhook endpoint - processes payment events
 router.post('/webhook', async (req, res) => {
+  let webhookEventId: string | null = null;
+
   try {
     const signature = req.headers['stripe-signature'] as string;
 
     // Verify webhook signature if secret is configured
     if (process.env.STRIPE_WEBHOOK_SECRET && signature) {
-      const payload = Buffer.isBuffer(req.body) 
-        ? req.body.toString('utf8') 
+      const payload = Buffer.isBuffer(req.body)
+        ? req.body.toString('utf8')
         : JSON.stringify(req.body);
 
       const expectedSignature = crypto
@@ -30,11 +32,31 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
-    const event = Buffer.isBuffer(req.body) 
-      ? JSON.parse(req.body.toString('utf8')) 
+    const event = Buffer.isBuffer(req.body)
+      ? JSON.parse(req.body.toString('utf8'))
       : req.body;
 
     console.log('💳 Stripe webhook received:', event.type);
+
+    // Log webhook event to database for audit trail
+    const { data: webhookLog, error: logError } = await supabase
+      .from('stripe_webhook_events')
+      .insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        event_data: event,
+        processing_status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (webhookLog) {
+      webhookEventId = webhookLog.id;
+    }
+
+    if (logError) {
+      console.error('⚠️ Failed to log webhook event (non-fatal):', logError);
+    }
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -157,8 +179,33 @@ router.post('/webhook', async (req, res) => {
 
         if (error) {
           console.error('❌ Failed to activate subscription:', error);
+          // Update webhook log as failed
+          if (webhookEventId) {
+            await supabase
+              .from('stripe_webhook_events')
+              .update({
+                processing_status: 'failed',
+                error_message: error.message || JSON.stringify(error),
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', webhookEventId);
+          }
+          // Return 500 so Stripe retries the webhook
+          return res.status(500).json({ error: 'Failed to activate subscription' });
         } else {
           console.log(`✅ Activated ${tier} ${planType} subscription for user ${userId} with ${minutesLimit} minutes`);
+          // Update webhook log as success
+          if (webhookEventId) {
+            await supabase
+              .from('stripe_webhook_events')
+              .update({
+                processing_status: 'success',
+                user_id: userId,
+                stripe_customer_id: session.customer as string,
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', webhookEventId);
+          }
         }
 
         // ============================================================================
@@ -285,8 +332,32 @@ router.post('/webhook', async (req, res) => {
 
         if (!error) {
           console.log(`✅ Updated subscription status to: ${status}`);
+          // Update webhook log as success
+          if (webhookEventId) {
+            await supabase
+              .from('stripe_webhook_events')
+              .update({
+                processing_status: 'success',
+                stripe_customer_id: subscription.customer as string,
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', webhookEventId);
+          }
         } else {
           console.error('❌ Failed to update subscription:', error);
+          // Update webhook log as failed
+          if (webhookEventId) {
+            await supabase
+              .from('stripe_webhook_events')
+              .update({
+                processing_status: 'failed',
+                error_message: error.message || JSON.stringify(error),
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', webhookEventId);
+          }
+          // Return 500 so Stripe retries the webhook
+          return res.status(500).json({ error: 'Failed to update subscription' });
         }
         break;
       }
@@ -307,19 +378,71 @@ router.post('/webhook', async (req, res) => {
 
         if (!error) {
           console.log(`✅ Marked subscription as canceled`);
+          // Update webhook log as success
+          if (webhookEventId) {
+            await supabase
+              .from('stripe_webhook_events')
+              .update({
+                processing_status: 'success',
+                stripe_customer_id: subscription.customer as string,
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', webhookEventId);
+          }
         } else {
           console.error('❌ Failed to mark subscription as canceled:', error);
+          // Update webhook log as failed
+          if (webhookEventId) {
+            await supabase
+              .from('stripe_webhook_events')
+              .update({
+                processing_status: 'failed',
+                error_message: error.message || JSON.stringify(error),
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', webhookEventId);
+          }
+          // Return 500 so Stripe retries the webhook
+          return res.status(500).json({ error: 'Failed to mark subscription as canceled' });
         }
         break;
       }
 
       default:
         console.log(`ℹ️ Unhandled webhook event: ${event.type}`);
+        // Mark unhandled events as success (we don't process them)
+        if (webhookEventId) {
+          await supabase
+            .from('stripe_webhook_events')
+            .update({
+              processing_status: 'success',
+              processed_at: new Date().toISOString(),
+            })
+            .eq('id', webhookEventId);
+        }
     }
 
     res.json({ received: true });
   } catch (error: any) {
     console.error('❌ Webhook processing error:', error);
+
+    // Update webhook log as failed if we have the ID
+    if (webhookEventId) {
+      try {
+        await supabase
+          .from('stripe_webhook_events')
+          .update({
+            processing_status: 'failed',
+            error_message: error.message || String(error),
+            processed_at: new Date().toISOString(),
+          })
+          .eq('id', webhookEventId);
+      } catch (logError) {
+        console.error('⚠️ Failed to update webhook log (non-fatal):', logError);
+      }
+    }
+
+    // Return 500 so Stripe retries the webhook
     res.status(500).json({ error: error.message });
   }
 });
