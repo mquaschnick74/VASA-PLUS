@@ -30,11 +30,17 @@ export default function Dashboard() {
   const lastEventRef = useRef<string>('');
 
   const ensureUserProfile = async (session: any) => {
-    // Always refresh session to get fresh token
-    const { data: { session: freshSession }, error: refreshError } = await supabase.auth.getSession();
+    // Try to get current session first
+    let freshSession = session;
     
-    if (refreshError || !freshSession || !freshSession.user.email) {
-      console.error('❌ [DASHBOARD] Failed to refresh session:', refreshError);
+    // If no session passed or session might be stale, get fresh one
+    if (!freshSession) {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      freshSession = currentSession;
+    }
+    
+    if (!freshSession || !freshSession.user?.email) {
+      console.error('❌ [DASHBOARD] No valid session found');
       return null;
     }
 
