@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import SubscriptionStatus from "@/components/SubscriptionStatus";
-import { TechnicalSupportCard } from "@/components/TechnicalSupportCard";
 import VoiceInterface from "@/components/voice-interface";
 import { supabase } from "@/lib/supabaseClient";
 import { handleLogout } from "@/lib/auth-helpers";
@@ -620,11 +619,6 @@ export default function TherapistDashboard({
           {/* Subscription Status Card - Full Width on Mobile */}
           <div className="md:col-span-2 lg:col-span-4">
             <SubscriptionStatus userId={userId} />
-          </div>
-
-          {/* Technical Support Card - Full Width */}
-          <div className="md:col-span-2 lg:col-span-4">
-            <TechnicalSupportCard />
           </div>
 
           <Card className="glass">

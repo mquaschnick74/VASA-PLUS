@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TechnicalSupportCard } from '@/components/TechnicalSupportCard';
 import VoiceInterface from '@/components/voice-interface';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
@@ -181,11 +180,6 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* Technical Support Card */}
-        <div className="mb-6">
-          <TechnicalSupportCard />
         </div>
 
         {/* Main Voice Interface */}

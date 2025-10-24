@@ -522,6 +522,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
               </Card>
             )}
 
+            {/* Technical Support Card */}
+            <TechnicalSupportCard />
+
             {/* Agent Selection */}
             <AgentSelector 
               selectedAgentId={selectedAgentId}
