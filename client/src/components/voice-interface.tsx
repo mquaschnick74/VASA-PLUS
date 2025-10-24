@@ -6,6 +6,7 @@ import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-r
 import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
+import { TechnicalSupportCard } from './TechnicalSupportCard';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
@@ -520,6 +521,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 </CardContent>
               </Card>
             )}
+
+            {/* Technical Support Card */}
+            <TechnicalSupportCard />
 
             {/* Agent Selection */}
             <AgentSelector 

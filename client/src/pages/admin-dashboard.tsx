@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TechnicalSupportCard } from "@/components/TechnicalSupportCard";
 import { supabase } from "@/lib/supabaseClient";
 import { handleLogout } from "@/lib/auth-helpers";
 import { 
@@ -338,6 +339,9 @@ export default function AdminDashboard({ userId, setUserId }: AdminDashboardProp
           <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
           <Button onClick={() => handleLogout(setUserId)}>Sign Out</Button>
         </div>
+
+        {/* Technical Support Card */}
+        <TechnicalSupportCard />
 
         {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto pb-2">
