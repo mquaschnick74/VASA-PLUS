@@ -30,7 +30,15 @@ export default function Dashboard() {
   const lastEventRef = useRef<string>('');
 
   const ensureUserProfile = async (session: any) => {
-    const token = session.access_token;
+    // Always refresh session to get fresh token
+    const { data: { session: freshSession }, error: refreshError } = await supabase.auth.getSession();
+    
+    if (refreshError || !freshSession || !freshSession.user.email) {
+      console.error('❌ [DASHBOARD] Failed to refresh session:', refreshError);
+      return null;
+    }
+
+    const token = freshSession.access_token;
 
     try {
       const apiUrl = '/api/auth/user';
@@ -43,10 +51,10 @@ export default function Dashboard() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          email: session.user.email,
-          firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
-          authUserId: session.user.id,
-          userType: session.user.user_metadata?.user_type || 'individual'
+          email: freshSession.user.email,
+          firstName: freshSession.user.user_metadata?.first_name || freshSession.user.email.split('@')[0],
+          authUserId: freshSession.user.id,
+          userType: freshSession.user.user_metadata?.user_type || 'individual'
         })
       });
 
