@@ -609,25 +609,37 @@ router.post('/complete-onboarding', authenticateToken, async (req: AuthRequest, 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Insert onboarding response (allows empty values)
-    const { data: onboardingData, error: insertError } = await supabase
-      .from('user_onboarding_responses')
-      .insert({
-        user_id: userId,
-        voice_response: voiceResponse,
-        journey_response: journeyResponse,
-        was_skipped: wasSkipped,
-        session_number: 1
-      })
-      .select()
-      .single();
+    // NEW: Check if both responses are empty/null
+    const isVoiceEmpty = !voiceResponse || voiceResponse.trim() === '';
+    const isJourneyEmpty = !journeyResponse || journeyResponse.trim() === '';
+    const bothEmpty = isVoiceEmpty && isJourneyEmpty;
 
-    if (insertError) {
-      console.error('Error inserting onboarding response:', insertError);
-      throw insertError;
+    // NEW: Only save to database if at least one response has content
+    if (!bothEmpty) {
+      // Insert onboarding response
+      const { data: onboardingData, error: insertError } = await supabase
+        .from('user_onboarding_responses')
+        .insert({
+          user_id: userId,
+          voice_response: voiceResponse,
+          journey_response: journeyResponse,
+          was_skipped: wasSkipped,
+          session_number: 1
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error inserting onboarding response:', insertError);
+        throw insertError;
+      }
+
+      console.log(`✅ Onboarding saved for user ${userId} (skipped: ${wasSkipped})`);
+    } else {
+      console.log(`⏭️ Onboarding skipped - both responses empty for user ${userId}`);
     }
 
-    // Update user profile timestamp
+    // Always update user profile timestamp (even if skipped with empty responses)
     const { error: updateError } = await supabase
       .from('user_profiles')
       .update({
@@ -641,12 +653,10 @@ router.post('/complete-onboarding', authenticateToken, async (req: AuthRequest, 
       throw updateError;
     }
 
-    console.log(`✅ Onboarding completed for user ${userId} (skipped: ${wasSkipped})`);
-
     res.json({
       success: true,
-      message: 'Onboarding completed successfully',
-      onboardingId: onboardingData.id
+      message: bothEmpty ? 'Onboarding skipped successfully' : 'Onboarding completed successfully',
+      saved: !bothEmpty
     });
   } catch (error) {
     console.error('Error completing onboarding:', error);
