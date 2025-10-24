@@ -217,6 +217,14 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
                 {isSubmitting ? 'Submitting...' : 'Submit'}
               </Button>
             </div>
+
+            {/* Expert messaging - mirrors landing page */}
+            <div className="mt-8 text-center">
+              <p className="text-emerald-400/80 text-lg md:text-xl italic font-light">
+                You are becoming the <span className="font-semibold text-emerald-400">EXPERT</span>… 
+                you can choose to answer these questions or skip them by clicking on the "X"
+              </p>
+            </div>
           </div>
         </div>
       </div>
