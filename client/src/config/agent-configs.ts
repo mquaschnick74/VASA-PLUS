@@ -281,7 +281,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
   {
     id: 'sarah',
     name: 'Sarah',
-    description: 'VASA therapeutic voice assistant',
+    description: 'Wise life guide with experience',
     icon: '👱🏽‍♀️',
     color: 'purple',
     model: { temperature: 0.7, model: 'gpt-4o' },
@@ -297,27 +297,9 @@ ${VASA_SYSTEM_PROMPT}`,
   },
 
   {
-    id: 'mathew',
-    name: 'Mathew',
-    description: 'VASA therapeutic voice assistant',
-    icon: '👨🏻‍💼',
-    color: 'blue',
-    model: { temperature: 0.6, model: 'gpt-4o' },
-    voice: { provider: '11labs', voiceId: '2hsbsDeRu57rsKFAC7uE', stability: 0.8, speed: 1.0 },
-    systemPrompt: `Your proper name is **Mathew**.
-
-${VASA_SYSTEM_PROMPT}`,
-    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
-      return hasMemory
-        ? `Hello ${firstName}. What's been present for you since we last spoke?`
-        : `Hello ${firstName}, I'm Mathew. I would like to walk you through some very important steps.  Do you have any questions, otherwise, I do: How are you doing??`;
-    }
-  },
-
-  {
     id: 'marcus',
     name: 'Marcus',
-    description: 'VASA therapeutic voice assistant',
+    description: 'High-energy performance coach',
     icon: '👨🏾‍🦳',
     color: 'orange',
     model: { temperature: 0.8, model: 'gpt-4o' },
@@ -333,9 +315,27 @@ ${VASA_SYSTEM_PROMPT}`,
   },
 
   {
+    id: 'mathew',
+    name: 'Mathew',
+    description: 'Expert in deep therapeutic work',
+    icon: '👨🏻‍💼',
+    color: 'blue',
+    model: { temperature: 0.6, model: 'gpt-4o' },
+    voice: { provider: '11labs', voiceId: '2hsbsDeRu57rsKFAC7uE', stability: 0.8, speed: 1.0 },
+    systemPrompt: `Your proper name is **Mathew**.
+
+${VASA_SYSTEM_PROMPT}`,
+    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
+      return hasMemory
+        ? `Hello ${firstName}. What's been present for you since we last spoke?`
+        : `Hello ${firstName}, I'm Mathew. I would like to walk you through some very important steps.  Do you have any questions, otherwise, I do: How are you doing??`;
+    }
+  },
+
+  {
     id: 'zhanna',
     name: 'Zhanna',
-    description: 'VASA therapeutic voice assistant',
+    description: 'Emotional support and gentle guidance',
     icon: '👩🏾‍🦱',
     color: 'amber',
     model: { temperature: 0.85, model: 'gpt-4o' },
