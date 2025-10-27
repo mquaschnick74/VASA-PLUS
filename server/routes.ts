@@ -30,6 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/influencer', influencerRoutes);
   apiRouter.use('/stripe/webhook', stripeWebhookRoutes);
   apiRouter.use('/stripe', stripeCheckoutRoutes);
+  apiRouter.use('/blog', blogRoutes);
 
   // Health check
   apiRouter.get('/health', (req, res) => {
