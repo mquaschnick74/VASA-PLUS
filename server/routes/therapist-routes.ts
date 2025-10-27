@@ -593,25 +593,45 @@ router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
     const therapist_id = therapistProfile.id;
     // ============= END FIX =============
 
-    // Get all relationships with full client profiles
+    // Get all relationships WITHOUT the problematic join
     const { data: relationships, error } = await supabase
       .from('therapist_client_relationships')
-      .select(`
-        *,
-        client:user_profiles!client_id(*)
-      `)
+      .select('*')
       .eq('therapist_id', therapist_id)
+      .eq('status', 'active')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching clients:', error);
-      return res.status(500).json({ error: 'Failed to fetch clients' });
+      console.error('Error fetching client relationships:', error);
+      return res.status(500).json({ error: 'Failed to fetch client relationships' });
     }
 
-    // Enrich each relationship with session statistics from usage_sessions
+    if (!relationships || relationships.length === 0) {
+      console.log('No client relationships found');
+      return res.json({ clients: [] });
+    }
+
+    // Fetch client profiles separately
+    const clientIds = relationships.map((r) => r.client_id);
+    const { data: clientProfiles, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .in('id', clientIds);
+
+    if (profileError) {
+      console.error('Error fetching client profiles:', profileError);
+      return res.status(500).json({ error: 'Failed to fetch client profiles' });
+    }
+
+    console.log(`Found ${relationships.length} relationships and ${clientProfiles?.length || 0} profiles`);
+
+    // Enrich each relationship with client profile and session statistics
     const enrichedClients = await Promise.all(
-      (relationships || []).map(async (rel, index) => {
+      relationships.map(async (rel, index) => {
         const clientId = rel.client_id;
+
+        // Find matching client profile
+        const clientProfile = clientProfiles?.find(p => p.id === clientId);
 
         // Get session stats from usage_sessions
         const { data: sessions } = await supabase
@@ -627,6 +647,7 @@ router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
         if (index === 0) {
           console.log(`📊 [API] First client enrichment:`, {
             clientId,
+            hasProfile: !!clientProfile,
             sessionsFound: sessions?.length,
             totalSessions,
             totalMinutes,
@@ -636,6 +657,11 @@ router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
 
         return {
           ...rel,
+          client: clientProfile || {
+            id: clientId,
+            email: 'Unknown',
+            full_name: 'Unknown Client'
+          },
           total_sessions: totalSessions,
           total_minutes: totalMinutes,
           last_session: lastSession
@@ -645,7 +671,12 @@ router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
 
     console.log(`📊 [API] Returning ${enrichedClients.length} enriched clients`);
     if (enrichedClients.length > 0) {
-      console.log(`📊 [API] First enriched client keys:`, Object.keys(enrichedClients[0]));
+      console.log(`📊 [API] First enriched client:`, {
+        keys: Object.keys(enrichedClients[0]),
+        hasClient: !!enrichedClients[0].client,
+        totalSessions: enrichedClients[0].total_sessions,
+        totalMinutes: enrichedClients[0].total_minutes
+      });
     }
 
     res.json({ clients: enrichedClients });
