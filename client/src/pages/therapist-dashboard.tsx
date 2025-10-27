@@ -258,11 +258,12 @@ export default function TherapistDashboard({
               `📈 [THERAPIST-DASH] Loading stats for client: ${clientId}`,
             );
 
+            // Query usage_sessions as the source of truth for actual sessions
             const { data: sessions, error: sessionsError } = await supabase
-              .from("therapeutic_sessions")
+              .from("usage_sessions")
               .select("*")
               .eq("user_id", clientId)
-              .order("created_at", { ascending: false });
+              .order("session_date", { ascending: false });
 
             if (sessionsError) {
               console.log(
@@ -273,7 +274,7 @@ export default function TherapistDashboard({
 
             const totalMinutes =
               sessions?.reduce(
-                (sum, s) => sum + Math.ceil((s.duration_seconds || 0) / 60),
+                (sum, s) => sum + (s.duration_minutes || 0),
                 0,
               ) || 0;
 
@@ -286,7 +287,7 @@ export default function TherapistDashboard({
                 "Unknown",
               total_sessions: sessions?.length || 0,
               total_minutes: totalMinutes,
-              last_session: sessions?.[0]?.created_at || null,
+              last_session: sessions?.[0]?.session_date || null,
               relationship_status: rel.status || "active",
               session_duration_limit: rel.session_duration_limit || 900,
             };
