@@ -14,6 +14,7 @@ import adminRoutes from './routes/admin-routes';
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 import stripeCheckoutRoutes from './routes/stripe-checkout';
+import blogRoutes from './routes/blog-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const apiRouter = Router();
