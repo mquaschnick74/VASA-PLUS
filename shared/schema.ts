@@ -735,3 +735,44 @@ export const influencerUsers = pgTable("influencer_users", {
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
+
+// ============================================================================
+// BLOG POSTS TABLE
+// ============================================================================
+
+export const blogPosts = pgTable("blog_posts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Content
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(), // URL-friendly version of title
+  excerpt: text("excerpt"), // Short description (for listing page)
+  content: text("content").notNull(), // Main blog post content (Markdown)
+
+  // SEO
+  meta_title: varchar("meta_title", { length: 255 }),
+  meta_description: varchar("meta_description", { length: 500 }),
+  meta_keywords: varchar("meta_keywords", { length: 500 }),
+
+  // Featured image (optional for now)
+  featured_image_url: varchar("featured_image_url", { length: 500 }),
+
+  // Publishing
+  status: varchar("status", { length: 20 }).default('draft'), // 'draft', 'published'
+  published_at: timestamp("published_at", { withTimezone: true }),
+
+  // Author
+  author_id: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+  author_name: varchar("author_name", { length: 255 }).default('iVASA Team'),
+
+  // Analytics
+  view_count: integer("view_count").default(0),
+
+  // Timestamps
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// Blog post type
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = typeof blogPosts.$inferInsert;
