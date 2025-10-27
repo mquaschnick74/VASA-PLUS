@@ -158,6 +158,7 @@ export default function TherapistDashboard({
           const { clients: apiClients } = await clientsResponse.json();
           relationships = apiClients;
           console.log(`✅ [THERAPIST-DASH] API returned ${relationships?.length || 0} clients`);
+          console.log(`📊 [THERAPIST-DASH] First client data:`, relationships?.[0]);
         } else if (clientsResponse.status === 401) {
           console.error("❌ [THERAPIST-DASH] Unauthorized - logging out");
           handleLogout(setUserId);
@@ -188,7 +189,7 @@ export default function TherapistDashboard({
         );
 
         // Map relationships to client data with stats from backend API
-        const clientsWithStats = relationships.map((rel) => {
+        const clientsWithStats = relationships.map((rel, index) => {
           const clientData = rel.client || rel.user_profiles || rel;
 
           if (!clientData) {
@@ -199,6 +200,16 @@ export default function TherapistDashboard({
           }
 
           const clientId = rel.client_id || clientData.id;
+
+          if (index === 0) {
+            console.log(`📊 [THERAPIST-DASH] Mapping first client:`, {
+              clientId,
+              total_sessions: rel.total_sessions,
+              total_minutes: rel.total_minutes,
+              last_session: rel.last_session,
+              rel_keys: Object.keys(rel)
+            });
+          }
 
           return {
             id: clientId,

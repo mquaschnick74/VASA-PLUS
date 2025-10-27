@@ -610,7 +610,7 @@ router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
 
     // Enrich each relationship with session statistics from usage_sessions
     const enrichedClients = await Promise.all(
-      (relationships || []).map(async (rel) => {
+      (relationships || []).map(async (rel, index) => {
         const clientId = rel.client_id;
 
         // Get session stats from usage_sessions
@@ -624,6 +624,16 @@ router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
         const totalMinutes = sessions?.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) || 0;
         const lastSession = sessions?.[0]?.session_date || null;
 
+        if (index === 0) {
+          console.log(`📊 [API] First client enrichment:`, {
+            clientId,
+            sessionsFound: sessions?.length,
+            totalSessions,
+            totalMinutes,
+            lastSession
+          });
+        }
+
         return {
           ...rel,
           total_sessions: totalSessions,
@@ -632,6 +642,11 @@ router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
         };
       })
     );
+
+    console.log(`📊 [API] Returning ${enrichedClients.length} enriched clients`);
+    if (enrichedClients.length > 0) {
+      console.log(`📊 [API] First enriched client keys:`, Object.keys(enrichedClients[0]));
+    }
 
     res.json({ clients: enrichedClients });
   } catch (error) {
