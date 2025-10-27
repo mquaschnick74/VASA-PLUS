@@ -608,7 +608,32 @@ router.get('/clients', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(500).json({ error: 'Failed to fetch clients' });
     }
 
-    res.json({ clients: relationships || [] });
+    // Enrich each relationship with session statistics from usage_sessions
+    const enrichedClients = await Promise.all(
+      (relationships || []).map(async (rel) => {
+        const clientId = rel.client_id;
+
+        // Get session stats from usage_sessions
+        const { data: sessions } = await supabase
+          .from('usage_sessions')
+          .select('duration_minutes, session_date')
+          .eq('user_id', clientId)
+          .order('session_date', { ascending: false });
+
+        const totalSessions = sessions?.length || 0;
+        const totalMinutes = sessions?.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) || 0;
+        const lastSession = sessions?.[0]?.session_date || null;
+
+        return {
+          ...rel,
+          total_sessions: totalSessions,
+          total_minutes: totalMinutes,
+          last_session: lastSession
+        };
+      })
+    );
+
+    res.json({ clients: enrichedClients });
   } catch (error) {
     console.error('Error in get clients:', error);
     res.status(500).json({ error: 'Failed to fetch clients' });

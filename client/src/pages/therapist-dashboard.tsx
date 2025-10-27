@@ -141,89 +141,35 @@ export default function TherapistDashboard({
         id: profileData.id,
       });
 
-      // Step 3: Load client relationships - with multiple query attempts
-      console.log(`👥 [THERAPIST-DASH] Loading client relationships...`);
+      // Step 3: Load client relationships from backend API
+      console.log(`👥 [THERAPIST-DASH] Loading client relationships from API...`);
 
-      // Try different query formats to handle Supabase foreign key issues
       let relationships = null;
       let relationshipError = null;
 
-      // Attempt 1: Query with user_profiles join
-      console.log(
-        "🔍 [THERAPIST-DASH] Attempt 1: Query with user_profiles join",
-      );
-      const attempt1 = await supabase
-      .from("therapist_client_relationships")
-      .select(
-        `
-        *,
-        session_duration_limit,
-        user_profiles!therapist_client_relationships_client_id_fkey(
-          id,
-          email,
-          full_name
-        )
-      `,
-      )
-      .eq("therapist_id", userId)
-      .eq("status", "active");
+      try {
+        const clientsResponse = await fetch("/api/therapist/clients", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
 
-      if (!attempt1.error) {
-        console.log("✅ [THERAPIST-DASH] Query 1 successful");
-        relationships = attempt1.data;
-      } else {
-        console.log(
-          "⚠️ [THERAPIST-DASH] Query 1 failed:",
-          attempt1.error.message,
-        );
-
-        // Attempt 2: Simple query without joins
-        console.log(
-          "🔍 [THERAPIST-DASH] Attempt 2: Simple query without joins",
-        );
-        const attempt2 = await supabase
-          .from("therapist_client_relationships")
-          .select("*")
-          .eq("therapist_id", userId)
-          .eq("status", "active");
-
-        if (!attempt2.error) {
-          console.log(
-            "✅ [THERAPIST-DASH] Query 2 successful, will fetch profiles separately",
-          );
-
-          // Fetch client profiles separately
-          if (attempt2.data && attempt2.data.length > 0) {
-            const clientIds = attempt2.data.map((r) => r.client_id);
-            const { data: clientProfiles } = await supabase
-              .from("user_profiles")
-              .select("*")
-              .in("id", clientIds);
-
-            // Merge the data
-            relationships = attempt2.data.map((rel) => {
-              const clientProfile = clientProfiles?.find(
-                (p) => p.id === rel.client_id,
-              );
-              return {
-                ...rel,
-                client: clientProfile || {
-                  id: rel.client_id,
-                  email: "Unknown",
-                  full_name: "Unknown Client",
-                },
-              };
-            });
-          } else {
-            relationships = [];
-          }
+        if (clientsResponse.ok) {
+          const { clients: apiClients } = await clientsResponse.json();
+          relationships = apiClients;
+          console.log(`✅ [THERAPIST-DASH] API returned ${relationships?.length || 0} clients`);
+        } else if (clientsResponse.status === 401) {
+          console.error("❌ [THERAPIST-DASH] Unauthorized - logging out");
+          handleLogout(setUserId);
+          return;
         } else {
-          console.error(
-            "❌ [THERAPIST-DASH] Query 2 also failed:",
-            attempt2.error.message,
-          );
-          relationshipError = attempt2.error;
+          const errorText = await clientsResponse.text();
+          console.error("❌ [THERAPIST-DASH] API error:", errorText);
+          relationshipError = new Error(errorText);
         }
+      } catch (error) {
+        console.error("❌ [THERAPIST-DASH] Failed to fetch clients from API:", error);
+        relationshipError = error;
       }
 
       if (!mountedRef.current) {
@@ -241,58 +187,33 @@ export default function TherapistDashboard({
           `✅ [THERAPIST-DASH] Found ${relationships.length} client relationships`,
         );
 
-        // Get usage stats for each client
-        const clientsWithStats = await Promise.all(
-          relationships.map(async (rel) => {
-            const clientData = rel.client || rel.user_profiles || rel;
+        // Map relationships to client data with stats from backend API
+        const clientsWithStats = relationships.map((rel) => {
+          const clientData = rel.client || rel.user_profiles || rel;
 
-            if (!clientData) {
-              console.log(
-                `⚠️ [THERAPIST-DASH] No client data for relationship ${rel.id}`,
-              );
-              return null;
-            }
-
-            const clientId = rel.client_id || clientData.id;
+          if (!clientData) {
             console.log(
-              `📈 [THERAPIST-DASH] Loading stats for client: ${clientId}`,
+              `⚠️ [THERAPIST-DASH] No client data for relationship ${rel.id}`,
             );
+            return null;
+          }
 
-            // Query usage_sessions as the source of truth for actual sessions
-            const { data: sessions, error: sessionsError } = await supabase
-              .from("usage_sessions")
-              .select("*")
-              .eq("user_id", clientId)
-              .order("session_date", { ascending: false });
+          const clientId = rel.client_id || clientData.id;
 
-            if (sessionsError) {
-              console.log(
-                `⚠️ [THERAPIST-DASH] Sessions query failed for ${clientId}:`,
-                sessionsError.message,
-              );
-            }
-
-            const totalMinutes =
-              sessions?.reduce(
-                (sum, s) => sum + (s.duration_minutes || 0),
-                0,
-              ) || 0;
-
-            return {
-              id: clientId,
-              email: clientData.email || "Unknown",
-              full_name:
-                clientData.full_name ||
-                clientData.email?.split("@")[0] ||
-                "Unknown",
-              total_sessions: sessions?.length || 0,
-              total_minutes: totalMinutes,
-              last_session: sessions?.[0]?.session_date || null,
-              relationship_status: rel.status || "active",
-              session_duration_limit: rel.session_duration_limit || 900,
-            };
-          }),
-        );
+          return {
+            id: clientId,
+            email: clientData.email || "Unknown",
+            full_name:
+              clientData.full_name ||
+              clientData.email?.split("@")[0] ||
+              "Unknown",
+            total_sessions: rel.total_sessions || 0,
+            total_minutes: rel.total_minutes || 0,
+            last_session: rel.last_session || null,
+            relationship_status: rel.status || "active",
+            session_duration_limit: rel.session_duration_limit || 900,
+          };
+        });
 
         // Filter out any null results
         const validClients = clientsWithStats.filter((c) => c !== null);
