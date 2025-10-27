@@ -348,8 +348,17 @@ router.post('/webhook', async (req, res) => {
 
       if (durationMinutes > 0 && userId) {
         try {
-          await subscriptionService.trackUsageSession(userId, durationMinutes, undefined, callId);
-          console.log('✅ Usage tracked successfully');
+          // Get the therapeutic_session_id to link usage_sessions to therapeutic_sessions
+          const { data: therapeuticSession } = await supabase
+            .from('therapeutic_sessions')
+            .select('id')
+            .eq('call_id', callId)
+            .maybeSingle();
+
+          const therapeuticSessionId = therapeuticSession?.id;
+
+          await subscriptionService.trackUsageSession(userId, durationMinutes, therapeuticSessionId, callId);
+          console.log('✅ Usage tracked successfully', therapeuticSessionId ? `(linked to session ${therapeuticSessionId})` : '(no therapeutic session found)');
         } catch (error) {
           console.error('❌ Failed to track usage:', error);
         }

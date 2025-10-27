@@ -58,36 +58,47 @@ export class TherapistDataService {
   }
 
   async getClientSessions(clientId: string): Promise<{ sessions: SessionData[]; total_sessions: number; total_minutes: number }> {
-    const { data: sessions, error } = await supabase
-      .from('therapeutic_sessions')
+    // Query usage_sessions as the primary source of truth for what sessions actually occurred
+    const { data: usageSessions, error: usageError } = await supabase
+      .from('usage_sessions')
       .select('*')
       .eq('user_id', clientId)
-      .order('created_at', { ascending: false });
+      .order('session_date', { ascending: false });
 
-    if (error) throw new Error('Failed to fetch sessions');
+    if (usageError) throw new Error('Failed to fetch sessions');
 
+    // For each usage session, get the therapeutic_session details if available
     const sessionsWithMetadata = await Promise.all(
-      (sessions || []).map(async (session) => {
+      (usageSessions || []).map(async (usageSession) => {
+        // Try to find the corresponding therapeutic_session by vapi_call_id
+        const { data: therapeuticSession } = await supabase
+          .from('therapeutic_sessions')
+          .select('*')
+          .eq('call_id', usageSession.vapi_call_id)
+          .maybeSingle();
+
+        // Check for transcript
         const { data: transcript } = await supabase
           .from('session_transcripts')
           .select('id')
-          .eq('call_id', session.call_id)
-          .single();
+          .eq('call_id', usageSession.vapi_call_id)
+          .maybeSingle();
 
+        // Check for summary
         const { data: summary } = await supabase
           .from('therapeutic_context')
           .select('id')
-          .eq('call_id', session.call_id)
+          .eq('call_id', usageSession.vapi_call_id)
           .eq('context_type', 'call_summary')
-          .single();
+          .maybeSingle();
 
         return {
-          id: session.id,
-          date: session.start_time ? new Date(session.start_time).toISOString().split('T')[0] : null,
-          start_time: session.start_time,
-          duration_minutes: session.duration_seconds ? Math.ceil(session.duration_seconds / 60) : 0,
-          agent_name: session.agent_name || 'Unknown',
-          status: session.status,
+          id: usageSession.id,
+          date: usageSession.session_date ? new Date(usageSession.session_date).toISOString().split('T')[0] : null,
+          start_time: therapeuticSession?.start_time || usageSession.session_date,
+          duration_minutes: usageSession.duration_minutes,
+          agent_name: therapeuticSession?.agent_name || 'Unknown',
+          status: therapeuticSession?.status || 'completed',
           has_transcript: !!transcript,
           has_summary: !!summary
         };
@@ -173,11 +184,12 @@ export class TherapistDataService {
   }
 
   async getClientStats(clientId: string): Promise<SessionStats> {
+    // Query usage_sessions as the primary source of truth
     const { data: sessions, error } = await supabase
-      .from('therapeutic_sessions')
+      .from('usage_sessions')
       .select('*')
       .eq('user_id', clientId)
-      .order('created_at', { ascending: true });
+      .order('session_date', { ascending: true });
 
     if (error) throw new Error('Failed to fetch sessions');
 
@@ -193,13 +205,13 @@ export class TherapistDataService {
     }
 
     const totalSessions = sessions.length;
-    const totalMinutes = sessions.reduce((sum, s) => sum + Math.ceil((s.duration_seconds || 0) / 60), 0);
+    const totalMinutes = sessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
     const averageSessionLength = Math.round(totalMinutes / totalSessions);
 
     const sessionsByMonth: { [key: string]: number } = {};
     sessions.forEach(session => {
-      if (session.start_time) {
-        const date = new Date(session.start_time);
+      if (session.session_date) {
+        const date = new Date(session.session_date);
         const monthKey = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
         sessionsByMonth[monthKey] = (sessionsByMonth[monthKey] || 0) + 1;
       }
@@ -209,8 +221,8 @@ export class TherapistDataService {
       total_sessions: totalSessions,
       total_minutes: totalMinutes,
       average_session_length: averageSessionLength,
-      first_session_date: sessions[0].start_time,
-      last_session_date: sessions[sessions.length - 1].start_time,
+      first_session_date: sessions[0].session_date,
+      last_session_date: sessions[sessions.length - 1].session_date,
       sessions_by_month: Object.entries(sessionsByMonth).map(([month, count]) => ({ month, count }))
     };
   }
