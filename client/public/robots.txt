@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /therapist/
+Disallow: /reset-password
+Disallow: /payment-success
+Disallow: /payment-cancel
+
+Sitemap: https://beta.ivasa.ai/sitemap.xml

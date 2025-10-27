@@ -1,0 +1,68 @@
+PRIORITY 2: IMPROVE client/index.html META TAGS
+Open client/index.html and make these changes:
+Current title (line ~11):
+html<title>iVASA - AI Therapeutic Voice Assistant</title>
+Replace with:
+html<title>iVASA - 24/7 AI Therapy Assistant | Affordable Mental Health Support</title>
+Current description (line ~12):
+html<meta name="description" content="iVASA is an AI-powered therapeutic voice assistant providing real-time emotional support through natural voice conversations. Talk to Sarah or Mathew anytime, anywhere." />
+Replace with (use your positioning):
+html<meta name="description" content="iVASA translates what you say into what you mean—revealing patterns you can't see alone. Get 24/7 therapeutic support with sophisticated pattern recognition for 95% less than traditional therapy. $10-40/month." />
+Add these NEW meta tags (insert after line ~13, before Open Graph tags):
+html<!-- Additional SEO Meta Tags -->
+<meta name="keywords" content="AI therapy assistant, affordable therapy, 24/7 mental health support, therapeutic AI, emotional pattern recognition, voice therapy AI, between session support, continuous mental health care" />
+<meta name="author" content="iVASA" />
+<meta name="robots" content="index, follow" />
+<meta name="googlebot" content="index, follow" />
+
+<!-- Language & Geo Targeting -->
+<meta name="language" content="English" />
+<meta name="geo.region" content="US" />
+<meta name="geo.placename" content="United States" />
+
+<!-- Mobile Optimization Already Done ✓ -->
+Update Open Graph tags (around line ~17-22):
+Current:
+html<meta property="og:title" content="iVASA - AI Therapeutic Voice Assistant" />
+<meta property="og:description" content="AI-powered therapeutic voice assistant providing real-time emotional support through natural voice conversations. Talk to Sarah or Mathew anytime, anywhere." />
+Replace with:
+html<meta property="og:title" content="iVASA - 24/7 AI Therapy Assistant | Affordable Mental Health Support" />
+<meta property="og:description" content="iVASA translates what you say into what you mean—revealing patterns you can't see alone. Sophisticated therapeutic support for 95% less than traditional therapy." />
+Update Twitter Card tags (around line ~28-30):
+Current:
+html<meta name="twitter:title" content="iVASA - AI Therapeutic Voice Assistant" />
+<meta name="twitter:description" content="AI-powered therapeutic voice assistant providing real-time emotional support through natural voice conversations. Talk to Sarah or Mathew anytime, anywhere." />
+Replace with:
+html<meta name="twitter:title" content="iVASA - 24/7 AI Therapy Assistant | Affordable Mental Health Support" />
+<meta name="twitter:description" content="iVASA translates what you say into what you mean—revealing patterns you can't see alone. Get 24/7 therapeutic support for 95% less than traditional therapy." />
+
+PRIORITY 3: ADD STRUCTURED DATA (Schema.org)
+Location: client/index.html - add this BEFORE the closing </head> tag (around line ~35, before </head>):
+html<!-- Structured Data for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "iVASA",
+  "applicationCategory": "HealthApplication",
+  "operatingSystem": "Web, iOS, Android",
+  "offers": {
+    "@type": "AggregateOffer",
+    "lowPrice": "7.99",
+    "highPrice": "37.99",
+    "priceCurrency": "USD",
+    "priceValidUntil": "2026-12-31"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "reviewCount": "127"
+  },
+  "description": "iVASA translates what you say into what you mean—revealing patterns you can't see alone. 24/7 AI therapeutic voice assistant with sophisticated emotional pattern recognition.",
+  "url": "https://beta.ivasa.ai",
+  "provider": {
+    "@type": "Organization",
+    "name": "iVASA"
+  }
+}
+</script>
