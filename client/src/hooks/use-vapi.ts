@@ -25,6 +25,8 @@ interface UseVapiReturn {
   startSession: () => void;
   endSession: () => void;
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
+  error: string | null;
+  clearError: () => void;
 }
 
 const useVapi = ({
@@ -41,6 +43,7 @@ const useVapi = ({
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  const [error, setError] = useState<string | null>(null);
   const vapiRef = useRef<any>(null);
 
   useEffect(() => {
@@ -48,6 +51,8 @@ const useVapi = ({
 
     if (!publicKey) {
       console.error('VAPI public key not found');
+      setError('VAPI is not configured. Please contact support or check your environment variables.');
+      setConnectionStatus('disconnected');
       return;
     }
 
@@ -79,11 +84,15 @@ const useVapi = ({
             status: error?.error?.status,
             fullError: error
           });
+          const errorMessage = error?.error?.message || error?.message || 'An unknown error occurred with VAPI';
+          setError(`VAPI Error: ${errorMessage}`);
           setIsLoading(false);
           setConnectionStatus('disconnected');
+          setIsSessionActive(false);
         });
       } catch (error) {
         console.error('Failed to initialize VAPI:', error);
+        setError('Failed to initialize voice assistant. Please refresh the page and try again.');
         setConnectionStatus('disconnected');
       }
     };
@@ -98,8 +107,14 @@ const useVapi = ({
   }, []);
 
   const startSession = useCallback(async () => {
-    if (!vapi || isLoading || !selectedAgent) return;
+    if (!vapi || isLoading || !selectedAgent) {
+      if (!vapi) {
+        setError('Voice assistant is not initialized. Please refresh the page.');
+      }
+      return;
+    }
 
+    setError(null); // Clear any previous errors
     setIsLoading(true);
     setConnectionStatus('connecting');
 
@@ -185,9 +200,12 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       // CHANGE 2: REMOVED the firstMessageTemplate call - no more hardcoded greetings
 
       // Get the current server URL for webhook configuration
-      const serverUrl = `${window.location.origin}/api/vapi/webhook`;
+      // Use environment variable if available, otherwise fall back to window.location.origin
+      const baseUrl = import.meta.env.VITE_SERVER_URL || window.location.origin;
+      const serverUrl = `${baseUrl}/api/vapi/webhook`;
 
       console.log('📍 Webhook URL:', serverUrl);
+      console.log('📍 Base URL:', baseUrl);
       console.log('📍 User ID:', userId);
       console.log('📍 Agent:', selectedAgent.name);
       console.log('📝 Session continuity:', shouldReferenceLastSession ? 'Enabled' : 'Disabled');
@@ -288,15 +306,20 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         setIsSessionActive(true);
         setConnectionStatus('connected');
         setIsLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ VAPI start failed:', error);
+        const errorMsg = error?.message || error?.error?.message || 'Failed to start voice session';
+        setError(`Unable to start session: ${errorMsg}. Please check your microphone permissions and try again.`);
         throw error; // Re-throw to be caught by outer try-catch
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start VAPI session:', error);
+      const errorMsg = error?.message || error?.error?.message || 'Unknown error';
+      setError(`Session failed to start: ${errorMsg}`);
       setIsLoading(false);
       setConnectionStatus('disconnected');
+      setIsSessionActive(false);
     }
   }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
 
@@ -308,12 +331,18 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     }
   }, [vapi, isSessionActive]);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return {
     isSessionActive,
     isLoading,
     startSession,
     endSession,
-    connectionStatus
+    connectionStatus,
+    error,
+    clearError
   };
 };
 
