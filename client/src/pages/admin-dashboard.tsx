@@ -397,25 +397,30 @@
     };
 
     const createBlogPost = async (e: React.FormEvent<HTMLFormElement>) => {
+      console.log('📝 [BLOG-CREATE] Form submitted');
       e.preventDefault();
 
       // Prevent multiple submissions
       if (blogSubmitting) {
-        console.log('⚠️ [ADMIN] Blog submission already in progress');
+        console.log('⚠️ [BLOG-CREATE] Already submitting, ignoring');
         return;
       }
 
+      console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
       setBlogSubmitting(true);
 
+      console.log('📝 [BLOG-CREATE] Extracting form data');
       const formData = new FormData(e.currentTarget);
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
       if (!session) {
+        console.log('❌ [BLOG-CREATE] No session, aborting');
         setBlogSubmitting(false);
         return;
       }
 
       try {
+        console.log('📝 [BLOG-CREATE] Sending API request...');
         const res = await fetch("/api/blog/admin/posts", {
           method: "POST",
           headers: {
@@ -434,53 +439,69 @@
           }),
         });
 
+        console.log('📝 [BLOG-CREATE] API response received:', res.status);
+
         if (res.ok) {
+          console.log('✅ [BLOG-CREATE] Success! Closing form...');
           // Close form and reset state FIRST to prevent conflicts
           setShowBlogForm(false);
           setEditingBlogPost(null);
+
+          console.log('✅ [BLOG-CREATE] Incrementing formKey...');
           setFormKey(prev => prev + 1); // Force form remount next time
 
+          console.log('✅ [BLOG-CREATE] Reloading data...');
           // Then reload data
           await loadData();
 
+          console.log('✅ [BLOG-CREATE] Showing success alert...');
           // Show success message last
           if (mountedRef.current) {
             alert("Blog post created successfully!");
           }
+          console.log('✅ [BLOG-CREATE] Complete!');
         } else {
           const error = await res.json();
+          console.log('❌ [BLOG-CREATE] API error:', error);
           alert(`Failed: ${error.error ?? "Unknown error"}`);
         }
       } catch (error) {
-        console.error("Create blog post error:", error);
+        console.error("❌ [BLOG-CREATE] Exception:", error);
         alert("Failed to create blog post");
       } finally {
+        console.log('📝 [BLOG-CREATE] Finally block - resetting blogSubmitting');
         if (mountedRef.current) {
           setBlogSubmitting(false);
         }
+        console.log('📝 [BLOG-CREATE] Done');
       }
     };
 
     const updateBlogPost = async (e: React.FormEvent<HTMLFormElement>) => {
+      console.log('🔄 [BLOG-UPDATE] Form submitted, editing post:', editingBlogPost?.id);
       e.preventDefault();
 
       // Prevent multiple submissions
       if (blogSubmitting) {
-        console.log('⚠️ [ADMIN] Blog update already in progress');
+        console.log('⚠️ [BLOG-UPDATE] Already submitting, ignoring');
         return;
       }
 
+      console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
       setBlogSubmitting(true);
 
+      console.log('🔄 [BLOG-UPDATE] Extracting form data');
       const formData = new FormData(e.currentTarget);
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
       if (!session || !editingBlogPost) {
+        console.log('❌ [BLOG-UPDATE] No session or editingBlogPost, aborting');
         setBlogSubmitting(false);
         return;
       }
 
       try {
+        console.log('🔄 [BLOG-UPDATE] Sending API request to update post:', editingBlogPost.id);
         const res = await fetch(`/api/blog/admin/posts/${editingBlogPost.id}`, {
           method: "PUT",
           headers: {
@@ -499,30 +520,41 @@
           }),
         });
 
+        console.log('🔄 [BLOG-UPDATE] API response received:', res.status);
+
         if (res.ok) {
+          console.log('✅ [BLOG-UPDATE] Success! Closing form...');
           // Close form and reset state FIRST to prevent conflicts
           setEditingBlogPost(null);
           setShowBlogForm(false);
+
+          console.log('✅ [BLOG-UPDATE] Incrementing formKey...');
           setFormKey(prev => prev + 1); // Force form remount next time
 
+          console.log('✅ [BLOG-UPDATE] Reloading data...');
           // Then reload data
           await loadData();
 
+          console.log('✅ [BLOG-UPDATE] Showing success alert...');
           // Show success message last
           if (mountedRef.current) {
             alert("Blog post updated successfully!");
           }
+          console.log('✅ [BLOG-UPDATE] Complete!');
         } else {
           const error = await res.json();
+          console.log('❌ [BLOG-UPDATE] API error:', error);
           alert(`Failed: ${error.error ?? "Unknown error"}`);
         }
       } catch (error) {
-        console.error("Update blog post error:", error);
+        console.error("❌ [BLOG-UPDATE] Exception:", error);
         alert("Failed to update blog post");
       } finally {
+        console.log('🔄 [BLOG-UPDATE] Finally block - resetting blogSubmitting');
         if (mountedRef.current) {
           setBlogSubmitting(false);
         }
+        console.log('🔄 [BLOG-UPDATE] Done');
       }
     };
 
@@ -959,9 +991,14 @@
                 <h2 className="text-xl font-semibold">Blog Posts</h2>
                 <Button
                   onClick={() => {
+                    console.log('➕ [BLOG-FORM] New Blog Post button clicked');
                     setEditingBlogPost(null);
                     setShowBlogForm(true);
-                    setFormKey(prev => prev + 1); // Force fresh form
+                    setFormKey(prev => {
+                      const newKey = prev + 1;
+                      console.log('➕ [BLOG-FORM] formKey:', prev, '→', newKey);
+                      return newKey;
+                    });
                   }}
                   disabled={blogSubmitting}
                 >
@@ -970,7 +1007,9 @@
                 </Button>
               </div>
 
-              {(showBlogForm || editingBlogPost) && (
+              {(showBlogForm || editingBlogPost) && (() => {
+                console.log('🎨 [BLOG-FORM] Rendering form with key:', `blog-form-${formKey}`, 'editingPost:', editingBlogPost?.id);
+                return (
                 <Card className="glass">
                   <CardHeader>
                     <CardTitle>{editingBlogPost ? "Edit Blog Post" : "Create New Blog Post"}</CardTitle>
@@ -1092,7 +1131,8 @@
                     </form>
                   </CardContent>
                 </Card>
-              )}
+                );
+              })()}
 
               <div className="space-y-3">
                 {blogPosts.length === 0 ? (
@@ -1137,9 +1177,14 @@
                               size="sm"
                               variant="outline"
                               onClick={() => {
+                                console.log('✏️ [BLOG-FORM] Edit button clicked for post:', post.id);
                                 setShowBlogForm(false);
                                 setEditingBlogPost(post);
-                                setFormKey(prev => prev + 1); // Force fresh form
+                                setFormKey(prev => {
+                                  const newKey = prev + 1;
+                                  console.log('✏️ [BLOG-FORM] formKey:', prev, '→', newKey);
+                                  return newKey;
+                                });
                               }}
                               disabled={blogSubmitting}
                             >
