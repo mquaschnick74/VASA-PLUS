@@ -79,23 +79,98 @@ export default function BlogPostPage() {
         const data = await res.json();
         setPost(data.post);
 
-        // Update page title and meta tags
-        if (data.post.meta_title) {
-          document.title = data.post.meta_title;
-        } else {
-          document.title = `${data.post.title} | iVASA Blog`;
+        const postUrl = `https://beta.ivasa.ai/blog/${slug}`;
+        const postTitle = data.post.meta_title || `${data.post.title} | iVASA Blog`;
+        const postDescription = data.post.meta_description || data.post.excerpt || 'Read this article on the iVASA Blog';
+
+        // Update page title
+        document.title = postTitle;
+
+        // Helper function to set meta tag
+        const setMetaTag = (selector: string, attribute: string, content: string) => {
+          let tag = document.querySelector(selector);
+          if (!tag) {
+            tag = document.createElement('meta');
+            if (attribute === 'name') {
+              tag.setAttribute('name', selector.replace('meta[name="', '').replace('"]', ''));
+            } else if (attribute === 'property') {
+              tag.setAttribute('property', selector.replace('meta[property="', '').replace('"]', ''));
+            }
+            document.head.appendChild(tag);
+          }
+          tag.setAttribute('content', content);
+        };
+
+        // Standard meta tags
+        setMetaTag('meta[name="description"]', 'name', postDescription);
+        if (data.post.meta_keywords) {
+          setMetaTag('meta[name="keywords"]', 'name', data.post.meta_keywords);
         }
 
-        // Update meta description
-        if (data.post.meta_description) {
-          let metaDesc = document.querySelector('meta[name="description"]');
-          if (!metaDesc) {
-            metaDesc = document.createElement('meta');
-            metaDesc.setAttribute('name', 'description');
-            document.head.appendChild(metaDesc);
-          }
-          metaDesc.setAttribute('content', data.post.meta_description);
+        // Canonical URL
+        let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+        if (!canonical) {
+          canonical = document.createElement('link');
+          canonical.setAttribute('rel', 'canonical');
+          document.head.appendChild(canonical);
         }
+        canonical.setAttribute('href', postUrl);
+
+        // Open Graph tags for social sharing
+        setMetaTag('meta[property="og:title"]', 'property', postTitle);
+        setMetaTag('meta[property="og:description"]', 'property', postDescription);
+        setMetaTag('meta[property="og:url"]', 'property', postUrl);
+        setMetaTag('meta[property="og:type"]', 'property', 'article');
+        if (data.post.featured_image_url) {
+          setMetaTag('meta[property="og:image"]', 'property', data.post.featured_image_url);
+        }
+        setMetaTag('meta[property="og:site_name"]', 'property', 'iVASA');
+
+        // Twitter Card tags
+        setMetaTag('meta[name="twitter:card"]', 'name', 'summary_large_image');
+        setMetaTag('meta[name="twitter:title"]', 'name', postTitle);
+        setMetaTag('meta[name="twitter:description"]', 'name', postDescription);
+        if (data.post.featured_image_url) {
+          setMetaTag('meta[name="twitter:image"]', 'name', data.post.featured_image_url);
+        }
+
+        // Article-specific Open Graph tags
+        if (data.post.published_at) {
+          setMetaTag('meta[property="article:published_time"]', 'property', data.post.published_at);
+        }
+        if (data.post.author_name) {
+          setMetaTag('meta[property="article:author"]', 'property', data.post.author_name);
+        }
+
+        // Schema.org structured data for blog post
+        let scriptTag = document.querySelector('script[type="application/ld+json"][data-blog-post]') as HTMLScriptElement;
+        if (!scriptTag) {
+          scriptTag = document.createElement('script');
+          scriptTag.setAttribute('type', 'application/ld+json');
+          scriptTag.setAttribute('data-blog-post', 'true');
+          document.head.appendChild(scriptTag);
+        }
+        scriptTag.textContent = JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          "headline": data.post.title,
+          "description": postDescription,
+          "image": data.post.featured_image_url || "https://beta.ivasa.ai/og-image.png",
+          "author": {
+            "@type": "Person",
+            "name": data.post.author_name || "iVASA Team"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "iVASA",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://beta.ivasa.ai/og-image.png"
+            }
+          },
+          "datePublished": data.post.published_at,
+          "url": postUrl
+        });
       } else {
         setNotFound(true);
       }

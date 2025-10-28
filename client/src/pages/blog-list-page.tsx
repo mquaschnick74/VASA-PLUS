@@ -25,6 +25,40 @@ export default function BlogListPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Set SEO meta tags for blog list page
+    document.title = 'Blog - iVASA | AI Therapy Insights & Mental Health Resources';
+    
+    const setMetaTag = (selector: string, attribute: string, content: string) => {
+      let tag = document.querySelector(selector);
+      if (!tag) {
+        tag = document.createElement('meta');
+        if (attribute === 'name') {
+          tag.setAttribute('name', selector.replace('meta[name="', '').replace('"]', ''));
+        } else if (attribute === 'property') {
+          tag.setAttribute('property', selector.replace('meta[property="', '').replace('"]', ''));
+        }
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    const description = 'Explore insights on AI-powered therapy, mental health support, and therapeutic voice assistance. Learn how iVASA is making therapy accessible and affordable.';
+    
+    setMetaTag('meta[name="description"]', 'name', description);
+    setMetaTag('meta[property="og:title"]', 'property', 'iVASA Blog - AI Therapy Insights');
+    setMetaTag('meta[property="og:description"]', 'property', description);
+    setMetaTag('meta[property="og:url"]', 'property', 'https://beta.ivasa.ai/blog');
+    setMetaTag('meta[property="og:type"]', 'property', 'website');
+
+    // Canonical URL
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', 'https://beta.ivasa.ai/blog');
+
     loadPosts();
   }, []);
 
