@@ -11,12 +11,14 @@ export default function PublicPricing() {
   // Individual plans for marketing display
   const individualPlans = [
     {
-      name: 'Basic',
-      price: '$29',
+      name: 'Intro',
+      monthlyPrice: '$7.99',
+      oneTimePrice: '$10.00',
       period: '/month',
       description: 'Essential AI therapeutic support',
       features: [
-        '1 Hour Voice Time/Month',
+        '45 Minutes Voice Time',
+        'No rollover - resets each period',
         'Access to All 4 AI Agents',
         'Basic Analytics',
         'Email Support',
@@ -26,12 +28,14 @@ export default function PublicPricing() {
       popular: false
     },
     {
-      name: 'Standard',
-      price: '$49',
+      name: 'Plus',
+      monthlyPrice: '$17.99',
+      oneTimePrice: '$20.00',
       period: '/month',
       description: 'Enhanced support and features',
       features: [
-        '3 Hours Voice Time/Month',
+        '180 Minutes Voice Time',
+        'No rollover - resets each period',
         'Access to All 4 AI Agents',
         'Advanced Analytics',
         'Priority Support',
@@ -42,12 +46,14 @@ export default function PublicPricing() {
       popular: true
     },
     {
-      name: 'Premium',
-      price: '$99',
+      name: 'Complete',
+      monthlyPrice: '$37.99',
+      oneTimePrice: '$40.00',
       period: '/month',
-      description: 'Unlimited conversations',
+      description: 'Maximum therapeutic support',
       features: [
-        'Unlimited Voice Time',
+        '420 Minutes Voice Time',
+        'No rollover - resets each period',
         'Access to All 4 AI Agents',
         'Premium Analytics',
         'Priority Support',
@@ -157,9 +163,14 @@ export default function PublicPricing() {
                 <CardHeader>
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground ml-1">{plan.period}</span>
+                  <div className="mt-4 space-y-1">
+                    <div>
+                      <span className="text-3xl font-bold">{plan.monthlyPrice}</span>
+                      <span className="text-muted-foreground ml-1">/month</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      or <span className="font-semibold text-white">{plan.oneTimePrice}</span> one-time purchase
+                    </div>
                   </div>
                 </CardHeader>
 
