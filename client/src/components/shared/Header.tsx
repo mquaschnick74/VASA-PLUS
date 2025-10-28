@@ -6,7 +6,7 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { HelpCircle, BookOpen, DollarSign } from 'lucide-react';
 import { handleLogout } from '@/lib/auth-helpers';
-import vasaLogo from '@assets/iVASA Dark_1759424106928.png';
+import vasaLogo from '@assets/VASA Favi LOGO_1761673874672.png';
 
 interface HeaderProps {
   userId?: string | null;
@@ -44,7 +44,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
             <img
               src={vasaLogo}
               alt="iVASA"
-              className="h-8 w-auto"
+              className="h-10 w-10"
             />
           </div>
 
