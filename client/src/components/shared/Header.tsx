@@ -53,7 +53,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
             {isLoggedIn && showDashboardLink && (
               <Button
                 variant="ghost"
-                className="text-sm hidden sm:inline-flex"
+                className="text-sm hidden sm:inline-flex backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
                 onClick={() => setLocation('/dashboard')}
               >
                 Dashboard
@@ -62,8 +62,12 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
 
             {/* Learn More (Blog) */}
             <Button
-              variant={location.startsWith('/blog') ? 'default' : 'ghost'}
-              className="text-sm"
+              variant="ghost"
+              className={`text-sm backdrop-filter backdrop-blur-md bg-transparent border transition-all ${
+                location.startsWith('/blog')
+                  ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(0,208,98,0.3)]'
+                  : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10'
+              }`}
               onClick={() => setLocation('/blog')}
             >
               Learn More
@@ -71,8 +75,12 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
 
             {/* Pricing */}
             <Button
-              variant={location === '/pricing' || location === '/public-pricing' ? 'default' : 'ghost'}
-              className="text-sm"
+              variant="ghost"
+              className={`text-sm backdrop-filter backdrop-blur-md bg-transparent border transition-all ${
+                location === '/pricing' || location === '/public-pricing'
+                  ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(0,208,98,0.3)]'
+                  : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10'
+              }`}
               onClick={() => setLocation(isLoggedIn ? "/pricing" : "/public-pricing")}
             >
               Pricing
@@ -80,9 +88,13 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
 
             {/* FAQ */}
             <Button
-              variant={location === '/faq' ? 'default' : 'ghost'}
+              variant="ghost"
               data-testid="button-faq"
-              className="text-sm"
+              className={`text-sm backdrop-filter backdrop-blur-md bg-transparent border transition-all ${
+                location === '/faq'
+                  ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(0,208,98,0.3)]'
+                  : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10'
+              }`}
               onClick={() => setLocation('/faq')}
             >
               FAQ
@@ -93,15 +105,16 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
               <Button
                 onClick={handleSignOut}
                 data-testid="button-signout"
-                className="text-sm"
+                variant="ghost"
+                className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
                 disabled={loggingOut}
               >
                 {loggingOut ? 'Signing Out...' : 'Sign Out'}
               </Button>
             ) : (
               <Button
-                variant="default"
-                className="text-sm"
+                variant="ghost"
+                className="text-sm backdrop-filter backdrop-blur-md bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-500/60 hover:bg-emerald-500/15 shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all"
                 onClick={() => setLocation('/')}
               >
                 Sign In
