@@ -76,10 +76,11 @@ export default function PublicPricing() {
       features: [
         '3 Client Accounts',
         'Personal iVASA Access',
-        '3 Hours Voice Time/Month',
+        '540 Minutes Voice Time/Month',
         'Basic Analytics',
         'Email Support',
-        'CSS Pattern Tracking'
+        'CSS Pattern Tracking',
+        '7-Day Free Trial'
       ],
       popular: false
     },
@@ -91,11 +92,12 @@ export default function PublicPricing() {
       features: [
         '10 Client Accounts',
         'Personal iVASA Access',
-        '10 Hours Voice Time/Month',
+        '1080 Minutes Voice Time/Month',
         'Advanced Analytics',
         'Priority Support',
         'Advanced CSS Tracking',
-        'Custom Agent Configuration'
+        'Custom Agent Configuration',
+        '7-Day Free Trial'
       ],
       popular: true
     }
@@ -115,7 +117,7 @@ export default function PublicPricing() {
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Plan
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg max-w-2xl mx-auto text-emerald-400 font-medium">
             AI-powered therapeutic conversations tailored to your needs. Start with a 7-day free trial.
           </p>
         </div>
