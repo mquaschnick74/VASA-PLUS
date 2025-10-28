@@ -23,6 +23,7 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/payment-success" component={PaymentSuccess} />
       <Route path="/payment-cancel" component={PaymentCancel} />
+      <Route path="/faq" component={FAQPage} />
       <Route path="/therapist/client/:clientId/sessions" component={ClientSessionsView} />
       <Route path="/blog" component={BlogListPage} />
       <Route path="/blog/:slug" component={BlogPostPage} />
