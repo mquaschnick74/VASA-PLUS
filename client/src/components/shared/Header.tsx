@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { HelpCircle, BookOpen, DollarSign } from 'lucide-react';
 import { handleLogout } from '@/lib/auth-helpers';
 import vasaLogo from '@assets/VASA Favi LOGO_1761673874672.png';
 
@@ -67,8 +66,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
               className="text-sm"
               onClick={() => setLocation('/blog')}
             >
-              <BookOpen className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Learn More</span>
+              Learn More
             </Button>
 
             {/* Pricing */}
@@ -77,8 +75,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
               className="text-sm"
               onClick={() => setLocation(isLoggedIn ? "/pricing" : "/public-pricing")}
             >
-              <DollarSign className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Pricing</span>
+              Pricing
             </Button>
 
             {/* FAQ */}
@@ -88,8 +85,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
               className="text-sm"
               onClick={() => setLocation('/faq')}
             >
-              <HelpCircle className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">FAQ</span>
+              FAQ
             </Button>
 
             {/* Auth Buttons */}
