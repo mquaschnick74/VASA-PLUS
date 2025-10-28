@@ -73,9 +73,9 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
             </Link>
 
             {/* Pricing */}
-            <Link href="/pricing">
+            <Link href={isLoggedIn ? "/pricing" : "/public-pricing"}>
               <Button
-                variant={location === '/pricing' ? 'default' : 'ghost'}
+                variant={location === '/pricing' || location === '/public-pricing' ? 'default' : 'ghost'}
                 className="text-sm"
               >
                 <DollarSign className="w-4 h-4 sm:mr-2" />
