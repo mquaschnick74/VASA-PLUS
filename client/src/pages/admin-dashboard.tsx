@@ -106,6 +106,7 @@
     const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
     const [showBlogForm, setShowBlogForm] = useState(false);
     const [editingBlogPost, setEditingBlogPost] = useState<BlogPost | null>(null);
+    const [formKey, setFormKey] = useState(0); // Force form remount on each operation
 
     // Onboarding forms
     const [showPartnerForm, setShowPartnerForm] = useState(false);
@@ -437,6 +438,7 @@
           // Close form and reset state FIRST to prevent conflicts
           setShowBlogForm(false);
           setEditingBlogPost(null);
+          setFormKey(prev => prev + 1); // Force form remount next time
 
           // Then reload data
           await loadData();
@@ -501,6 +503,7 @@
           // Close form and reset state FIRST to prevent conflicts
           setEditingBlogPost(null);
           setShowBlogForm(false);
+          setFormKey(prev => prev + 1); // Force form remount next time
 
           // Then reload data
           await loadData();
@@ -958,6 +961,7 @@
                   onClick={() => {
                     setEditingBlogPost(null);
                     setShowBlogForm(true);
+                    setFormKey(prev => prev + 1); // Force fresh form
                   }}
                   disabled={blogSubmitting}
                 >
@@ -973,7 +977,7 @@
                   </CardHeader>
                   <CardContent>
                     <form
-                      key={editingBlogPost?.id || 'new'}
+                      key={`blog-form-${formKey}`}
                       onSubmit={editingBlogPost ? updateBlogPost : createBlogPost}
                       className="space-y-4"
                     >
@@ -1135,6 +1139,7 @@
                               onClick={() => {
                                 setShowBlogForm(false);
                                 setEditingBlogPost(post);
+                                setFormKey(prev => prev + 1); // Force fresh form
                               }}
                               disabled={blogSubmitting}
                             >
