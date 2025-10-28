@@ -129,6 +129,13 @@
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
+    // Log form state changes for debugging
+    useEffect(() => {
+      if (showBlogForm || editingBlogPost) {
+        console.log('🎨 [BLOG-FORM] Form state changed - formKey:', formKey, 'editingPost:', editingBlogPost?.id, 'showBlogForm:', showBlogForm);
+      }
+    }, [formKey, editingBlogPost, showBlogForm]);
+
     const loadData = async () => {
       setLoading(true);
       const { data: sessionData } = await supabase.auth.getSession();
@@ -1007,9 +1014,7 @@
                 </Button>
               </div>
 
-              {(showBlogForm || editingBlogPost) && (() => {
-                console.log('🎨 [BLOG-FORM] Rendering form with key:', `blog-form-${formKey}`, 'editingPost:', editingBlogPost?.id);
-                return (
+              {(showBlogForm || editingBlogPost) && (
                 <Card className="glass">
                   <CardHeader>
                     <CardTitle>{editingBlogPost ? "Edit Blog Post" : "Create New Blog Post"}</CardTitle>
@@ -1131,8 +1136,7 @@
                     </form>
                   </CardContent>
                 </Card>
-                );
-              })()}
+              )}
 
               <div className="space-y-3">
                 {blogPosts.length === 0 ? (
