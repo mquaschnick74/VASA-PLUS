@@ -1,6 +1,7 @@
 // Location: client/src/components/shared/Header.tsx
 // Shared navigation header component for all pages
 
+import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { HelpCircle, BookOpen, DollarSign } from 'lucide-react';
@@ -16,11 +17,18 @@ interface HeaderProps {
 
 export default function Header({ userId, setUserId, userType, showDashboardLink = false }: HeaderProps) {
   const [location] = useLocation();
+  const [loggingOut, setLoggingOut] = useState(false);
   const isLoggedIn = !!userId;
 
-  const handleSignOut = () => {
-    if (setUserId) {
-      handleLogout(setUserId);
+  const handleSignOut = async () => {
+    if (setUserId && !loggingOut) {
+      setLoggingOut(true);
+      try {
+        await handleLogout(setUserId);
+      } catch (error) {
+        console.error('Logout error:', error);
+        setLoggingOut(false);
+      }
     }
   };
 
@@ -93,8 +101,9 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                 onClick={handleSignOut}
                 data-testid="button-signout"
                 className="text-sm"
+                disabled={loggingOut}
               >
-                Sign Out
+                {loggingOut ? 'Signing Out...' : 'Sign Out'}
               </Button>
             ) : (
               <Link href="/">

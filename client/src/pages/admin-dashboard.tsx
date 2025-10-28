@@ -111,6 +111,7 @@
     const [showPartnerForm, setShowPartnerForm] = useState(false);
     const [showInfluencerForm, setShowInfluencerForm] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [blogSubmitting, setBlogSubmitting] = useState(false);
 
     useEffect(() => {
       void loadData();
@@ -386,13 +387,20 @@
 
     const createBlogPost = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      setSubmitting(true);
+
+      // Prevent multiple submissions
+      if (blogSubmitting) {
+        console.log('⚠️ [ADMIN] Blog submission already in progress');
+        return;
+      }
+
+      setBlogSubmitting(true);
 
       const formData = new FormData(e.currentTarget);
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
       if (!session) {
-        setSubmitting(false);
+        setBlogSubmitting(false);
         return;
       }
 
@@ -417,8 +425,14 @@
 
         if (res.ok) {
           alert("Blog post created successfully!");
+
+          // Reset form
+          e.currentTarget.reset();
           setShowBlogForm(false);
-          void loadData();
+          setEditingBlogPost(null);
+
+          // Reload data
+          await loadData();
         } else {
           const error = await res.json();
           alert(`Failed: ${error.error ?? "Unknown error"}`);
@@ -427,19 +441,26 @@
         console.error("Create blog post error:", error);
         alert("Failed to create blog post");
       } finally {
-        setSubmitting(false);
+        setBlogSubmitting(false);
       }
     };
 
     const updateBlogPost = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      setSubmitting(true);
+
+      // Prevent multiple submissions
+      if (blogSubmitting) {
+        console.log('⚠️ [ADMIN] Blog update already in progress');
+        return;
+      }
+
+      setBlogSubmitting(true);
 
       const formData = new FormData(e.currentTarget);
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
       if (!session || !editingBlogPost) {
-        setSubmitting(false);
+        setBlogSubmitting(false);
         return;
       }
 
@@ -464,8 +485,14 @@
 
         if (res.ok) {
           alert("Blog post updated successfully!");
+
+          // Reset form and editing state
+          e.currentTarget.reset();
           setEditingBlogPost(null);
-          void loadData();
+          setShowBlogForm(false);
+
+          // Reload data
+          await loadData();
         } else {
           const error = await res.json();
           alert(`Failed: ${error.error ?? "Unknown error"}`);
@@ -474,7 +501,7 @@
         console.error("Update blog post error:", error);
         alert("Failed to update blog post");
       } finally {
-        setSubmitting(false);
+        setBlogSubmitting(false);
       }
     };
 
@@ -926,7 +953,11 @@
                     <CardTitle>{editingBlogPost ? "Edit Blog Post" : "Create New Blog Post"}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <form onSubmit={editingBlogPost ? updateBlogPost : createBlogPost} className="space-y-4">
+                    <form
+                      key={editingBlogPost?.id || 'new'}
+                      onSubmit={editingBlogPost ? updateBlogPost : createBlogPost}
+                      className="space-y-4"
+                    >
                       <div>
                         <label className="block text-sm font-medium mb-1">Title *</label>
                         <input
@@ -1020,8 +1051,8 @@
                       </div>
 
                       <div className="flex gap-2">
-                        <Button type="submit" disabled={submitting}>
-                          {submitting ? "Saving..." : editingBlogPost ? "Update Post" : "Create Post"}
+                        <Button type="submit" disabled={blogSubmitting}>
+                          {blogSubmitting ? "Saving..." : editingBlogPost ? "Update Post" : "Create Post"}
                         </Button>
                         <Button
                           type="button"
@@ -1030,6 +1061,7 @@
                             setShowBlogForm(false);
                             setEditingBlogPost(null);
                           }}
+                          disabled={blogSubmitting}
                         >
                           Cancel
                         </Button>
