@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { handleLogout } from '@/lib/auth-helpers';
-import vasaLogo from '@assets/VASA Favi LOGO_1761673874672.png';
+import vasaLogo from '@assets/iVASA_logo_with_green_glow_1761676576619.png';
 
 interface HeaderProps {
   userId?: string | null;
