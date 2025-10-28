@@ -11,12 +11,13 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { handleLogout } from '@/lib/auth-helpers';
 import { supabase } from '@/lib/supabaseClient';
 import { Link } from 'wouter';
-import { 
-  DollarSign, 
-  Users, 
-  TrendingUp, 
-  Eye, 
-  MousePointerClick, 
+import Header from '@/components/shared/Header';
+import {
+  DollarSign,
+  Users,
+  TrendingUp,
+  Eye,
+  MousePointerClick,
   Share2,
   FileText,
   Award,
@@ -173,10 +174,11 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
   }
 
   return (
-    <div className="min-h-screen gradient-bg p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen gradient-bg">
+      <Header userId={userId} setUserId={setUserId} userType="influencer" />
 
-        {/* Header */}
+      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+        {/* Dashboard Title with Timeframe Selector */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-2">
@@ -186,34 +188,15 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
               {influencer?.name} (@{influencer?.handle})
             </p>
           </div>
-          <div className="flex gap-2">
-            <select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value)}
-              className="px-4 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20"
-            >
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-            </select>
-            <Link href="/faq">
-              <Button 
-                variant="outline" 
-                data-testid="button-faq"
-                className="bg-white/10 backdrop-blur-sm border-white/20"
-              >
-                <HelpCircle className="w-4 h-4 mr-2" />
-                FAQ
-              </Button>
-            </Link>
-            <Button 
-              variant="outline" 
-              onClick={() => handleLogout(setUserId)}
-              className="bg-white/10 backdrop-blur-sm border-white/20"
-            >
-              Sign Out
-            </Button>
-          </div>
+          <select
+            value={timeframe}
+            onChange={(e) => setTimeframe(e.target.value)}
+            className="px-4 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 w-fit"
+          >
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
         </div>
 
         {/* Technical Support Card */}

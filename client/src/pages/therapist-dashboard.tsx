@@ -12,6 +12,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { Users, Clock, TrendingUp, UserPlus, HelpCircle } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/shared/Header";
 
 interface TherapistDashboardProps {
   userId: string;
@@ -512,39 +513,19 @@ export default function TherapistDashboard({
   );
 
   return (
-    <div className="min-h-screen gradient-bg p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">
-              Therapist Dashboard
-            </h1>
-            {profile && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {profile.email} • {profile.user_type}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/faq">
-              <Button
-                variant="outline"
-                data-testid="button-faq"
-                className="text-sm"
-              >
-                <HelpCircle className="w-4 h-4 mr-2" />
-                FAQ
-              </Button>
-            </Link>
-            <Button
-              onClick={() => handleLogout(setUserId)}
-              data-testid="button-signout"
-              className="text-sm"
-            >
-              Sign Out
-            </Button>
-          </div>
+    <div className="min-h-screen gradient-bg">
+      <Header userId={userId} setUserId={setUserId} userType="therapist" />
+      <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-6">
+        {/* Dashboard Title */}
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">
+            Therapist Dashboard
+          </h1>
+          {profile && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {profile.email} • {profile.user_type}
+            </p>
+          )}
         </div>
 
         {/* Stats Cards */}

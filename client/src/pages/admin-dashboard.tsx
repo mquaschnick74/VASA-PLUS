@@ -1,13 +1,14 @@
   // Location: client/src/pages/admin-dashboard.tsx
   // Admin dashboard for managing partners, influencers, content, and blog
 
-  import { useState, useEffect } from "react";
+  import { useState, useEffect, useRef } from "react";
   import { Button } from "@/components/ui/button";
   import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
   import { Badge } from "@/components/ui/badge";
   import { TechnicalSupportCard } from "@/components/TechnicalSupportCard";
   import { supabase } from "@/lib/supabaseClient";
   import { handleLogout } from "@/lib/auth-helpers";
+  import Header from "@/components/shared/Header";
   import {
     Users,
     TrendingUp,
@@ -105,16 +106,35 @@
     const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
     const [showBlogForm, setShowBlogForm] = useState(false);
     const [editingBlogPost, setEditingBlogPost] = useState<BlogPost | null>(null);
+    const [formKey, setFormKey] = useState(0); // Force form remount on each operation
 
     // Onboarding forms
     const [showPartnerForm, setShowPartnerForm] = useState(false);
     const [showInfluencerForm, setShowInfluencerForm] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [blogSubmitting, setBlogSubmitting] = useState(false);
+
+    // Add mounted ref to prevent state updates after unmount
+    const mountedRef = useRef(true);
+
+    useEffect(() => {
+      mountedRef.current = true;
+      return () => {
+        mountedRef.current = false;
+      };
+    }, []);
 
     useEffect(() => {
       void loadData();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
+
+    // Log form state changes for debugging
+    useEffect(() => {
+      if (showBlogForm || editingBlogPost) {
+        console.log('🎨 [BLOG-FORM] Form state changed - formKey:', formKey, 'editingPost:', editingBlogPost?.id, 'showBlogForm:', showBlogForm);
+      }
+    }, [formKey, editingBlogPost, showBlogForm]);
 
     const loadData = async () => {
       setLoading(true);
@@ -384,18 +404,30 @@
     };
 
     const createBlogPost = async (e: React.FormEvent<HTMLFormElement>) => {
+      console.log('📝 [BLOG-CREATE] Form submitted');
       e.preventDefault();
-      setSubmitting(true);
 
+      // Prevent multiple submissions
+      if (blogSubmitting) {
+        console.log('⚠️ [BLOG-CREATE] Already submitting, ignoring');
+        return;
+      }
+
+      console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
+      setBlogSubmitting(true);
+
+      console.log('📝 [BLOG-CREATE] Extracting form data');
       const formData = new FormData(e.currentTarget);
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
       if (!session) {
-        setSubmitting(false);
+        console.log('❌ [BLOG-CREATE] No session, aborting');
+        setBlogSubmitting(false);
         return;
       }
 
       try {
+        console.log('📝 [BLOG-CREATE] Sending API request...');
         const res = await fetch("/api/blog/admin/posts", {
           method: "POST",
           headers: {
@@ -414,35 +446,69 @@
           }),
         });
 
+        console.log('📝 [BLOG-CREATE] API response received:', res.status);
+
         if (res.ok) {
-          alert("Blog post created successfully!");
+          console.log('✅ [BLOG-CREATE] Success! Closing form...');
+          // Close form and reset state FIRST to prevent conflicts
           setShowBlogForm(false);
-          void loadData();
+          setEditingBlogPost(null);
+
+          console.log('✅ [BLOG-CREATE] Incrementing formKey...');
+          setFormKey(prev => prev + 1); // Force form remount next time
+
+          console.log('✅ [BLOG-CREATE] Reloading data...');
+          // Then reload data
+          await loadData();
+
+          console.log('✅ [BLOG-CREATE] Showing success alert...');
+          // Show success message last
+          if (mountedRef.current) {
+            alert("Blog post created successfully!");
+          }
+          console.log('✅ [BLOG-CREATE] Complete!');
         } else {
           const error = await res.json();
+          console.log('❌ [BLOG-CREATE] API error:', error);
           alert(`Failed: ${error.error ?? "Unknown error"}`);
         }
       } catch (error) {
-        console.error("Create blog post error:", error);
+        console.error("❌ [BLOG-CREATE] Exception:", error);
         alert("Failed to create blog post");
       } finally {
-        setSubmitting(false);
+        console.log('📝 [BLOG-CREATE] Finally block - resetting blogSubmitting');
+        if (mountedRef.current) {
+          setBlogSubmitting(false);
+        }
+        console.log('📝 [BLOG-CREATE] Done');
       }
     };
 
     const updateBlogPost = async (e: React.FormEvent<HTMLFormElement>) => {
+      console.log('🔄 [BLOG-UPDATE] Form submitted, editing post:', editingBlogPost?.id);
       e.preventDefault();
-      setSubmitting(true);
 
+      // Prevent multiple submissions
+      if (blogSubmitting) {
+        console.log('⚠️ [BLOG-UPDATE] Already submitting, ignoring');
+        return;
+      }
+
+      console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
+      setBlogSubmitting(true);
+
+      console.log('🔄 [BLOG-UPDATE] Extracting form data');
       const formData = new FormData(e.currentTarget);
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
       if (!session || !editingBlogPost) {
-        setSubmitting(false);
+        console.log('❌ [BLOG-UPDATE] No session or editingBlogPost, aborting');
+        setBlogSubmitting(false);
         return;
       }
 
       try {
+        console.log('🔄 [BLOG-UPDATE] Sending API request to update post:', editingBlogPost.id);
         const res = await fetch(`/api/blog/admin/posts/${editingBlogPost.id}`, {
           method: "PUT",
           headers: {
@@ -461,19 +527,41 @@
           }),
         });
 
+        console.log('🔄 [BLOG-UPDATE] API response received:', res.status);
+
         if (res.ok) {
-          alert("Blog post updated successfully!");
+          console.log('✅ [BLOG-UPDATE] Success! Closing form...');
+          // Close form and reset state FIRST to prevent conflicts
           setEditingBlogPost(null);
-          void loadData();
+          setShowBlogForm(false);
+
+          console.log('✅ [BLOG-UPDATE] Incrementing formKey...');
+          setFormKey(prev => prev + 1); // Force form remount next time
+
+          console.log('✅ [BLOG-UPDATE] Reloading data...');
+          // Then reload data
+          await loadData();
+
+          console.log('✅ [BLOG-UPDATE] Showing success alert...');
+          // Show success message last
+          if (mountedRef.current) {
+            alert("Blog post updated successfully!");
+          }
+          console.log('✅ [BLOG-UPDATE] Complete!');
         } else {
           const error = await res.json();
+          console.log('❌ [BLOG-UPDATE] API error:', error);
           alert(`Failed: ${error.error ?? "Unknown error"}`);
         }
       } catch (error) {
-        console.error("Update blog post error:", error);
+        console.error("❌ [BLOG-UPDATE] Exception:", error);
         alert("Failed to update blog post");
       } finally {
-        setSubmitting(false);
+        console.log('🔄 [BLOG-UPDATE] Finally block - resetting blogSubmitting');
+        if (mountedRef.current) {
+          setBlogSubmitting(false);
+        }
+        console.log('🔄 [BLOG-UPDATE] Done');
       }
     };
 
@@ -515,13 +603,11 @@
     }
 
     return (
-      <div className="min-h-screen gradient-bg p-4 sm:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
-            <Button onClick={() => handleLogout(setUserId)}>Sign Out</Button>
-          </div>
+      <div className="min-h-screen gradient-bg">
+        <Header userId={userId} setUserId={setUserId} userType="admin" />
+        <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-6">
+          {/* Dashboard Title */}
+          <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
 
           {/* Technical Support Card */}
           <TechnicalSupportCard />
@@ -912,9 +998,16 @@
                 <h2 className="text-xl font-semibold">Blog Posts</h2>
                 <Button
                   onClick={() => {
+                    console.log('➕ [BLOG-FORM] New Blog Post button clicked');
                     setEditingBlogPost(null);
-                    setShowBlogForm((s) => !s);
+                    setShowBlogForm(true);
+                    setFormKey(prev => {
+                      const newKey = prev + 1;
+                      console.log('➕ [BLOG-FORM] formKey:', prev, '→', newKey);
+                      return newKey;
+                    });
                   }}
+                  disabled={blogSubmitting}
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   New Blog Post
@@ -927,7 +1020,11 @@
                     <CardTitle>{editingBlogPost ? "Edit Blog Post" : "Create New Blog Post"}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <form onSubmit={editingBlogPost ? updateBlogPost : createBlogPost} className="space-y-4">
+                    <form
+                      key={`blog-form-${formKey}`}
+                      onSubmit={editingBlogPost ? updateBlogPost : createBlogPost}
+                      className="space-y-4"
+                    >
                       <div>
                         <label className="block text-sm font-medium mb-1">Title *</label>
                         <input
@@ -1021,8 +1118,8 @@
                       </div>
 
                       <div className="flex gap-2">
-                        <Button type="submit" disabled={submitting}>
-                          {submitting ? "Saving..." : editingBlogPost ? "Update Post" : "Create Post"}
+                        <Button type="submit" disabled={blogSubmitting}>
+                          {blogSubmitting ? "Saving..." : editingBlogPost ? "Update Post" : "Create Post"}
                         </Button>
                         <Button
                           type="button"
@@ -1031,6 +1128,7 @@
                             setShowBlogForm(false);
                             setEditingBlogPost(null);
                           }}
+                          disabled={blogSubmitting}
                         >
                           Cancel
                         </Button>
@@ -1079,7 +1177,21 @@
                             )}
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => setEditingBlogPost(post)}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                console.log('✏️ [BLOG-FORM] Edit button clicked for post:', post.id);
+                                setShowBlogForm(false);
+                                setEditingBlogPost(post);
+                                setFormKey(prev => {
+                                  const newKey = prev + 1;
+                                  console.log('✏️ [BLOG-FORM] formKey:', prev, '→', newKey);
+                                  return newKey;
+                                });
+                              }}
+                              disabled={blogSubmitting}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button size="sm" variant="destructive" onClick={() => deleteBlogPost(post.id)}>

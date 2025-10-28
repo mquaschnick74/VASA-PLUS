@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { Calendar, Eye } from "lucide-react";
+import Header from "@/components/shared/Header";
 
 interface BlogPost {
   id: string;
@@ -43,15 +44,19 @@ export default function BlogListPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-emerald-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen gradient-bg">
+        <Header showDashboardLink={true} />
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <div className="text-white text-xl">Loading...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-emerald-900 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen gradient-bg">
+      <Header showDashboardLink={true} />
+      <div className="max-w-4xl mx-auto py-12 px-4">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-white mb-4">iVASA Blog</h1>
@@ -134,16 +139,6 @@ export default function BlogListPage() {
             ))}
           </div>
         )}
-
-        {/* Back to Home Link */}
-        <div className="mt-12 text-center">
-          <button
-            onClick={() => setLocation('/')}
-            className="text-purple-300 hover:text-white transition-colors"
-          >
-            ← Back to Home
-          </button>
-        </div>
       </div>
     </div>
   );

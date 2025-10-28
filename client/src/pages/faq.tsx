@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, HelpCircle, Users, Briefcase, Settings, CreditCard, Wrench } from 'lucide-react';
+import Header from '@/components/shared/Header';
 
 export default function FAQPage() {
   const [activeCategory, setActiveCategory] = useState('general');
@@ -185,16 +186,11 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="min-h-screen gradient-bg px-4 py-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen gradient-bg">
+      <Header showDashboardLink={true} />
+      <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/dashboard">
-            <Button variant="ghost" className="mb-4 text-white/80 hover:text-white" data-testid="button-back">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
           <h1 className="text-4xl font-bold text-white mb-2">Frequently Asked Questions</h1>
           <p className="text-white/70 text-lg">Find answers to common questions about VASA</p>
         </div>
