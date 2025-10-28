@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Eye, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Header from "@/components/shared/Header";
 
 interface BlogPost {
   id: string;
@@ -108,33 +109,40 @@ export default function BlogPostPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-emerald-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen gradient-bg">
+        <Header showDashboardLink={true} />
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <div className="text-white text-xl">Loading...</div>
+        </div>
       </div>
     );
   }
 
   if (notFound || !post) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-emerald-900 flex items-center justify-center px-4">
-        <Card className="glass max-w-md w-full">
-          <CardContent className="p-12 text-center">
-            <h1 className="text-3xl font-bold text-white mb-4">Post Not Found</h1>
-            <p className="text-purple-200 mb-6">
-              The blog post you're looking for doesn't exist or has been removed.
-            </p>
-            <Button onClick={() => setLocation('/blog')} variant="default">
-              ← Back to Blog
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen gradient-bg">
+        <Header showDashboardLink={true} />
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] px-4">
+          <Card className="glass max-w-md w-full">
+            <CardContent className="p-12 text-center">
+              <h1 className="text-3xl font-bold text-white mb-4">Post Not Found</h1>
+              <p className="text-purple-200 mb-6">
+                The blog post you're looking for doesn't exist or has been removed.
+              </p>
+              <Button onClick={() => setLocation('/blog')} variant="default">
+                ← Back to Blog
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-emerald-900 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen gradient-bg">
+      <Header showDashboardLink={true} />
+      <div className="max-w-4xl mx-auto py-12 px-4">
         {/* Back Button */}
         <Button
           onClick={() => setLocation('/blog')}
@@ -192,17 +200,6 @@ export default function BlogPostPage() {
             />
           </CardContent>
         </Card>
-
-        {/* Back to Blog Link */}
-        <div className="mt-8 text-center">
-          <Button
-            onClick={() => setLocation('/blog')}
-            variant="ghost"
-            className="text-purple-300 hover:text-white hover:bg-white/10"
-          >
-            ← Back to All Posts
-          </Button>
-        </div>
       </div>
     </div>
   );

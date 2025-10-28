@@ -13,6 +13,7 @@ import vasaLogo from '@assets/iVASA Dark_1759424106928.png';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Link } from 'wouter';
 import { HelpCircle } from 'lucide-react';
+import Header from '@/components/shared/Header';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -293,7 +294,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
   if (verificationSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 gradient-bg">
+      <div className="min-h-screen gradient-bg">
+        <Header />
+        <div className="flex items-center justify-center p-4 min-h-[calc(100vh-4rem)]">
         <div className="w-full max-w-md mx-auto px-4">
           <Card className="glass rounded-2xl border-0">
             <CardContent className="p-4 md:p-8">
@@ -349,12 +352,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             </CardContent>
           </Card>
         </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 gradient-bg">
+    <div className="min-h-screen gradient-bg">
+      <Header />
+      <div className="flex items-center justify-center p-4 min-h-[calc(100vh-4rem)]">
       <div className="w-full max-w-7xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
@@ -610,22 +616,17 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               )}
               {/* ==================================================================== */}
 
-              <div className="text-center text-sm text-muted-foreground space-y-2">
+              <div className="text-center text-sm text-muted-foreground">
                 <p>Your conversations are private and secure</p>
-                <Link href="/faq">
-                  <button className="text-primary hover:underline flex items-center justify-center gap-1 mx-auto" data-testid="link-faq">
-                    <HelpCircle className="w-4 h-4" />
-                    Need help? Visit our FAQ
-                  </button>
-                </Link>
               </div>
             </div>
           </CardContent>
         </Card>
             </div>
           </div>
-          
+
         </div>
+      </div>
       </div>
     </div>
   );

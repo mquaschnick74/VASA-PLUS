@@ -9,6 +9,7 @@ import { TechnicalSupportCard } from '@/components/TechnicalSupportCard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { Link } from 'wouter';
+import Header from '@/components/shared/Header';
 import {
   DollarSign,
   Users,
@@ -262,43 +263,28 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
 
   return (
     <div className="min-h-screen gradient-bg">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 glass-strong border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold">Partner Portal</h1>
-              <div className={`px-3 py-1 rounded-full border ${getTierBadgeColor(partner.tier)}`}>
-                {partner.tier.toUpperCase()}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={timeframe}
-                onChange={(e) => setTimeframe(e.target.value)}
-                className="px-3 py-2 rounded-md bg-white/10 border border-white/20 text-sm"
-              >
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-                <option value="365">Last year</option>
-              </select>
-              <Link href="/faq">
-                <Button variant="outline" data-testid="button-faq">
-                  <HelpCircle className="w-4 h-4 mr-2" />
-                  FAQ
-                </Button>
-              </Link>
-              <Button onClick={handleSignOut} variant="ghost">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Header userId={userId} setUserId={setUserId} userType="partner" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Dashboard Title with Tier Badge and Timeframe Selector */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold">Partner Portal</h1>
+            <div className={`px-3 py-1 rounded-full border ${getTierBadgeColor(partner.tier)}`}>
+              {partner.tier.toUpperCase()}
+            </div>
+          </div>
+          <select
+            value={timeframe}
+            onChange={(e) => setTimeframe(e.target.value)}
+            className="px-3 py-2 rounded-md bg-white/10 border border-white/20 text-sm w-fit"
+          >
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="365">Last year</option>
+          </select>
+        </div>
         {/* Technical Support Card */}
         <div className="mb-6">
           <TechnicalSupportCard />

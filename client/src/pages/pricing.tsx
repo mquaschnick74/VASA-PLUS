@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Check, Sparkles, Users, Clock, TrendingUp, Shield } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabaseClient';
+import Header from '@/components/shared/Header';
 
 // Declare the custom Stripe element for TypeScript
 declare global {
@@ -181,24 +182,7 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen gradient-bg">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 glass-strong">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold">Pricing</h1>
-            <Button 
-              variant="ghost" 
-              onClick={() => {
-                if (userType === 'therapist') setLocation('/therapist-dashboard');
-                else if (userType === 'client') setLocation('/client-dashboard');
-                else setLocation('/home');
-              }}
-            >
-              Back to Dashboard
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <Header userId={userId} showDashboardLink={true} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Hero Section */}

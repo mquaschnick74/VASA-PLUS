@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { Link } from 'wouter';
 import { HelpCircle } from 'lucide-react';
+import Header from '@/components/shared/Header';
 
 interface ClientDashboardProps {
   userId: string;
@@ -109,27 +110,11 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
 
   return (
     <div className="min-h-screen gradient-bg">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 glass-strong">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl sm:text-2xl font-bold">Client Dashboard</h1>
-            <div className="flex gap-2">
-              <Link href="/faq">
-                <Button variant="outline" data-testid="button-faq" className="text-sm">
-                  <HelpCircle className="w-4 h-4 mr-2" />
-                  FAQ
-                </Button>
-              </Link>
-              <Button onClick={() => handleLogout(setUserId)} data-testid="button-signout" className="text-sm">
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Header userId={userId} setUserId={setUserId} userType="client" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {/* Dashboard Title */}
+        <h1 className="text-2xl sm:text-3xl font-bold mb-6">Client Dashboard</h1>
         {/* Top Row - Therapist and Session Info Cards */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           {/* Therapist Info Card */}
