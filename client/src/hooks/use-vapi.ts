@@ -72,19 +72,61 @@ const useVapi = ({
           setIsLoading(false);
         });
 
-        vapiInstance.on('call-end', () => {
+        vapiInstance.on('call-end', (endData: any) => {
           console.log('📴 Call ended');
+          console.log('📊 Call end data:', endData);
+
+          // If call ended too quickly, it might be an error
           setIsSessionActive(false);
           setConnectionStatus('disconnected');
         });
 
+        // Add more event listeners for debugging
+        vapiInstance.on('speech-start', () => {
+          console.log('🎤 User started speaking');
+        });
+
+        vapiInstance.on('speech-end', () => {
+          console.log('🎤 User stopped speaking');
+        });
+
+        vapiInstance.on('message', (message: any) => {
+          console.log('📨 VAPI message:', message);
+        });
+
         vapiInstance.on('error', (error: any) => {
-          console.error('VAPI error details:', {
-            message: error?.error?.message || error?.message,
-            status: error?.error?.status,
-            fullError: error
+          console.error('🔴 VAPI ERROR EVENT:', error);
+          console.error('🔍 Error type:', typeof error);
+          console.error('🔍 Error keys:', Object.keys(error || {}));
+          console.error('🔍 Error message paths:', {
+            'error.error.message': error?.error?.message,
+            'error.message': error?.message,
+            'error.error': error?.error,
+            'error.toString()': error?.toString?.()
           });
-          const errorMessage = error?.error?.message || error?.message || 'An unknown error occurred with VAPI';
+
+          // Try to extract the most useful error message
+          let errorMessage = 'An unknown error occurred with VAPI';
+
+          if (error?.error?.message) {
+            errorMessage = error.error.message;
+          } else if (error?.message) {
+            errorMessage = error.message;
+          } else if (typeof error === 'string') {
+            errorMessage = error;
+          } else if (error?.statusCode) {
+            errorMessage = `VAPI returned status code ${error.statusCode}`;
+          }
+
+          // Add helpful context based on common errors
+          if (errorMessage.toLowerCase().includes('api key') || errorMessage.toLowerCase().includes('unauthorized')) {
+            errorMessage += ' - Check your VAPI_PUBLIC_KEY or OpenAI API key';
+          } else if (errorMessage.toLowerCase().includes('timeout')) {
+            errorMessage += ' - The connection timed out. Check your internet connection';
+          } else if (errorMessage.toLowerCase().includes('voice')) {
+            errorMessage += ' - Voice provider error. Check ElevenLabs or voice configuration';
+          }
+
           setError(`VAPI Error: ${errorMessage}`);
           setIsLoading(false);
           setConnectionStatus('disconnected');
@@ -300,8 +342,17 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
 
       console.log('🔍 FULL ASSISTANT CONFIG:', JSON.stringify(assistantConfig, null, 2));
 
+      // Warn about potential configuration issues
+      console.log('⚠️ Configuration checks:');
+      console.log('  - VAPI Public Key:', import.meta.env.VITE_VAPI_PUBLIC_KEY ? '✅ Set' : '❌ Missing');
+      console.log('  - Webhook URL:', serverUrl);
+      console.log('  - First Message Mode:', assistantConfig.firstMessageMode);
+      console.log('  - Model:', assistantConfig.model.model);
+
       try {
+        console.log('🚀 Calling vapi.start()...');
         await vapi.start(assistantConfig);
+        console.log('✅ vapi.start() completed successfully');
         // Since VAPI.start() succeeded, consider the session active
         setIsSessionActive(true);
         setConnectionStatus('connected');
