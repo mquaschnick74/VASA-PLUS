@@ -148,7 +148,15 @@ async function trackInfluencerConversion(userId: string, subscriptionAmount: num
 export { trackInfluencerConversion };
 
 router.post('/webhook', async (req, res) => {
-  console.log('📥 VAPI webhook received:', req.body.message?.type);
+  // Enhanced logging for debugging
+  console.log('');
+  console.log('═══════════════════════════════════════════');
+  console.log('📥 VAPI WEBHOOK RECEIVED');
+  console.log('═══════════════════════════════════════════');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body type:', typeof req.body);
+  console.log('Body is Buffer:', Buffer.isBuffer(req.body));
 
   try {
     // PRESERVED: Your robust signature validation
@@ -191,6 +199,9 @@ router.post('/webhook', async (req, res) => {
     const { message } = body;
     const eventType = message?.type;
 
+    console.log('Event Type:', eventType);
+    console.log('Message Keys:', Object.keys(message || {}));
+
     const userId = extractUserId(message);
     const callId = extractCallId(message);
     const agentName = extractAgentName(message);
@@ -211,8 +222,12 @@ router.post('/webhook', async (req, res) => {
     if (!userId || !callId) {
       console.warn('⚠️ Missing critical data - userId:', userId, 'callId:', callId);
       console.warn('Full message metadata:', JSON.stringify(message?.call?.metadata || message?.metadata || {}));
+      console.log('═══════════════════════════════════════════');
+      console.log('');
       return res.status(200).json({ received: true });
     }
+
+    console.log('✅ Extracted: userId =', userId, ', callId =', callId, ', agent =', agentName);
 
     switch (eventType) {
       case 'call-started':
@@ -396,9 +411,14 @@ router.post('/webhook', async (req, res) => {
         console.log(`Unhandled event type: ${eventType}`);
     }
 
+    console.log('✅ Webhook processed successfully');
+    console.log('═══════════════════════════════════════════');
+    console.log('');
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    console.error('❌ Webhook processing error:', error);
+    console.log('═══════════════════════════════════════════');
+    console.log('');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

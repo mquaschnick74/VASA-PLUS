@@ -246,11 +246,19 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       const baseUrl = import.meta.env.VITE_SERVER_URL || window.location.origin;
       const serverUrl = `${baseUrl}/api/vapi/webhook`;
 
+      console.log('');
+      console.log('╔══════════════════════════════════════════════════════════════╗');
+      console.log('║ VAPI SESSION CONFIGURATION                                    ║');
+      console.log('╚══════════════════════════════════════════════════════════════╝');
       console.log('📍 Webhook URL:', serverUrl);
-      console.log('📍 Base URL:', baseUrl);
-      console.log('📍 User ID:', userId);
-      console.log('📍 Agent:', selectedAgent.name);
+      console.log('   ├─ Base URL:', baseUrl);
+      console.log('   ├─ From Env Var:', !!import.meta.env.VITE_SERVER_URL);
+      console.log('   └─ Full Path:', `${baseUrl}/api/vapi/webhook`);
+      console.log('👤 User ID:', userId);
+      console.log('🤖 Agent:', selectedAgent.name);
       console.log('📝 Session continuity:', shouldReferenceLastSession ? 'Enabled' : 'Disabled');
+      console.log('════════════════════════════════════════════════════════════════');
+      console.log('');
 
       // VAPI configuration with dynamic agent settings
       // Session duration is controlled by maxDurationSeconds property
