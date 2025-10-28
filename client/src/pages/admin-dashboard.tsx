@@ -1,7 +1,7 @@
   // Location: client/src/pages/admin-dashboard.tsx
   // Admin dashboard for managing partners, influencers, content, and blog
 
-  import { useState, useEffect } from "react";
+  import { useState, useEffect, useRef } from "react";
   import { Button } from "@/components/ui/button";
   import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
   import { Badge } from "@/components/ui/badge";
@@ -112,6 +112,16 @@
     const [showInfluencerForm, setShowInfluencerForm] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [blogSubmitting, setBlogSubmitting] = useState(false);
+
+    // Add mounted ref to prevent state updates after unmount
+    const mountedRef = useRef(true);
+
+    useEffect(() => {
+      mountedRef.current = true;
+      return () => {
+        mountedRef.current = false;
+      };
+    }, []);
 
     useEffect(() => {
       void loadData();
@@ -424,15 +434,17 @@
         });
 
         if (res.ok) {
-          alert("Blog post created successfully!");
-
-          // Reset form
-          e.currentTarget.reset();
+          // Close form and reset state FIRST to prevent conflicts
           setShowBlogForm(false);
           setEditingBlogPost(null);
 
-          // Reload data
+          // Then reload data
           await loadData();
+
+          // Show success message last
+          if (mountedRef.current) {
+            alert("Blog post created successfully!");
+          }
         } else {
           const error = await res.json();
           alert(`Failed: ${error.error ?? "Unknown error"}`);
@@ -441,7 +453,9 @@
         console.error("Create blog post error:", error);
         alert("Failed to create blog post");
       } finally {
-        setBlogSubmitting(false);
+        if (mountedRef.current) {
+          setBlogSubmitting(false);
+        }
       }
     };
 
@@ -484,15 +498,17 @@
         });
 
         if (res.ok) {
-          alert("Blog post updated successfully!");
-
-          // Reset form and editing state
-          e.currentTarget.reset();
+          // Close form and reset state FIRST to prevent conflicts
           setEditingBlogPost(null);
           setShowBlogForm(false);
 
-          // Reload data
+          // Then reload data
           await loadData();
+
+          // Show success message last
+          if (mountedRef.current) {
+            alert("Blog post updated successfully!");
+          }
         } else {
           const error = await res.json();
           alert(`Failed: ${error.error ?? "Unknown error"}`);
@@ -501,7 +517,9 @@
         console.error("Update blog post error:", error);
         alert("Failed to update blog post");
       } finally {
-        setBlogSubmitting(false);
+        if (mountedRef.current) {
+          setBlogSubmitting(false);
+        }
       }
     };
 
@@ -939,8 +957,9 @@
                 <Button
                   onClick={() => {
                     setEditingBlogPost(null);
-                    setShowBlogForm((s) => !s);
+                    setShowBlogForm(true);
                   }}
+                  disabled={blogSubmitting}
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   New Blog Post
@@ -1110,7 +1129,15 @@
                             )}
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => setEditingBlogPost(post)}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setShowBlogForm(false);
+                                setEditingBlogPost(post);
+                              }}
+                              disabled={blogSubmitting}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button size="sm" variant="destructive" onClick={() => deleteBlogPost(post.id)}>
