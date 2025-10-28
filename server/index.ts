@@ -49,6 +49,22 @@ app.use('/api/stripe/webhook', express.raw({
 app.use(express.json({ limit: '10mb' }));  // Increased from default 100kb
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+// Diagnostic logging for malformed auth headers (temporary - helps identify polling source)
+app.use((req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  // Only log if there's a malformed Bearer token
+  if (authHeader && authHeader.startsWith('Bearer ') && authHeader.split(' ').length !== 2) {
+    console.log('🔍 MALFORMED AUTH DETECTED:', {
+      path: req.path,
+      method: req.method,
+      authHeaderLength: authHeader.length,
+      authPreview: authHeader.substring(0, 50) + '...',
+      userAgent: req.headers['user-agent']?.substring(0, 100)
+    });
+  }
+  next();
+});
+
 // Rest of your existing code...
 app.use((req, res, next) => {
   const start = Date.now();
