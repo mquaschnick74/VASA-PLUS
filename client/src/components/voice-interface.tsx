@@ -57,11 +57,29 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const [sessionDurationLimit, setSessionDurationLimit] = useState(7200); // Default: 2 hours in seconds
 
   // NEW: Transcript and text messaging state
-  const [transcript, setTranscript] = useState<ExtendedTranscriptMessage[]>([]);
+  const [transcript, setTranscript] = useState<ExtendedTranscriptMessage[]>(() => {
+    // Restore transcript from localStorage on mount
+    const saved = localStorage.getItem('vasa_text_transcript');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [textInput, setTextInput] = useState('');
   const [isSendingText, setIsSendingText] = useState(false);
-  const [activeTextSessionId, setActiveTextSessionId] = useState<string | null>(null);
+  const [activeTextSessionId, setActiveTextSessionId] = useState<string | null>(() => {
+    // Restore active session ID from localStorage on mount
+    return localStorage.getItem('vasa_text_session_id');
+  });
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+
+  // Persist text session state to localStorage
+  useEffect(() => {
+    if (activeTextSessionId) {
+      localStorage.setItem('vasa_text_session_id', activeTextSessionId);
+      localStorage.setItem('vasa_text_transcript', JSON.stringify(transcript));
+    } else {
+      localStorage.removeItem('vasa_text_session_id');
+      localStorage.removeItem('vasa_text_transcript');
+    }
+  }, [activeTextSessionId, transcript]);
 
   const selectedAgent = getAgentById(selectedAgentId);
 
@@ -167,51 +185,81 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   };
 
   const stopTextSession = async () => {
-    if (!activeTextSessionId || transcript.length === 0) return;
+    if (!activeTextSessionId || transcript.length === 0) {
+      console.log('⚠️ [TEXT] Cannot stop session - no active session or empty transcript');
+      return;
+    }
 
     console.log('📝 [TEXT] Stopping text session:', activeTextSessionId);
     console.log('📝 [TEXT] Saving', transcript.length, 'messages to database...');
 
     try {
       // Get authentication token
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('❌ [TEXT] Failed to get session:', sessionError);
+        alert('Failed to save session: Authentication error. Please refresh the page.');
+        return;
+      }
+
       const token = sessionData?.session?.access_token;
 
-      if (token) {
-        // Send transcript to backend for processing and storage
-        console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
-
-        const response = await fetch('/api/chat/end-session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            sessionId: activeTextSessionId,
-            agentName: selectedAgent?.name,
-            transcript: transcript.map(msg => ({
-              role: msg.role,
-              content: msg.content,
-              timestamp: msg.timestamp
-            })),
-          }),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log('✅ [TEXT] Session processing completed:', result);
-          console.log(`📊 CSS Stage: ${result.cssStage}, Patterns: ${result.patternsDetected}`);
-        } else {
-          console.error('❌ [TEXT] Failed to process session end:', response.statusText);
-        }
+      if (!token) {
+        console.error('❌ [TEXT] No authentication token available');
+        alert('Failed to save session: Not authenticated. Please refresh the page.');
+        return;
       }
-    } catch (error) {
-      console.error('❌ [TEXT] Error stopping session:', error);
-    }
 
-    setActiveTextSessionId(null);
-    // Keep transcript visible for review
+      // Send transcript to backend for processing and storage
+      console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
+      console.log('📤 [TEXT] Sending request to /api/chat/end-session');
+
+      const response = await fetch('/api/chat/end-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sessionId: activeTextSessionId,
+          agentName: selectedAgent?.name,
+          transcript: transcript.filter(msg => msg.source === 'text').map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp
+          })),
+        }),
+      });
+
+      console.log('📥 [TEXT] Response status:', response.status, response.statusText);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ [TEXT] Session processing completed:', result);
+        console.log(`📊 CSS Stage: ${result.cssStage}, Patterns: ${result.patternsDetected}`);
+        alert(`Session saved successfully! CSS Stage: ${result.cssStage}, Patterns detected: ${result.patternsDetected}`);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ [TEXT] Failed to process session end:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        alert(`Failed to save session: ${response.status} - ${errorText}`);
+      }
+    } catch (error: any) {
+      console.error('❌ [TEXT] Error stopping session:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      alert(`Failed to save session: ${error.message}`);
+    } finally {
+      // Always clear the session state
+      setActiveTextSessionId(null);
+      // Keep transcript visible for review
+    }
   };
 
   // Load memory context
