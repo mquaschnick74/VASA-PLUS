@@ -83,6 +83,17 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     }
   }, [activeTextSessionId, transcript]);
 
+  // Auto-focus text input when component mounts with active session (after navigation)
+  useEffect(() => {
+    if (activeTextSessionId && textInputRef.current) {
+      // Small delay to ensure component is fully rendered
+      const timer = setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTextSessionId]);
+
   const selectedAgent = getAgentById(selectedAgentId);
 
   const {
@@ -143,40 +154,21 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     }
   }, [isSessionActive]);
 
-  // Save text session on page close/refresh
+  // Warn user before leaving with unsaved text session (browser close/refresh only)
   useEffect(() => {
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only show warning if there's an active text session with messages
+      // Don't prevent navigation or try to save here - that causes freezing
       if (activeTextSessionId && transcript.length > 0) {
-        // Try to save session before unload
-        e.preventDefault();
-        e.returnValue = 'You have an active text session. Your conversation will be saved.';
-
-        // Send beacon to save session (more reliable than fetch on unload)
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-
-        if (token) {
-          const payload = JSON.stringify({
-            sessionId: activeTextSessionId,
-            agentName: selectedAgent?.name,
-            transcript: transcript.map(msg => ({
-              role: msg.role,
-              content: msg.content,
-              timestamp: msg.timestamp
-            })),
-          });
-
-          // Use sendBeacon for reliable sending during page unload
-          navigator.sendBeacon('/api/chat/end-session',
-            new Blob([payload], { type: 'application/json' })
-          );
-        }
+        const message = 'You have an active text session. Click "Stop Text Session" to save your conversation.';
+        e.returnValue = message;
+        return message;
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [activeTextSessionId, transcript, selectedAgent]);
+  }, [activeTextSessionId, transcript]);
 
   // NEW: Text session management
   const startTextSession = () => {
