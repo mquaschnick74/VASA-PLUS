@@ -353,8 +353,9 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
     // 6. Store CSS patterns
     await storeCSSPatternsForTextSession(userId, sessionId, patterns, confidence, reasoning);
 
-    // 7. Generate enhanced session summary for continuity
+    // 7. Generate enhanced session summary for continuity (populates therapeutic_context)
     try {
+      console.log('🧠 [CHAT] Generating enhanced session summary...');
       await generateEnhancedSessionSummary({
         userId,
         callId: sessionId,
@@ -363,9 +364,12 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
         agentName: agentName || 'Assistant',
         duration: durationSeconds
       });
-      console.log('📝 [CHAT] Enhanced session summary generated');
-    } catch (summaryError) {
-      console.error('❌ [CHAT] Failed to generate summary:', summaryError);
+      console.log('✅ [CHAT] Enhanced session summary generated (therapeutic_context populated)');
+    } catch (summaryError: any) {
+      console.error('❌ [CHAT] Failed to generate summary:', {
+        error: summaryError.message,
+        stack: summaryError.stack
+      });
     }
 
     console.log('✅ [CHAT] Text session processing completed:', sessionId);
@@ -428,7 +432,7 @@ async function storeCSSPatternsForTextSession(
   }
 
   // Store THEND patterns
-  for (const thend of patterns.thendPatterns) {
+  for (const thend of patterns.thendIndicators) {
     patternInserts.push({
       user_id: userId,
       call_id: sessionId,
@@ -465,15 +469,23 @@ async function storeCSSPatternsForTextSession(
   });
 
   if (patternInserts.length > 0) {
+    console.log(`📊 [CHAT] Attempting to store ${patternInserts.length} CSS patterns...`);
     const { error } = await supabase
       .from('css_patterns')
       .insert(patternInserts);
 
     if (error) {
-      console.error('❌ [CHAT] Error storing CSS patterns:', error);
+      console.error('❌ [CHAT] Error storing CSS patterns:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
     } else {
-      console.log(`✅ [CHAT] Stored ${patternInserts.length} CSS patterns`);
+      console.log(`✅ [CHAT] Successfully stored ${patternInserts.length} CSS patterns to database`);
     }
+  } else {
+    console.log('⚠️ [CHAT] No CSS patterns detected to store');
   }
 }
 
