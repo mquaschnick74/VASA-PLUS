@@ -176,9 +176,11 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
 
     // Get recent text interactions from the last 30 minutes to maintain conversation continuity
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+    // Get recent text session IDs
     const { data: recentTextSessions } = await supabase
       .from('therapeutic_sessions')
-      .select('transcript, created_at')
+      .select('call_id, created_at')
       .eq('user_id', userId)
       .gte('created_at', thirtyMinutesAgo)
       .like('call_id', 'text-%')
@@ -186,26 +188,26 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
 
     console.log('💬 [CHAT] Recent text sessions found:', recentTextSessions?.length || 0);
 
-    // Build conversation history from recent text sessions
+    // Build conversation history from session_transcripts table
     const conversationHistory: Array<{ role: 'user' | 'assistant', content: string }> = [];
 
     if (recentTextSessions && recentTextSessions.length > 0) {
-      for (const session of recentTextSessions) {
-        try {
-          const transcript = typeof session.transcript === 'string'
-            ? JSON.parse(session.transcript)
-            : session.transcript;
+      // Get all transcripts for these sessions
+      const callIds = recentTextSessions.map(s => s.call_id);
+      const { data: transcripts } = await supabase
+        .from('session_transcripts')
+        .select('call_id, text, role, timestamp')
+        .in('call_id', callIds)
+        .order('timestamp', { ascending: true });
 
-          if (transcript?.exchanges && Array.isArray(transcript.exchanges)) {
-            for (const exchange of transcript.exchanges) {
-              conversationHistory.push({
-                role: exchange.role,
-                content: exchange.content
-              });
-            }
-          }
-        } catch (err) {
-          console.warn('⚠️ [CHAT] Failed to parse transcript:', err);
+      console.log('💬 [CHAT] Transcript entries found:', transcripts?.length || 0);
+
+      if (transcripts && transcripts.length > 0) {
+        for (const transcript of transcripts) {
+          conversationHistory.push({
+            role: transcript.role as 'user' | 'assistant',
+            content: transcript.text
+          });
         }
       }
     }
@@ -293,28 +295,55 @@ async function saveTextInteraction(
   assistantResponse: string
 ): Promise<void> {
   try {
-    // Create a session record for text interaction
-    // Note: interaction_type column doesn't exist yet, so we'll use call_id prefix
-    const { error } = await supabase
+    const callId = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+
+    // 1. Create a session record for text interaction
+    const { error: sessionError } = await supabase
       .from('therapeutic_sessions')
       .insert({
         user_id: userId,
         agent_name: agentName,
-        call_id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        call_id: callId,
         status: 'completed',
-        start_time: new Date().toISOString(),
-        end_time: new Date().toISOString(),
+        start_time: now,
+        end_time: now,
         duration_seconds: 0, // No duration for text
-        transcript: JSON.stringify({
-          exchanges: [
-            { role: 'user', content: userMessage },
-            { role: 'assistant', content: assistantResponse }
-          ]
-        })
       });
 
-    if (error) {
-      console.error('❌ [CHAT] Database error saving interaction:', error);
+    if (sessionError) {
+      console.error('❌ [CHAT] Database error saving session:', sessionError);
+      return;
+    }
+
+    // 2. Save user message to session_transcripts
+    const { error: userTranscriptError } = await supabase
+      .from('session_transcripts')
+      .insert({
+        user_id: userId,
+        call_id: callId,
+        text: userMessage,
+        role: 'user',
+        timestamp: now
+      });
+
+    if (userTranscriptError) {
+      console.error('❌ [CHAT] Database error saving user message:', userTranscriptError);
+    }
+
+    // 3. Save assistant response to session_transcripts
+    const { error: assistantTranscriptError } = await supabase
+      .from('session_transcripts')
+      .insert({
+        user_id: userId,
+        call_id: callId,
+        text: assistantResponse,
+        role: 'assistant',
+        timestamp: new Date().toISOString()
+      });
+
+    if (assistantTranscriptError) {
+      console.error('❌ [CHAT] Database error saving assistant response:', assistantTranscriptError);
     } else {
       console.log('✅ [CHAT] Text interaction saved to database');
     }
