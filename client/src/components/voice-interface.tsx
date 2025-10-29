@@ -60,6 +60,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const [transcript, setTranscript] = useState<ExtendedTranscriptMessage[]>([]);
   const [textInput, setTextInput] = useState('');
   const [isSendingText, setIsSendingText] = useState(false);
+  const [activeTextSessionId, setActiveTextSessionId] = useState<string | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   const selectedAgent = getAgentById(selectedAgentId);
@@ -121,6 +122,20 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       // setTranscript([]);
     }
   }, [isSessionActive]);
+
+  // NEW: Text session management
+  const startTextSession = () => {
+    const sessionId = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setActiveTextSessionId(sessionId);
+    setTranscript([]); // Clear previous transcript
+    console.log('📝 [TEXT] Started new text session:', sessionId);
+  };
+
+  const stopTextSession = () => {
+    console.log('📝 [TEXT] Stopping text session:', activeTextSessionId);
+    setActiveTextSessionId(null);
+    // Keep transcript visible for review
+  };
 
   // Load memory context
   // Load memory context and session duration limit
@@ -336,7 +351,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
   // NEW: Handle sending text messages
   const handleSendTextMessage = async () => {
-    if (!textInput.trim() || isSessionActive) return;
+    if (!textInput.trim() || isSessionActive || !activeTextSessionId) return;
 
     const userMessage = textInput.trim();
     setTextInput(''); // Clear input immediately
@@ -402,6 +417,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         },
         body: JSON.stringify({
           userId: requestUserId, // Use authenticated user ID from session
+          sessionId: activeTextSessionId, // Send active session ID
           agentId: selectedAgentId,
           agentName: selectedAgent?.name,
           systemPrompt: selectedAgent?.systemPrompt,
@@ -911,67 +927,99 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border">
-                  {/* Text Input Section - NEW */}
-                  {!isSessionActive && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleSendTextMessage();
-                      }}
-                      className="mb-4"
-                    >
-                      <div className="flex items-end space-x-2">
-                        <textarea
-                          value={textInput}
-                          onChange={(e) => setTextInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSendTextMessage();
-                            }
-                          }}
-                          placeholder={`Send a text message to ${selectedAgent?.name}...`}
-                          className="flex-1 px-3 py-2 rounded-lg glass border border-white/10 resize-none text-sm"
-                          rows={2}
-                          disabled={isSendingText}
-                          data-testid="input-text-message"
-                        />
-                        <Button
-                          type="submit"
-                          disabled={!textInput.trim() || isSendingText}
-                          className="px-4 py-2 h-auto"
-                        >
-                          {isSendingText ? (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>Sending...</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-2">
-                              <span>💬</span>
-                              <span>Send</span>
-                            </div>
-                          )}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        💬 Text mode - unlimited messages • Press Enter to send, Shift+Enter for new line
+                  {/* Text Session Management - NEW */}
+                  {!isSessionActive && !activeTextSessionId && (
+                    <div className="mb-4">
+                      <Button
+                        onClick={startTextSession}
+                        className="w-full"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span>💬</span>
+                          <span>Start Text Session</span>
+                        </div>
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        Start a text conversation with {selectedAgent?.name}
                       </p>
-                    </form>
+                    </div>
+                  )}
+
+                  {/* Text Input Section - Active Session */}
+                  {!isSessionActive && activeTextSessionId && (
+                    <>
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSendTextMessage();
+                        }}
+                        className="mb-4"
+                      >
+                        <div className="flex items-end space-x-2">
+                          <textarea
+                            value={textInput}
+                            onChange={(e) => setTextInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendTextMessage();
+                              }
+                            }}
+                            placeholder={`Send a text message to ${selectedAgent?.name}...`}
+                            className="flex-1 px-3 py-2 rounded-lg glass border border-white/10 resize-none text-sm"
+                            rows={2}
+                            disabled={isSendingText}
+                            data-testid="input-text-message"
+                          />
+                          <Button
+                            type="submit"
+                            disabled={!textInput.trim() || isSendingText}
+                            className="px-4 py-2 h-auto"
+                          >
+                            {isSendingText ? (
+                              <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span>Sending...</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-2">
+                                <span>💬</span>
+                                <span>Send</span>
+                              </div>
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          💬 Text session active • Press Enter to send, Shift+Enter for new line
+                        </p>
+                      </form>
+                      <Button
+                        onClick={stopTextSession}
+                        variant="outline"
+                        className="w-full mb-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span>⏹️</span>
+                          <span>Stop Text Session</span>
+                        </div>
+                      </Button>
+                    </>
                   )}
 
                   {/* Mode indicator */}
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>
                       {isSessionActive
-                        ? "🎤 Voice mode active - End session to send text messages"
-                        : "💬 Text mode - chat anytime"}
+                        ? "🎤 Voice mode active - End session to use text"
+                        : activeTextSessionId
+                        ? "💬 Text session active"
+                        : "💬 Text mode ready"}
                     </span>
                     <span className="flex items-center space-x-1">
                       <div className={`w-2 h-2 rounded-full ${
-                        isSessionActive ? 'bg-red-500 animate-pulse' : 'bg-green-500'
+                        isSessionActive || activeTextSessionId ? 'bg-red-500 animate-pulse' : 'bg-green-500'
                       }`}></div>
-                      <span>{isSessionActive ? 'Recording' : 'Ready'}</span>
+                      <span>{isSessionActive ? 'Recording' : activeTextSessionId ? 'Chatting' : 'Ready'}</span>
                     </span>
                   </div>
                 </div>

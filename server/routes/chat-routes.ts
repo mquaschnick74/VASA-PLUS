@@ -71,7 +71,7 @@ Do not make up or hallucinate details not mentioned above.`;
 // POST /api/chat/send-message - Send a text message and get AI response
 router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { agentId, agentName, systemPrompt, modelConfig, message } = req.body;
+    const { sessionId, agentId, agentName, systemPrompt, modelConfig, message } = req.body;
 
     // Map Supabase auth user ID to VASA platform user ID
     const authUserId = req.user.id; // Supabase auth ID from JWT token
@@ -113,12 +113,13 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     });
 
     // Validate inputs
-    if (!message || !agentId || !systemPrompt || !modelConfig) {
+    if (!message || !agentId || !systemPrompt || !modelConfig || !sessionId) {
       console.error('❌ [CHAT] Missing required fields:', {
         hasMessage: !!message,
         hasAgentId: !!agentId,
         hasSystemPrompt: !!systemPrompt,
-        hasModelConfig: !!modelConfig
+        hasModelConfig: !!modelConfig,
+        hasSessionId: !!sessionId
       });
       return res.status(400).send('Missing required fields');
     }
@@ -174,41 +175,26 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
       shouldReferenceLastSession: !!sessions?.[0]?.session_summary
     };
 
-    // Get recent text interactions from the last 30 minutes to maintain conversation continuity
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    // Load conversation history for this specific text session
+    console.log('💬 [CHAT] Loading history for session:', sessionId);
 
-    // Get recent text session IDs
-    const { data: recentTextSessions } = await supabase
-      .from('therapeutic_sessions')
-      .select('call_id, created_at')
-      .eq('user_id', userId)
-      .gte('created_at', thirtyMinutesAgo)
-      .like('call_id', 'text-%')
-      .order('created_at', { ascending: true });
-
-    console.log('💬 [CHAT] Recent text sessions found:', recentTextSessions?.length || 0);
-
-    // Build conversation history from session_transcripts table
+    // Build conversation history from session_transcripts table for this session
     const conversationHistory: Array<{ role: 'user' | 'assistant', content: string }> = [];
 
-    if (recentTextSessions && recentTextSessions.length > 0) {
-      // Get all transcripts for these sessions
-      const callIds = recentTextSessions.map(s => s.call_id);
-      const { data: transcripts } = await supabase
-        .from('session_transcripts')
-        .select('call_id, text, role, timestamp')
-        .in('call_id', callIds)
-        .order('timestamp', { ascending: true });
+    const { data: transcripts } = await supabase
+      .from('session_transcripts')
+      .select('text, role, timestamp')
+      .eq('call_id', sessionId)
+      .order('timestamp', { ascending: true });
 
-      console.log('💬 [CHAT] Transcript entries found:', transcripts?.length || 0);
+    console.log('💬 [CHAT] Transcript entries found for session:', transcripts?.length || 0);
 
-      if (transcripts && transcripts.length > 0) {
-        for (const transcript of transcripts) {
-          conversationHistory.push({
-            role: transcript.role as 'user' | 'assistant',
-            content: transcript.text
-          });
-        }
+    if (transcripts && transcripts.length > 0) {
+      for (const transcript of transcripts) {
+        conversationHistory.push({
+          role: transcript.role as 'user' | 'assistant',
+          content: transcript.text
+        });
       }
     }
 
@@ -269,7 +255,7 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     console.log('✅ [CHAT] Response streamed successfully');
 
     // Save to database asynchronously (don't block response)
-    saveTextInteraction(userId, agentId, agentName, message, fullResponse)
+    saveTextInteraction(userId, sessionId, agentId, agentName, message, fullResponse)
       .catch(err => console.error('❌ [CHAT] Error saving interaction:', err));
 
   } catch (error: any) {
@@ -289,31 +275,47 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
 // Helper function to save text interaction to database
 async function saveTextInteraction(
   userId: string,
+  sessionId: string,
   agentId: string,
   agentName: string,
   userMessage: string,
   assistantResponse: string
 ): Promise<void> {
   try {
-    const callId = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
 
-    // 1. Create a session record for text interaction
-    const { error: sessionError } = await supabase
+    // 1. Ensure session record exists (upsert)
+    // Check if session already exists
+    const { data: existingSession } = await supabase
       .from('therapeutic_sessions')
-      .insert({
-        user_id: userId,
-        agent_name: agentName,
-        call_id: callId,
-        status: 'completed',
-        start_time: now,
-        end_time: now,
-        duration_seconds: 0, // No duration for text
-      });
+      .select('id')
+      .eq('call_id', sessionId)
+      .maybeSingle();
 
-    if (sessionError) {
-      console.error('❌ [CHAT] Database error saving session:', sessionError);
-      return;
+    if (!existingSession) {
+      // Create session record on first message
+      const { error: sessionError } = await supabase
+        .from('therapeutic_sessions')
+        .insert({
+          user_id: userId,
+          agent_name: agentName,
+          call_id: sessionId,
+          status: 'active', // Keep as active until explicitly stopped
+          start_time: now,
+          duration_seconds: 0,
+        });
+
+      if (sessionError) {
+        console.error('❌ [CHAT] Database error creating session:', sessionError);
+        return;
+      }
+      console.log('✅ [CHAT] Created new text session:', sessionId);
+    } else {
+      // Update end_time for existing session
+      await supabase
+        .from('therapeutic_sessions')
+        .update({ end_time: now })
+        .eq('call_id', sessionId);
     }
 
     // 2. Save user message to session_transcripts
@@ -321,7 +323,7 @@ async function saveTextInteraction(
       .from('session_transcripts')
       .insert({
         user_id: userId,
-        call_id: callId,
+        call_id: sessionId,
         text: userMessage,
         role: 'user',
         timestamp: now
@@ -336,7 +338,7 @@ async function saveTextInteraction(
       .from('session_transcripts')
       .insert({
         user_id: userId,
-        call_id: callId,
+        call_id: sessionId,
         text: assistantResponse,
         role: 'assistant',
         timestamp: new Date().toISOString()
