@@ -304,7 +304,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
               content: systemPrompt
             }
           ],
-          maxTokens: 200
+          maxTokens: 300
         },
         voice: {
           provider: selectedAgent.voice.provider,
