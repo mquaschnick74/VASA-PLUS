@@ -501,12 +501,7 @@ export default function TherapistDashboard({
   // Calculate subscription values safely
   const minutesRemaining = subscription?.limits?.minutes_remaining || 0;
   const subscriptionTier = subscription?.limits?.subscription_tier || "trial";
-  const clientLimit =
-    subscriptionTier === "pro"
-      ? "Unlimited"
-      : subscriptionTier === "plus"
-        ? "10"
-        : "3";
+  const clientLimit = subscription?.limits?.client_limit || subscription?.client_limit || 0;
 
   console.log(
     `🎨 [THERAPIST-DASH] Rendering dashboard with ${clients.length} clients`,
