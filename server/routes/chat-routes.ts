@@ -304,39 +304,63 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
     const lastTimestamp = new Date(transcript[transcript.length - 1].timestamp);
     const durationSeconds = Math.floor((lastTimestamp.getTime() - firstTimestamp.getTime()) / 1000);
 
-    // 3. Create therapeutic_sessions entry
-    const { error: sessionError } = await supabase
+    // 3. Create or update therapeutic_sessions entry
+    // Check if session already exists (from previous save attempt)
+    const { data: existingSession } = await supabase
       .from('therapeutic_sessions')
-      .insert({
-        user_id: userId,
-        agent_name: agentName,
-        call_id: sessionId,
-        status: 'completed',
-        start_time: firstTimestamp.toISOString(),
-        end_time: lastTimestamp.toISOString(),
-        duration_seconds: durationSeconds
-      });
+      .select('id')
+      .eq('call_id', sessionId)
+      .maybeSingle();
 
-    if (sessionError) {
-      console.error('❌ [CHAT] Error creating session:', sessionError);
-      return res.status(500).send('Failed to create session');
+    if (existingSession) {
+      console.log('⚠️ [CHAT] Session already exists, skipping insert:', sessionId);
+    } else {
+      const { error: sessionError } = await supabase
+        .from('therapeutic_sessions')
+        .insert({
+          user_id: userId,
+          agent_name: agentName,
+          call_id: sessionId,
+          status: 'completed',
+          start_time: firstTimestamp.toISOString(),
+          end_time: lastTimestamp.toISOString(),
+          duration_seconds: durationSeconds
+        });
+
+      if (sessionError) {
+        console.error('❌ [CHAT] Error creating session:', sessionError);
+        return res.status(500).send('Failed to create session');
+      }
+      console.log('✅ [CHAT] Created therapeutic_sessions entry');
     }
 
     // 4. Save complete transcript to session_transcripts (ONE entry with role='complete')
-    const { error: transcriptError } = await supabase
+    // Check if transcript already exists
+    const { data: existingTranscript } = await supabase
       .from('session_transcripts')
-      .insert({
-        user_id: userId,
-        call_id: sessionId,
-        text: fullTranscript,
-        role: 'complete',
-        timestamp: new Date().toISOString()
-      });
+      .select('id')
+      .eq('call_id', sessionId)
+      .eq('role', 'complete')
+      .maybeSingle();
 
-    if (transcriptError) {
-      console.error('❌ [CHAT] Error saving transcript:', transcriptError);
+    if (existingTranscript) {
+      console.log('⚠️ [CHAT] Transcript already exists, skipping insert');
     } else {
-      console.log('✅ [CHAT] Complete transcript saved (one entry)');
+      const { error: transcriptError } = await supabase
+        .from('session_transcripts')
+        .insert({
+          user_id: userId,
+          call_id: sessionId,
+          text: fullTranscript,
+          role: 'complete',
+          timestamp: new Date().toISOString()
+        });
+
+      if (transcriptError) {
+        console.error('❌ [CHAT] Error saving transcript:', transcriptError);
+      } else {
+        console.log('✅ [CHAT] Complete transcript saved (one entry)');
+      }
     }
 
     // 5. Detect CSS patterns

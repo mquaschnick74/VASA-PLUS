@@ -64,6 +64,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   });
   const [textInput, setTextInput] = useState('');
   const [isSendingText, setIsSendingText] = useState(false);
+  const [isStoppingSession, setIsStoppingSession] = useState(false);
   const [activeTextSessionId, setActiveTextSessionId] = useState<string | null>(() => {
     // Restore active session ID from localStorage on mount
     return localStorage.getItem('vasa_text_session_id');
@@ -191,6 +192,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       return;
     }
 
+    if (isStoppingSession) {
+      console.log('⚠️ [TEXT] Session stop already in progress, ignoring duplicate click');
+      return;
+    }
+
+    setIsStoppingSession(true);
     console.log('📝 [TEXT] Stopping text session:', activeTextSessionId);
     console.log('📝 [TEXT] Saving', transcript.length, 'messages to database...');
 
@@ -257,6 +264,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       });
       alert(`Failed to save session: ${error.message}`);
     } finally {
+      setIsStoppingSession(false);
       // Always clear the session state
       setActiveTextSessionId(null);
       // Keep transcript visible for review
@@ -1137,11 +1145,19 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                         onClick={stopTextSession}
                         variant="outline"
                         className="w-full mb-4"
+                        disabled={isStoppingSession}
                       >
-                        <div className="flex items-center space-x-2">
-                          <span>⏹️</span>
-                          <span>Stop Text Session</span>
-                        </div>
+                        {isStoppingSession ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            <span>Saving Session...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <span>⏹️</span>
+                            <span>Stop Text Session</span>
+                          </div>
+                        )}
                       </Button>
                     </>
                   )}
