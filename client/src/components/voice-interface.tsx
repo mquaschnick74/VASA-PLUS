@@ -485,7 +485,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       const requestUserId = authenticatedUserId;
 
       // Call backend chat endpoint
-      // Only send serializable parts of agent config (no functions)
+      // Send conversation history to maintain context
+      const conversationHistory = transcript
+        .filter(msg => msg.source === 'text') // Only text messages, not voice
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+
       const response = await fetch('/api/chat/send-message', {
         method: 'POST',
         headers: {
@@ -493,13 +500,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId: requestUserId, // Use authenticated user ID from session
-          sessionId: activeTextSessionId, // Send active session ID
+          userId: requestUserId,
+          sessionId: activeTextSessionId,
           agentId: selectedAgentId,
           agentName: selectedAgent?.name,
           systemPrompt: selectedAgent?.systemPrompt,
           modelConfig: selectedAgent?.model,
           message: userMessage,
+          conversationHistory, // Include previous messages for context
         }),
       });
 

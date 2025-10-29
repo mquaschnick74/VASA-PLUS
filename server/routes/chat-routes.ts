@@ -73,7 +73,7 @@ Do not make up or hallucinate details not mentioned above.`;
 // POST /api/chat/send-message - Send a text message and get AI response
 router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { sessionId, agentId, agentName, systemPrompt, modelConfig, message } = req.body;
+    const { sessionId, agentId, agentName, systemPrompt, modelConfig, message, conversationHistory } = req.body;
 
     // Map Supabase auth user ID to VASA platform user ID
     const authUserId = req.user.id; // Supabase auth ID from JWT token
@@ -177,30 +177,10 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
       shouldReferenceLastSession: !!sessions?.[0]?.session_summary
     };
 
-    // Load conversation history for this specific text session
-    console.log('💬 [CHAT] Loading history for session:', sessionId);
-
-    // Build conversation history from session_transcripts table for this session
-    const conversationHistory: Array<{ role: 'user' | 'assistant', content: string }> = [];
-
-    const { data: transcripts } = await supabase
-      .from('session_transcripts')
-      .select('text, role, timestamp')
-      .eq('call_id', sessionId)
-      .order('timestamp', { ascending: true });
-
-    console.log('💬 [CHAT] Transcript entries found for session:', transcripts?.length || 0);
-
-    if (transcripts && transcripts.length > 0) {
-      for (const transcript of transcripts) {
-        conversationHistory.push({
-          role: transcript.role as 'user' | 'assistant',
-          content: transcript.text
-        });
-      }
-    }
-
-    console.log('💬 [CHAT] Conversation history messages:', conversationHistory.length);
+    // Use conversation history from frontend (messages kept in memory during session)
+    console.log('💬 [CHAT] Received conversation history from frontend');
+    const history = conversationHistory || [];
+    console.log('💬 [CHAT] History messages:', history.length);
 
     // Build system prompt with user context
     const fullSystemPrompt = buildChatSystemPrompt(
@@ -214,13 +194,13 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     // Build messages array with conversation history
     const messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }> = [
       { role: 'system', content: fullSystemPrompt },
-      ...conversationHistory,  // Include previous messages from this text session
+      ...history,  // Include previous messages from this text session
       { role: 'user', content: message }  // Current message
     ];
 
     console.log('💬 [CHAT] Sending to OpenAI:', {
       systemPrompt: 1,
-      historyMessages: conversationHistory.length,
+      historyMessages: history.length,
       currentMessage: 1,
       totalMessages: messages.length
     });
