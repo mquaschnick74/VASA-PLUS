@@ -71,26 +71,46 @@ Do not make up or hallucinate details not mentioned above.`;
 // POST /api/chat/send-message - Send a text message and get AI response
 router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { userId, agentId, agentName, systemPrompt, modelConfig, message } = req.body;
+    const { agentId, agentName, systemPrompt, modelConfig, message } = req.body;
 
-    console.log('💬 [CHAT] Text message received:', {
-      userId,
-      requestUserId: req.user?.id,
-      agentId,
-      agentName,
-      messageLength: message?.length,
-      hasSystemPrompt: !!systemPrompt,
-      hasModelConfig: !!modelConfig
+    // Map Supabase auth user ID to VASA platform user ID
+    const authUserId = req.user.id; // Supabase auth ID from JWT token
+
+    console.log('💬 [CHAT] Text message received from auth user:', authUserId);
+    console.log('🔍 [CHAT] Looking up VASA user ID from auth user ID...');
+
+    // Look up the user in the users table by auth_user_id
+    const { data: vasaUser, error: userLookupError } = await supabase
+      .from('users')
+      .select('id, email, role')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+
+    console.log('🔍 [CHAT] VASA user lookup result:', {
+      found: !!vasaUser,
+      vasaUserId: vasaUser?.id,
+      authUserId: authUserId,
+      email: vasaUser?.email,
+      role: vasaUser?.role
     });
 
-    // Verify user ID matches authenticated user (requireAuth already validated token)
-    if (req.user.id !== userId) {
-      console.error('❌ [CHAT] User ID mismatch:', {
-        tokenUserId: req.user.id,
-        requestUserId: userId
-      });
-      return res.status(403).send('User ID mismatch');
+    if (userLookupError) {
+      console.error('❌ [CHAT] Error looking up VASA user:', userLookupError);
+      return res.status(500).send('Database error');
     }
+
+    if (!vasaUser) {
+      console.error('❌ [CHAT] No VASA user found for auth user ID:', authUserId);
+      return res.status(404).send('User record not found');
+    }
+
+    // Use the VASA platform user ID for all subsequent queries
+    const userId = vasaUser.id;
+
+    console.log('✅ [CHAT] Mapped auth ID to VASA ID:', {
+      authUserId,
+      vasaUserId: userId
+    });
 
     // Validate inputs
     if (!message || !agentId || !systemPrompt || !modelConfig) {
@@ -109,8 +129,8 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
       return res.status(500).send('OpenAI API key not configured');
     }
 
-    // Get user context
-    console.log('🔍 [CHAT] Looking up profile for userId:', userId);
+    // Get user context using VASA platform user ID
+    console.log('🔍 [CHAT] Looking up profile for VASA userId:', userId);
 
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
@@ -130,32 +150,9 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
       return res.status(500).send('Database error');
     }
 
-    // If no profile exists, something is wrong - user should already have a profile
     if (!profile) {
-      console.error('❌ [CHAT] CRITICAL: No profile found for authenticated user!', {
-        userId,
-        userEmail: req.user.email,
-        userMetadata: req.user.user_metadata
-      });
-
-      // Let's check if there's a profile with this email instead
-      const { data: profileByEmail } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('email', req.user.email)
-        .maybeSingle();
-
-      console.log('🔍 [CHAT] Checking for profile by email:', {
-        email: req.user.email,
-        found: !!profileByEmail,
-        profileUserId: profileByEmail?.id
-      });
-
-      if (profileByEmail) {
-        return res.status(409).send(`Profile exists but user ID mismatch. Profile user ID: ${profileByEmail.id}, Token user ID: ${userId}. Please contact support.`);
-      }
-
-      return res.status(404).send('User profile not found. Please sign out and sign in again, or contact support.');
+      console.error('❌ [CHAT] No profile found for VASA user ID:', userId);
+      return res.status(404).send('User profile not found');
     }
 
     const firstName = profile.full_name?.split(' ')[0] || profile.email.split('@')[0];
