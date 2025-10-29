@@ -110,14 +110,93 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     }
 
     // Get user context
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
+    if (profileError) {
+      console.error('❌ [CHAT] Database error fetching profile:', profileError);
+      return res.status(500).send('Database error');
+    }
+
+    // If no profile exists, create one from auth user data
     if (!profile) {
-      return res.status(404).send('User profile not found');
+      console.log('⚠️ [CHAT] No profile found, creating from auth user:', userId);
+
+      const userEmail = req.user.email || 'unknown@example.com';
+      const userName = req.user.user_metadata?.full_name ||
+                       req.user.user_metadata?.name ||
+                       userEmail.split('@')[0];
+
+      const { data: newProfile, error: createError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          email: userEmail,
+          full_name: userName,
+          user_type: 'individual',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (createError || !newProfile) {
+        console.error('❌ [CHAT] Failed to create profile:', createError);
+        return res.status(500).send('Failed to create user profile');
+      }
+
+      console.log('✅ [CHAT] Created new profile for user:', userId);
+
+      // Use the newly created profile
+      const firstName = newProfile.full_name?.split(' ')[0] || newProfile.email.split('@')[0];
+
+      // Continue with new profile (no memory context for new users)
+      const userContext = {
+        memoryContext: '',
+        lastSessionSummary: null,
+        shouldReferenceLastSession: false
+      };
+
+      const fullSystemPrompt = buildChatSystemPrompt(systemPrompt, userContext, firstName);
+
+      console.log('🤖 [CHAT] Calling OpenAI with model:', modelConfig.model);
+
+      const stream = await openai.chat.completions.create({
+        model: modelConfig.model,
+        messages: [
+          { role: 'system', content: fullSystemPrompt },
+          { role: 'user', content: message }
+        ],
+        stream: true,
+        temperature: modelConfig.temperature,
+        max_tokens: 500
+      });
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      let fullResponse = '';
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          fullResponse += content;
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+
+      res.write('data: [DONE]\n\n');
+      res.end();
+
+      console.log('✅ [CHAT] Response streamed successfully (new user)');
+
+      saveTextInteraction(userId, agentId, agentName, message, fullResponse)
+        .catch(err => console.error('❌ [CHAT] Error saving interaction:', err));
+
+      return; // Exit early after handling new user
     }
 
     const firstName = profile.full_name?.split(' ')[0] || profile.email.split('@')[0];
