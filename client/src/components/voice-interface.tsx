@@ -362,6 +362,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       }
 
       // Call backend chat endpoint
+      // Only send serializable parts of agent config (no functions)
       const response = await fetch('/api/chat/send-message', {
         method: 'POST',
         headers: {
@@ -371,7 +372,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         body: JSON.stringify({
           userId,
           agentId: selectedAgentId,
-          agentConfig: selectedAgent, // Pass full agent config
+          agentName: selectedAgent?.name,
+          systemPrompt: selectedAgent?.systemPrompt,
+          modelConfig: selectedAgent?.model,
           message: userMessage,
         }),
       });
@@ -436,11 +439,19 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     } catch (error: any) {
       console.error('❌ [TEXT] Failed to send message:', error);
 
-      // Show error message in transcript
+      // Show detailed error message in transcript
+      const errorMessage = error.message?.includes('OpenAI API key')
+        ? '⚠️ Server configuration error: OpenAI API key not configured. Please contact support.'
+        : error.message?.includes('not configured')
+        ? '⚠️ Server configuration error. Please contact support.'
+        : error.message?.includes('authenticated')
+        ? '⚠️ Authentication error. Please refresh the page and try again.'
+        : '⚠️ Sorry, I encountered an error sending your message. Please try again.';
+
       setTranscript(prev => [...prev, {
         id: `msg-${Date.now()}-error`,
         role: 'assistant',
-        content: '⚠️ Sorry, I encountered an error sending your message. Please try again.',
+        content: errorMessage,
         timestamp: new Date(),
         source: 'text',
       }]);

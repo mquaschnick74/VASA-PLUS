@@ -14,6 +14,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+// Validate OpenAI API key on startup
+if (!process.env.OPENAI_API_KEY) {
+  console.error('❌ [CHAT] OPENAI_API_KEY is not set in environment variables');
+}
+
 // Get agent configuration from client (we'll import dynamically)
 interface AgentConfig {
   id: string;
@@ -66,12 +71,15 @@ Do not make up or hallucinate details not mentioned above.`;
 // POST /api/chat/send-message - Send a text message and get AI response
 router.post('/send-message', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { userId, agentId, agentConfig, message } = req.body;
+    const { userId, agentId, agentName, systemPrompt, modelConfig, message } = req.body;
 
     console.log('💬 [CHAT] Text message received:', {
       userId,
       agentId,
-      messageLength: message?.length
+      agentName,
+      messageLength: message?.length,
+      hasSystemPrompt: !!systemPrompt,
+      hasModelConfig: !!modelConfig
     });
 
     // Verify authentication
@@ -81,8 +89,20 @@ router.post('/send-message', authenticateToken, async (req: AuthRequest, res) =>
     }
 
     // Validate inputs
-    if (!message || !agentId || !agentConfig) {
+    if (!message || !agentId || !systemPrompt || !modelConfig) {
+      console.error('❌ [CHAT] Missing required fields:', {
+        hasMessage: !!message,
+        hasAgentId: !!agentId,
+        hasSystemPrompt: !!systemPrompt,
+        hasModelConfig: !!modelConfig
+      });
       return res.status(400).send('Missing required fields');
+    }
+
+    // Validate OpenAI API key
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('❌ [CHAT] OPENAI_API_KEY not configured');
+      return res.status(500).send('OpenAI API key not configured');
     }
 
     // Get user context
@@ -115,24 +135,24 @@ router.post('/send-message', authenticateToken, async (req: AuthRequest, res) =>
       shouldReferenceLastSession: !!sessions?.[0]?.session_summary
     };
 
-    // Build system prompt
-    const systemPrompt = buildChatSystemPrompt(
-      agentConfig.systemPrompt,
+    // Build system prompt with user context
+    const fullSystemPrompt = buildChatSystemPrompt(
+      systemPrompt,
       userContext,
       firstName
     );
 
-    console.log('🤖 [CHAT] Calling OpenAI with model:', agentConfig.model.model);
+    console.log('🤖 [CHAT] Calling OpenAI with model:', modelConfig.model);
 
     // Call OpenAI with streaming
     const stream = await openai.chat.completions.create({
-      model: agentConfig.model.model,
+      model: modelConfig.model,
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: fullSystemPrompt },
         { role: 'user', content: message }
       ],
       stream: true,
-      temperature: agentConfig.model.temperature,
+      temperature: modelConfig.temperature,
       max_tokens: 500 // Limit for text chat (more concise than voice)
     });
 
@@ -159,11 +179,15 @@ router.post('/send-message', authenticateToken, async (req: AuthRequest, res) =>
     console.log('✅ [CHAT] Response streamed successfully');
 
     // Save to database asynchronously (don't block response)
-    saveTextInteraction(userId, agentId, agentConfig.name, message, fullResponse)
+    saveTextInteraction(userId, agentId, agentName, message, fullResponse)
       .catch(err => console.error('❌ [CHAT] Error saving interaction:', err));
 
   } catch (error: any) {
-    console.error('❌ [CHAT] Error:', error);
+    console.error('❌ [CHAT] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
 
     // If response hasn't been sent yet, send error
     if (!res.headersSent) {
