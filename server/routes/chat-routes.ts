@@ -163,18 +163,27 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     // Build memory context
     const memoryContext = await buildMemoryContext(userId);
 
-    // Get last session summary if available
-    const { data: sessions } = await supabase
-      .from('therapeutic_sessions')
-      .select('session_summary')
+    // Get last session summary from therapeutic_context (works for both text and voice sessions)
+    const { data: contextSummary } = await supabase
+      .from('therapeutic_context')
+      .select('content, call_id, created_at')
       .eq('user_id', userId)
+      .eq('context_type', 'conversational_summary')
       .order('created_at', { ascending: false })
       .limit(1);
 
+    const lastSessionSummary = contextSummary?.[0]?.content || null;
+
+    console.log('📝 [CHAT] Last session summary:', {
+      found: !!lastSessionSummary,
+      callId: contextSummary?.[0]?.call_id,
+      length: lastSessionSummary?.length
+    });
+
     const userContext = {
       memoryContext,
-      lastSessionSummary: sessions?.[0]?.session_summary || null,
-      shouldReferenceLastSession: !!sessions?.[0]?.session_summary
+      lastSessionSummary,
+      shouldReferenceLastSession: !!lastSessionSummary
     };
 
     // Use conversation history from frontend (messages kept in memory during session)
