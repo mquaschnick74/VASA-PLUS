@@ -131,8 +131,44 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     console.log('📝 [TEXT] Started new text session:', sessionId);
   };
 
-  const stopTextSession = () => {
+  const stopTextSession = async () => {
+    if (!activeTextSessionId) return;
+
     console.log('📝 [TEXT] Stopping text session:', activeTextSessionId);
+
+    try {
+      // Get authentication token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (token) {
+        // Call backend to process session end (CSS patterns, summary, etc.)
+        console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
+
+        const response = await fetch('/api/chat/end-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            sessionId: activeTextSessionId,
+            agentName: selectedAgent?.name,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ [TEXT] Session processing completed:', result);
+          console.log(`📊 CSS Stage: ${result.cssStage}, Patterns: ${result.patternsDetected}`);
+        } else {
+          console.error('❌ [TEXT] Failed to process session end:', response.statusText);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [TEXT] Error stopping session:', error);
+    }
+
     setActiveTextSessionId(null);
     // Keep transcript visible for review
   };

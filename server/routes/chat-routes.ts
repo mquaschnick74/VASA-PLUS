@@ -5,6 +5,8 @@ import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabase } from '../services/supabase-service';
 import { buildMemoryContext } from '../services/memory-service';
+import { detectCSSPatterns, assessPatternConfidence } from '../services/css-pattern-service';
+import { generateEnhancedSessionSummary } from '../services/summary-service';
 import OpenAI from 'openai';
 
 const router = Router();
@@ -271,6 +273,219 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     }
   }
 });
+
+// POST /api/chat/end-session - Process text session end with therapeutic analysis
+router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { sessionId, agentName } = req.body;
+
+    if (!sessionId) {
+      console.error('❌ [CHAT] Missing sessionId');
+      return res.status(400).send('Missing sessionId');
+    }
+
+    // Map Supabase auth user ID to VASA platform user ID
+    const authUserId = req.user.id;
+    const { data: vasaUser, error: userLookupError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+
+    if (userLookupError || !vasaUser) {
+      console.error('❌ [CHAT] User lookup failed:', userLookupError);
+      return res.status(404).send('User not found');
+    }
+
+    const userId = vasaUser.id;
+
+    console.log('🏁 [CHAT] Processing text session end:', { sessionId, userId, agentName });
+
+    // 1. Get all transcripts for this session
+    const { data: transcripts, error: transcriptError } = await supabase
+      .from('session_transcripts')
+      .select('text, role, timestamp')
+      .eq('call_id', sessionId)
+      .eq('user_id', userId)
+      .order('timestamp', { ascending: true });
+
+    if (transcriptError) {
+      console.error('❌ [CHAT] Error fetching transcripts:', transcriptError);
+      return res.status(500).send('Failed to fetch transcripts');
+    }
+
+    if (!transcripts || transcripts.length === 0) {
+      console.log('⚠️ [CHAT] No transcripts found for session');
+      // Still mark as completed
+      await supabase
+        .from('therapeutic_sessions')
+        .update({ status: 'completed' })
+        .eq('call_id', sessionId);
+      return res.status(200).send('Session ended (no transcripts to process)');
+    }
+
+    // 2. Build full transcript for CSS analysis
+    const fullTranscript = transcripts
+      .map(t => {
+        const speaker = t.role === 'user' ? 'User' : agentName || 'Assistant';
+        return `${speaker}: ${t.text}`;
+      })
+      .join('\n');
+
+    console.log('📝 [CHAT] Full transcript length:', fullTranscript.length);
+
+    // 3. Detect CSS patterns
+    const patterns = detectCSSPatterns(fullTranscript, true);
+    const { confidence, reasoning } = assessPatternConfidence(patterns);
+
+    console.log('📊 [CHAT] CSS Analysis:', {
+      stage: patterns.currentStage,
+      cvdcCount: patterns.cvdcPatterns.length,
+      ibmCount: patterns.ibmPatterns.length,
+      confidence
+    });
+
+    // 4. Store CSS patterns
+    await storeCSSPatternsForTextSession(userId, sessionId, patterns, confidence, reasoning);
+
+    // 5. Calculate session duration
+    const firstTimestamp = new Date(transcripts[0].timestamp);
+    const lastTimestamp = new Date(transcripts[transcripts.length - 1].timestamp);
+    const durationSeconds = Math.floor((lastTimestamp.getTime() - firstTimestamp.getTime()) / 1000);
+
+    // 6. Update session status and duration
+    await supabase
+      .from('therapeutic_sessions')
+      .update({
+        status: 'completed',
+        end_time: new Date().toISOString(),
+        duration_seconds: durationSeconds
+      })
+      .eq('call_id', sessionId);
+
+    // 7. Generate enhanced session summary for continuity
+    try {
+      await generateEnhancedSessionSummary({
+        userId,
+        callId: sessionId,
+        transcript: fullTranscript,
+        cssPatterns: patterns,
+        agentName: agentName || 'Assistant',
+        duration: durationSeconds
+      });
+      console.log('📝 [CHAT] Enhanced session summary generated');
+    } catch (summaryError) {
+      console.error('❌ [CHAT] Failed to generate summary:', summaryError);
+    }
+
+    console.log('✅ [CHAT] Text session processing completed:', sessionId);
+
+    res.status(200).json({
+      success: true,
+      sessionId,
+      cssStage: patterns.currentStage,
+      patternsDetected: patterns.cvdcPatterns.length + patterns.ibmPatterns.length,
+      transcriptLength: fullTranscript.length,
+      duration: durationSeconds
+    });
+
+  } catch (error: any) {
+    console.error('❌ [CHAT] Error processing session end:', error);
+    if (!res.headersSent) {
+      res.status(500).send(error.message || 'Failed to process session end');
+    }
+  }
+});
+
+// Helper function to store CSS patterns for text session
+async function storeCSSPatternsForTextSession(
+  userId: string,
+  sessionId: string,
+  patterns: any,
+  confidence: number,
+  reasoning: string
+): Promise<void> {
+  const patternInserts = [];
+
+  // Store CVDC patterns
+  for (const cvdc of patterns.cvdcPatterns) {
+    patternInserts.push({
+      user_id: userId,
+      call_id: sessionId,
+      pattern_type: 'CVDC',
+      content: cvdc,
+      extracted_contradiction: cvdc.includes('but')
+        ? cvdc.split('but').map((s: string) => s.trim()).join(' BUT ')
+        : null,
+      css_stage: patterns.currentStage,
+      confidence: 0.85,
+      detected_at: new Date().toISOString()
+    });
+  }
+
+  // Store IBM patterns
+  for (const ibm of patterns.ibmPatterns) {
+    patternInserts.push({
+      user_id: userId,
+      call_id: sessionId,
+      pattern_type: 'IBM',
+      content: ibm,
+      behavioral_gap: ibm,
+      css_stage: patterns.currentStage,
+      confidence: 0.80,
+      detected_at: new Date().toISOString()
+    });
+  }
+
+  // Store THEND patterns
+  for (const thend of patterns.thendPatterns) {
+    patternInserts.push({
+      user_id: userId,
+      call_id: sessionId,
+      pattern_type: 'THEND',
+      content: thend,
+      css_stage: patterns.currentStage,
+      confidence: 0.90,
+      detected_at: new Date().toISOString()
+    });
+  }
+
+  // Store CYVC patterns
+  for (const cyvc of patterns.cyvcPatterns) {
+    patternInserts.push({
+      user_id: userId,
+      call_id: sessionId,
+      pattern_type: 'CYVC',
+      content: cyvc,
+      css_stage: patterns.currentStage,
+      confidence: 0.88,
+      detected_at: new Date().toISOString()
+    });
+  }
+
+  // Store stage assessment
+  patternInserts.push({
+    user_id: userId,
+    call_id: sessionId,
+    pattern_type: 'STAGE_ASSESSMENT',
+    content: `Stage: ${patterns.currentStage}. ${reasoning}`,
+    css_stage: patterns.currentStage,
+    confidence: confidence,
+    detected_at: new Date().toISOString()
+  });
+
+  if (patternInserts.length > 0) {
+    const { error } = await supabase
+      .from('css_patterns')
+      .insert(patternInserts);
+
+    if (error) {
+      console.error('❌ [CHAT] Error storing CSS patterns:', error);
+    } else {
+      console.log(`✅ [CHAT] Stored ${patternInserts.length} CSS patterns`);
+    }
+  }
+}
 
 // Helper function to save text interaction to database
 async function saveTextInteraction(
