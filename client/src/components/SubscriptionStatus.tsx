@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabaseClient';
-import { Clock, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
+import { Clock, AlertTriangle, Sparkles } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 interface SubscriptionLimits {
@@ -18,6 +17,8 @@ interface SubscriptionLimits {
   trial_days_left: number;
   subscription_tier: string;
   user_type: string;
+  client_limit?: number;
+  clients_used?: number;
 }
 
 interface SubscriptionStatusProps {
@@ -46,7 +47,15 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
         }
 
         const data = await response.json();
-        setLimits(data.limits);
+        
+        // Merge subscription-level data into limits for display
+        const enrichedLimits = {
+          ...data.limits,
+          client_limit: data.subscription?.client_limit || data.limits.client_limit || 0,
+          clients_used: data.subscription?.clients_used || data.limits.clients_used || 0
+        };
+        
+        setLimits(enrichedLimits);
       } catch (error) {
         console.error('Error fetching subscription status:', error);
       } finally {
@@ -77,13 +86,6 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
   if (!limits) {
     return null;
   }
-
-  const usagePercentage = limits.minutes_limit > 0 
-    ? (limits.minutes_used / limits.minutes_limit) * 100 
-    : 0;
-
-  const isLowUsage = usagePercentage >= 80;
-  const isVeryLowUsage = usagePercentage >= 95;
 
   const getTierDisplay = (tier: string) => {
     const tierMap: Record<string, string> = {
@@ -168,49 +170,6 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
             </div>
           )}
         </div>
-
-        {/* Usage Progress */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Voice Minutes</span>
-            <span className="text-muted-foreground">
-              {limits.minutes_remaining} / {limits.minutes_limit} min
-            </span>
-          </div>
-
-          <Progress 
-            value={usagePercentage} 
-            className={`h-2 ${
-              isVeryLowUsage ? 'bg-red-200' : 
-              isLowUsage ? 'bg-yellow-200' : 
-              'bg-gray-200'
-            }`}
-          />
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <TrendingUp className="w-3 h-3" />
-            <span>{limits.minutes_used} minutes used</span>
-          </div>
-        </div>
-
-        {/* Warnings */}
-        {isVeryLowUsage && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              You've used {Math.round(usagePercentage)}% of your voice minutes. Upgrade to continue sessions.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {isLowUsage && !isVeryLowUsage && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              You've used {Math.round(usagePercentage)}% of your voice minutes. Consider upgrading soon.
-            </AlertDescription>
-          </Alert>
-        )}
 
         {/* Trial Expiring Warning */}
         {limits.is_trial && limits.trial_days_left <= 2 && limits.trial_days_left > 0 && (
