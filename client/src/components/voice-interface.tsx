@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
-import useVapi from '@/hooks/use-vapi';
+import useVapi, { TranscriptMessage } from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
@@ -19,6 +19,12 @@ interface VoiceInterfaceProps {
   userId: string;
   setUserId: (id: string | null) => void;
   hideLogoutButton?: boolean;
+}
+
+interface ExtendedTranscriptMessage extends TranscriptMessage {
+  id: string;
+  source: 'voice' | 'text';
+  agentId?: string;
 }
 
 interface OnboardingData {
@@ -51,6 +57,44 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const [showDurationWarning, setShowDurationWarning] = useState(false);
   const [sessionDurationLimit, setSessionDurationLimit] = useState(7200); // Default: 2 hours in seconds
 
+  // NEW: Transcript and text messaging state
+  const [transcript, setTranscript] = useState<ExtendedTranscriptMessage[]>(() => {
+    // Restore transcript from localStorage on mount
+    const saved = localStorage.getItem('vasa_text_transcript');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [textInput, setTextInput] = useState('');
+  const [isSendingText, setIsSendingText] = useState(false);
+  const [isStoppingSession, setIsStoppingSession] = useState(false);
+  const [activeTextSessionId, setActiveTextSessionId] = useState<string | null>(() => {
+    // Restore active session ID from localStorage on mount
+    return localStorage.getItem('vasa_text_session_id');
+  });
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist text session state to localStorage
+  useEffect(() => {
+    if (activeTextSessionId) {
+      localStorage.setItem('vasa_text_session_id', activeTextSessionId);
+      localStorage.setItem('vasa_text_transcript', JSON.stringify(transcript));
+    } else {
+      localStorage.removeItem('vasa_text_session_id');
+      localStorage.removeItem('vasa_text_transcript');
+    }
+  }, [activeTextSessionId, transcript]);
+
+  // Auto-focus text input when component mounts with active session (after navigation)
+  useEffect(() => {
+    if (activeTextSessionId && textInputRef.current) {
+      // Small delay to ensure component is fully rendered
+      const timer = setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTextSessionId]);
+
   const selectedAgent = getAgentById(selectedAgentId);
 
   const {
@@ -59,6 +103,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     startSession,
     endSession,
     connectionStatus,
+    onTranscript,
     error: vapiError,
     clearError
   } = useVapi({
@@ -77,9 +122,149 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
   // Add this to voice-interface.tsx right after useSubscription
   console.log('Full subscription data:', JSON.stringify(subscription, null, 2));
-  
+
   // Debug logging for subscription
   console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
+
+  // NEW: Wire up transcript events from VAPI
+  useEffect(() => {
+    onTranscript((message: TranscriptMessage) => {
+      console.log('📝 Transcript message received:', message);
+
+      const extendedMessage: ExtendedTranscriptMessage = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp,
+        source: 'voice',
+        agentId: selectedAgentId
+      };
+
+      setTranscript(prev => [...prev, extendedMessage]);
+    });
+  }, [onTranscript, selectedAgentId]);
+
+  // Auto-scroll to bottom when transcript updates
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcript]);
+
+  // Clear transcript when voice session ends
+  useEffect(() => {
+    if (!isSessionActive) {
+      // Option: Clear transcript when session ends, or keep it for review
+      // setTranscript([]);
+    }
+  }, [isSessionActive]);
+
+  // Warn user before leaving with unsaved text session (browser close/refresh only)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only show warning if there's an active text session with messages
+      // Don't prevent navigation or try to save here - that causes freezing
+      if (activeTextSessionId && transcript.length > 0) {
+        const message = 'You have an active text session. Click "Stop Text Session" to save your conversation.';
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [activeTextSessionId, transcript]);
+
+  // NEW: Text session management
+  const startTextSession = () => {
+    const sessionId = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setActiveTextSessionId(sessionId);
+    setTranscript([]); // Clear previous transcript
+    console.log('📝 [TEXT] Started new text session:', sessionId);
+  };
+
+  const stopTextSession = async () => {
+    if (!activeTextSessionId || transcript.length === 0) {
+      console.log('⚠️ [TEXT] Cannot stop session - no active session or empty transcript');
+      return;
+    }
+
+    if (isStoppingSession) {
+      console.log('⚠️ [TEXT] Session stop already in progress, ignoring duplicate click');
+      return;
+    }
+
+    setIsStoppingSession(true);
+    console.log('📝 [TEXT] Stopping text session:', activeTextSessionId);
+    console.log('📝 [TEXT] Saving', transcript.length, 'messages to database...');
+
+    try {
+      // Get authentication token
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('❌ [TEXT] Failed to get session:', sessionError);
+        alert('Failed to save session: Authentication error. Please refresh the page.');
+        return;
+      }
+
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        console.error('❌ [TEXT] No authentication token available');
+        alert('Failed to save session: Not authenticated. Please refresh the page.');
+        return;
+      }
+
+      // Send transcript to backend for processing and storage
+      console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
+      console.log('📤 [TEXT] Sending request to /api/chat/end-session');
+
+      const response = await fetch('/api/chat/end-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sessionId: activeTextSessionId,
+          agentName: selectedAgent?.name,
+          transcript: transcript.filter(msg => msg.source === 'text').map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp
+          })),
+        }),
+      });
+
+      console.log('📥 [TEXT] Response status:', response.status, response.statusText);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ [TEXT] Session processing completed:', result);
+        console.log(`📊 CSS Stage: ${result.cssStage}, Patterns: ${result.patternsDetected}`);
+        alert(`Session saved successfully! CSS Stage: ${result.cssStage}, Patterns detected: ${result.patternsDetected}`);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ [TEXT] Failed to process session end:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        alert(`Failed to save session: ${response.status} - ${errorText}`);
+      }
+    } catch (error: any) {
+      console.error('❌ [TEXT] Error stopping session:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      alert(`Failed to save session: ${error.message}`);
+    } finally {
+      setIsStoppingSession(false);
+      // Always clear the session state
+      setActiveTextSessionId(null);
+      // Keep transcript visible for review
+    }
+  };
 
   // Load memory context
   // Load memory context and session duration limit
@@ -291,6 +476,189 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
   const handleSignOut = () => {
     handleLogout(setUserId);
+  };
+
+  // NEW: Handle sending text messages
+  const handleSendTextMessage = async () => {
+    if (!textInput.trim() || isSessionActive || !activeTextSessionId) return;
+
+    const userMessage = textInput.trim();
+    setTextInput(''); // Clear input immediately
+
+    // Optimistic update - add user message to transcript
+    const userMsgId = `msg-${Date.now()}-user`;
+    setTranscript(prev => [...prev, {
+      id: userMsgId,
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date(),
+      source: 'text',
+    }]);
+
+    setIsSendingText(true);
+
+    try {
+      // Get fresh session with better error handling
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('❌ [TEXT] Session error:', sessionError);
+        throw new Error('Failed to get authentication session');
+      }
+
+      const token = sessionData?.session?.access_token;
+      const authenticatedUserId = sessionData?.session?.user?.id;
+
+      console.log('🔐 [TEXT] Auth check:', {
+        hasSession: !!sessionData?.session,
+        hasToken: !!token,
+        tokenLength: token?.length,
+        tokenPrefix: token?.substring(0, 20) + '...',
+        propUserId: userId,
+        sessionUserId: authenticatedUserId,
+        userIdMatch: userId === authenticatedUserId
+      });
+
+      if (!token || !authenticatedUserId) {
+        throw new Error('Not authenticated - please refresh the page');
+      }
+
+      // Validate token format (should be JWT with 3 parts)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.error('❌ [TEXT] Malformed token:', {
+          parts: tokenParts.length,
+          expected: 3
+        });
+        throw new Error('Invalid authentication token - please sign in again');
+      }
+
+      // Use the authenticated user ID from the session, not the prop
+      const requestUserId = authenticatedUserId;
+
+      // Call backend chat endpoint
+      // Send conversation history to maintain context
+      const conversationHistory = transcript
+        .filter(msg => msg.source === 'text') // Only text messages, not voice
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+
+      const response = await fetch('/api/chat/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: requestUserId,
+          sessionId: activeTextSessionId,
+          agentId: selectedAgentId,
+          agentName: selectedAgent?.name,
+          systemPrompt: selectedAgent?.systemPrompt,
+          modelConfig: selectedAgent?.model,
+          message: userMessage,
+          conversationHistory, // Include previous messages for context
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [TEXT] Server error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+
+        // Handle specific error types
+        if (response.status === 401) {
+          throw new Error('Authentication expired - please refresh the page and sign in again');
+        } else if (response.status === 403) {
+          throw new Error('Authentication error - please refresh the page');
+        } else {
+          throw new Error(errorText || 'Failed to send message');
+        }
+      }
+
+      // Handle streaming response (Server-Sent Events)
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      let assistantContent = '';
+      const assistantMsgId = `msg-${Date.now()}-assistant`;
+
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              assistantContent += parsed.content;
+
+              // Update or add assistant message
+              setTranscript(prev => {
+                const existing = prev.find(m => m.id === assistantMsgId);
+                if (existing) {
+                  return prev.map(m =>
+                    m.id === assistantMsgId
+                      ? { ...m, content: assistantContent }
+                      : m
+                  );
+                } else {
+                  return [...prev, {
+                    id: assistantMsgId,
+                    role: 'assistant',
+                    content: assistantContent,
+                    timestamp: new Date(),
+                    source: 'text',
+                    agentId: selectedAgentId,
+                  }];
+                }
+              });
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+
+      console.log('✅ [TEXT] Message sent successfully');
+
+    } catch (error: any) {
+      console.error('❌ [TEXT] Failed to send message:', error);
+
+      // Show detailed error message in transcript
+      const errorMessage = error.message?.includes('OpenAI API key')
+        ? '⚠️ Server configuration error: OpenAI API key not configured. Please contact support.'
+        : error.message?.includes('not configured')
+        ? '⚠️ Server configuration error. Please contact support.'
+        : error.message?.includes('authenticated')
+        ? '⚠️ Authentication error. Please refresh the page and try again.'
+        : '⚠️ Sorry, I encountered an error sending your message. Please try again.';
+
+      setTranscript(prev => [...prev, {
+        id: `msg-${Date.now()}-error`,
+        role: 'assistant',
+        content: errorMessage,
+        timestamp: new Date(),
+        source: 'text',
+      }]);
+    } finally {
+      setIsSendingText(false);
+      // Refocus the textarea after sending message
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 100);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -654,7 +1022,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
               </CardContent>
             </Card>
 
-            {/* Live Conversation Transcript */}
+            {/* Live Conversation Transcript - NOW FUNCTIONAL */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
@@ -663,32 +1031,171 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 </div>
 
                 <div className="space-y-4 max-h-80 overflow-y-auto" data-testid="transcript-container">
-                  <div className="bg-secondary/50 rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-sm font-medium text-accent">{selectedAgent?.name || 'Sarah'}</span>
-                      <span className="text-xs text-muted-foreground">AI Therapist</span>
-                    </div>
-                    <p className="text-sm">
-                      {userContext.shouldReferenceLastSession && userContext.lastSessionSummary
-                        ? `Continuing from our last session...`
-                        : `Hello! I'm ${selectedAgent?.name || 'Sarah'}, your therapeutic voice assistant. How are you feeling today?`}
-                    </p>
-                  </div>
+                  {transcript.length === 0 ? (
+                    // Placeholder when no messages
+                    <>
+                      <div className="bg-secondary/50 rounded-lg p-3">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-sm font-medium text-accent">{selectedAgent?.name || 'Sarah'}</span>
+                          <span className="text-xs text-muted-foreground">AI Therapist</span>
+                        </div>
+                        <p className="text-sm">
+                          {userContext.shouldReferenceLastSession && userContext.lastSessionSummary
+                            ? `Continuing from our last session...`
+                            : `Hello! I'm ${selectedAgent?.name || 'Sarah'}, your therapeutic voice assistant. How are you feeling today?`}
+                        </p>
+                      </div>
 
-                  <div className="bg-primary/20 rounded-lg p-3 ml-8">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-sm font-medium text-primary-foreground">You</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground italic">Start a conversation to see live transcription here...</p>
-                  </div>
+                      <div className="bg-primary/20 rounded-lg p-3 ml-8">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-sm font-medium text-primary-foreground">You</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground italic">
+                          {isSessionActive
+                            ? "Listening... start speaking to see live transcription"
+                            : "Start a voice session or send a text message to begin"}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    // Real transcript messages
+                    transcript.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`rounded-lg p-3 ${
+                          msg.role === 'assistant'
+                            ? 'bg-secondary/50'
+                            : 'bg-primary/20 ml-8'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-xs">
+                            {msg.source === 'voice' ? '🎤' : '💬'}
+                          </span>
+                          <span className="text-sm font-medium">
+                            {msg.role === 'assistant'
+                              ? (selectedAgent?.name || 'Sarah')
+                              : 'You'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(msg.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-sm">{msg.content}</p>
+                      </div>
+                    ))
+                  )}
+                  {/* Auto-scroll anchor */}
+                  <div ref={transcriptEndRef} />
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border">
+                  {/* Text Session Management - NEW */}
+                  {!isSessionActive && !activeTextSessionId && (
+                    <div className="mb-4">
+                      <Button
+                        onClick={startTextSession}
+                        className="w-full"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span>💬</span>
+                          <span>Start Text Session</span>
+                        </div>
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        Start a text conversation with {selectedAgent?.name}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Text Input Section - Active Session */}
+                  {!isSessionActive && activeTextSessionId && (
+                    <>
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSendTextMessage();
+                        }}
+                        className="mb-4"
+                      >
+                        <div className="flex items-end space-x-2">
+                          <textarea
+                            ref={textInputRef}
+                            value={textInput}
+                            onChange={(e) => setTextInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendTextMessage();
+                              }
+                            }}
+                            placeholder={`Send a text message to ${selectedAgent?.name}...`}
+                            className="flex-1 px-3 py-2 rounded-lg glass border border-white/10 resize-none text-sm"
+                            rows={2}
+                            disabled={isSendingText}
+                            data-testid="input-text-message"
+                            autoFocus={!!activeTextSessionId}
+                          />
+                          <Button
+                            type="submit"
+                            disabled={!textInput.trim() || isSendingText}
+                            className="px-4 py-2 h-auto"
+                          >
+                            {isSendingText ? (
+                              <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span>Sending...</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-2">
+                                <span>💬</span>
+                                <span>Send</span>
+                              </div>
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          💬 Text session active • Press Enter to send, Shift+Enter for new line
+                        </p>
+                      </form>
+                      <Button
+                        onClick={stopTextSession}
+                        variant="outline"
+                        className="w-full mb-4"
+                        disabled={isStoppingSession}
+                      >
+                        {isStoppingSession ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            <span>Saving Session...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <span>⏹️</span>
+                            <span>Stop Text Session</span>
+                          </div>
+                        )}
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Mode indicator */}
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>Real-time transcription enabled</span>
+                    <span>
+                      {isSessionActive
+                        ? "🎤 Voice mode active - End session to use text"
+                        : activeTextSessionId
+                        ? "💬 Text session active"
+                        : "💬 Text mode ready"}
+                    </span>
                     <span className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Active</span>
+                      <div className={`w-2 h-2 rounded-full ${
+                        isSessionActive || activeTextSessionId ? 'bg-red-500 animate-pulse' : 'bg-green-500'
+                      }`}></div>
+                      <span>{isSessionActive ? 'Recording' : activeTextSessionId ? 'Chatting' : 'Ready'}</span>
                     </span>
                   </div>
                 </div>
