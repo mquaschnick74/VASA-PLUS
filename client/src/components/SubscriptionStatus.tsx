@@ -179,7 +179,7 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
           )}
         </div>
 
-        {/* Usage Progress */}
+        {/* Voice Minutes Usage */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium">Voice Minutes</span>
@@ -202,6 +202,28 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
             <span>{limits.minutes_used} minutes used</span>
           </div>
         </div>
+
+        {/* Client Slots (Therapists Only) */}
+        {limits.user_type === 'therapist' && limits.client_limit !== undefined && limits.client_limit > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">Client Slots</span>
+              <span className="text-muted-foreground">
+                {limits.clients_used || 0} / {limits.client_limit} clients
+              </span>
+            </div>
+
+            <Progress 
+              value={limits.client_limit > 0 ? ((limits.clients_used || 0) / limits.client_limit) * 100 : 0} 
+              className="h-2 bg-gray-200"
+            />
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Users className="w-3 h-3" />
+              <span>{limits.client_limit - (limits.clients_used || 0)} slots available</span>
+            </div>
+          </div>
+        )}
 
         {/* Warnings */}
         {isVeryLowUsage && (
