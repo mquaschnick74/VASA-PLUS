@@ -245,6 +245,7 @@ async function saveTextInteraction(
 ): Promise<void> {
   try {
     // Create a session record for text interaction
+    // Note: interaction_type column doesn't exist yet, so we'll use call_id prefix
     const { error } = await supabase
       .from('therapeutic_sessions')
       .insert({
@@ -252,7 +253,6 @@ async function saveTextInteraction(
         agent_name: agentName,
         call_id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         status: 'completed',
-        interaction_type: 'text', // Mark as text interaction
         start_time: new Date().toISOString(),
         end_time: new Date().toISOString(),
         duration_seconds: 0, // No duration for text
@@ -265,7 +265,7 @@ async function saveTextInteraction(
       });
 
     if (error) {
-      console.error('❌ [CHAT] Database error:', error);
+      console.error('❌ [CHAT] Database error saving interaction:', error);
     } else {
       console.log('✅ [CHAT] Text interaction saved to database');
     }
