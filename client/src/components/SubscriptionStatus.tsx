@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabaseClient';
-import { Clock, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
+import { Clock, TrendingUp, AlertTriangle, Sparkles, Users } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 interface SubscriptionLimits {
@@ -18,6 +18,8 @@ interface SubscriptionLimits {
   trial_days_left: number;
   subscription_tier: string;
   user_type: string;
+  client_limit?: number;
+  clients_used?: number;
 }
 
 interface SubscriptionStatusProps {
@@ -46,7 +48,15 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
         }
 
         const data = await response.json();
-        setLimits(data.limits);
+        
+        // Merge subscription-level data into limits for display
+        const enrichedLimits = {
+          ...data.limits,
+          client_limit: data.subscription?.client_limit || data.limits.client_limit || 0,
+          clients_used: data.subscription?.clients_used || data.limits.clients_used || 0
+        };
+        
+        setLimits(enrichedLimits);
       } catch (error) {
         console.error('Error fetching subscription status:', error);
       } finally {
