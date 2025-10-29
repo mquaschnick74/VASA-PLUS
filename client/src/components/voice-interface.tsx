@@ -123,6 +123,41 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     }
   }, [isSessionActive]);
 
+  // Save text session on page close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      if (activeTextSessionId && transcript.length > 0) {
+        // Try to save session before unload
+        e.preventDefault();
+        e.returnValue = 'You have an active text session. Your conversation will be saved.';
+
+        // Send beacon to save session (more reliable than fetch on unload)
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+
+        if (token) {
+          const payload = JSON.stringify({
+            sessionId: activeTextSessionId,
+            agentName: selectedAgent?.name,
+            transcript: transcript.map(msg => ({
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp
+            })),
+          });
+
+          // Use sendBeacon for reliable sending during page unload
+          navigator.sendBeacon('/api/chat/end-session',
+            new Blob([payload], { type: 'application/json' })
+          );
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [activeTextSessionId, transcript, selectedAgent]);
+
   // NEW: Text session management
   const startTextSession = () => {
     const sessionId = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -132,9 +167,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   };
 
   const stopTextSession = async () => {
-    if (!activeTextSessionId) return;
+    if (!activeTextSessionId || transcript.length === 0) return;
 
     console.log('📝 [TEXT] Stopping text session:', activeTextSessionId);
+    console.log('📝 [TEXT] Saving', transcript.length, 'messages to database...');
 
     try {
       // Get authentication token
@@ -142,7 +178,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       const token = sessionData?.session?.access_token;
 
       if (token) {
-        // Call backend to process session end (CSS patterns, summary, etc.)
+        // Send transcript to backend for processing and storage
         console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
 
         const response = await fetch('/api/chat/end-session', {
@@ -154,6 +190,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           body: JSON.stringify({
             sessionId: activeTextSessionId,
             agentName: selectedAgent?.name,
+            transcript: transcript.map(msg => ({
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp
+            })),
           }),
         });
 

@@ -256,9 +256,7 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
 
     console.log('✅ [CHAT] Response streamed successfully');
 
-    // Save to database asynchronously (don't block response)
-    saveTextInteraction(userId, sessionId, agentId, agentName, message, fullResponse)
-      .catch(err => console.error('❌ [CHAT] Error saving interaction:', err));
+    // DO NOT save to database here - messages stay in memory until session ends
 
   } catch (error: any) {
     console.error('❌ [CHAT] Error details:', {
@@ -277,11 +275,16 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
 // POST /api/chat/end-session - Process text session end with therapeutic analysis
 router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { sessionId, agentName } = req.body;
+    const { sessionId, agentName, transcript } = req.body;
 
     if (!sessionId) {
       console.error('❌ [CHAT] Missing sessionId');
       return res.status(400).send('Missing sessionId');
+    }
+
+    if (!transcript || transcript.length === 0) {
+      console.log('⚠️ [CHAT] No transcript provided for session');
+      return res.status(200).send('Session ended (no transcript to process)');
     }
 
     // Map Supabase auth user ID to VASA platform user ID
@@ -299,42 +302,64 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
 
     const userId = vasaUser.id;
 
-    console.log('🏁 [CHAT] Processing text session end:', { sessionId, userId, agentName });
+    console.log('🏁 [CHAT] Processing text session end:', {
+      sessionId,
+      userId,
+      agentName,
+      messageCount: transcript.length
+    });
 
-    // 1. Get all transcripts for this session
-    const { data: transcripts, error: transcriptError } = await supabase
-      .from('session_transcripts')
-      .select('text, role, timestamp')
-      .eq('call_id', sessionId)
-      .eq('user_id', userId)
-      .order('timestamp', { ascending: true });
-
-    if (transcriptError) {
-      console.error('❌ [CHAT] Error fetching transcripts:', transcriptError);
-      return res.status(500).send('Failed to fetch transcripts');
-    }
-
-    if (!transcripts || transcripts.length === 0) {
-      console.log('⚠️ [CHAT] No transcripts found for session');
-      // Still mark as completed
-      await supabase
-        .from('therapeutic_sessions')
-        .update({ status: 'completed' })
-        .eq('call_id', sessionId);
-      return res.status(200).send('Session ended (no transcripts to process)');
-    }
-
-    // 2. Build full transcript for CSS analysis
-    const fullTranscript = transcripts
-      .map(t => {
+    // 1. Build full transcript for CSS analysis from provided messages
+    const fullTranscript = transcript
+      .map((t: any) => {
         const speaker = t.role === 'user' ? 'User' : agentName || 'Assistant';
-        return `${speaker}: ${t.text}`;
+        return `${speaker}: ${t.content}`;
       })
       .join('\n');
 
     console.log('📝 [CHAT] Full transcript length:', fullTranscript.length);
 
-    // 3. Detect CSS patterns
+    // 2. Calculate session duration from timestamps
+    const firstTimestamp = new Date(transcript[0].timestamp);
+    const lastTimestamp = new Date(transcript[transcript.length - 1].timestamp);
+    const durationSeconds = Math.floor((lastTimestamp.getTime() - firstTimestamp.getTime()) / 1000);
+
+    // 3. Create therapeutic_sessions entry
+    const { error: sessionError } = await supabase
+      .from('therapeutic_sessions')
+      .insert({
+        user_id: userId,
+        agent_name: agentName,
+        call_id: sessionId,
+        status: 'completed',
+        start_time: firstTimestamp.toISOString(),
+        end_time: lastTimestamp.toISOString(),
+        duration_seconds: durationSeconds
+      });
+
+    if (sessionError) {
+      console.error('❌ [CHAT] Error creating session:', sessionError);
+      return res.status(500).send('Failed to create session');
+    }
+
+    // 4. Save complete transcript to session_transcripts (ONE entry with role='complete')
+    const { error: transcriptError } = await supabase
+      .from('session_transcripts')
+      .insert({
+        user_id: userId,
+        call_id: sessionId,
+        text: fullTranscript,
+        role: 'complete',
+        timestamp: new Date().toISOString()
+      });
+
+    if (transcriptError) {
+      console.error('❌ [CHAT] Error saving transcript:', transcriptError);
+    } else {
+      console.log('✅ [CHAT] Complete transcript saved (one entry)');
+    }
+
+    // 5. Detect CSS patterns
     const patterns = detectCSSPatterns(fullTranscript, true);
     const { confidence, reasoning } = assessPatternConfidence(patterns);
 
@@ -345,23 +370,8 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
       confidence
     });
 
-    // 4. Store CSS patterns
+    // 6. Store CSS patterns
     await storeCSSPatternsForTextSession(userId, sessionId, patterns, confidence, reasoning);
-
-    // 5. Calculate session duration
-    const firstTimestamp = new Date(transcripts[0].timestamp);
-    const lastTimestamp = new Date(transcripts[transcripts.length - 1].timestamp);
-    const durationSeconds = Math.floor((lastTimestamp.getTime() - firstTimestamp.getTime()) / 1000);
-
-    // 6. Update session status and duration
-    await supabase
-      .from('therapeutic_sessions')
-      .update({
-        status: 'completed',
-        end_time: new Date().toISOString(),
-        duration_seconds: durationSeconds
-      })
-      .eq('call_id', sessionId);
 
     // 7. Generate enhanced session summary for continuity
     try {
@@ -484,88 +494,6 @@ async function storeCSSPatternsForTextSession(
     } else {
       console.log(`✅ [CHAT] Stored ${patternInserts.length} CSS patterns`);
     }
-  }
-}
-
-// Helper function to save text interaction to database
-async function saveTextInteraction(
-  userId: string,
-  sessionId: string,
-  agentId: string,
-  agentName: string,
-  userMessage: string,
-  assistantResponse: string
-): Promise<void> {
-  try {
-    const now = new Date().toISOString();
-
-    // 1. Ensure session record exists (upsert)
-    // Check if session already exists
-    const { data: existingSession } = await supabase
-      .from('therapeutic_sessions')
-      .select('id')
-      .eq('call_id', sessionId)
-      .maybeSingle();
-
-    if (!existingSession) {
-      // Create session record on first message
-      const { error: sessionError } = await supabase
-        .from('therapeutic_sessions')
-        .insert({
-          user_id: userId,
-          agent_name: agentName,
-          call_id: sessionId,
-          status: 'active', // Keep as active until explicitly stopped
-          start_time: now,
-          duration_seconds: 0,
-        });
-
-      if (sessionError) {
-        console.error('❌ [CHAT] Database error creating session:', sessionError);
-        return;
-      }
-      console.log('✅ [CHAT] Created new text session:', sessionId);
-    } else {
-      // Update end_time for existing session
-      await supabase
-        .from('therapeutic_sessions')
-        .update({ end_time: now })
-        .eq('call_id', sessionId);
-    }
-
-    // 2. Save user message to session_transcripts
-    const { error: userTranscriptError } = await supabase
-      .from('session_transcripts')
-      .insert({
-        user_id: userId,
-        call_id: sessionId,
-        text: userMessage,
-        role: 'user',
-        timestamp: now
-      });
-
-    if (userTranscriptError) {
-      console.error('❌ [CHAT] Database error saving user message:', userTranscriptError);
-    }
-
-    // 3. Save assistant response to session_transcripts
-    const { error: assistantTranscriptError } = await supabase
-      .from('session_transcripts')
-      .insert({
-        user_id: userId,
-        call_id: sessionId,
-        text: assistantResponse,
-        role: 'assistant',
-        timestamp: new Date().toISOString()
-      });
-
-    if (assistantTranscriptError) {
-      console.error('❌ [CHAT] Database error saving assistant response:', assistantTranscriptError);
-    } else {
-      console.log('✅ [CHAT] Text interaction saved to database');
-    }
-  } catch (err) {
-    console.error('❌ [CHAT] Exception saving interaction:', err);
   }
 }
 
