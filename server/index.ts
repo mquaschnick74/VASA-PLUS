@@ -30,21 +30,40 @@ validateEnvironment();
 
 const app = express();
 
+// IMPORTANT: Raw body parsers for webhooks MUST come BEFORE global JSON parser
+// This allows webhook signature validation to work properly
+
+// Special handling for VAPI webhook endpoint with raw body for signature validation
+app.use('/api/vapi/webhook', express.raw({
+  type: 'application/json',
+  limit: '10mb'
+}));
+
+// Special handling for Stripe webhook endpoint with raw body for signature validation
+app.use('/api/stripe/webhook', express.raw({
+  type: 'application/json',
+  limit: '10mb'
+}));
+
 // INCREASED LIMITS for VAPI webhooks with large transcripts
 app.use(express.json({ limit: '10mb' }));  // Increased from default 100kb
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// Special handling for VAPI webhook endpoint with raw body for signature validation
-app.use('/api/vapi/webhook', express.raw({ 
-  type: 'application/json',
-  limit: '10mb' 
-}));
-
-// Special handling for Stripe webhook endpoint with raw body for signature validation
-app.use('/api/stripe/webhook', express.raw({ 
-  type: 'application/json',
-  limit: '10mb' 
-}));
+// Diagnostic logging for malformed auth headers (temporary - helps identify polling source)
+app.use((req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  // Only log if there's a malformed Bearer token
+  if (authHeader && authHeader.startsWith('Bearer ') && authHeader.split(' ').length !== 2) {
+    console.log('🔍 MALFORMED AUTH DETECTED:', {
+      path: req.path,
+      method: req.method,
+      authHeaderLength: authHeader.length,
+      authPreview: authHeader.substring(0, 50) + '...',
+      userAgent: req.headers['user-agent']?.substring(0, 100)
+    });
+  }
+  next();
+});
 
 // Rest of your existing code...
 app.use((req, res, next) => {
@@ -79,8 +98,18 @@ app.use((req, res, next) => {
 
 // Continue with the rest of the file...
 
-// Apply soft auth to all /api routes
-app.use('/api', authenticateToken);
+// Apply soft auth to all /api routes EXCEPT webhooks
+// Webhooks need to bypass auth as they come from external services with their own signature validation
+app.use('/api', (req, res, next) => {
+  // Skip auth for webhook endpoints - they have their own signature validation
+  if (req.path.startsWith('/vapi/webhook') || req.path.startsWith('/stripe/webhook')) {
+    console.log(`🔓 Webhook endpoint accessed: ${req.path} - Skipping JWT auth`);
+    return next();
+  }
+
+  // Apply auth to all other /api routes
+  return authenticateToken(req, res, next);
+});
 
 (async () => {
   try {

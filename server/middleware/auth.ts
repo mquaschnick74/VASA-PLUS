@@ -44,28 +44,40 @@ export async function authenticateToken(
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
-    console.log('Auth middleware - Token exists:', !!token);
+    // Add detailed logging to identify the source of bad tokens
+    if (authHeader && !token) {
+      console.log('🔍 Malformed Authorization header:', {
+        path: req.path,
+        method: req.method,
+        header: authHeader,
+        userAgent: req.headers['user-agent']
+      });
+    }
 
     if (!token) {
-      console.log('Auth middleware - No token, skipping');
+      // Silently skip if no token - this is expected for public endpoints
       return next();
     }
 
     // Use admin auth to verify the token
     const { data, error } = await supabase.auth.getUser(token);
 
-    console.log('Auth middleware - Verification result:', { 
-      hasUser: !!data?.user, 
-      userId: data?.user?.id,
-      error: error?.message 
-    });
-
     if (!error && data.user) {
       req.user = data.user;
       req.token = token;
-      console.log('✅ Auth middleware - User verified:', data.user.id);
+      // Only log successful auth in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Auth middleware - User verified:', data.user.id);
+      }
     } else {
-      console.warn('⚠️ Auth middleware - Token verification failed:', error?.message);
+      // Only log auth failures if it's not a malformed token warning we've already seen
+      // This reduces log spam from monitoring/health checks
+      if (error?.message && !error.message.includes('invalid number of segments')) {
+        console.warn('⚠️ Auth middleware - Token verification failed:', error?.message);
+      } else if (process.env.NODE_ENV === 'development') {
+        // In development, log with path info to help debug
+        console.warn('⚠️ Auth middleware - Malformed token on path:', req.path);
+      }
     }
 
     next();

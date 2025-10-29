@@ -7,6 +7,7 @@ import useVapi, { TranscriptMessage } from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
+import { VapiDiagnostics } from './VapiDiagnostics';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
@@ -102,7 +103,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     startSession,
     endSession,
     connectionStatus,
-    onTranscript
+    onTranscript,
+    error: vapiError,
+    clearError
   } = useVapi({
     userId,
     memoryContext: userContext?.memoryContext || '',
@@ -902,6 +905,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
             {/* Technical Support Card */}
             <TechnicalSupportCard />
 
+            {/* VAPI Diagnostics - Show if there's an error or in development */}
+            {(vapiError || import.meta.env.DEV) && <VapiDiagnostics />}
+
             {/* Agent Selection */}
             <AgentSelector 
               selectedAgentId={selectedAgentId}
@@ -909,12 +915,34 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
               disabled={isSessionActive || isLoading}
             />
 
+            {/* VAPI Error Alert */}
+            {vapiError && (
+              <Alert className="glass-strong border-red-500/50 rounded-xl sm:rounded-2xl">
+                <XCircle className="h-4 w-4 text-red-500" />
+                <AlertDescription className="text-sm sm:text-base">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <strong>Session Error:</strong> {vapiError}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearError}
+                      className="ml-2 h-6 px-2"
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Session Duration Warning Alert - shows based on session limit */}
             {showDurationWarning && isSessionActive && (
               <Alert className="glass-strong border-yellow-500/50 rounded-xl sm:rounded-2xl">
                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
                 <AlertDescription className="text-sm sm:text-base">
-                  <strong>Session Time Limit:</strong> Your session will automatically end in {Math.floor((sessionDurationLimit - callTimer) / 60)} minutes ({sessionDurationLimit - callTimer} seconds). 
+                  <strong>Session Time Limit:</strong> Your session will automatically end in {Math.floor((sessionDurationLimit - callTimer) / 60)} minutes ({sessionDurationLimit - callTimer} seconds).
                   Please wrap up your conversation or start a new session after this one ends.
                 </AlertDescription>
               </Alert>

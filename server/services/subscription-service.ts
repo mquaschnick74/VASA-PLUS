@@ -15,7 +15,9 @@ interface SubscriptionLimits {
   subscription_owner_id?: string;
   subscription_owner_email?: string;
   is_using_therapist_subscription?: boolean;
-  session_duration_limit?: number; // ADD THIS LINE
+  session_duration_limit?: number;
+  client_limit?: number;
+  clients_used?: number;
 }
 
 export class SubscriptionService {
@@ -146,7 +148,9 @@ export class SubscriptionService {
       subscription_tier: subscription.subscription_tier,
       user_type: profile.user_type || 'individual',
       subscription_owner_id: userId,
-      subscription_owner_email: profile.email
+      subscription_owner_email: profile.email,
+      client_limit: subscription.client_limit || 0,
+      clients_used: subscription.clients_used || 0
     };
 
     console.log(`✅ [Depth ${depth}] Limits calculated:`, {
@@ -291,7 +295,9 @@ export class SubscriptionService {
         subscription_tier: limits.subscription_tier,
         subscription_status: limits.is_trial ? 'trialing' : 'active',
         usage_minutes_limit: limits.minutes_limit,
-        usage_minutes_used: limits.minutes_used
+        usage_minutes_used: limits.minutes_used,
+        client_limit: limits.client_limit || 0,
+        clients_used: limits.clients_used || 0
       }
     };
   }
