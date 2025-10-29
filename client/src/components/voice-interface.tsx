@@ -69,6 +69,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     return localStorage.getItem('vasa_text_session_id');
   });
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Persist text session state to localStorage
   useEffect(() => {
@@ -650,6 +651,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       }]);
     } finally {
       setIsSendingText(false);
+      // Refocus the textarea after sending message
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 100);
     }
   };
 
@@ -1090,6 +1095,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                       >
                         <div className="flex items-end space-x-2">
                           <textarea
+                            ref={textInputRef}
                             value={textInput}
                             onChange={(e) => setTextInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -1103,6 +1109,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                             rows={2}
                             disabled={isSendingText}
                             data-testid="input-text-message"
+                            autoFocus={!!activeTextSessionId}
                           />
                           <Button
                             type="submit"
