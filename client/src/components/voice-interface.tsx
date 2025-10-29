@@ -1050,7 +1050,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                               : 'You'}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {msg.timestamp.toLocaleTimeString([], {
+                            {new Date(msg.timestamp).toLocaleTimeString([], {
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
