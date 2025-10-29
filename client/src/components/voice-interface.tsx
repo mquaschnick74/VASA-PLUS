@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
-import useVapi from '@/hooks/use-vapi';
+import useVapi, { TranscriptMessage } from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
@@ -18,6 +18,12 @@ interface VoiceInterfaceProps {
   userId: string;
   setUserId: (id: string | null) => void;
   hideLogoutButton?: boolean;
+}
+
+interface ExtendedTranscriptMessage extends TranscriptMessage {
+  id: string;
+  source: 'voice' | 'text';
+  agentId?: string;
 }
 
 interface OnboardingData {
@@ -50,6 +56,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const [showDurationWarning, setShowDurationWarning] = useState(false);
   const [sessionDurationLimit, setSessionDurationLimit] = useState(7200); // Default: 2 hours in seconds
 
+  // NEW: Transcript and text messaging state
+  const [transcript, setTranscript] = useState<ExtendedTranscriptMessage[]>([]);
+  const [textInput, setTextInput] = useState('');
+  const [isSendingText, setIsSendingText] = useState(false);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+
   const selectedAgent = getAgentById(selectedAgentId);
 
   const {
@@ -57,7 +69,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     isLoading,
     startSession,
     endSession,
-    connectionStatus
+    connectionStatus,
+    onTranscript
   } = useVapi({
     userId,
     memoryContext: userContext?.memoryContext || '',
@@ -74,9 +87,40 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
   // Add this to voice-interface.tsx right after useSubscription
   console.log('Full subscription data:', JSON.stringify(subscription, null, 2));
-  
+
   // Debug logging for subscription
   console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
+
+  // NEW: Wire up transcript events from VAPI
+  useEffect(() => {
+    onTranscript((message: TranscriptMessage) => {
+      console.log('📝 Transcript message received:', message);
+
+      const extendedMessage: ExtendedTranscriptMessage = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp,
+        source: 'voice',
+        agentId: selectedAgentId
+      };
+
+      setTranscript(prev => [...prev, extendedMessage]);
+    });
+  }, [onTranscript, selectedAgentId]);
+
+  // Auto-scroll to bottom when transcript updates
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcript]);
+
+  // Clear transcript when voice session ends
+  useEffect(() => {
+    if (!isSessionActive) {
+      // Option: Clear transcript when session ends, or keep it for review
+      // setTranscript([]);
+    }
+  }, [isSessionActive]);
 
   // Load memory context
   // Load memory context and session duration limit
@@ -626,7 +670,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
               </CardContent>
             </Card>
 
-            {/* Live Conversation Transcript */}
+            {/* Live Conversation Transcript - NOW FUNCTIONAL */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
@@ -635,32 +679,79 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 </div>
 
                 <div className="space-y-4 max-h-80 overflow-y-auto" data-testid="transcript-container">
-                  <div className="bg-secondary/50 rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-sm font-medium text-accent">{selectedAgent?.name || 'Sarah'}</span>
-                      <span className="text-xs text-muted-foreground">AI Therapist</span>
-                    </div>
-                    <p className="text-sm">
-                      {userContext.shouldReferenceLastSession && userContext.lastSessionSummary
-                        ? `Continuing from our last session...`
-                        : `Hello! I'm ${selectedAgent?.name || 'Sarah'}, your therapeutic voice assistant. How are you feeling today?`}
-                    </p>
-                  </div>
+                  {transcript.length === 0 ? (
+                    // Placeholder when no messages
+                    <>
+                      <div className="bg-secondary/50 rounded-lg p-3">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-sm font-medium text-accent">{selectedAgent?.name || 'Sarah'}</span>
+                          <span className="text-xs text-muted-foreground">AI Therapist</span>
+                        </div>
+                        <p className="text-sm">
+                          {userContext.shouldReferenceLastSession && userContext.lastSessionSummary
+                            ? `Continuing from our last session...`
+                            : `Hello! I'm ${selectedAgent?.name || 'Sarah'}, your therapeutic voice assistant. How are you feeling today?`}
+                        </p>
+                      </div>
 
-                  <div className="bg-primary/20 rounded-lg p-3 ml-8">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-sm font-medium text-primary-foreground">You</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground italic">Start a conversation to see live transcription here...</p>
-                  </div>
+                      <div className="bg-primary/20 rounded-lg p-3 ml-8">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-sm font-medium text-primary-foreground">You</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground italic">
+                          {isSessionActive
+                            ? "Listening... start speaking to see live transcription"
+                            : "Start a voice session or send a text message to begin"}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    // Real transcript messages
+                    transcript.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`rounded-lg p-3 ${
+                          msg.role === 'assistant'
+                            ? 'bg-secondary/50'
+                            : 'bg-primary/20 ml-8'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-xs">
+                            {msg.source === 'voice' ? '🎤' : '💬'}
+                          </span>
+                          <span className="text-sm font-medium">
+                            {msg.role === 'assistant'
+                              ? (selectedAgent?.name || 'Sarah')
+                              : 'You'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {msg.timestamp.toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-sm">{msg.content}</p>
+                      </div>
+                    ))
+                  )}
+                  {/* Auto-scroll anchor */}
+                  <div ref={transcriptEndRef} />
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border">
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>Real-time transcription enabled</span>
+                    <span>
+                      {isSessionActive
+                        ? "🎤 Voice mode active"
+                        : "💬 Text mode - chat anytime"}
+                    </span>
                     <span className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Active</span>
+                      <div className={`w-2 h-2 rounded-full ${
+                        isSessionActive ? 'bg-red-500 animate-pulse' : 'bg-green-500'
+                      }`}></div>
+                      <span>{isSessionActive ? 'Recording' : 'Ready'}</span>
                     </span>
                   </div>
                 </div>

@@ -8,6 +8,12 @@ interface OnboardingData {
   wasSkipped: boolean;
 }
 
+export interface TranscriptMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
 interface UseVapiProps {
   userId: string;
   memoryContext: string;
@@ -25,6 +31,7 @@ interface UseVapiReturn {
   startSession: () => void;
   endSession: () => void;
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
+  onTranscript: (callback: (message: TranscriptMessage) => void) => void;
 }
 
 const useVapi = ({
@@ -42,6 +49,7 @@ const useVapi = ({
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const vapiRef = useRef<any>(null);
+  const transcriptCallbackRef = useRef<((message: TranscriptMessage) => void) | null>(null);
 
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
@@ -81,6 +89,25 @@ const useVapi = ({
           });
           setIsLoading(false);
           setConnectionStatus('disconnected');
+        });
+
+        // Listen for transcript messages
+        vapiInstance.on('message', (message: any) => {
+          console.log('📨 VAPI message:', message);
+
+          // Handle transcript events
+          if (message.type === 'transcript' && message.transcriptType === 'final') {
+            const transcriptMessage: TranscriptMessage = {
+              role: message.role === 'assistant' ? 'assistant' : 'user',
+              content: message.transcript || '',
+              timestamp: new Date()
+            };
+
+            // Call the transcript callback if it exists
+            if (transcriptCallbackRef.current) {
+              transcriptCallbackRef.current(transcriptMessage);
+            }
+          }
         });
       } catch (error) {
         console.error('Failed to initialize VAPI:', error);
@@ -308,12 +335,17 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     }
   }, [vapi, isSessionActive]);
 
+  const onTranscript = useCallback((callback: (message: TranscriptMessage) => void) => {
+    transcriptCallbackRef.current = callback;
+  }, []);
+
   return {
     isSessionActive,
     isLoading,
     startSession,
     endSession,
-    connectionStatus
+    connectionStatus,
+    onTranscript
   };
 };
 
