@@ -174,6 +174,44 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
       shouldReferenceLastSession: !!sessions?.[0]?.session_summary
     };
 
+    // Get recent text interactions from the last 30 minutes to maintain conversation continuity
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: recentTextSessions } = await supabase
+      .from('therapeutic_sessions')
+      .select('transcript, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', thirtyMinutesAgo)
+      .like('call_id', 'text-%')
+      .order('created_at', { ascending: true });
+
+    console.log('💬 [CHAT] Recent text sessions found:', recentTextSessions?.length || 0);
+
+    // Build conversation history from recent text sessions
+    const conversationHistory: Array<{ role: 'user' | 'assistant', content: string }> = [];
+
+    if (recentTextSessions && recentTextSessions.length > 0) {
+      for (const session of recentTextSessions) {
+        try {
+          const transcript = typeof session.transcript === 'string'
+            ? JSON.parse(session.transcript)
+            : session.transcript;
+
+          if (transcript?.exchanges && Array.isArray(transcript.exchanges)) {
+            for (const exchange of transcript.exchanges) {
+              conversationHistory.push({
+                role: exchange.role,
+                content: exchange.content
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ [CHAT] Failed to parse transcript:', err);
+        }
+      }
+    }
+
+    console.log('💬 [CHAT] Conversation history messages:', conversationHistory.length);
+
     // Build system prompt with user context
     const fullSystemPrompt = buildChatSystemPrompt(
       systemPrompt,
@@ -183,13 +221,24 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
 
     console.log('🤖 [CHAT] Calling OpenAI with model:', modelConfig.model);
 
+    // Build messages array with conversation history
+    const messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }> = [
+      { role: 'system', content: fullSystemPrompt },
+      ...conversationHistory,  // Include previous messages from this text session
+      { role: 'user', content: message }  // Current message
+    ];
+
+    console.log('💬 [CHAT] Sending to OpenAI:', {
+      systemPrompt: 1,
+      historyMessages: conversationHistory.length,
+      currentMessage: 1,
+      totalMessages: messages.length
+    });
+
     // Call OpenAI with streaming
     const stream = await openai.chat.completions.create({
       model: modelConfig.model,
-      messages: [
-        { role: 'system', content: fullSystemPrompt },
-        { role: 'user', content: message }
-      ],
+      messages,
       stream: true,
       temperature: modelConfig.temperature,
       max_tokens: 500 // Limit for text chat (more concise than voice)
