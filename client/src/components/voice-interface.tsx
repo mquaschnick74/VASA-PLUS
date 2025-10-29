@@ -334,6 +334,121 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     handleLogout(setUserId);
   };
 
+  // NEW: Handle sending text messages
+  const handleSendTextMessage = async () => {
+    if (!textInput.trim() || isSessionActive) return;
+
+    const userMessage = textInput.trim();
+    setTextInput(''); // Clear input immediately
+
+    // Optimistic update - add user message to transcript
+    const userMsgId = `msg-${Date.now()}-user`;
+    setTranscript(prev => [...prev, {
+      id: userMsgId,
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date(),
+      source: 'text',
+    }]);
+
+    setIsSendingText(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call backend chat endpoint
+      const response = await fetch('/api/chat/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId,
+          agentId: selectedAgentId,
+          agentConfig: selectedAgent, // Pass full agent config
+          message: userMessage,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to send message');
+      }
+
+      // Handle streaming response (Server-Sent Events)
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      let assistantContent = '';
+      const assistantMsgId = `msg-${Date.now()}-assistant`;
+
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              assistantContent += parsed.content;
+
+              // Update or add assistant message
+              setTranscript(prev => {
+                const existing = prev.find(m => m.id === assistantMsgId);
+                if (existing) {
+                  return prev.map(m =>
+                    m.id === assistantMsgId
+                      ? { ...m, content: assistantContent }
+                      : m
+                  );
+                } else {
+                  return [...prev, {
+                    id: assistantMsgId,
+                    role: 'assistant',
+                    content: assistantContent,
+                    timestamp: new Date(),
+                    source: 'text',
+                    agentId: selectedAgentId,
+                  }];
+                }
+              });
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+
+      console.log('✅ [TEXT] Message sent successfully');
+
+    } catch (error: any) {
+      console.error('❌ [TEXT] Failed to send message:', error);
+
+      // Show error message in transcript
+      setTranscript(prev => [...prev, {
+        id: `msg-${Date.now()}-error`,
+        role: 'assistant',
+        content: '⚠️ Sorry, I encountered an error sending your message. Please try again.',
+        timestamp: new Date(),
+        source: 'text',
+      }]);
+    } finally {
+      setIsSendingText(false);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -741,10 +856,60 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border">
+                  {/* Text Input Section - NEW */}
+                  {!isSessionActive && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSendTextMessage();
+                      }}
+                      className="mb-4"
+                    >
+                      <div className="flex items-end space-x-2">
+                        <textarea
+                          value={textInput}
+                          onChange={(e) => setTextInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendTextMessage();
+                            }
+                          }}
+                          placeholder={`Send a text message to ${selectedAgent?.name}...`}
+                          className="flex-1 px-3 py-2 rounded-lg glass border border-white/10 resize-none text-sm"
+                          rows={2}
+                          disabled={isSendingText}
+                          data-testid="input-text-message"
+                        />
+                        <Button
+                          type="submit"
+                          disabled={!textInput.trim() || isSendingText}
+                          className="px-4 py-2 h-auto"
+                        >
+                          {isSendingText ? (
+                            <div className="flex items-center space-x-2">
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Sending...</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <span>💬</span>
+                              <span>Send</span>
+                            </div>
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        💬 Text mode - unlimited messages • Press Enter to send, Shift+Enter for new line
+                      </p>
+                    </form>
+                  )}
+
+                  {/* Mode indicator */}
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>
                       {isSessionActive
-                        ? "🎤 Voice mode active"
+                        ? "🎤 Voice mode active - End session to send text messages"
                         : "💬 Text mode - chat anytime"}
                     </span>
                     <span className="flex items-center space-x-1">

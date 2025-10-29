@@ -11,6 +11,7 @@ import therapistRoutes from './routes/therapist-routes';  // ADD THIS LINE
 import partnerRoutes from './routes/partner-routes';
 import influencerRoutes from './routes/influencer-routes';
 import adminRoutes from './routes/admin-routes';
+import chatRoutes from './routes/chat-routes';  // NEW: Text-to-text chat
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 import stripeCheckoutRoutes from './routes/stripe-checkout';
@@ -28,14 +29,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/admin', adminRoutes);
   console.log('✅ Admin routes mounted at /api/admin');
   apiRouter.use('/influencer', influencerRoutes);
+  apiRouter.use('/chat', chatRoutes);  // NEW: Text chat
+  console.log('✅ Chat routes mounted at /api/chat');
   apiRouter.use('/stripe/webhook', stripeWebhookRoutes);
   apiRouter.use('/stripe', stripeCheckoutRoutes);
   apiRouter.use('/blog', blogRoutes);
 
   // Health check
   apiRouter.get('/health', (req, res) => {
-    res.json({ 
-      status: 'ok', 
+    res.json({
+      status: 'ok',
       timestamp: new Date().toISOString(),
       routes: {
         auth: 'Mounted at /api/auth',
@@ -45,6 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         influencer: 'Mounted at /api/influencer',
         therapist: 'Mounted at /api/therapist',  // ADD THIS LINE
         admin: 'Mounted at /api/admin',
+        chat: 'Mounted at /api/chat',  // NEW: Text chat
         health: 'Mounted at /api/health'
       }
     });
