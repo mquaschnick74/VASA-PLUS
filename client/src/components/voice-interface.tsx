@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import useVapi, { TranscriptMessage } from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
-import { VapiDiagnostics } from './VapiDiagnostics';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
@@ -56,6 +56,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const [showDurationWarning, setShowDurationWarning] = useState(false);
   const [sessionDurationLimit, setSessionDurationLimit] = useState(7200); // Default: 2 hours in seconds
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
 
   // NEW: Transcript and text messaging state
   const [transcript, setTranscript] = useState<ExtendedTranscriptMessage[]>(() => {
@@ -905,9 +906,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
             {/* Technical Support Card */}
             <TechnicalSupportCard />
 
-            {/* VAPI Diagnostics - Show if there's an error or in development */}
-            {(vapiError || import.meta.env.DEV) && <VapiDiagnostics />}
-
             {/* Agent Selection */}
             <AgentSelector 
               selectedAgentId={selectedAgentId}
@@ -1267,8 +1265,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                   ))}
                 </div>
 
-                <Button variant="ghost" className="mt-4 text-sm text-accent hover:text-accent/80 transition-colors duration-200 p-0">
-                  View full session history →
+                <Button
+                  variant="ghost"
+                  className="mt-4 text-sm text-accent hover:text-accent hover:bg-accent/10 transition-colors duration-200 p-0"
+                  onClick={() => setShowHistoryDialog(true)}
+                >
+                  View session history →
                 </Button>
               </CardContent>
             </Card>
@@ -1309,6 +1311,156 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           </div>
         </div>
       </div>
+
+      {/* Session History Dialog */}
+      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <i className="fas fa-brain text-accent"></i>
+              <span>Session History</span>
+            </DialogTitle>
+            <DialogDescription>
+              Complete memory context and session details
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4">
+            {/* Memory Context Section */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3 flex items-center space-x-2">
+                <i className="fas fa-lightbulb text-accent"></i>
+                <span>Therapeutic Insights</span>
+              </h4>
+              <div className="space-y-2">
+                {userContext?.memoryContext?.split('\n').filter(line => line.trim()).map((line, index) => (
+                  <div key={index} className="bg-secondary/30 rounded-lg p-3">
+                    <p className="text-sm">{line}</p>
+                  </div>
+                ))}
+                {(!userContext?.memoryContext || userContext.memoryContext.trim() === '') && (
+                  <div className="bg-secondary/30 rounded-lg p-3">
+                    <p className="text-sm text-muted-foreground">No insights yet. Start your therapeutic journey!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* All Sessions Section */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3 flex items-center space-x-2">
+                <i className="fas fa-history text-accent"></i>
+                <span>All Sessions ({userContext?.sessions?.length || 0})</span>
+              </h4>
+              <div className="space-y-3">
+                {userContext?.sessions && userContext.sessions.length > 0 ? (
+                  userContext.sessions.map((session, index) => (
+                    <div key={session.id} className="bg-secondary/20 rounded-lg p-4 border border-border/50">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <p className="text-sm font-medium">
+                              Session {userContext.sessions.length - index}
+                            </p>
+                          </div>
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <p>
+                              <i className="fas fa-calendar mr-2"></i>
+                              {new Date(session.created_at).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                            <p>
+                              <i className="fas fa-clock mr-2"></i>
+                              {new Date(session.created_at).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                            <p>
+                              <i className="fas fa-hourglass-half mr-2"></i>
+                              Duration: {session.duration_seconds ? Math.floor(session.duration_seconds / 60) : 0} minutes
+                            </p>
+                            {session.agent_name && (
+                              <p>
+                                <i className="fas fa-user-md mr-2"></i>
+                                Agent: {session.agent_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end space-y-1">
+                          {session.has_transcript && (
+                            <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">
+                              <i className="fas fa-file-alt mr-1"></i>Transcript
+                            </span>
+                          )}
+                          {session.has_summary && (
+                            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                              <i className="fas fa-file-text mr-1"></i>Summary
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-secondary/20 rounded-lg p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No sessions yet. Start your first conversation!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Session Statistics */}
+            {userContext?.sessions && userContext.sessions.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold mb-3 flex items-center space-x-2">
+                  <i className="fas fa-chart-line text-accent"></i>
+                  <span>Statistics</span>
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-secondary/20 rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Total Sessions</p>
+                    <p className="text-2xl font-bold">{userContext.sessions.length}</p>
+                  </div>
+                  <div className="bg-secondary/20 rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Total Time</p>
+                    <p className="text-2xl font-bold">
+                      {Math.round(userContext.sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / 60)} min
+                    </p>
+                  </div>
+                  <div className="bg-secondary/20 rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Average Duration</p>
+                    <p className="text-2xl font-bold">
+                      {userContext.sessions.length > 0
+                        ? Math.round(userContext.sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / userContext.sessions.length / 60)
+                        : 0} min
+                    </p>
+                  </div>
+                  <div className="bg-secondary/20 rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground mb-1">This Week</p>
+                    <p className="text-2xl font-bold">
+                      {userContext.sessions.filter(s => {
+                        const sessionDate = new Date(s.created_at);
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return sessionDate >= weekAgo;
+                      }).length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
