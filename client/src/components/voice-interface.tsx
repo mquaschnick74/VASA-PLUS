@@ -1267,10 +1267,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
                 <Button
                   variant="ghost"
-                  className="mt-4 text-sm text-accent hover:text-accent/80 transition-colors duration-200 p-0"
+                  className="mt-4 text-sm text-accent hover:text-accent hover:bg-accent/10 transition-colors duration-200 p-0"
                   onClick={() => setShowHistoryDialog(true)}
                 >
-                  View full session history →
+                  View session history →
                 </Button>
               </CardContent>
             </Card>
@@ -1312,13 +1312,13 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         </div>
       </div>
 
-      {/* Full Session History Dialog */}
+      {/* Session History Dialog */}
       <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <i className="fas fa-brain text-accent"></i>
-              <span>Full Session History</span>
+              <span>Session History</span>
             </DialogTitle>
             <DialogDescription>
               Complete memory context and session details
