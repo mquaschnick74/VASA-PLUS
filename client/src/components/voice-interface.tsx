@@ -8,7 +8,6 @@ import useVapi, { TranscriptMessage } from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
-import { VapiDiagnostics } from './VapiDiagnostics';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
@@ -906,9 +905,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
             {/* Technical Support Card */}
             <TechnicalSupportCard />
-
-            {/* VAPI Diagnostics - Show if there's an error or in development */}
-            {(vapiError || import.meta.env.DEV) && <VapiDiagnostics />}
 
             {/* Agent Selection */}
             <AgentSelector 
