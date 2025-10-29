@@ -2,7 +2,7 @@
 // Text-to-text chat endpoint for VASA
 
 import { Router } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabase } from '../services/supabase-service';
 import { buildMemoryContext } from '../services/memory-service';
 import OpenAI from 'openai';
@@ -69,12 +69,13 @@ Do not make up or hallucinate details not mentioned above.`;
 }
 
 // POST /api/chat/send-message - Send a text message and get AI response
-router.post('/send-message', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { userId, agentId, agentName, systemPrompt, modelConfig, message } = req.body;
 
     console.log('💬 [CHAT] Text message received:', {
       userId,
+      requestUserId: req.user?.id,
       agentId,
       agentName,
       messageLength: message?.length,
@@ -82,10 +83,13 @@ router.post('/send-message', authenticateToken, async (req: AuthRequest, res) =>
       hasModelConfig: !!modelConfig
     });
 
-    // Verify authentication
-    if (!req.user || req.user.id !== userId) {
-      console.error('❌ [CHAT] Auth mismatch');
-      return res.status(401).send('Unauthorized');
+    // Verify user ID matches authenticated user (requireAuth already validated token)
+    if (req.user.id !== userId) {
+      console.error('❌ [CHAT] User ID mismatch:', {
+        tokenUserId: req.user.id,
+        requestUserId: userId
+      });
+      return res.status(403).send('User ID mismatch');
     }
 
     // Validate inputs

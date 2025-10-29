@@ -354,11 +354,35 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     setIsSendingText(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // Get fresh session with better error handling
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('❌ [TEXT] Session error:', sessionError);
+        throw new Error('Failed to get authentication session');
+      }
+
+      const token = sessionData?.session?.access_token;
+
+      console.log('🔐 [TEXT] Auth check:', {
+        hasSession: !!sessionData?.session,
+        hasToken: !!token,
+        tokenLength: token?.length,
+        tokenPrefix: token?.substring(0, 20) + '...'
+      });
 
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error('Not authenticated - please refresh the page');
+      }
+
+      // Validate token format (should be JWT with 3 parts)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.error('❌ [TEXT] Malformed token:', {
+          parts: tokenParts.length,
+          expected: 3
+        });
+        throw new Error('Invalid authentication token - please sign in again');
       }
 
       // Call backend chat endpoint
@@ -381,7 +405,20 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || 'Failed to send message');
+        console.error('❌ [TEXT] Server error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+
+        // Handle specific error types
+        if (response.status === 401) {
+          throw new Error('Authentication expired - please refresh the page and sign in again');
+        } else if (response.status === 403) {
+          throw new Error('Authentication error - please refresh the page');
+        } else {
+          throw new Error(errorText || 'Failed to send message');
+        }
       }
 
       // Handle streaming response (Server-Sent Events)
