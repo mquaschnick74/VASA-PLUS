@@ -363,15 +363,19 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       }
 
       const token = sessionData?.session?.access_token;
+      const authenticatedUserId = sessionData?.session?.user?.id;
 
       console.log('🔐 [TEXT] Auth check:', {
         hasSession: !!sessionData?.session,
         hasToken: !!token,
         tokenLength: token?.length,
-        tokenPrefix: token?.substring(0, 20) + '...'
+        tokenPrefix: token?.substring(0, 20) + '...',
+        propUserId: userId,
+        sessionUserId: authenticatedUserId,
+        userIdMatch: userId === authenticatedUserId
       });
 
-      if (!token) {
+      if (!token || !authenticatedUserId) {
         throw new Error('Not authenticated - please refresh the page');
       }
 
@@ -385,6 +389,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         throw new Error('Invalid authentication token - please sign in again');
       }
 
+      // Use the authenticated user ID from the session, not the prop
+      const requestUserId = authenticatedUserId;
+
       // Call backend chat endpoint
       // Only send serializable parts of agent config (no functions)
       const response = await fetch('/api/chat/send-message', {
@@ -394,7 +401,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId,
+          userId: requestUserId, // Use authenticated user ID from session
           agentId: selectedAgentId,
           agentName: selectedAgent?.name,
           systemPrompt: selectedAgent?.systemPrompt,
