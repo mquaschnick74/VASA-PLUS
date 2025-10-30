@@ -237,6 +237,39 @@ export class PCAMasterAnalystService {
       throw new Error('Missing OPENAI_API_KEY');
     }
 
+    // Log API key info for debugging
+    console.log('🔑 API Key exists:', !!apiKey);
+    console.log('🔑 API Key prefix:', apiKey.substring(0, 10) + '...');
+
+    // Trim prompt if it's too long (GPT models have context limits)
+    // Master PC Analyst prompt + transcripts can be very long
+    const maxPromptLength = 30000; // Conservative limit to stay within token bounds
+    const trimmedPrompt = prompt.length > maxPromptLength
+      ? prompt.substring(0, maxPromptLength) + '\n\n[Content truncated due to length. Please provide analysis based on available content.]'
+      : prompt;
+
+    console.log('📝 Original prompt length:', prompt.length, 'characters');
+    console.log('📝 Trimmed prompt length:', trimmedPrompt.length, 'characters');
+
+    const requestBody = {
+      model: 'gpt-3.5-turbo-16k', // Using 16k context window for longer prompts
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a Master-level PsychoContextual Analyst specializing in Pure Contextual Perception (PCP). Provide thorough, insightful analysis following the PCA/PCP framework.'
+        },
+        {
+          role: 'user',
+          content: trimmedPrompt
+        }
+      ],
+      max_tokens: 4000, // Leave room in context window
+      temperature: 0.3
+    };
+
+    console.log('📤 Request model:', requestBody.model);
+    console.log('📤 Request max_tokens:', requestBody.max_tokens);
+
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -244,32 +277,31 @@ export class PCAMasterAnalystService {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify({
-          model: 'gpt-4-turbo-preview', // Using GPT-4 Turbo for quality analysis
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a Master-level PsychoContextual Analyst specializing in Pure Contextual Perception (PCP). Provide thorough, insightful analysis following the PCA/PCP framework.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: 8000,
-          temperature: 0.3
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      const responseText = await response.text();
+      console.log('📡 Response status:', response.status);
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ OpenAI API error:', response.status, errorText);
-        throw new Error(`OpenAI API error: ${response.status}`);
+        console.error('❌ OpenAI API error response:', responseText);
+
+        // Try to parse error details
+        try {
+          const errorData = JSON.parse(responseText);
+          const errorMessage = errorData.error?.message || responseText;
+          console.error('❌ Error details:', errorData);
+          throw new Error(`OpenAI API error (${response.status}): ${errorMessage}`);
+        } catch (parseError) {
+          throw new Error(`OpenAI API error: ${response.status} - ${responseText}`);
+        }
       }
 
-      const data = await response.json();
+      const data = JSON.parse(responseText);
       const totalTokens = data.usage?.total_tokens || 0;
       console.log(`✅ OpenAI API call successful (${totalTokens} tokens)`);
+      console.log(`   - Prompt tokens: ${data.usage?.prompt_tokens || 0}`);
+      console.log(`   - Completion tokens: ${data.usage?.completion_tokens || 0}`);
 
       // Return in format compatible with parsing logic
       return {
