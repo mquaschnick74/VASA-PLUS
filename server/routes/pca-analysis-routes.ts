@@ -3,6 +3,7 @@
 
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
@@ -28,13 +29,36 @@ async function getPCAService() {
  */
 router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
+    const authenticatedUserId = req.user?.id;
+    if (!authenticatedUserId) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
+    // Get target userId from request body (for therapist viewing client data)
+    // If not provided, analyze the authenticated user's own data
+    let { userId, sessionCount } = req.body;
+    const targetUserId = userId || authenticatedUserId;
+
+    // If analyzing a different user, verify permission (therapist-client relationship)
+    if (targetUserId !== authenticatedUserId) {
+      const { data: relationship, error } = await supabase
+        .from('therapist_client_relationships')
+        .select('id')
+        .eq('therapist_id', authenticatedUserId)
+        .eq('client_id', targetUserId)
+        .eq('status', 'active')
+        .single();
+
+      if (error || !relationship) {
+        return res.status(403).json({
+          error: 'Access denied',
+          message: 'You do not have permission to analyze this user\'s data'
+        });
+      }
+      console.log(`✅ Therapist ${authenticatedUserId} authorized to analyze client ${targetUserId}`);
+    }
+
     // Get session count from request body, default to 3
-    let { sessionCount } = req.body;
     sessionCount = parseInt(sessionCount) || 3;
 
     // Validate session count range
@@ -44,11 +68,11 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
       });
     }
 
-    console.log(`📊 PCA analysis requested for user ${userId}, ${sessionCount} sessions`);
+    console.log(`📊 PCA analysis requested for user ${targetUserId}, ${sessionCount} sessions`);
 
     // Get service instance and perform analysis
     const service = await getPCAService();
-    const result = await service.performAnalysis(userId, sessionCount);
+    const result = await service.performAnalysis(targetUserId, sessionCount);
 
     res.json({
       success: true,

@@ -41,14 +41,17 @@ export default function PCAMasterAnalyst({ userId }: PCAMasterAnalystProps) {
         throw new Error('Not authenticated');
       }
 
-      // Trigger analysis
+      // Trigger analysis - pass userId for therapists viewing client data
       const response = await fetch('/api/analysis/pca-master', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ sessionCount })
+        body: JSON.stringify({
+          userId: userId,  // Target user to analyze (client ID if therapist is viewing)
+          sessionCount
+        })
       });
 
       const result = await response.json();
