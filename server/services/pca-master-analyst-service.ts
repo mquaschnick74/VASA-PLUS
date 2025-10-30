@@ -1,7 +1,7 @@
 // Location: server/services/pca-master-analyst-service.ts
 
-// NO imports of @anthropic-ai/sdk at module level - not even type imports!
-// The SDK is loaded dynamically only when needed
+// Using fetch instead of @anthropic-ai/sdk to avoid module resolution issues
+// fetch is built into Node.js - no dependencies needed!
 import { supabase } from './supabase-service';
 import { buildStreamlinedAnalysisPrompt } from '../prompts/master-pc-analyst';
 
@@ -23,37 +23,8 @@ interface ParsedAnalysisResult {
 }
 
 export class PCAMasterAnalystService {
-  private anthropic: any = null;
-
   constructor() {
-    // Lazy initialization - don't create Anthropic client until first use
-    // This allows Replit Secrets to be injected before the service is actually used
-  }
-
-  /**
-   * Ensure the Anthropic client is initialized (lazy initialization)
-   */
-  private async ensureInitialized() {
-    if (this.anthropic) return;
-
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-
-    if (!apiKey) {
-      console.error('❌ MISSING ANTHROPIC_API_KEY - Add to your Replit Secrets or .env file');
-      throw new Error('Missing ANTHROPIC_API_KEY');
-    }
-
-    // Dynamic import using string concatenation to hide from tsx static analysis
-    // This prevents tsx from trying to resolve the module at parse time
-    const packageName = '@anthropic-ai/' + 'sdk';
-    const AnthropicModule = await import(packageName as any);
-    const Anthropic = AnthropicModule.default;
-
-    this.anthropic = new Anthropic({
-      apiKey: apiKey,
-    });
-
-    console.log('✅ PCA Master Analyst service initialized');
+    // No initialization needed - fetch is built-in!
   }
 
   /**
@@ -68,7 +39,6 @@ export class PCAMasterAnalystService {
     safetyAssessment: string;
     registerDominance: string;
   }> {
-    await this.ensureInitialized(); // Initialize on first use
     const startTime = Date.now();
 
     try {
@@ -240,27 +210,53 @@ export class PCAMasterAnalystService {
   }
 
   /**
-   * Call Claude API with the analysis prompt
+   * Call Claude API with the analysis prompt using fetch (no SDK needed!)
    */
   private async callClaudeAPI(prompt: string): Promise<any> {
-    if (!this.anthropic) {
-      throw new Error('Anthropic client not initialized');
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+
+    if (!apiKey) {
+      console.error('❌ MISSING ANTHROPIC_API_KEY - Add to your Replit Secrets');
+      throw new Error('Missing ANTHROPIC_API_KEY');
     }
 
     try {
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 10000, // Increased for dual output
-        temperature: 0.3, // Lower temp for consistency
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 10000,
+          temperature: 0.3,
+          messages: [{
+            role: 'user',
+            content: prompt
+          }]
+        })
       });
 
-      const totalTokens = (response.usage as any)?.input_tokens + (response.usage as any)?.output_tokens || 0;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Claude API error:', response.status, errorText);
+        throw new Error(`Claude API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const totalTokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
       console.log(`✅ Claude API call successful (${totalTokens} tokens)`);
-      return response;
+
+      // Return in format compatible with parsing logic
+      return {
+        content: data.content,
+        usage: {
+          input_tokens: data.usage?.input_tokens || 0,
+          output_tokens: data.usage?.output_tokens || 0
+        }
+      };
 
     } catch (error: any) {
       console.error('❌ Claude API error:', error.message);
