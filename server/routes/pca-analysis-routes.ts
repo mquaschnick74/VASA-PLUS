@@ -12,7 +12,8 @@ let _serviceInstance: any = null;
 async function getPCAService() {
   if (!_serviceInstance) {
     // Dynamic import - only loads when this function is called
-    const { PCAMasterAnalystService } = await import('../services/pca-master-analyst-service.js');
+    // Omit extension for tsx to resolve .ts files correctly
+    const { PCAMasterAnalystService } = await import('../services/pca-master-analyst-service');
     _serviceInstance = new PCAMasterAnalystService();
   }
   return _serviceInstance;
