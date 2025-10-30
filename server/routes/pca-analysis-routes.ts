@@ -3,14 +3,16 @@
 
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import { PCAMasterAnalystService } from '../services/pca-master-analyst-service';
 
 const router = Router();
 
-// Create a singleton instance that will be lazily initialized on first use
-let _serviceInstance: PCAMasterAnalystService | null = null;
-function getPCAService(): PCAMasterAnalystService {
+// Truly lazy service loading - only import the module when actually needed
+// This prevents ANY module resolution at server startup
+let _serviceInstance: any = null;
+async function getPCAService() {
   if (!_serviceInstance) {
+    // Dynamic import - only loads when this function is called
+    const { PCAMasterAnalystService } = await import('../services/pca-master-analyst-service.js');
     _serviceInstance = new PCAMasterAnalystService();
   }
   return _serviceInstance;
@@ -44,7 +46,7 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
     console.log(`📊 PCA analysis requested for user ${userId}, ${sessionCount} sessions`);
 
     // Get service instance and perform analysis
-    const service = getPCAService();
+    const service = await getPCAService();
     const result = await service.performAnalysis(userId, sessionCount);
 
     res.json({
@@ -102,7 +104,7 @@ router.get('/pca-master/:analysisId', requireAuth, async (req: AuthRequest, res)
 
     console.log(`📖 Fetching analysis ${analysisId} for user ${userId}`);
 
-    const service = getPCAService();
+    const service = await getPCAService();
     const analysis = await service.getAnalysis(userId, analysisId);
 
     res.json({
@@ -145,7 +147,7 @@ router.get('/pca-master', requireAuth, async (req: AuthRequest, res) => {
 
     console.log(`📋 Fetching analyses for user ${userId} (limit: ${limit})`);
 
-    const service = getPCAService();
+    const service = await getPCAService();
     const analyses = await service.getUserAnalyses(userId, limit);
 
     res.json({
