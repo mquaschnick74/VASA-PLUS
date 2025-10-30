@@ -1,8 +1,7 @@
 // Location: server/services/pca-master-analyst-service.ts
 
-// Lazy imports - only loaded when actually needed
-// This prevents module load time crashes when Replit hasn't injected secrets yet
-import type Anthropic from '@anthropic-ai/sdk';
+// NO imports of @anthropic-ai/sdk at module level - not even type imports!
+// The SDK is loaded dynamically only when needed
 import { supabase } from './supabase-service';
 import { buildStreamlinedAnalysisPrompt } from '../prompts/master-pc-analyst';
 
@@ -24,7 +23,7 @@ interface ParsedAnalysisResult {
 }
 
 export class PCAMasterAnalystService {
-  private anthropic: Anthropic | null = null;
+  private anthropic: any = null;
 
   constructor() {
     // Lazy initialization - don't create Anthropic client until first use
