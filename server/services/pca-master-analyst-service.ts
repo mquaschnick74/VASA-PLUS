@@ -404,6 +404,14 @@ export class PCAMasterAnalystService {
     console.log('   - Full analysis length:', data.fullAnalysis.length);
     console.log('   - Therapeutic context length:', data.therapeuticContext.length);
 
+    // Truncate fields to fit database constraints (VARCHAR limits)
+    const truncateToLimit = (value: string, limit: number): string => {
+      if (!value) return value;
+      if (value.length <= limit) return value;
+      console.log(`⚠️ Truncating value from ${value.length} to ${limit} chars: "${value}"`);
+      return value.substring(0, limit);
+    };
+
     const insertData = {
       user_id: data.userId,
       analysis_id: data.analysisId,
@@ -411,10 +419,10 @@ export class PCAMasterAnalystService {
       transcript_count: data.transcripts.length,
       full_analysis: data.fullAnalysis,
       therapeutic_context: data.therapeuticContext,
-      current_css_stage: data.currentCssStage,
+      current_css_stage: truncateToLimit(data.currentCssStage, 50), // VARCHAR(50)
       primary_cvdc: data.primaryCvdc as any,
-      register_dominance: data.registerDominance,
-      safety_assessment: data.safetyAssessment,
+      register_dominance: truncateToLimit(data.registerDominance, 20), // VARCHAR(20)
+      safety_assessment: truncateToLimit(data.safetyAssessment, 20), // VARCHAR(20)
       api_tokens_used: data.apiTokensUsed,
       processing_time_ms: data.processingTimeMs,
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as any // 30 days
