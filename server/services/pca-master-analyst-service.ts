@@ -43,8 +43,10 @@ export class PCAMasterAnalystService {
       throw new Error('Missing ANTHROPIC_API_KEY');
     }
 
-    // Dynamic import to avoid module load time issues
-    const AnthropicModule = await import('@anthropic-ai/sdk');
+    // Dynamic import using string concatenation to hide from tsx static analysis
+    // This prevents tsx from trying to resolve the module at parse time
+    const packageName = '@anthropic-ai/' + 'sdk';
+    const AnthropicModule = await import(packageName as any);
     const Anthropic = AnthropicModule.default;
 
     this.anthropic = new Anthropic({
