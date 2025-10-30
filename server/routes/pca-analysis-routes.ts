@@ -3,9 +3,19 @@
 
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import { pcaAnalystService } from '../services/pca-master-analyst-service';
 
 const router = Router();
+
+// Lazy-load the service to avoid module load time crashes
+// This ensures Replit Secrets are loaded before the service is instantiated
+let _pcaAnalystService: any = null;
+async function getPCAService() {
+  if (!_pcaAnalystService) {
+    const { pcaAnalystService } = await import('../services/pca-master-analyst-service');
+    _pcaAnalystService = pcaAnalystService;
+  }
+  return _pcaAnalystService;
+}
 
 /**
  * POST /api/analysis/pca-master
@@ -34,8 +44,9 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
 
     console.log(`📊 PCA analysis requested for user ${userId}, ${sessionCount} sessions`);
 
-    // Perform analysis
-    const result = await pcaAnalystService.performAnalysis(userId, sessionCount);
+    // Lazy-load service and perform analysis
+    const service = await getPCAService();
+    const result = await service.performAnalysis(userId, sessionCount);
 
     res.json({
       success: true,
@@ -92,7 +103,8 @@ router.get('/pca-master/:analysisId', requireAuth, async (req: AuthRequest, res)
 
     console.log(`📖 Fetching analysis ${analysisId} for user ${userId}`);
 
-    const analysis = await pcaAnalystService.getAnalysis(userId, analysisId);
+    const service = await getPCAService();
+    const analysis = await service.getAnalysis(userId, analysisId);
 
     res.json({
       success: true,
@@ -134,7 +146,8 @@ router.get('/pca-master', requireAuth, async (req: AuthRequest, res) => {
 
     console.log(`📋 Fetching analyses for user ${userId} (limit: ${limit})`);
 
-    const analyses = await pcaAnalystService.getUserAnalyses(userId, limit);
+    const service = await getPCAService();
+    const analyses = await service.getUserAnalyses(userId, limit);
 
     res.json({
       success: true,
