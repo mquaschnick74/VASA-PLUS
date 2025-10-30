@@ -41,21 +41,39 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
 
     // If analyzing a different user, verify permission (therapist-client relationship)
     if (targetUserId !== authenticatedUserId) {
-      const { data: relationship, error } = await supabase
+      console.log(`🔐 Checking permission: therapist ${authenticatedUserId} → client ${targetUserId}`);
+
+      // First check: therapist_client_relationships table (new system)
+      const { data: relationship } = await supabase
         .from('therapist_client_relationships')
         .select('id')
         .eq('therapist_id', authenticatedUserId)
         .eq('client_id', targetUserId)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
-      if (error || !relationship) {
-        return res.status(403).json({
-          error: 'Access denied',
-          message: 'You do not have permission to analyze this user\'s data'
-        });
+      if (relationship) {
+        console.log(`✅ Therapist ${authenticatedUserId} authorized via therapist_client_relationships`);
+      } else {
+        // Fallback check: user_profiles.invited_by field (legacy system)
+        const { data: clientProfile } = await supabase
+          .from('user_profiles')
+          .select('invited_by')
+          .eq('id', targetUserId)
+          .maybeSingle();
+
+        if (clientProfile?.invited_by === authenticatedUserId) {
+          console.log(`✅ Therapist ${authenticatedUserId} authorized via user_profiles.invited_by (legacy)`);
+        } else {
+          console.log(`❌ No valid relationship found for therapist ${authenticatedUserId} → client ${targetUserId}`);
+          return res.status(403).json({
+            error: 'Access denied',
+            message: 'You do not have permission to analyze this user\'s data'
+          });
+        }
       }
-      console.log(`✅ Therapist ${authenticatedUserId} authorized to analyze client ${targetUserId}`);
+    } else {
+      console.log(`✅ Self-analysis: user ${authenticatedUserId} analyzing own data`);
     }
 
     // Get session count from request body, default to 3
