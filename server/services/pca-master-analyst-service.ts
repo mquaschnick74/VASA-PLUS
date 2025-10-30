@@ -3,7 +3,7 @@
 // Using fetch instead of @anthropic-ai/sdk to avoid module resolution issues
 // fetch is built into Node.js - no dependencies needed!
 import { supabase } from './supabase-service';
-import { buildStreamlinedAnalysisPrompt } from '../prompts/master-pc-analyst';
+import { STREAMLINED_ANALYSIS_PROMPT } from '../prompts/master-pc-analyst.js';
 
 interface TranscriptData {
   call_id: string;
@@ -67,7 +67,23 @@ export class PCAMasterAnalystService {
       const userName = await this.getUserName(userId);
 
       // 4. Build the prompt
-      const prompt = buildStreamlinedAnalysisPrompt(transcripts, userName);
+      // Format the transcripts
+      const formattedTranscripts = transcripts
+        .map((t, i) => `
+      SESSION ${i + 1} (${new Date(t.created_at).toLocaleDateString()}):
+      Call ID: ${t.call_id}
+      Duration: ${t.duration_seconds || 'Unknown'} seconds
+
+      TRANSCRIPT:
+      ${t.text}
+        `)
+        .join('\n---NEXT SESSION---\n');
+
+      // Build the prompt by replacing placeholder
+      const prompt = STREAMLINED_ANALYSIS_PROMPT.replace(
+        '[TRANSCRIPTS GO HERE]',
+        formattedTranscripts
+      );
 
       // 5. Call Claude API
       console.log(`🤖 Calling Claude API for analysis...`);
