@@ -22,13 +22,23 @@ interface ParsedAnalysisResult {
 }
 
 export class PCAMasterAnalystService {
-  private anthropic: Anthropic;
+  private anthropic: Anthropic | null = null;
 
   constructor() {
+    // Lazy initialization - don't create Anthropic client until first use
+    // This allows Replit Secrets to be injected before the service is actually used
+  }
+
+  /**
+   * Ensure the Anthropic client is initialized (lazy initialization)
+   */
+  private ensureInitialized() {
+    if (this.anthropic) return;
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
     if (!apiKey) {
-      console.error('❌ MISSING ANTHROPIC_API_KEY - Add to your .env file');
+      console.error('❌ MISSING ANTHROPIC_API_KEY - Add to your Replit Secrets or .env file');
       throw new Error('Missing ANTHROPIC_API_KEY');
     }
 
@@ -51,6 +61,7 @@ export class PCAMasterAnalystService {
     safetyAssessment: string;
     registerDominance: string;
   }> {
+    this.ensureInitialized(); // Initialize on first use
     const startTime = Date.now();
 
     try {
@@ -225,6 +236,10 @@ export class PCAMasterAnalystService {
    * Call Claude API with the analysis prompt
    */
   private async callClaudeAPI(prompt: string): Promise<any> {
+    if (!this.anthropic) {
+      throw new Error('Anthropic client not initialized');
+    }
+
     try {
       const response = await this.anthropic.messages.create({
         model: 'claude-3-5-sonnet-20241022',
