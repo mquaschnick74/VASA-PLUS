@@ -1,6 +1,8 @@
 // Location: server/services/pca-master-analyst-service.ts
 
-import Anthropic from '@anthropic-ai/sdk';
+// Lazy imports - only loaded when actually needed
+// This prevents module load time crashes when Replit hasn't injected secrets yet
+import type Anthropic from '@anthropic-ai/sdk';
 import { supabase } from './supabase-service';
 import { buildStreamlinedAnalysisPrompt } from '../prompts/master-pc-analyst';
 
@@ -32,7 +34,7 @@ export class PCAMasterAnalystService {
   /**
    * Ensure the Anthropic client is initialized (lazy initialization)
    */
-  private ensureInitialized() {
+  private async ensureInitialized() {
     if (this.anthropic) return;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -41,6 +43,10 @@ export class PCAMasterAnalystService {
       console.error('❌ MISSING ANTHROPIC_API_KEY - Add to your Replit Secrets or .env file');
       throw new Error('Missing ANTHROPIC_API_KEY');
     }
+
+    // Dynamic import to avoid module load time issues
+    const AnthropicModule = await import('@anthropic-ai/sdk');
+    const Anthropic = AnthropicModule.default;
 
     this.anthropic = new Anthropic({
       apiKey: apiKey,
@@ -61,7 +67,7 @@ export class PCAMasterAnalystService {
     safetyAssessment: string;
     registerDominance: string;
   }> {
-    this.ensureInitialized(); // Initialize on first use
+    await this.ensureInitialized(); // Initialize on first use
     const startTime = Date.now();
 
     try {
