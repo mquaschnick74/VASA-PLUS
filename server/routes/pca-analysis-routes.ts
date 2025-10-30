@@ -29,31 +29,42 @@ async function getPCAService() {
  */
 router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const authenticatedUserId = req.user?.id;
-    if (!authenticatedUserId) {
+    const authUserId = req.user?.id;  // Supabase auth ID
+    const authUserEmail = req.user?.email;
+
+    if (!authUserId || !authUserEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    // Get authenticated user's profile to check user_type
+    console.log(`🔍 Auth info: id=${authUserId}, email=${authUserEmail}`);
+
+    // Get authenticated user's profile using email (established pattern in codebase)
+    // Note: req.user.id is Supabase auth ID, but user_profiles.id is profile ID
+    // The link between them is the email address
     const { data: authUserProfile } = await supabase
       .from('user_profiles')
       .select('id, user_type, email')
-      .eq('id', authenticatedUserId)
+      .eq('email', authUserEmail)
       .maybeSingle();
 
     if (!authUserProfile) {
-      console.log(`❌ No profile found for authenticated user ${authenticatedUserId}`);
-      return res.status(403).json({ error: 'User profile not found' });
+      console.log(`❌ No profile found for email: ${authUserEmail}`);
+      return res.status(403).json({
+        error: 'User profile not found',
+        message: 'Please ensure your profile is set up properly.'
+      });
     }
+
+    console.log(`✅ Found profile: id=${authUserProfile.id}, type=${authUserProfile.user_type}`);
 
     // Get target userId from request body (for therapist viewing client data)
     // If not provided, analyze the authenticated user's own data
     let { userId, sessionCount } = req.body;
-    const targetUserId = userId || authenticatedUserId;
+    const targetUserId = userId || authUserProfile.id;
 
     // If analyzing a different user, verify permission (therapist-client relationship)
-    if (targetUserId !== authenticatedUserId) {
-      console.log(`🔐 Checking permission: user ${authenticatedUserId} (${authUserProfile.user_type}) → target ${targetUserId}`);
+    if (targetUserId !== authUserProfile.id) {
+      console.log(`🔐 Checking permission: user ${authUserProfile.id} (${authUserProfile.user_type}) → target ${targetUserId}`);
 
       // Only therapists can analyze other users' data
       if (authUserProfile.user_type !== 'therapist') {
@@ -70,13 +81,13 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
       const { data: relationship } = await supabase
         .from('therapist_client_relationships')
         .select('id, status')
-        .eq('therapist_id', authenticatedUserId)
+        .eq('therapist_id', authUserProfile.id)
         .eq('client_id', targetUserId)
         .eq('status', 'active')
         .maybeSingle();
 
       if (relationship) {
-        console.log(`✅ Therapist ${authenticatedUserId} authorized via therapist_client_relationships`);
+        console.log(`✅ Therapist ${authUserProfile.id} authorized via therapist_client_relationships`);
         hasPermission = true;
       }
 
@@ -88,23 +99,23 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
           .eq('id', targetUserId)
           .maybeSingle();
 
-        if (clientProfile?.invited_by === authenticatedUserId) {
-          console.log(`✅ Therapist ${authenticatedUserId} authorized via user_profiles.invited_by (legacy)`);
+        if (clientProfile?.invited_by === authUserProfile.id) {
+          console.log(`✅ Therapist ${authUserProfile.id} authorized via user_profiles.invited_by (legacy)`);
           hasPermission = true;
         }
       }
 
       if (!hasPermission) {
-        console.log(`❌ No valid relationship found for therapist ${authenticatedUserId} → client ${targetUserId}`);
+        console.log(`❌ No valid relationship found for therapist ${authUserProfile.id} → client ${targetUserId}`);
         return res.status(403).json({
           error: 'Access denied',
           message: 'You do not have permission to analyze this user\'s data'
         });
       }
 
-      console.log(`✅ Permission granted for therapist ${authenticatedUserId} to analyze client ${targetUserId}`);
+      console.log(`✅ Permission granted for therapist ${authUserProfile.id} to analyze client ${targetUserId}`);
     } else {
-      console.log(`✅ Self-analysis: user ${authenticatedUserId} analyzing own data`);
+      console.log(`✅ Self-analysis: user ${authUserProfile.id} analyzing own data`);
     }
 
     // Get session count from request body, default to 3
@@ -165,9 +176,20 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
  */
 router.get('/pca-master/:analysisId', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
+    const authUserEmail = req.user?.email;
+    if (!authUserEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get user's profile ID using email
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('email', authUserEmail)
+      .maybeSingle();
+
+    if (!userProfile) {
+      return res.status(403).json({ error: 'User profile not found' });
     }
 
     const { analysisId } = req.params;
@@ -176,10 +198,10 @@ router.get('/pca-master/:analysisId', requireAuth, async (req: AuthRequest, res)
       return res.status(400).json({ error: 'Analysis ID is required' });
     }
 
-    console.log(`📖 Fetching analysis ${analysisId} for user ${userId}`);
+    console.log(`📖 Fetching analysis ${analysisId} for user ${userProfile.id}`);
 
     const service = await getPCAService();
-    const analysis = await service.getAnalysis(userId, analysisId);
+    const analysis = await service.getAnalysis(userProfile.id, analysisId);
 
     res.json({
       success: true,
@@ -212,17 +234,28 @@ router.get('/pca-master/:analysisId', requireAuth, async (req: AuthRequest, res)
  */
 router.get('/pca-master', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
+    const authUserEmail = req.user?.email;
+    if (!authUserEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get user's profile ID using email
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('email', authUserEmail)
+      .maybeSingle();
+
+    if (!userProfile) {
+      return res.status(403).json({ error: 'User profile not found' });
     }
 
     const limit = parseInt(req.query.limit as string) || 10;
 
-    console.log(`📋 Fetching analyses for user ${userId} (limit: ${limit})`);
+    console.log(`📋 Fetching analyses for user ${userProfile.id} (limit: ${limit})`);
 
     const service = await getPCAService();
-    const analyses = await service.getUserAnalyses(userId, limit);
+    const analyses = await service.getUserAnalyses(userProfile.id, limit);
 
     res.json({
       success: true,
@@ -240,28 +273,83 @@ router.get('/pca-master', requireAuth, async (req: AuthRequest, res) => {
 });
 
 /**
+ * GET /api/analysis/debug-user
+ * Debug endpoint to check authenticated user's profile and IDs
+ */
+router.get('/debug-user', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const authUserId = req.user?.id;  // Supabase auth ID
+    const authUserEmail = req.user?.email;
+
+    const results = {
+      authInfo: {
+        supabaseAuthId: authUserId,
+        email: authUserEmail
+      },
+      profileLookup: {} as any
+    };
+
+    if (authUserEmail) {
+      // Check user_profiles by email
+      const { data: profileByEmail } = await supabase
+        .from('user_profiles')
+        .select('id, email, user_type, full_name, invited_by')
+        .eq('email', authUserEmail)
+        .maybeSingle();
+
+      results.profileLookup.byEmail = profileByEmail;
+    }
+
+    if (authUserId) {
+      // Check user_profiles by ID (will likely not find anything)
+      const { data: profileById } = await supabase
+        .from('user_profiles')
+        .select('id, email, user_type, full_name, invited_by')
+        .eq('id', authUserId)
+        .maybeSingle();
+
+      results.profileLookup.byAuthId = profileById;
+    }
+
+    res.json(results);
+
+  } catch (error: any) {
+    console.error('❌ Error in debug-user:', error);
+    res.status(500).json({
+      error: 'Debug check failed',
+      message: error.message || 'An unexpected error occurred'
+    });
+  }
+});
+
+/**
  * GET /api/analysis/debug-permission/:clientId
  * Debug endpoint to check all relationship types between authenticated user and target user
  * Helps troubleshoot permission issues
  */
 router.get('/debug-permission/:clientId', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const authenticatedUserId = req.user?.id;
+    const authUserId = req.user?.id;  // Supabase auth ID
+    const authUserEmail = req.user?.email;
     const { clientId } = req.params;
 
-    if (!authenticatedUserId) {
+    if (!authUserId || !authUserEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    // Get authenticated user's profile
+    // Get authenticated user's profile using email
     const { data: authUserProfile } = await supabase
       .from('user_profiles')
       .select('id, user_type, email, full_name')
-      .eq('id', authenticatedUserId)
+      .eq('email', authUserEmail)
       .maybeSingle();
 
     if (!authUserProfile) {
-      return res.status(403).json({ error: 'User profile not found' });
+      return res.status(403).json({
+        error: 'User profile not found',
+        authEmail: authUserEmail,
+        note: 'Profile lookup by email failed'
+      });
     }
 
     // Get target user's profile
@@ -274,7 +362,8 @@ router.get('/debug-permission/:clientId', requireAuth, async (req: AuthRequest, 
     // Check all relationship types
     const checks = {
       authenticatedUser: {
-        id: authUserProfile.id,
+        supabaseAuthId: authUserId,
+        profileId: authUserProfile.id,
         email: authUserProfile.email,
         name: authUserProfile.full_name,
         type: authUserProfile.user_type
@@ -287,7 +376,7 @@ router.get('/debug-permission/:clientId', requireAuth, async (req: AuthRequest, 
         invited_by: targetUserProfile.invited_by
       } : null,
       checks: {
-        isSelfAnalysis: authenticatedUserId === clientId,
+        isSelfAnalysis: authUserProfile.id === clientId,
         isTherapist: authUserProfile.user_type === 'therapist',
         canAnalyzeOthers: authUserProfile.user_type === 'therapist'
       },
@@ -301,7 +390,7 @@ router.get('/debug-permission/:clientId', requireAuth, async (req: AuthRequest, 
     };
 
     // If analyzing self, always allowed
-    if (authenticatedUserId === clientId) {
+    if (authUserProfile.id === clientId) {
       checks.verdict = 'ALLOWED';
       checks.reason = 'Self-analysis is always permitted';
       return res.json(checks);
@@ -318,7 +407,7 @@ router.get('/debug-permission/:clientId', requireAuth, async (req: AuthRequest, 
     const { data: relationship } = await supabase
       .from('therapist_client_relationships')
       .select('*')
-      .eq('therapist_id', authenticatedUserId)
+      .eq('therapist_id', authUserProfile.id)
       .eq('client_id', clientId);
 
     checks.relationships.therapist_client_relationships = relationship;
@@ -330,7 +419,7 @@ router.get('/debug-permission/:clientId', requireAuth, async (req: AuthRequest, 
     }
 
     // Check invited_by field (legacy)
-    if (targetUserProfile?.invited_by === authenticatedUserId) {
+    if (targetUserProfile?.invited_by === authUserProfile.id) {
       checks.relationships.invited_by_matches = true;
       checks.verdict = 'ALLOWED';
       checks.reason = 'Client was invited by this therapist (legacy user_profiles.invited_by)';
@@ -341,7 +430,7 @@ router.get('/debug-permission/:clientId', requireAuth, async (req: AuthRequest, 
     const { data: invitations } = await supabase
       .from('therapist_invitations')
       .select('*')
-      .eq('therapist_id', authenticatedUserId)
+      .eq('therapist_id', authUserProfile.id)
       .eq('client_email', targetUserProfile?.email || '');
 
     checks.relationships.pendingInvitations = invitations;
