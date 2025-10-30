@@ -431,5 +431,5 @@ export class PCAMasterAnalystService {
   }
 }
 
-// Export singleton instance
-export const pcaAnalystService = new PCAMasterAnalystService();
+// Export the class for on-demand instantiation
+// No singleton export to avoid module-load-time initialization issues with Replit Secrets

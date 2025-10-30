@@ -3,18 +3,17 @@
 
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { PCAMasterAnalystService } from '../services/pca-master-analyst-service';
 
 const router = Router();
 
-// Lazy-load the service to avoid module load time crashes
-// This ensures Replit Secrets are loaded before the service is instantiated
-let _pcaAnalystService: any = null;
-async function getPCAService() {
-  if (!_pcaAnalystService) {
-    const { pcaAnalystService } = await import('../services/pca-master-analyst-service');
-    _pcaAnalystService = pcaAnalystService;
+// Create a singleton instance that will be lazily initialized on first use
+let _serviceInstance: PCAMasterAnalystService | null = null;
+function getPCAService(): PCAMasterAnalystService {
+  if (!_serviceInstance) {
+    _serviceInstance = new PCAMasterAnalystService();
   }
-  return _pcaAnalystService;
+  return _serviceInstance;
 }
 
 /**
@@ -44,8 +43,8 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
 
     console.log(`📊 PCA analysis requested for user ${userId}, ${sessionCount} sessions`);
 
-    // Lazy-load service and perform analysis
-    const service = await getPCAService();
+    // Get service instance and perform analysis
+    const service = getPCAService();
     const result = await service.performAnalysis(userId, sessionCount);
 
     res.json({
@@ -103,7 +102,7 @@ router.get('/pca-master/:analysisId', requireAuth, async (req: AuthRequest, res)
 
     console.log(`📖 Fetching analysis ${analysisId} for user ${userId}`);
 
-    const service = await getPCAService();
+    const service = getPCAService();
     const analysis = await service.getAnalysis(userId, analysisId);
 
     res.json({
@@ -146,7 +145,7 @@ router.get('/pca-master', requireAuth, async (req: AuthRequest, res) => {
 
     console.log(`📋 Fetching analyses for user ${userId} (limit: ${limit})`);
 
-    const service = await getPCAService();
+    const service = getPCAService();
     const analyses = await service.getUserAnalyses(userId, limit);
 
     res.json({
