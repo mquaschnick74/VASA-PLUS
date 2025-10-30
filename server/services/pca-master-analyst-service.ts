@@ -397,30 +397,46 @@ export class PCAMasterAnalystService {
   }): Promise<void> {
     const callIds = data.transcripts.map(t => t.call_id);
 
-    const { error } = await supabase
+    console.log('💾 Attempting to store analysis...');
+    console.log('   - User ID:', data.userId);
+    console.log('   - Analysis ID:', data.analysisId);
+    console.log('   - Transcript count:', data.transcripts.length);
+    console.log('   - Full analysis length:', data.fullAnalysis.length);
+    console.log('   - Therapeutic context length:', data.therapeuticContext.length);
+
+    const insertData = {
+      user_id: data.userId,
+      analysis_id: data.analysisId,
+      analyzed_sessions: callIds,
+      transcript_count: data.transcripts.length,
+      full_analysis: data.fullAnalysis,
+      therapeutic_context: data.therapeuticContext,
+      current_css_stage: data.currentCssStage,
+      primary_cvdc: data.primaryCvdc as any,
+      register_dominance: data.registerDominance,
+      safety_assessment: data.safetyAssessment,
+      api_tokens_used: data.apiTokensUsed,
+      processing_time_ms: data.processingTimeMs,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as any // 30 days
+    };
+
+    const { data: insertedData, error } = await supabase
       .from('pca_master_analysis')
-      .insert({
-        user_id: data.userId,
-        analysis_id: data.analysisId,
-        analyzed_sessions: callIds,
-        transcript_count: data.transcripts.length,
-        full_analysis: data.fullAnalysis,
-        therapeutic_context: data.therapeuticContext,
-        current_css_stage: data.currentCssStage,
-        primary_cvdc: data.primaryCvdc as any,
-        register_dominance: data.registerDominance,
-        safety_assessment: data.safetyAssessment,
-        api_tokens_used: data.apiTokensUsed,
-        processing_time_ms: data.processingTimeMs,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as any // 30 days
-      });
+      .insert(insertData)
+      .select();
 
     if (error) {
-      console.error('Error storing comprehensive analysis:', error);
-      throw new Error('Failed to store analysis');
+      console.error('❌ Error storing comprehensive analysis:');
+      console.error('   - Error code:', error.code);
+      console.error('   - Error message:', error.message);
+      console.error('   - Error details:', error.details);
+      console.error('   - Error hint:', error.hint);
+      console.error('   - Full error:', JSON.stringify(error, null, 2));
+      throw new Error(`Failed to store analysis: ${error.message} (${error.code})`);
     }
 
     console.log(`✅ Stored comprehensive analysis: ${data.analysisId}`);
+    console.log('   - Inserted data:', insertedData);
   }
 
   /**
@@ -431,7 +447,12 @@ export class PCAMasterAnalystService {
     analysisId: string,
     parsed: ParsedAnalysisResult
   ): Promise<void> {
-    const { error } = await supabase
+    console.log('💾 Attempting to store therapeutic context...');
+    console.log('   - User ID:', userId);
+    console.log('   - Context length:', parsed.therapeuticContext.length);
+    console.log('   - CSS stage:', parsed.currentCssStage);
+
+    const { data: insertedData, error } = await supabase
       .from('therapeutic_context')
       .insert({
         user_id: userId,
@@ -440,14 +461,21 @@ export class PCAMasterAnalystService {
         css_stage: parsed.currentCssStage,
         confidence: parsed.confidence,
         importance: 10 // High importance for master analysis
-      });
+      })
+      .select();
 
     if (error) {
-      console.error('Error storing therapeutic context:', error);
-      throw new Error('Failed to store therapeutic context');
+      console.error('❌ Error storing therapeutic context:');
+      console.error('   - Error code:', error.code);
+      console.error('   - Error message:', error.message);
+      console.error('   - Error details:', error.details);
+      console.error('   - Error hint:', error.hint);
+      console.error('   - Full error:', JSON.stringify(error, null, 2));
+      throw new Error(`Failed to store therapeutic context: ${error.message} (${error.code})`);
     }
 
     console.log(`✅ Stored therapeutic context for VASA agent`);
+    console.log('   - Inserted data:', insertedData);
   }
 
   /**
