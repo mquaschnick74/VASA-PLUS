@@ -776,3 +776,38 @@ export const blogPosts = pgTable("blog_posts", {
 // Blog post type
 export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = typeof blogPosts.$inferInsert;
+
+// ============================================================================
+// PCA MASTER ANALYSIS TABLE
+// ============================================================================
+
+// PCA Master Analysis table - stores comprehensive analysis from Claude API
+export const pcaMasterAnalysis = pgTable("pca_master_analysis", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Analysis metadata
+  analysis_id: varchar("analysis_id", { length: 255 }).notNull().unique(),
+  analyzed_sessions: jsonb("analyzed_sessions").notNull(), // Array of call_ids
+  transcript_count: integer("transcript_count").notNull(),
+
+  // Raw Claude response
+  full_analysis: text("full_analysis").notNull(), // Complete analysis from Claude
+  therapeutic_context: text("therapeutic_context").notNull(), // Condensed version
+
+  // Extracted structured data
+  current_css_stage: varchar("current_css_stage", { length: 50 }),
+  primary_cvdc: jsonb("primary_cvdc"), // Main contradiction
+  register_dominance: varchar("register_dominance", { length: 20 }), // real/symbolic/imaginary
+  safety_assessment: varchar("safety_assessment", { length: 20 }), // low/moderate/high
+
+  // Meta
+  api_tokens_used: integer("api_tokens_used"),
+  processing_time_ms: integer("processing_time_ms"),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  expires_at: timestamp("expires_at", { withTimezone: true }), // For cleanup
+});
+
+// PCA Master Analysis type
+export type PCAMasterAnalysis = typeof pcaMasterAnalysis.$inferSelect;
+export type InsertPCAMasterAnalysis = typeof pcaMasterAnalysis.$inferInsert;
