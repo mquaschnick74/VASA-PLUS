@@ -85,12 +85,12 @@ export class PCAMasterAnalystService {
         formattedTranscripts
       );
 
-      // 5. Call Claude API
-      console.log(`🤖 Calling Claude API for analysis...`);
-      const claudeResponse = await this.callClaudeAPI(prompt);
+      // 5. Call OpenAI API (switched from Claude to use existing working API)
+      console.log(`🤖 Calling OpenAI GPT-4 for analysis...`);
+      const aiResponse = await this.callOpenAI(prompt);
 
       // 6. Parse response
-      const parsed = this.parseClaudeResponse(claudeResponse);
+      const parsed = this.parseAIResponse(aiResponse);
 
       // 7. Generate analysis ID
       const analysisId = `pca_${userId}_${Date.now()}`;
@@ -101,7 +101,7 @@ export class PCAMasterAnalystService {
         analysisId,
         transcripts,
         ...parsed,
-        apiTokensUsed: claudeResponse.usage?.total_tokens || 0,
+        apiTokensUsed: aiResponse.usage?.total_tokens || 0,
         processingTimeMs: Date.now() - startTime
       });
 
@@ -226,64 +226,71 @@ export class PCAMasterAnalystService {
   }
 
   /**
-   * Call Claude API with the analysis prompt using fetch (no SDK needed!)
+   * Call OpenAI API with the analysis prompt using fetch
+   * Switched from Anthropic to OpenAI since OpenAI is already working in the system
    */
-  private async callClaudeAPI(prompt: string): Promise<any> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+  private async callOpenAI(prompt: string): Promise<any> {
+    const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
-      console.error('❌ MISSING ANTHROPIC_API_KEY - Add to your Replit Secrets');
-      throw new Error('Missing ANTHROPIC_API_KEY');
+      console.error('❌ MISSING OPENAI_API_KEY - Add to your Replit Secrets');
+      throw new Error('Missing OPENAI_API_KEY');
     }
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 10000,
-          temperature: 0.3,
-          messages: [{
-            role: 'user',
-            content: prompt
-          }]
+          model: 'gpt-4-turbo-preview', // Using GPT-4 Turbo for quality analysis
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a Master-level PsychoContextual Analyst specializing in Pure Contextual Perception (PCP). Provide thorough, insightful analysis following the PCA/PCP framework.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: 8000,
+          temperature: 0.3
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Claude API error:', response.status, errorText);
-        throw new Error(`Claude API error: ${response.status}`);
+        console.error('❌ OpenAI API error:', response.status, errorText);
+        throw new Error(`OpenAI API error: ${response.status}`);
       }
 
       const data = await response.json();
-      const totalTokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
-      console.log(`✅ Claude API call successful (${totalTokens} tokens)`);
+      const totalTokens = data.usage?.total_tokens || 0;
+      console.log(`✅ OpenAI API call successful (${totalTokens} tokens)`);
 
       // Return in format compatible with parsing logic
       return {
-        content: data.content,
+        content: [{ text: data.choices[0].message.content }],
         usage: {
-          input_tokens: data.usage?.input_tokens || 0,
-          output_tokens: data.usage?.output_tokens || 0
+          total_tokens: data.usage?.total_tokens || 0,
+          input_tokens: data.usage?.prompt_tokens || 0,
+          output_tokens: data.usage?.completion_tokens || 0
         }
       };
 
     } catch (error: any) {
-      console.error('❌ Claude API error:', error.message);
+      console.error('❌ OpenAI API error:', error.message);
       throw new Error(`Failed to analyze transcripts: ${error.message}`);
     }
   }
 
   /**
-   * Parse Claude's response to extract both outputs and structured data
+   * Parse AI response (OpenAI/GPT-4) to extract both outputs and structured data
    */
-  private parseClaudeResponse(response: any): ParsedAnalysisResult {
+  private parseAIResponse(response: any): ParsedAnalysisResult {
     const content = response.content[0].text;
 
     // Extract comprehensive analysis (OUTPUT 1)
