@@ -110,7 +110,7 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
         console.error('No auth token');
         try {
           const { withTimeout } = await import('@/lib/auth-helpers');
-          await withTimeout(supabase.auth.signOut(), 5000);
+          await withTimeout(supabase.auth.signOut(), 3000);
         } catch (error) {
           console.warn('⚠️ SignOut timeout/error (no token):', error);
         }

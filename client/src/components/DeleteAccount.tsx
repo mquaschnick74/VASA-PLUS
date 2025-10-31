@@ -68,7 +68,7 @@ export const DeleteAccount: React.FC<DeleteAccountProps> = ({
         const { withTimeout } = await import('@/lib/auth-helpers');
 
         // Use timeout wrapper to prevent hanging if session is expired
-        await withTimeout(supabase.auth.signOut(), 5000);
+        await withTimeout(supabase.auth.signOut(), 3000);
         console.log('✅ Signed out from Supabase Auth');
       } catch (error) {
         console.warn('⚠️ Supabase signOut timed out or failed:', error);

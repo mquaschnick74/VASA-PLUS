@@ -252,7 +252,7 @@ export default function Dashboard() {
               if (!session.user.email_confirmed_at) {
                 setMessage('Please verify your email to continue');
                 try {
-                  await withTimeout(supabase.auth.signOut(), 5000);
+                  await withTimeout(supabase.auth.signOut(), 3000);
                 } catch (error) {
                   console.warn('⚠️ SignOut timeout/error (email not verified):', error);
                 }

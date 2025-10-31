@@ -186,7 +186,7 @@ export default function AcceptInvitation() {
         setSignupError('Please verify your email before signing in.');
         try {
           const { withTimeout } = await import('@/lib/auth-helpers');
-          await withTimeout(supabase.auth.signOut(), 5000);
+          await withTimeout(supabase.auth.signOut(), 3000);
         } catch (error) {
           console.warn('⚠️ SignOut timeout/error (email not verified):', error);
         }
