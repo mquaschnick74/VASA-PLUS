@@ -288,8 +288,8 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
           console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
         }
       }
-      
-      await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType, promoCode);
+
+      await ensureUserSetup(doubleCheck.id, email, firstName || doubleCheck.first_name, userType, promoCode);
       return res.json({ user: doubleCheck });
     }
 
@@ -354,8 +354,8 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
               console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
             }
           }
-          
-          await ensureUserSetup(existingUser.id, email, firstName || existingUser.first_name, userType, promoCode);
+
+          await ensureUserSetup(existingAfterError.id, email, firstName || existingAfterError.first_name, userType, promoCode);
           return res.json({ user: existingAfterError });
         }
       }
