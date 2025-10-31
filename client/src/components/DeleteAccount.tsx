@@ -65,15 +65,15 @@ export const DeleteAccount: React.FC<DeleteAccountProps> = ({
       console.log('🔓 Signing out from Supabase Auth...');
       try {
         const { supabase } = await import('@/lib/supabaseClient');
-        const { error: signOutError } = await supabase.auth.signOut();
+        const { withTimeout } = await import('@/lib/auth-helpers');
 
-        if (signOutError) {
-          console.error('Supabase signOut error:', signOutError);
-        } else {
-          console.log('✅ Signed out from Supabase Auth');
-        }
+        // Use timeout wrapper to prevent hanging if session is expired
+        await withTimeout(supabase.auth.signOut(), 3000);
+        console.log('✅ Signed out from Supabase Auth');
       } catch (error) {
-        console.error('Error importing/calling Supabase:', error);
+        console.warn('⚠️ Supabase signOut timed out or failed:', error);
+        console.log('🔄 Continuing with cleanup anyway...');
+        // Continue with cleanup even if signOut fails/times out
       }
 
       // STEP 4: Clear all local data

@@ -12,7 +12,7 @@ import PartnerDashboard from '@/pages/partner-dashboard';
 import InfluencerDashboard from '@/pages/influencer-dashboard';
 import AdminDashboard from '@/pages/admin-dashboard';
 import { supabase } from '@/lib/supabaseClient';
-import { handleLogout } from '@/lib/auth-helpers';
+import { handleLogout, withTimeout } from '@/lib/auth-helpers';
 
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -264,7 +264,11 @@ export default function Dashboard() {
 
               if (!session.user.email_confirmed_at) {
                 setMessage('Please verify your email to continue');
-                await supabase.auth.signOut();
+                try {
+                  await withTimeout(supabase.auth.signOut(), 3000);
+                } catch (error) {
+                  console.warn('⚠️ SignOut timeout/error (email not verified):', error);
+                }
                 setUserId(null);
                 isSignedInRef.current = false;
                 setLoading(false);
