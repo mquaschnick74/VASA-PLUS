@@ -235,12 +235,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         // Check if email is verified
         if (!authData.user?.email_confirmed_at) {
           setError('Please verify your email before signing in. Check your inbox for the verification link.');
-          try {
-            const { withTimeout } = await import('@/lib/auth-helpers');
-            await withTimeout(supabase.auth.signOut(), 3000);
-          } catch (error) {
-            console.warn('⚠️ SignOut timeout/error (email not verified):', error);
-          }
+          await supabase.auth.signOut();
           return;
         }
 

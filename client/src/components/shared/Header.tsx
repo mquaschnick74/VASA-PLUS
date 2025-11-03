@@ -106,7 +106,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                 onClick={handleSignOut}
                 data-testid="button-signout"
                 variant="ghost"
-                className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all duration-200"
+                className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
                 disabled={loggingOut}
               >
                 {loggingOut ? 'Signing Out...' : 'Sign Out'}

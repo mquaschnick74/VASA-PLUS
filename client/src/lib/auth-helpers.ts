@@ -4,24 +4,8 @@
 import { supabase } from './supabaseClient';
 
 /**
- * Wraps a promise with a timeout to prevent hanging operations
- * @param promise The promise to wrap
- * @param timeoutMs Timeout in milliseconds (default: 3000ms)
- * @returns The promise result or throws a timeout error
- */
-export function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 3000): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
-    )
-  ]);
-}
-
-/**
  * Handles user logout with proper cleanup
  * Prevents frozen states by ensuring all cleanup happens in the correct order
- * Uses timeout wrapper to prevent hanging if Supabase session is invalid/expired
  */
 export async function handleLogout(setUserId: (id: string | null) => void) {
   console.log('🔓 [AUTH-HELPER] Starting logout process...');
@@ -30,16 +14,9 @@ export async function handleLogout(setUserId: (id: string | null) => void) {
     // Mark this as an intentional sign-out
     sessionStorage.setItem('intentionalSignOut', 'true');
 
-    // Sign out from Supabase with timeout protection (3 second timeout)
-    // This prevents the UI from hanging if the session is expired or connection is lost
-    try {
-      await withTimeout(supabase.auth.signOut(), 3000);
-      console.log('✅ [AUTH-HELPER] Supabase sign out complete');
-    } catch (signOutError) {
-      console.warn('⚠️ [AUTH-HELPER] Supabase sign out timed out or failed:', signOutError);
-      console.log('🔄 [AUTH-HELPER] Continuing with local cleanup...');
-      // Continue with cleanup even if signOut fails/times out
-    }
+    // Sign out from Supabase
+    await supabase.auth.signOut();
+    console.log('✅ [AUTH-HELPER] Supabase sign out complete');
 
     // Clear all storage
     localStorage.clear();
