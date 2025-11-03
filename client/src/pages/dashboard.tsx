@@ -12,7 +12,7 @@ import PartnerDashboard from '@/pages/partner-dashboard';
 import InfluencerDashboard from '@/pages/influencer-dashboard';
 import AdminDashboard from '@/pages/admin-dashboard';
 import { supabase } from '@/lib/supabaseClient';
-import { handleLogout } from '@/lib/auth-helpers';
+import { handleLogout, withTimeout } from '@/lib/auth-helpers';
 
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -50,6 +50,12 @@ export default function Dashboard() {
       const apiUrl = '/api/auth/user';
       console.log('🔐 [DASHBOARD] Calling API:', apiUrl);
 
+      // Check for pending promo code from signup
+      const pendingPromoCode = localStorage.getItem('pendingPromoCode');
+      if (pendingPromoCode) {
+        console.log('🎟️ [DASHBOARD] Found pending promo code:', pendingPromoCode);
+      }
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -60,7 +66,8 @@ export default function Dashboard() {
           email: freshSession.user.email,
           firstName: freshSession.user.user_metadata?.first_name || freshSession.user.email.split('@')[0],
           authUserId: freshSession.user.id,
-          userType: freshSession.user.user_metadata?.user_type || 'individual'
+          userType: freshSession.user.user_metadata?.user_type || 'individual',
+          promoCode: pendingPromoCode || null
         })
       });
 
@@ -74,6 +81,12 @@ export default function Dashboard() {
         localStorage.setItem('userId', user.id);
         localStorage.setItem('userEmail', user.email || session.user.email);
         localStorage.setItem('lastAuthCheck', new Date().toISOString());
+
+        // Clear pending promo code after successful user creation
+        if (pendingPromoCode) {
+          console.log('✅ [DASHBOARD] Clearing pending promo code');
+          localStorage.removeItem('pendingPromoCode');
+        }
 
         // Get user profile to determine type
         const { data: profile } = await supabase
@@ -251,7 +264,11 @@ export default function Dashboard() {
 
               if (!session.user.email_confirmed_at) {
                 setMessage('Please verify your email to continue');
-                await supabase.auth.signOut();
+                try {
+                  await withTimeout(supabase.auth.signOut(), 3000);
+                } catch (error) {
+                  console.warn('⚠️ SignOut timeout/error (email not verified):', error);
+                }
                 setUserId(null);
                 isSignedInRef.current = false;
                 setLoading(false);

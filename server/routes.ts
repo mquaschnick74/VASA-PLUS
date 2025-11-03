@@ -12,6 +12,7 @@ import partnerRoutes from './routes/partner-routes';
 import influencerRoutes from './routes/influencer-routes';
 import adminRoutes from './routes/admin-routes';
 import chatRoutes from './routes/chat-routes';  // NEW: Text-to-text chat
+import pcaAnalysisRoutes from './routes/pca-analysis-routes';  // NEW: PCA Master Analyst
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 import stripeCheckoutRoutes from './routes/stripe-checkout';
@@ -31,6 +32,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/influencer', influencerRoutes);
   apiRouter.use('/chat', chatRoutes);  // NEW: Text chat
   console.log('✅ Chat routes mounted at /api/chat');
+  apiRouter.use('/analysis', pcaAnalysisRoutes);  // NEW: PCA Master Analyst
+  console.log('✅ PCA analysis routes mounted at /api/analysis');
   apiRouter.use('/stripe/webhook', stripeWebhookRoutes);
   apiRouter.use('/stripe', stripeCheckoutRoutes);
   apiRouter.use('/blog', blogRoutes);
@@ -49,6 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         therapist: 'Mounted at /api/therapist',  // ADD THIS LINE
         admin: 'Mounted at /api/admin',
         chat: 'Mounted at /api/chat',  // NEW: Text chat
+        analysis: 'Mounted at /api/analysis',  // NEW: PCA Master Analyst
         health: 'Mounted at /api/health'
       }
     });
