@@ -930,89 +930,114 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
               </Alert>
             )}
 
-            {/* Voice Call Interface */}
+            {/* Unified Voice & Text Chat Interface */}
             <Card className="glass-strong rounded-2xl sm:rounded-3xl border-0">
               <CardContent className="p-4 sm:p-6 lg:p-8">
-                <div className="text-center space-y-4 sm:space-y-6">
-                  {/* Agent Avatar and Status */}
+                {/* Agent Avatar and Status */}
+                <div className="text-center space-y-4 mb-6">
                   <div className="relative inline-block">
-                    <div className={`w-24 h-24 sm:w-32 sm:h-32 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 bg-gradient-to-br from-${selectedAgent?.color || 'primary'}/20 to-${selectedAgent?.color || 'primary'}/10 flex items-center justify-center text-4xl sm:text-6xl`}>
+                    <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 bg-gradient-to-br from-${selectedAgent?.color || 'primary'}/20 to-${selectedAgent?.color || 'primary'}/10 flex items-center justify-center text-3xl sm:text-5xl`}>
                       {selectedAgent?.icon || '💜'}
                     </div>
-                    <div className="absolute -bottom-2 -right-2 w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full border-4 border-background flex items-center justify-center">
-                      <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <div className="absolute -bottom-2 -right-2 w-6 h-6 sm:w-7 sm:h-7 bg-green-500 rounded-full border-4 border-background flex items-center justify-center">
+                      <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-green-400 rounded-full animate-pulse"></div>
                     </div>
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <h2 className="text-2xl sm:text-3xl font-bold">{selectedAgent?.name || 'Sarah'}</h2>
-                    <p className="text-sm sm:text-base text-muted-foreground px-4 sm:px-0">{selectedAgent?.description || 'Your Therapeutic Voice Assistant'}</p>
-                    <div className="inline-flex items-center space-x-2 text-sm text-accent">
-                      <div className={`w-2 h-2 rounded-full animate-pulse ${
-                        isSessionActive ? 'bg-red-500' : 'bg-accent'
-                      }`}></div>
-                      <span data-testid="status-call">
-                        {isSessionActive ? `Connected with ${selectedAgent?.name}` : 'Ready to chat'}
-                      </span>
+                  <div className="space-y-1">
+                    <h2 className="text-xl sm:text-2xl font-bold">{selectedAgent?.name || 'Sarah'}</h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{selectedAgent?.description || 'Your Therapeutic Voice Assistant'}</p>
+                  </div>
+                </div>
+
+                {/* Session Mode Status */}
+                <div className="flex items-center justify-center mb-4">
+                  <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
+                    isSessionActive
+                      ? 'bg-red-500/20 border border-red-500/50'
+                      : activeTextSessionId
+                      ? 'bg-blue-500/20 border border-blue-500/50'
+                      : 'bg-accent/20 border border-accent/50'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full animate-pulse ${
+                      isSessionActive ? 'bg-red-500' : activeTextSessionId ? 'bg-blue-500' : 'bg-accent'
+                    }`}></div>
+                    <span className="text-xs sm:text-sm font-medium" data-testid="status-call">
+                      {isSessionActive
+                        ? `🎤 Voice: Connected with ${selectedAgent?.name}`
+                        : activeTextSessionId
+                        ? `💬 Text: Chatting with ${selectedAgent?.name}`
+                        : 'Ready to start'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Session Controls */}
+                <div className="space-y-3 mb-6">
+                  {/* Voice Session Button */}
+                  {!activeTextSessionId && (
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={isSessionActive ? handleEndCall : handleStartSession}
+                        disabled={isLoading || memoryLoading || (subscription?.limits.minutes_remaining === 0)}
+                        className={`group relative px-6 py-2 sm:px-8 sm:py-3 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
+                          isSessionActive
+                            ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25'
+                            : subscription && subscription.limits.minutes_remaining === 0
+                            ? 'bg-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
+                        }`}
+                        data-testid="button-call"
+                      >
+                        <span className="text-xs sm:text-sm group-hover:scale-105 transition-transform duration-200">
+                          {isLoading ? 'Connecting...' :
+                           isSessionActive ? '🎤 End Voice Session' :
+                            subscription && subscription.limits.minutes_remaining === 0 ? 'Upgrade Required' :
+                           '🎤 Start Voice Session'}
+                        </span>
+                      </Button>
                     </div>
-                  </div>
+                  )}
 
-                  {/* UPDATE Voice Call Controls to disable when no minutes */}
-                  <div className="flex justify-center">
-                    <Button
-                      onClick={isSessionActive ? handleEndCall : handleStartSession}
-                      disabled={isLoading || memoryLoading || (subscription?.limits.minutes_remaining === 0)}
-                      className={`group relative px-8 py-3 sm:px-10 sm:py-4 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
-                        isSessionActive 
-                          ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25' 
-                          : subscription && subscription.limits.minutes_remaining === 0  // ✅ Fixed typo
-                          ? 'bg-gray-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
-                      }`}
-                      data-testid="button-call"
-                    >
-                      <span className="text-sm sm:text-base group-hover:scale-105 transition-transform duration-200">
-                        {isLoading ? 'Connecting...' : 
-                         isSessionActive ? 'End Session' : 
-                          subscription && subscription.limits.minutes_remaining === 0 ? 'Upgrade Required' :
-                         'Start Session'}
-                      </span>
-                    </Button>
-                  </div>
+                  {/* Text Session Button */}
+                  {!isSessionActive && !activeTextSessionId && (
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={startTextSession}
+                        variant="outline"
+                        className="px-6 py-2 sm:px-8 sm:py-3 rounded-full"
+                      >
+                        <span className="text-xs sm:text-sm">💬 Start Text Session</span>
+                      </Button>
+                    </div>
+                  )}
 
-                  {/* Call Duration Display with Warning Color */}
+                  {/* Call Duration Display */}
                   {isSessionActive && (
-                    <Card className={`glass rounded-xl border-0 ${showDurationWarning ? 'border-2 border-yellow-500/50' : ''}`}>
-                      <CardContent className="p-4">
-                        <div className="flex flex-col items-center space-y-2">
-                          <div className="flex items-center justify-center space-x-2">
-                            <div className={`w-3 h-3 ${showDurationWarning ? 'bg-yellow-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
-                            <span className={`text-xl font-mono ${showDurationWarning ? 'text-yellow-500' : ''}`} data-testid="text-callTimer">
-                              {formatTime(callTimer)}
-                            </span>
-                          </div>
-                          {showDurationWarning && (
-                            <span className="text-xs text-yellow-500 text-center">
-                              Max duration: {Math.floor(sessionDurationLimit / 60)} minutes
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div className={`flex justify-center`}>
+                      <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg glass ${showDurationWarning ? 'border-2 border-yellow-500/50' : ''}`}>
+                        <div className={`w-2 h-2 ${showDurationWarning ? 'bg-yellow-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
+                        <span className={`text-sm sm:text-base font-mono ${showDurationWarning ? 'text-yellow-500' : ''}`} data-testid="text-callTimer">
+                          {formatTime(callTimer)}
+                        </span>
+                        {showDurationWarning && (
+                          <span className="text-xs text-yellow-500">
+                            (Max: {Math.floor(sessionDurationLimit / 60)}m)
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Live Conversation Transcript - NOW FUNCTIONAL */}
-            <Card className="glass rounded-xl sm:rounded-2xl border-0">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
-                  <i className="fas fa-comments text-accent text-sm sm:text-base"></i>
-                  <h3 className="text-lg sm:text-xl font-semibold">Live Conversation</h3>
-                </div>
+                {/* Live Conversation Transcript */}
+                <div className="border-t border-border pt-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <i className="fas fa-comments text-accent text-sm"></i>
+                    <h3 className="text-base sm:text-lg font-semibold">Live Conversation</h3>
+                  </div>
 
-                <div className="space-y-4 max-h-80 overflow-y-auto" data-testid="transcript-container">
+                  <div className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="transcript-container">
                   {transcript.length === 0 ? (
                     // Placeholder when no messages
                     <>
@@ -1070,38 +1095,19 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                       </div>
                     ))
                   )}
-                  {/* Auto-scroll anchor */}
-                  <div ref={transcriptEndRef} />
-                </div>
+                    {/* Auto-scroll anchor */}
+                    <div ref={transcriptEndRef} />
+                  </div>
 
-                <div className="mt-4 pt-4 border-t border-border">
-                  {/* Text Session Management - NEW */}
-                  {!isSessionActive && !activeTextSessionId && (
-                    <div className="mb-4">
-                      <Button
-                        onClick={startTextSession}
-                        className="w-full"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <span>💬</span>
-                          <span>Start Text Session</span>
-                        </div>
-                      </Button>
-                      <p className="text-xs text-muted-foreground mt-2 text-center">
-                        Start a text conversation with {selectedAgent?.name}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Text Input Section - Active Session */}
+                  {/* Text Input Section - Active Text Session */}
                   {!isSessionActive && activeTextSessionId && (
-                    <>
+                    <div className="mt-4 pt-4 border-t border-border">
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
                           handleSendTextMessage();
                         }}
-                        className="mb-4"
+                        className="space-y-3"
                       >
                         <div className="flex items-end space-x-2">
                           <textarea
@@ -1127,59 +1133,54 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                             className="px-4 py-2 h-auto"
                           >
                             {isSendingText ? (
-                              <div className="flex items-center space-x-2">
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                <span>Sending...</span>
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                               </div>
                             ) : (
-                              <div className="flex items-center space-x-2">
-                                <span>💬</span>
-                                <span>Send</span>
-                              </div>
+                              <span>💬</span>
                             )}
                           </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          💬 Text session active • Press Enter to send, Shift+Enter for new line
-                        </p>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Press Enter to send, Shift+Enter for new line</span>
+                          <Button
+                            onClick={stopTextSession}
+                            variant="ghost"
+                            size="sm"
+                            disabled={isStoppingSession}
+                            className="h-auto py-1 px-2"
+                          >
+                            {isStoppingSession ? (
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                <span className="text-xs">Saving...</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs">⏹️ Stop Session</span>
+                            )}
+                          </Button>
+                        </div>
                       </form>
-                      <Button
-                        onClick={stopTextSession}
-                        variant="outline"
-                        className="w-full mb-4"
-                        disabled={isStoppingSession}
-                      >
-                        {isStoppingSession ? (
-                          <div className="flex items-center space-x-2">
-                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            <span>Saving Session...</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-2">
-                            <span>⏹️</span>
-                            <span>Stop Text Session</span>
-                          </div>
-                        )}
-                      </Button>
-                    </>
+                    </div>
                   )}
 
-                  {/* Mode indicator */}
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>
-                      {isSessionActive
-                        ? "🎤 Voice mode active - End session to use text"
-                        : activeTextSessionId
-                        ? "💬 Text session active"
-                        : "💬 Text mode ready"}
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <div className={`w-2 h-2 rounded-full ${
-                        isSessionActive || activeTextSessionId ? 'bg-red-500 animate-pulse' : 'bg-green-500'
-                      }`}></div>
-                      <span>{isSessionActive ? 'Recording' : activeTextSessionId ? 'Chatting' : 'Ready'}</span>
-                    </span>
-                  </div>
+                  {/* Voice Mode Indicator */}
+                  {isSessionActive && (
+                    <div className="mt-4 pt-3 border-t border-border">
+                      <p className="text-xs text-center text-muted-foreground">
+                        🎤 Voice mode active - End voice session to use text chat
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Idle State Hint */}
+                  {!isSessionActive && !activeTextSessionId && transcript.length === 0 && (
+                    <div className="mt-4 pt-3 border-t border-border">
+                      <p className="text-xs text-center text-muted-foreground">
+                        Choose voice or text session to begin your conversation
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
