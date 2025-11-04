@@ -309,8 +309,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         voice: {
           provider: selectedAgent.voice.provider,
           voiceId: selectedAgent.voice.voiceId,
-          stability: selectedAgent.voice.stability || 0.5,
-          similarityBoost: 0.75,
+          stability: selectedAgent.voice.stability || 0.75,
+          similarityBoost: selectedAgent.voice.similarityBoost || 0.80,
           speed: selectedAgent.voice.speed || 1.0
         },
         // 🎯 NEW: Therapeutic Speech Configuration
