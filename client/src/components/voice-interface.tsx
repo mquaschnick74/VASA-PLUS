@@ -74,6 +74,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Typewriter effect state
+  const [typewriterMessageId, setTypewriterMessageId] = useState<string | null>(null);
+  const [displayedContent, setDisplayedContent] = useState<Record<string, string>>({});
+  const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Persist text session state to localStorage
   useEffect(() => {
     if (activeTextSessionId) {
@@ -149,6 +154,61 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [transcript]);
+
+  // Typewriter effect for assistant messages
+  useEffect(() => {
+    if (!typewriterMessageId) return;
+
+    const message = transcript.find(m => m.id === typewriterMessageId);
+    if (!message) return;
+
+    const fullContent = message.content;
+    const currentDisplayed = displayedContent[typewriterMessageId] || '';
+
+    // If already fully displayed, stop
+    if (currentDisplayed.length >= fullContent.length) {
+      setTypewriterMessageId(null);
+      return;
+    }
+
+    // Clear any existing interval
+    if (typewriterIntervalRef.current) {
+      clearInterval(typewriterIntervalRef.current);
+    }
+
+    // Typewriter animation: add 2-3 characters at a time for smooth flow
+    const charsPerInterval = 2;
+    const intervalDelay = 30; // milliseconds (faster = more fluid)
+
+    typewriterIntervalRef.current = setInterval(() => {
+      setDisplayedContent(prev => {
+        const current = prev[typewriterMessageId] || '';
+
+        if (current.length >= fullContent.length) {
+          // Animation complete
+          if (typewriterIntervalRef.current) {
+            clearInterval(typewriterIntervalRef.current);
+            typewriterIntervalRef.current = null;
+          }
+          setTypewriterMessageId(null);
+          return prev;
+        }
+
+        // Add next batch of characters
+        const nextLength = Math.min(current.length + charsPerInterval, fullContent.length);
+        return {
+          ...prev,
+          [typewriterMessageId]: fullContent.substring(0, nextLength)
+        };
+      });
+    }, intervalDelay);
+
+    return () => {
+      if (typewriterIntervalRef.current) {
+        clearInterval(typewriterIntervalRef.current);
+      }
+    };
+  }, [typewriterMessageId, transcript, displayedContent]);
 
   // Clear transcript when voice session ends
   useEffect(() => {
@@ -583,12 +643,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       }
 
       // Handle streaming response (Server-Sent Events)
+      // Buffer complete response for typewriter effect
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
       let assistantContent = '';
       const assistantMsgId = `msg-${Date.now()}-assistant`;
 
+      // Collect the complete response without displaying it
       while (true) {
         const { done, value } = await reader!.read();
         if (done) break;
@@ -604,27 +666,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
             try {
               const parsed = JSON.parse(data);
               assistantContent += parsed.content;
-
-              // Update or add assistant message
-              setTranscript(prev => {
-                const existing = prev.find(m => m.id === assistantMsgId);
-                if (existing) {
-                  return prev.map(m =>
-                    m.id === assistantMsgId
-                      ? { ...m, content: assistantContent }
-                      : m
-                  );
-                } else {
-                  return [...prev, {
-                    id: assistantMsgId,
-                    role: 'assistant',
-                    content: assistantContent,
-                    timestamp: new Date(),
-                    source: 'text',
-                    agentId: selectedAgentId,
-                  }];
-                }
-              });
             } catch (e) {
               // Skip invalid JSON
             }
@@ -632,7 +673,24 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         }
       }
 
-      console.log('✅ [TEXT] Message sent successfully');
+      console.log('✅ [TEXT] Complete response received, starting typewriter effect');
+
+      // Add complete message to transcript (but will display with typewriter effect)
+      setTranscript(prev => [...prev, {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: assistantContent,
+        timestamp: new Date(),
+        source: 'text',
+        agentId: selectedAgentId,
+      }]);
+
+      // Initialize displayed content as empty and trigger typewriter animation
+      setDisplayedContent(prev => ({
+        ...prev,
+        [assistantMsgId]: ''
+      }));
+      setTypewriterMessageId(assistantMsgId);
 
     } catch (error: any) {
       console.error('❌ [TEXT] Failed to send message:', error);
@@ -1066,34 +1124,51 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                     </>
                   ) : (
                     // Real transcript messages
-                    transcript.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`rounded-lg p-3 ${
-                          msg.role === 'assistant'
-                            ? 'bg-secondary/50'
-                            : 'bg-primary/20 ml-8'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-xs">
-                            {msg.source === 'voice' ? '🎤' : '💬'}
-                          </span>
-                          <span className="text-sm font-medium">
-                            {msg.role === 'assistant'
-                              ? (selectedAgent?.name || 'Sarah')
-                              : 'You'}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(msg.timestamp).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
+                    transcript.map((msg) => {
+                      // Use typewriter effect for assistant text messages
+                      const isTyping = msg.id === typewriterMessageId;
+                      const shouldAnimate = msg.role === 'assistant' && msg.source === 'text';
+                      const displayContent = shouldAnimate && displayedContent[msg.id] !== undefined
+                        ? displayedContent[msg.id]
+                        : msg.content;
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`rounded-lg p-3 ${
+                            msg.role === 'assistant'
+                              ? 'bg-secondary/50'
+                              : 'bg-primary/20 ml-8'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-xs">
+                              {msg.source === 'voice' ? '🎤' : '💬'}
+                            </span>
+                            <span className="text-sm font-medium">
+                              {msg.role === 'assistant'
+                                ? (selectedAgent?.name || 'Sarah')
+                                : 'You'}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(msg.timestamp).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            {isTyping && (
+                              <span className="text-xs text-muted-foreground italic ml-auto">
+                                typing...
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap">
+                            {displayContent}
+                            {isTyping && <span className="inline-block w-1 h-4 bg-accent ml-0.5 animate-pulse" />}
+                          </p>
                         </div>
-                        <p className="text-sm">{msg.content}</p>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                     {/* Auto-scroll anchor */}
                     <div ref={transcriptEndRef} />
