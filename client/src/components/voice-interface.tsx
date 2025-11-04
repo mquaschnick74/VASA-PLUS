@@ -140,7 +140,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   // NEW: Wire up transcript events from VAPI with buffering for complete thoughts
   useEffect(() => {
     onTranscript((message: TranscriptMessage) => {
-      console.log('📝 Transcript message received:', message);
+      console.log('📝 [VOICE] Transcript message received:', {
+        role: message.role,
+        content: message.content.substring(0, 50) + '...',
+        length: message.content.length
+      });
 
       // Handle user messages immediately (no buffering needed)
       if (message.role === 'user') {
@@ -154,35 +158,45 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           agentId: selectedAgentId
         };
         setTranscript(prev => [...prev, extendedMessage]);
+        console.log('📝 [VOICE] User message added immediately');
         return;
       }
 
       // Buffer assistant messages to pool complete thoughts
       if (message.role === 'assistant') {
+        console.log('📝 [VOICE] Assistant message - starting buffer');
+
         // Clear any existing timeout
         if (voiceBufferTimeoutRef.current) {
+          console.log('📝 [VOICE] Clearing previous buffer timeout');
           clearTimeout(voiceBufferTimeoutRef.current);
         }
 
         // Create message ID on first chunk
         if (!bufferedMessageIdRef.current) {
           bufferedMessageIdRef.current = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          console.log('📝 [VOICE] Created new message ID:', bufferedMessageIdRef.current);
         }
 
         // Accumulate content
         setVoiceMessageBuffer(prev => {
           const newContent = prev + (prev ? ' ' : '') + message.content;
-          console.log('📝 Buffering voice content:', newContent);
+          console.log('📝 [VOICE] Buffer updated, total length:', newContent.length);
           return newContent;
         });
 
-        // Set timeout to finalize message after pause (1.5 seconds of silence)
+        // Set timeout to finalize message after pause (500ms for responsiveness)
         voiceBufferTimeoutRef.current = setTimeout(() => {
-          console.log('📝 Finalizing buffered voice message');
+          console.log('📝 [VOICE] ⏰ Buffer timeout triggered - finalizing message');
 
           setVoiceMessageBuffer(currentBuffer => {
             if (currentBuffer && bufferedMessageIdRef.current) {
               const finalMessageId = bufferedMessageIdRef.current;
+              console.log('📝 [VOICE] ✅ Complete message ready:', {
+                id: finalMessageId,
+                length: currentBuffer.length,
+                preview: currentBuffer.substring(0, 80) + '...'
+              });
 
               // Add complete message to transcript
               const extendedMessage: ExtendedTranscriptMessage = {
@@ -195,20 +209,30 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
               };
 
               setTranscript(prev => [...prev, extendedMessage]);
+              console.log('📝 [VOICE] Message added to transcript');
 
               // Trigger typewriter effect for complete message
-              setDisplayedContent(prev => ({
-                ...prev,
-                [finalMessageId]: ''
-              }));
+              setDisplayedContent(prev => {
+                console.log('📝 [VOICE] Setting displayedContent to empty for:', finalMessageId);
+                return {
+                  ...prev,
+                  [finalMessageId]: ''
+                };
+              });
+
               setTypewriterMessageId(finalMessageId);
+              console.log('📝 [VOICE] 🎨 Typewriter effect triggered for:', finalMessageId);
+            } else {
+              console.log('📝 [VOICE] ⚠️ No buffer content or ID, skipping finalization');
             }
 
             // Clear buffer
             bufferedMessageIdRef.current = null;
             return '';
           });
-        }, 1500); // 1.5 second pause indicates complete thought
+        }, 500); // 500ms buffer - catches multiple chunks without feeling laggy
+
+        console.log('📝 [VOICE] Buffer timeout set (500ms)');
       }
     });
   }, [onTranscript, selectedAgentId]);
