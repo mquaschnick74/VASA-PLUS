@@ -14,6 +14,11 @@ export interface TranscriptMessage {
   timestamp: Date;
 }
 
+export interface SpeechUpdateMessage {
+  status: 'started' | 'stopped';
+  role: 'assistant' | 'user';
+}
+
 interface UseVapiProps {
   userId: string;
   memoryContext: string;
@@ -32,6 +37,7 @@ interface UseVapiReturn {
   endSession: () => void;
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
   onTranscript: (callback: (message: TranscriptMessage) => void) => void;
+  onSpeechUpdate: (callback: (message: SpeechUpdateMessage) => void) => void;
   error: string | null;
   clearError: () => void;
 }
@@ -53,6 +59,7 @@ const useVapi = ({
   const [error, setError] = useState<string | null>(null);
   const vapiRef = useRef<any>(null);
   const transcriptCallbackRef = useRef<((message: TranscriptMessage) => void) | null>(null);
+  const speechUpdateCallbackRef = useRef<((message: SpeechUpdateMessage) => void) | null>(null);
 
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
@@ -141,7 +148,7 @@ const useVapi = ({
           setIsSessionActive(false);
         });
 
-        // Listen for transcript messages
+        // Listen for transcript messages and speech updates
         vapiInstance.on('message', (message: any) => {
           console.log('📨 VAPI message:', message);
 
@@ -156,6 +163,19 @@ const useVapi = ({
             // Call the transcript callback if it exists
             if (transcriptCallbackRef.current) {
               transcriptCallbackRef.current(transcriptMessage);
+            }
+          }
+
+          // Handle speech-update events
+          if (message.type === 'speech-update') {
+            const speechUpdateMessage: SpeechUpdateMessage = {
+              status: message.status,
+              role: message.role === 'assistant' ? 'assistant' : 'user'
+            };
+
+            // Call the speech update callback if it exists
+            if (speechUpdateCallbackRef.current) {
+              speechUpdateCallbackRef.current(speechUpdateMessage);
             }
           }
         });
@@ -421,6 +441,10 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     transcriptCallbackRef.current = callback;
   }, []);
 
+  const onSpeechUpdate = useCallback((callback: (message: SpeechUpdateMessage) => void) => {
+    speechUpdateCallbackRef.current = callback;
+  }, []);
+
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -432,6 +456,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     endSession,
     connectionStatus,
     onTranscript,
+    onSpeechUpdate,
     error,
     clearError
   };
