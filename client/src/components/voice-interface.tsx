@@ -79,6 +79,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const [displayedContent, setDisplayedContent] = useState<Record<string, string>>({});
   const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Voice message buffering state (to pool complete thoughts)
+  const [voiceMessageBuffer, setVoiceMessageBuffer] = useState<string>('');
+  const voiceBufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const bufferedMessageIdRef = useRef<string | null>(null);
+
   // Persist text session state to localStorage
   useEffect(() => {
     if (activeTextSessionId) {
@@ -132,30 +137,78 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   // Debug logging for subscription
   console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
 
-  // NEW: Wire up transcript events from VAPI
+  // NEW: Wire up transcript events from VAPI with buffering for complete thoughts
   useEffect(() => {
     onTranscript((message: TranscriptMessage) => {
       console.log('📝 Transcript message received:', message);
 
-      const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const extendedMessage: ExtendedTranscriptMessage = {
-        id: messageId,
-        role: message.role,
-        content: message.content,
-        timestamp: message.timestamp,
-        source: 'voice',
-        agentId: selectedAgentId
-      };
+      // Handle user messages immediately (no buffering needed)
+      if (message.role === 'user') {
+        const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const extendedMessage: ExtendedTranscriptMessage = {
+          id: messageId,
+          role: message.role,
+          content: message.content,
+          timestamp: message.timestamp,
+          source: 'voice',
+          agentId: selectedAgentId
+        };
+        setTranscript(prev => [...prev, extendedMessage]);
+        return;
+      }
 
-      setTranscript(prev => [...prev, extendedMessage]);
-
-      // Apply typewriter effect to assistant voice messages
+      // Buffer assistant messages to pool complete thoughts
       if (message.role === 'assistant') {
-        setDisplayedContent(prev => ({
-          ...prev,
-          [messageId]: ''
-        }));
-        setTypewriterMessageId(messageId);
+        // Clear any existing timeout
+        if (voiceBufferTimeoutRef.current) {
+          clearTimeout(voiceBufferTimeoutRef.current);
+        }
+
+        // Create message ID on first chunk
+        if (!bufferedMessageIdRef.current) {
+          bufferedMessageIdRef.current = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+
+        // Accumulate content
+        setVoiceMessageBuffer(prev => {
+          const newContent = prev + (prev ? ' ' : '') + message.content;
+          console.log('📝 Buffering voice content:', newContent);
+          return newContent;
+        });
+
+        // Set timeout to finalize message after pause (1.5 seconds of silence)
+        voiceBufferTimeoutRef.current = setTimeout(() => {
+          console.log('📝 Finalizing buffered voice message');
+
+          setVoiceMessageBuffer(currentBuffer => {
+            if (currentBuffer && bufferedMessageIdRef.current) {
+              const finalMessageId = bufferedMessageIdRef.current;
+
+              // Add complete message to transcript
+              const extendedMessage: ExtendedTranscriptMessage = {
+                id: finalMessageId,
+                role: 'assistant',
+                content: currentBuffer,
+                timestamp: new Date(),
+                source: 'voice',
+                agentId: selectedAgentId
+              };
+
+              setTranscript(prev => [...prev, extendedMessage]);
+
+              // Trigger typewriter effect for complete message
+              setDisplayedContent(prev => ({
+                ...prev,
+                [finalMessageId]: ''
+              }));
+              setTypewriterMessageId(finalMessageId);
+            }
+
+            // Clear buffer
+            bufferedMessageIdRef.current = null;
+            return '';
+          });
+        }, 1500); // 1.5 second pause indicates complete thought
       }
     });
   }, [onTranscript, selectedAgentId]);
@@ -220,9 +273,16 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     };
   }, [typewriterMessageId, transcript, displayedContent]);
 
-  // Clear transcript when voice session ends
+  // Clear transcript and buffer when voice session ends
   useEffect(() => {
     if (!isSessionActive) {
+      // Clear voice buffer when session ends
+      if (voiceBufferTimeoutRef.current) {
+        clearTimeout(voiceBufferTimeoutRef.current);
+        voiceBufferTimeoutRef.current = null;
+      }
+      setVoiceMessageBuffer('');
+      bufferedMessageIdRef.current = null;
       // Option: Clear transcript when session ends, or keep it for review
       // setTranscript([]);
     }
