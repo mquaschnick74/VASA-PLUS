@@ -137,8 +137,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     onTranscript((message: TranscriptMessage) => {
       console.log('📝 Transcript message received:', message);
 
+      const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const extendedMessage: ExtendedTranscriptMessage = {
-        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: messageId,
         role: message.role,
         content: message.content,
         timestamp: message.timestamp,
@@ -147,6 +148,15 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       };
 
       setTranscript(prev => [...prev, extendedMessage]);
+
+      // Apply typewriter effect to assistant voice messages
+      if (message.role === 'assistant') {
+        setDisplayedContent(prev => ({
+          ...prev,
+          [messageId]: ''
+        }));
+        setTypewriterMessageId(messageId);
+      }
     });
   }, [onTranscript, selectedAgentId]);
 
@@ -263,7 +273,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
       if (sessionError) {
         console.error('❌ [TEXT] Failed to get session:', sessionError);
-        alert('Failed to save session: Authentication error. Please refresh the page.');
+        console.error('Failed to save session: Authentication error. Please refresh the page.');
         return;
       }
 
@@ -271,7 +281,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
       if (!token) {
         console.error('❌ [TEXT] No authentication token available');
-        alert('Failed to save session: Not authenticated. Please refresh the page.');
+        console.error('Failed to save session: Not authenticated. Please refresh the page.');
         return;
       }
 
@@ -302,7 +312,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         const result = await response.json();
         console.log('✅ [TEXT] Session processing completed:', result);
         console.log(`📊 CSS Stage: ${result.cssStage}, Patterns: ${result.patternsDetected}`);
-        alert(`Session saved successfully! CSS Stage: ${result.cssStage}, Patterns detected: ${result.patternsDetected}`);
+        // Session saved successfully - no alert needed, just console logging
       } else {
         const errorText = await response.text();
         console.error('❌ [TEXT] Failed to process session end:', {
@@ -310,7 +320,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           statusText: response.statusText,
           error: errorText
         });
-        alert(`Failed to save session: ${response.status} - ${errorText}`);
+        console.error(`Failed to save session: ${response.status} - ${errorText}`);
       }
     } catch (error: any) {
       console.error('❌ [TEXT] Error stopping session:', {
@@ -318,7 +328,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         stack: error.stack,
         name: error.name
       });
-      alert(`Failed to save session: ${error.message}`);
+      console.error(`Failed to save session: ${error.message}`);
     } finally {
       setIsStoppingSession(false);
       // Always clear the session state
@@ -1125,9 +1135,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                   ) : (
                     // Real transcript messages
                     transcript.map((msg) => {
-                      // Use typewriter effect for assistant text messages
+                      // Use typewriter effect for all assistant messages (voice and text)
                       const isTyping = msg.id === typewriterMessageId;
-                      const shouldAnimate = msg.role === 'assistant' && msg.source === 'text';
+                      const shouldAnimate = msg.role === 'assistant';
                       const displayContent = shouldAnimate && displayedContent[msg.id] !== undefined
                         ? displayedContent[msg.id]
                         : msg.content;
