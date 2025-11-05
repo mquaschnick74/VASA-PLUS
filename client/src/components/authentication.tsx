@@ -366,13 +366,22 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   return (
     <div className="min-h-screen gradient-bg">
       <Header />
-      <div className="flex items-center justify-center p-4 md:p-6 py-8">
+      <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
       <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
           
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
+            {/* Logo above the phrases */}
+            <div className="mb-8">
+              <img 
+                src={vasaLogo} 
+                alt="iVASA Logo" 
+                className="w-40 md:w-48 h-auto object-contain"
+              />
+            </div>
+            
             <div className="text-center space-y-6">
               <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
               <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
@@ -404,15 +413,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 </div>
               )}
               {/* ================================================= */}
-
-              {/* Logo */}
-              <div className="flex justify-center items-center">
-                <img 
-                  src={vasaLogo} 
-                  alt="iVASA Logo" 
-                  className="w-36 md:w-44 h-auto object-contain"
-                />
-              </div>
 
               <div className="text-center relative">
                 <h2 className="text-xl font-semibold mb-2">
