@@ -637,8 +637,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           <div className="mt-16 md:mt-24 w-full relative">
             <div className="relative max-w-5xl mx-auto">
               
-              {/* Background: Envelope-sized autumn road image */}
-              <div className="relative w-full h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
+              {/* Background: Envelope-sized autumn road image - 3/4 page width */}
+              <div className="relative w-3/4 h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
                 <img
                   src={autumnRoadImage}
                   alt="Autumn road"
@@ -653,8 +653,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 </div>
               </div>
 
-              {/* Foreground: Feature cards stacked, 3/4 on photo, 1/4 extending beyond */}
-              <div className="relative -mt-80 md:-mt-96 flex justify-end pr-4 md:pr-8">
+              {/* Foreground: Feature cards stacked higher, last card mostly off photo */}
+              <div className="relative -mt-[420px] md:-mt-[480px] flex justify-end pr-4 md:pr-8">
                 <div className="w-full md:w-2/3 lg:w-1/2 space-y-6">
 
                   {/* Feature 1: Extremely Affordable */}
