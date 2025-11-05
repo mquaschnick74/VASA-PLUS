@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
 import vasaLogo from '@assets/iVASA Dark_1759424106928.png';
+import roadImage from '@assets/autumn-road.jpg';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Link } from 'wouter';
 import { HelpCircle } from 'lucide-react';
@@ -629,6 +630,101 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         </Card>
             </div>
           </div>
+
+        {/* Features Section */}
+        <div className="mt-16 md:mt-24">
+          <div className="text-center mb-12">
+            <h2 className="text-6xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-r from-primary to-emerald-500 bg-clip-text text-transparent">
+              Features
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
+
+            {/* Left: Hero Image */}
+            <div className="order-1">
+              <img
+                src={roadImage}
+                alt="Your therapeutic journey"
+                className="w-full h-64 md:h-auto object-cover rounded-2xl shadow-2xl"
+              />
+            </div>
+
+            {/* Right: Features List */}
+            <div className="order-2 space-y-4">
+
+              {/* Feature 1: Always Available */}
+              <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-105">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <i className="fas fa-clock text-2xl text-emerald-500"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-lg md:text-xl font-semibold mb-2">
+                      Always <span className="text-emerald-500">Available</span>
+                    </h3>
+                    <p className="text-sm md:text-base text-muted-foreground">
+                      Access therapeutic support 24/7 whenever and wherever you need it most
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature 2: Personalized Therapist */}
+              <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-105">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <i className="fas fa-brain text-2xl text-emerald-500"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-lg md:text-xl font-semibold mb-2">
+                      Personalized <span className="text-emerald-500">Therapist</span>
+                    </h3>
+                    <p className="text-sm md:text-base text-muted-foreground">
+                      Voice-first AI therapists that recognize your emotional patterns in real-time, guide evidence-based therapeutic protocols, and maintain clinical continuity across every session
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature 3: Extremely Affordable */}
+              <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-105">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <i className="fas fa-hand-holding-dollar text-2xl text-emerald-500"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-lg md:text-xl font-semibold mb-2">
+                      Extremely <span className="text-emerald-500">Affordable</span>
+                    </h3>
+                    <p className="text-sm md:text-base text-muted-foreground">
+                      Professional-grade therapy at a fraction of traditional costs, with no insurance required
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature 4: Customizable Experience */}
+              <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-105">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <i className="fas fa-sliders text-2xl text-emerald-500"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-lg md:text-xl font-semibold mb-2">
+                      Customizable <span className="text-emerald-500">Experience</span>
+                    </h3>
+                    <p className="text-sm md:text-base text-muted-foreground">
+                      AI personalities with distinct therapeutic styles who fluidly integrate evidence-based protocols and adapt clinical interventions based on your psychological structure and progress
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
 
         </div>
       </div>
