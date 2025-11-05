@@ -9,7 +9,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
-import vasaLogo from '@assets/iVASA Dark_1759424106928.png';
+import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
+import autumnRoadImage from '@assets/autumn-road.jpg';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Link } from 'wouter';
 import { HelpCircle } from 'lucide-react';
@@ -365,18 +366,27 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   return (
     <div className="min-h-screen gradient-bg">
       <Header />
-      <div className="flex items-center justify-center p-4 min-h-[calc(100vh-4rem)]">
-      <div className="w-full max-w-7xl mx-auto px-4">
+      <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
+      <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
           
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
-            <div className="text-center">
-              <p className="text-emerald-500 text-xl md:text-2xl lg:text-3xl font-medium mb-8">Your Voice.</p>
-              <p className="text-emerald-500 text-4xl md:text-5xl lg:text-6xl font-semibold mb-8">Your Journey.</p>
-              <p className="text-emerald-500 text-6xl md:text-7xl lg:text-8xl font-bold leading-tight mb-6">Your AI Therapeutic Assistant.</p>
-              <p className="text-emerald-500 text-xs md:text-sm lg:text-base font-normal max-w-2xl mx-auto">
+            {/* Logo above the phrases */}
+            <div className="mb-8">
+              <img 
+                src={vasaLogo} 
+                alt="iVASA Logo" 
+                className="w-80 md:w-96 h-auto object-contain"
+              />
+            </div>
+            
+            <div className="text-center space-y-6">
+              <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
+              <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
+              <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Assistant.</p>
+              <p className="text-emerald-500 text-xs md:text-sm font-normal max-w-xl mx-auto">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
             </div>
@@ -386,15 +396,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           <div className="flex justify-center md:justify-end">
             <div className="w-full max-w-md">
             <Card className="glass rounded-2xl border-0">
-          <CardContent className="p-4 md:p-8">
-            <div className="space-y-6">
+          <CardContent className="p-5 md:p-7">
+            <div className="space-y-5">
               {/* ============= NEW: Invitation banner ============= */}
               {invitationMode && (
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <i className="fas fa-user-plus text-blue-500 mt-1"></i>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <i className="fas fa-user-plus text-blue-500 mt-1 text-sm"></i>
                     <div>
-                      <p className="font-semibold text-sm">Therapist Invitation</p>
+                      <p className="font-semibold text-xs">Therapist Invitation</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Create your client account to connect with your therapist
                       </p>
@@ -404,21 +414,12 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               )}
               {/* ================================================= */}
 
-              {/* Logo */}
-              <div className="flex justify-center items-center mb-6">
-                <img 
-                  src={vasaLogo} 
-                  alt="iVASA Logo" 
-                  className="w-48 md:w-56 h-auto object-contain"
-                />
-              </div>
-
               <div className="text-center relative">
-                <h2 className="text-2xl font-semibold mb-2">
+                <h2 className="text-xl font-semibold mb-2">
                   {invitationMode ? 'Create Client Account' : (mode === 'signup' ? 'Create Account' : 'Welcome Back')}
                 </h2>
                 <div className="flex items-center justify-center gap-2">
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {mode === 'signup' 
                       ? 'Start your therapeutic journey' 
                       : 'Continue your therapeutic journey'}
@@ -631,7 +632,106 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           </div>
 
         </div>
-      </div>
+
+          {/* Features Section - Two Column Layout */}
+          <div className="mt-16 md:mt-24 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+              
+              {/* LEFT SIDE: Image with overlaid "Features" title */}
+              <div className="relative h-[600px] md:h-[700px] lg:h-[800px]">
+                <img
+                  src={autumnRoadImage}
+                  alt="Autumn road"
+                  className="w-full h-full object-cover rounded-r-3xl shadow-2xl"
+                />
+                
+                {/* Features Title - Overlaid on Image */}
+                <div className="absolute inset-0 flex items-center justify-center p-8 md:p-12">
+                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-2xl">
+                    Features
+                  </h2>
+                </div>
+              </div>
+
+              {/* RIGHT SIDE: Features List (not overlapping image) */}
+              <div className="flex items-center justify-end p-8 md:p-12 lg:p-16 bg-transparent">
+                <div className="max-w-xl w-full space-y-6">
+
+                  {/* Feature 1: Extremely Affordable */}
+                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <i className="fas fa-hand-holding-dollar text-base text-blue-400"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold mb-1">
+                        Extremely <span className="text-emerald-400">Affordable</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Low cost therapy, small fraction of the cost of traditional therapy
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Feature 2: Always Available */}
+                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <i className="fas fa-clock text-base text-emerald-400"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold mb-1">
+                        Always <span className="text-emerald-400">Available</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Access therapy 24/7 whenever and wherever you need
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Feature 3: Personalized Therapist */}
+                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                        <i className="fas fa-brain text-base text-purple-400"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold mb-1">
+                        Personalized <span className="text-emerald-400">Therapist</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Therapist learns more about you with every conversation
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Feature 4: Customizable Experience */}
+                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                        <i className="fas fa-sliders text-base text-cyan-400"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold mb-1">
+                        Customizable <span className="text-emerald-400">Experience</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Choose how you want your therapist to be
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
