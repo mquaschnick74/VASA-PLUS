@@ -633,96 +633,98 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
         </div>
 
-          {/* Features Section - Autumn Road with Overlay */}
-          <div className="mt-16 md:mt-24 relative w-full">
-            {/* Autumn Road Image - 3/4 page width, left-justified */}
-            <div className="w-full lg:w-3/4 relative">
-              <img
-                src={autumnRoadImage}
-                alt="Autumn road"
-                className="w-full h-[600px] md:h-[700px] lg:h-[800px] object-cover rounded-r-3xl shadow-2xl"
-              />
+          {/* Features Section - Two Column Layout */}
+          <div className="mt-16 md:mt-24 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
               
-              {/* Features Content Overlaying Image */}
-              <div className="absolute inset-0 flex items-center justify-start p-8 md:p-12 lg:p-16">
-                <div className="max-w-2xl space-y-8">
-                  {/* Features Title - Offset and Overlaying */}
-                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-lg">
+              {/* LEFT SIDE: Image with overlaid "Features" title */}
+              <div className="relative h-[600px] md:h-[700px] lg:h-[800px]">
+                <img
+                  src={autumnRoadImage}
+                  alt="Autumn road"
+                  className="w-full h-full object-cover rounded-r-3xl shadow-2xl"
+                />
+                
+                {/* Features Title - Overlaid on Image */}
+                <div className="absolute inset-0 flex items-center justify-center p-8 md:p-12">
+                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-2xl">
                     Features
                   </h2>
+                </div>
+              </div>
 
-                  {/* Features List - Extending Over Image */}
-                  <div className="space-y-6">
+              {/* RIGHT SIDE: Features List (not overlapping image) */}
+              <div className="flex items-center justify-end p-8 md:p-12 lg:p-16 bg-transparent">
+                <div className="max-w-xl w-full space-y-6">
 
-                    {/* Feature 1: Extremely Affordable */}
-                    <div className="flex items-start gap-4 backdrop-blur-sm bg-black/30 p-4 rounded-lg">
-                      <div className="flex-shrink-0 mt-1">
-                        <div className="w-12 h-12 rounded-lg bg-blue-500/40 flex items-center justify-center backdrop-blur-sm">
-                          <i className="fas fa-hand-holding-dollar text-lg text-blue-300"></i>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-1 text-white">
-                          Extremely <span className="text-emerald-300">Affordable</span>
-                        </h3>
-                        <p className="text-sm text-gray-200">
-                          Low cost therapy, small fraction of the cost of traditional therapy
-                        </p>
+                  {/* Feature 1: Extremely Affordable */}
+                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <i className="fas fa-hand-holding-dollar text-base text-blue-400"></i>
                       </div>
                     </div>
-
-                    {/* Feature 2: Always Available */}
-                    <div className="flex items-start gap-4 backdrop-blur-sm bg-black/30 p-4 rounded-lg">
-                      <div className="flex-shrink-0 mt-1">
-                        <div className="w-12 h-12 rounded-lg bg-emerald-500/40 flex items-center justify-center backdrop-blur-sm">
-                          <i className="fas fa-clock text-lg text-emerald-300"></i>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-1 text-white">
-                          Always <span className="text-emerald-300">Available</span>
-                        </h3>
-                        <p className="text-sm text-gray-200">
-                          Access therapy 24/7 whenever and wherever you need
-                        </p>
-                      </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold mb-1">
+                        Extremely <span className="text-emerald-400">Affordable</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Low cost therapy, small fraction of the cost of traditional therapy
+                      </p>
                     </div>
-
-                    {/* Feature 3: Personalized Therapist */}
-                    <div className="flex items-start gap-4 backdrop-blur-sm bg-black/30 p-4 rounded-lg">
-                      <div className="flex-shrink-0 mt-1">
-                        <div className="w-12 h-12 rounded-lg bg-purple-500/40 flex items-center justify-center backdrop-blur-sm">
-                          <i className="fas fa-brain text-lg text-purple-300"></i>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-1 text-white">
-                          Personalized <span className="text-emerald-300">Therapist</span>
-                        </h3>
-                        <p className="text-sm text-gray-200">
-                          Therapist learns more about you with every conversation
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Feature 4: Customizable Experience */}
-                    <div className="flex items-start gap-4 backdrop-blur-sm bg-black/30 p-4 rounded-lg">
-                      <div className="flex-shrink-0 mt-1">
-                        <div className="w-12 h-12 rounded-lg bg-cyan-500/40 flex items-center justify-center backdrop-blur-sm">
-                          <i className="fas fa-sliders text-lg text-cyan-300"></i>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-1 text-white">
-                          Customizable <span className="text-emerald-300">Experience</span>
-                        </h3>
-                        <p className="text-sm text-gray-200">
-                          Choose how you want your therapist to be
-                        </p>
-                      </div>
-                    </div>
-
                   </div>
+
+                  {/* Feature 2: Always Available */}
+                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <i className="fas fa-clock text-base text-emerald-400"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold mb-1">
+                        Always <span className="text-emerald-400">Available</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Access therapy 24/7 whenever and wherever you need
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Feature 3: Personalized Therapist */}
+                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                        <i className="fas fa-brain text-base text-purple-400"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold mb-1">
+                        Personalized <span className="text-emerald-400">Therapist</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Therapist learns more about you with every conversation
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Feature 4: Customizable Experience */}
+                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                        <i className="fas fa-sliders text-base text-cyan-400"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold mb-1">
+                        Customizable <span className="text-emerald-400">Experience</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Choose how you want your therapist to be
+                      </p>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
