@@ -645,8 +645,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   className="w-full h-full object-cover"
                 />
                 
-                {/* Features Title - Overlaid at top of image */}
-                <div className="absolute top-8 left-8 md:top-12 md:left-12">
+                {/* Features Title - Overlaid, positioned lower for symmetry */}
+                <div className="absolute top-16 left-8 md:top-24 md:left-12">
                   <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-2xl">
                     Features
                   </h2>
@@ -654,7 +654,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               </div>
 
               {/* Foreground: Feature cards stacked, 3/4 on photo, 1/4 extending beyond */}
-              <div className="relative -mt-64 md:-mt-72 flex justify-end pr-4 md:pr-8">
+              <div className="relative -mt-80 md:-mt-96 flex justify-end pr-4 md:pr-8">
                 <div className="w-full md:w-2/3 lg:w-1/2 space-y-6">
 
                   {/* Feature 1: Extremely Affordable */}
