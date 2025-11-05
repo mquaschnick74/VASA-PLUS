@@ -631,95 +631,103 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             </div>
           </div>
 
-        {/* Features Section */}
-        <div className="mt-16 md:mt-24">
-          <div className="text-center mb-12">
-            <h2 className="text-6xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-r from-primary to-emerald-500 bg-clip-text text-transparent">
-              Features
-            </h2>
-          </div>
+          {/* Features Section */}
+          <div className="mt-16 md:mt-24">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-
-            {/* Left: Hero Image */}
-            <div className="order-1">
-              <img
-                src={roadImage}
-                alt="Your therapeutic journey"
-                className="w-full h-64 md:h-auto object-cover rounded-2xl shadow-2xl"
-              />
-            </div>
-
-            {/* Right: Features List */}
-            <div className="order-2 space-y-4">
-
-              {/* Feature 1: Always Available */}
-              <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-105">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <i className="fas fa-clock text-2xl text-emerald-500"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-lg md:text-xl font-semibold mb-2">
-                      Always <span className="text-emerald-500">Available</span>
-                    </h3>
-                    <p className="text-sm md:text-base text-muted-foreground">
-                      Access therapeutic support 24/7 whenever and wherever you need it most
-                    </p>
-                  </div>
+              {/* Left: Hero Image with Overlaid Title */}
+              <div className="order-1 relative">
+                <img
+                  src={roadImage}
+                  alt="Your therapeutic journey"
+                  className="w-full h-[400px] lg:h-[600px] object-cover rounded-2xl shadow-2xl"
+                />
+                {/* Features Title Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-purple-500 via-blue-500 to-emerald-500 bg-clip-text text-transparent drop-shadow-2xl">
+                    Features
+                  </h2>
                 </div>
               </div>
 
-              {/* Feature 2: Personalized Therapist */}
-              <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-105">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <i className="fas fa-brain text-2xl text-emerald-500"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-lg md:text-xl font-semibold mb-2">
-                      Personalized <span className="text-emerald-500">Therapist</span>
-                    </h3>
-                    <p className="text-sm md:text-base text-muted-foreground">
-                      Voice-first AI therapists that recognize your emotional patterns in real-time, guide evidence-based therapeutic protocols, and maintain clinical continuity across every session
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {/* Right: Features List */}
+              <div className="order-2 space-y-6 w-full">
 
-              {/* Feature 3: Extremely Affordable */}
-              <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-105">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <i className="fas fa-hand-holding-dollar text-2xl text-emerald-500"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-lg md:text-xl font-semibold mb-2">
-                      Extremely <span className="text-emerald-500">Affordable</span>
-                    </h3>
-                    <p className="text-sm md:text-base text-muted-foreground">
-                      Professional-grade therapy at a fraction of traditional costs, with no insurance required
-                    </p>
+                {/* Feature 1: Always Available */}
+                <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-[1.02]">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <i className="fas fa-clock text-xl text-emerald-500"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold mb-2">
+                        Always <span className="text-emerald-500">Available</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Access therapeutic support 24/7 whenever and wherever you need it most
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Feature 4: Customizable Experience */}
-              <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-105">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <i className="fas fa-sliders text-2xl text-emerald-500"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-lg md:text-xl font-semibold mb-2">
-                      Customizable <span className="text-emerald-500">Experience</span>
-                    </h3>
-                    <p className="text-sm md:text-base text-muted-foreground">
-                      AI personalities with distinct therapeutic styles who fluidly integrate evidence-based protocols and adapt clinical interventions based on your psychological structure and progress
-                    </p>
+                {/* Feature 2: Personalized Therapist */}
+                <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-[1.02]">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <i className="fas fa-brain text-xl text-emerald-500"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold mb-2">
+                        Personalized <span className="text-emerald-500">Therapist</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Voice-first AI therapists that recognize your emotional patterns in real-time, guide evidence-based therapeutic protocols, and maintain clinical continuity across every session
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Feature 3: Extremely Affordable */}
+                <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-[1.02]">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <i className="fas fa-hand-holding-dollar text-xl text-emerald-500"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold mb-2">
+                        Extremely <span className="text-emerald-500">Affordable</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Professional-grade therapy at a fraction of traditional costs, with no insurance required
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feature 4: Customizable Experience */}
+                <div className="glass rounded-xl p-6 transition-all duration-300 hover:glass-strong hover:scale-[1.02]">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <i className="fas fa-sliders text-xl text-emerald-500"></i>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold mb-2">
+                        Customizable <span className="text-emerald-500">Experience</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        AI personalities with distinct therapeutic styles who fluidly integrate evidence-based protocols and adapt clinical interventions based on your psychological structure and progress
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
             </div>
 
