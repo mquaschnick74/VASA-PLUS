@@ -366,18 +366,18 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   return (
     <div className="min-h-screen gradient-bg">
       <Header />
-      <div className="flex items-center justify-center p-6 md:p-8 lg:p-12 min-h-[calc(100vh-4rem)]">
-      <div className="w-full max-w-7xl mx-auto px-4">
+      <div className="flex items-center justify-center p-4 md:p-6 py-8">
+      <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 lg:gap-20 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
           
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
-            <div className="text-center space-y-12">
-              <p className="text-emerald-500 text-xl md:text-2xl lg:text-3xl font-medium">Your Voice.</p>
-              <p className="text-emerald-500 text-4xl md:text-5xl lg:text-6xl font-semibold">Your Journey.</p>
-              <p className="text-emerald-500 text-6xl md:text-7xl lg:text-8xl font-bold leading-tight">Your AI Therapeutic Assistant.</p>
-              <p className="text-emerald-500 text-xs md:text-sm lg:text-base font-normal max-w-2xl mx-auto">
+            <div className="text-center space-y-6">
+              <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
+              <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
+              <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Assistant.</p>
+              <p className="text-emerald-500 text-xs md:text-sm font-normal max-w-xl mx-auto">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
             </div>
@@ -387,15 +387,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           <div className="flex justify-center md:justify-end">
             <div className="w-full max-w-md">
             <Card className="glass rounded-2xl border-0">
-          <CardContent className="p-6 md:p-10 lg:p-12">
-            <div className="space-y-8">
+          <CardContent className="p-5 md:p-7">
+            <div className="space-y-5">
               {/* ============= NEW: Invitation banner ============= */}
               {invitationMode && (
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <i className="fas fa-user-plus text-blue-500 mt-1"></i>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <i className="fas fa-user-plus text-blue-500 mt-1 text-sm"></i>
                     <div>
-                      <p className="font-semibold text-sm">Therapist Invitation</p>
+                      <p className="font-semibold text-xs">Therapist Invitation</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Create your client account to connect with your therapist
                       </p>
@@ -410,16 +410,16 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 <img 
                   src={vasaLogo} 
                   alt="iVASA Logo" 
-                  className="w-48 md:w-56 h-auto object-contain"
+                  className="w-36 md:w-44 h-auto object-contain"
                 />
               </div>
 
               <div className="text-center relative">
-                <h2 className="text-2xl font-semibold mb-4">
+                <h2 className="text-xl font-semibold mb-2">
                   {invitationMode ? 'Create Client Account' : (mode === 'signup' ? 'Create Account' : 'Welcome Back')}
                 </h2>
                 <div className="flex items-center justify-center gap-2">
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {mode === 'signup' 
                       ? 'Start your therapeutic journey' 
                       : 'Continue your therapeutic journey'}
@@ -444,7 +444,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               )}
 
               {/* Main Form */}
-              <form onSubmit={handleAuth} className="space-y-6">
+              <form onSubmit={handleAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Email Address</Label>
                   <Input 
