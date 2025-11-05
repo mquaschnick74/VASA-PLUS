@@ -366,17 +366,17 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   return (
     <div className="min-h-screen gradient-bg">
       <Header />
-      <div className="flex items-center justify-center p-4 min-h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center p-6 md:p-8 lg:p-12 min-h-[calc(100vh-4rem)]">
       <div className="w-full max-w-7xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 lg:gap-20 items-center">
           
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
-            <div className="text-center">
-              <p className="text-emerald-500 text-xl md:text-2xl lg:text-3xl font-medium mb-8">Your Voice.</p>
-              <p className="text-emerald-500 text-4xl md:text-5xl lg:text-6xl font-semibold mb-8">Your Journey.</p>
-              <p className="text-emerald-500 text-6xl md:text-7xl lg:text-8xl font-bold leading-tight mb-6">Your AI Therapeutic Assistant.</p>
+            <div className="text-center space-y-12">
+              <p className="text-emerald-500 text-xl md:text-2xl lg:text-3xl font-medium">Your Voice.</p>
+              <p className="text-emerald-500 text-4xl md:text-5xl lg:text-6xl font-semibold">Your Journey.</p>
+              <p className="text-emerald-500 text-6xl md:text-7xl lg:text-8xl font-bold leading-tight">Your AI Therapeutic Assistant.</p>
               <p className="text-emerald-500 text-xs md:text-sm lg:text-base font-normal max-w-2xl mx-auto">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
@@ -387,8 +387,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           <div className="flex justify-center md:justify-end">
             <div className="w-full max-w-md">
             <Card className="glass rounded-2xl border-0">
-          <CardContent className="p-4 md:p-8">
-            <div className="space-y-6">
+          <CardContent className="p-6 md:p-10 lg:p-12">
+            <div className="space-y-8">
               {/* ============= NEW: Invitation banner ============= */}
               {invitationMode && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
@@ -406,7 +406,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               {/* ================================================= */}
 
               {/* Logo */}
-              <div className="flex justify-center items-center mb-6">
+              <div className="flex justify-center items-center">
                 <img 
                   src={vasaLogo} 
                   alt="iVASA Logo" 
@@ -415,7 +415,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               </div>
 
               <div className="text-center relative">
-                <h2 className="text-2xl font-semibold mb-2">
+                <h2 className="text-2xl font-semibold mb-4">
                   {invitationMode ? 'Create Client Account' : (mode === 'signup' ? 'Create Account' : 'Welcome Back')}
                 </h2>
                 <div className="flex items-center justify-center gap-2">
@@ -444,7 +444,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               )}
 
               {/* Main Form */}
-              <form onSubmit={handleAuth} className="space-y-4">
+              <form onSubmit={handleAuth} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Email Address</Label>
                   <Input 
