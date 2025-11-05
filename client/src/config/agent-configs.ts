@@ -23,6 +23,7 @@ export interface TherapeuticAgent {
   };
   color: string;
   icon: string;
+  image: string;
 }
 
 // 🌀 VASA CORE METHODOLOGY - Enhanced with Trauma-Narrative Theory
@@ -441,6 +442,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     name: 'Sarah',
     description: 'Wise life guide with experience',
     icon: '👱🏽‍♀️',
+    image: '/agents/sarah.jpg',
     color: 'purple',
     model: { temperature: 0.7, model: 'gpt-4o' },
     voice: { provider: '11labs', voiceId: 'EXAVITQu4vr4xnSDxMaL', stability: 0.75, similarityBoost: 0.80, speed: 0.95 },
@@ -459,6 +461,7 @@ ${VASA_SYSTEM_PROMPT}`,
     name: 'Marcus',
     description: 'High-energy performance coach',
     icon: '👨🏾‍🦳',
+    image: '/agents/marcus.png',
     color: 'orange',
     model: { temperature: 0.8, model: 'gpt-4o' },
     voice: { provider: '11labs', voiceId: 'ErXwobaYiN019PkySvjV', stability: 0.85, similarityBoost: 0.80, speed: 0.9 },
@@ -477,6 +480,7 @@ ${VASA_SYSTEM_PROMPT}`,
     name: 'Mathew',
     description: 'Expert in deep therapeutic work',
     icon: '👨🏻‍💼',
+    image: '/agents/mathew.jpg',
     color: 'blue',
     model: { temperature: 0.6, model: 'gpt-4o' },
     voice: { provider: '11labs', voiceId: '2hsbsDeRu57rsKFAC7uE', stability: 0.8, similarityBoost: 0.80, speed: 1.0 },
@@ -495,6 +499,7 @@ ${VASA_SYSTEM_PROMPT}`,
     name: 'Zhanna',
     description: 'Emotional support and gentle guidance',
     icon: '👩🏾‍🦱',
+      image: '/agents/zhanna.jpg',
     color: 'amber',
     model: { temperature: 0.85, model: 'gpt-4o' },
     voice: { provider: '11labs', voiceId: 'Qggl4b0xRMiqOwhPtVWT', stability: 0.75, similarityBoost: 0.80, speed: 0.9 },

@@ -23,14 +23,20 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
         {THERAPEUTIC_AGENTS.map(agent => (
           <button
             key={agent.id}
-            className={`agent-card ${selectedAgentId === agent.id ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
+            className={`agent-card-with-image ${selectedAgentId === agent.id ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
             onClick={() => !disabled && onSelectAgent(agent.id)}
             disabled={disabled}
             data-testid={`agent-selector-${agent.id}`}
+            style={{
+              backgroundImage: `url(${agent.image})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
           >
-            <div className="agent-icon">{agent.icon}</div>
-            <h4 className="agent-name">{agent.name}</h4>
-            <p className="agent-description">{agent.description}</p>
+            <div className="agent-card-overlay">
+              <h4 className="agent-name">{agent.name}</h4>
+              <p className="agent-description">{agent.description}</p>
+            </div>
           </button>
         ))}
       </div>

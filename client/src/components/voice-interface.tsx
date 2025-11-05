@@ -1086,8 +1086,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 {/* Agent Avatar and Status */}
                 <div className="text-center space-y-4 mb-6">
                   <div className="relative inline-block">
-                    <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 bg-gradient-to-br from-${selectedAgent?.color || 'primary'}/20 to-${selectedAgent?.color || 'primary'}/10 flex items-center justify-center text-3xl sm:text-5xl`}>
-                      {selectedAgent?.icon || '💜'}
+                    <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 overflow-hidden`}>
+                      <img 
+                        src={selectedAgent?.image || '/agents/sarah.jpg'} 
+                        alt={selectedAgent?.name || 'Sarah'}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="absolute -bottom-2 -right-2 w-6 h-6 sm:w-7 sm:h-7 bg-green-500 rounded-full border-4 border-background flex items-center justify-center">
                       <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-green-400 rounded-full animate-pulse"></div>
