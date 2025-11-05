@@ -633,39 +633,39 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
         </div>
 
-          {/* Features Section - Two Column Layout */}
-          <div className="mt-16 md:mt-24 w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+          {/* Features Section - Layered 3D Design */}
+          <div className="mt-16 md:mt-24 w-full relative">
+            <div className="relative max-w-5xl mx-auto">
               
-              {/* LEFT SIDE: Image with overlaid "Features" title */}
-              <div className="relative h-[600px] md:h-[700px] lg:h-[800px]">
+              {/* Background: Envelope-sized autumn road image */}
+              <div className="relative w-full h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
                 <img
                   src={autumnRoadImage}
                   alt="Autumn road"
-                  className="w-full h-full object-cover rounded-r-3xl shadow-2xl"
+                  className="w-full h-full object-cover"
                 />
                 
-                {/* Features Title - Overlaid on Image */}
-                <div className="absolute inset-0 flex items-center justify-center p-8 md:p-12">
+                {/* Features Title - Overlaid at top of image */}
+                <div className="absolute top-8 left-8 md:top-12 md:left-12">
                   <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-2xl">
                     Features
                   </h2>
                 </div>
               </div>
 
-              {/* RIGHT SIDE: Features List (not overlapping image) */}
-              <div className="flex items-center justify-end p-8 md:p-12 lg:p-16 bg-transparent">
-                <div className="max-w-xl w-full space-y-6">
+              {/* Foreground: Feature cards stacked, 3/4 on photo, 1/4 extending beyond */}
+              <div className="relative -mt-64 md:-mt-72 flex justify-end pr-4 md:pr-8">
+                <div className="w-full md:w-2/3 lg:w-1/2 space-y-6">
 
                   {/* Feature 1: Extremely Affordable */}
-                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                  <div className="flex items-start gap-4 glass p-5 rounded-xl shadow-xl backdrop-blur-md bg-background/80 border border-white/20 transform transition-transform hover:scale-105">
                     <div className="flex-shrink-0 mt-1">
-                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                        <i className="fas fa-hand-holding-dollar text-base text-blue-400"></i>
+                      <div className="w-12 h-12 rounded-full bg-blue-500/30 flex items-center justify-center shadow-lg">
+                        <i className="fas fa-hand-holding-dollar text-lg text-blue-400"></i>
                       </div>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-base font-semibold mb-1">
+                      <h3 className="text-lg font-semibold mb-1">
                         Extremely <span className="text-emerald-400">Affordable</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
@@ -675,14 +675,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   </div>
 
                   {/* Feature 2: Always Available */}
-                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                  <div className="flex items-start gap-4 glass p-5 rounded-xl shadow-xl backdrop-blur-md bg-background/80 border border-white/20 transform transition-transform hover:scale-105">
                     <div className="flex-shrink-0 mt-1">
-                      <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <i className="fas fa-clock text-base text-emerald-400"></i>
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/30 flex items-center justify-center shadow-lg">
+                        <i className="fas fa-clock text-lg text-emerald-400"></i>
                       </div>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-base font-semibold mb-1">
+                      <h3 className="text-lg font-semibold mb-1">
                         Always <span className="text-emerald-400">Available</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
@@ -692,14 +692,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   </div>
 
                   {/* Feature 3: Personalized Therapist */}
-                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                  <div className="flex items-start gap-4 glass p-5 rounded-xl shadow-xl backdrop-blur-md bg-background/80 border border-white/20 transform transition-transform hover:scale-105">
                     <div className="flex-shrink-0 mt-1">
-                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                        <i className="fas fa-brain text-base text-purple-400"></i>
+                      <div className="w-12 h-12 rounded-full bg-purple-500/30 flex items-center justify-center shadow-lg">
+                        <i className="fas fa-brain text-lg text-purple-400"></i>
                       </div>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-base font-semibold mb-1">
+                      <h3 className="text-lg font-semibold mb-1">
                         Personalized <span className="text-emerald-400">Therapist</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
@@ -709,14 +709,14 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   </div>
 
                   {/* Feature 4: Customizable Experience */}
-                  <div className="flex items-start gap-4 glass p-4 rounded-lg">
+                  <div className="flex items-start gap-4 glass p-5 rounded-xl shadow-xl backdrop-blur-md bg-background/80 border border-white/20 transform transition-transform hover:scale-105">
                     <div className="flex-shrink-0 mt-1">
-                      <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                        <i className="fas fa-sliders text-base text-cyan-400"></i>
+                      <div className="w-12 h-12 rounded-full bg-cyan-500/30 flex items-center justify-center shadow-lg">
+                        <i className="fas fa-sliders text-lg text-cyan-400"></i>
                       </div>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-base font-semibold mb-1">
+                      <h3 className="text-lg font-semibold mb-1">
                         Customizable <span className="text-emerald-400">Experience</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
