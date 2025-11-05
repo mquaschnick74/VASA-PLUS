@@ -378,7 +378,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               <img 
                 src={vasaLogo} 
                 alt="iVASA Logo" 
-                className="w-40 md:w-48 h-auto object-contain"
+                className="w-80 md:w-96 h-auto object-contain"
               />
             </div>
             
