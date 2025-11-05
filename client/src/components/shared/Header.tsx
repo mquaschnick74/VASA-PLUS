@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { handleLogout } from '@/lib/auth-helpers';
-import vasaLogo from '@assets/iVASA_logo_with_green_glow_1761676576619.png';
+import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 
 interface HeaderProps {
   userId?: string | null;
@@ -43,7 +43,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
             <img
               src={vasaLogo}
               alt="iVASA"
-              className="h-10 w-10"
+              className="h-12 w-auto object-contain"
             />
           </div>
 
