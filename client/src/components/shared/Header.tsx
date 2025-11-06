@@ -12,9 +12,10 @@ interface HeaderProps {
   setUserId?: (id: string | null) => void;
   userType?: string;
   showDashboardLink?: boolean;
+  hideSignInButton?: boolean;
 }
 
-export default function Header({ userId, setUserId, userType, showDashboardLink = false }: HeaderProps) {
+export default function Header({ userId, setUserId, userType, showDashboardLink = false, hideSignInButton = false }: HeaderProps) {
   const [location, setLocation] = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
   const isLoggedIn = !!userId;
@@ -111,7 +112,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
               >
                 {loggingOut ? 'Signing Out...' : 'Sign Out'}
               </Button>
-            ) : (
+            ) : !hideSignInButton && (
               <Button
                 variant="ghost"
                 className="text-sm backdrop-filter backdrop-blur-md bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-500/60 hover:bg-emerald-500/15 shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all"

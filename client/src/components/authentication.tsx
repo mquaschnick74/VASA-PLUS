@@ -302,7 +302,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   if (verificationSent) {
     return (
       <div className="min-h-screen gradient-bg">
-        <Header />
+        <Header hideSignInButton={true} />
         <div className="flex items-center justify-center p-4 min-h-[calc(100vh-4rem)]">
         <div className="w-full max-w-md mx-auto px-4">
           <Card className="glass rounded-2xl border-0">
@@ -366,7 +366,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
   return (
     <div className="min-h-screen gradient-bg">
-      <Header />
+      <Header hideSignInButton={true} />
       <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
       <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
