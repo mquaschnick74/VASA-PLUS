@@ -375,9 +375,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-6">
-              <p className="text-lg md:text-xl lg:text-2xl font-medium bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">Your Voice.</p>
-              <p className="text-2xl md:text-3xl lg:text-4xl font-semibold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">Your Journey.</p>
-              <p className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">Your AI Therapeutic Assistant.</p>
+              <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
+              <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
+              <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Assistant.</p>
               <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
