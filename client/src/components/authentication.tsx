@@ -628,7 +628,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* Agent Carousel Section */}
           <div className="mt-24 mb-24 w-full">
             <div className="text-center mb-12">
-              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent mb-4">
+              <h2 className="text-4xl md:text-5xl font-bold text-emerald-500 mb-4">
                 Meet Your AI Therapeutic Guides
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -652,7 +652,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 
                 {/* Features Title - Overlaid, positioned lower for symmetry */}
                 <div className="absolute top-16 left-8 md:top-24 md:left-12">
-                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-2xl">
+                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-emerald-500 drop-shadow-2xl">
                     Features
                   </h2>
                 </div>
