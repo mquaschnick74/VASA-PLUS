@@ -302,6 +302,12 @@
     z-index: 10;
     border: 2px solid rgba(0, 208, 98, 0.4);
     box-shadow: 0 0 40px rgba(0, 208, 98, 0.3);
+    cursor: pointer;
+  }
+
+  .carousel-card-active:hover {
+    transform: translateX(0) scale(1.02) translateZ(0);
+    box-shadow: 0 0 50px rgba(0, 208, 98, 0.4);
   }
 
   .carousel-card-left {
@@ -370,5 +376,16 @@
     background: rgba(0, 208, 98, 0.8);
     border-color: rgba(0, 208, 98, 1);
     box-shadow: 0 0 12px rgba(0, 208, 98, 0.6);
+  }
+
+  /* Agent Bio Modal Enhancements */
+  [data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+  }
+
+  /* Ensure modal appears above carousel */
+  [data-radix-dialog-content] {
+    z-index: 100;
   }
 }
