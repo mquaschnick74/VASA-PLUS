@@ -308,14 +308,24 @@
     transform: translateX(-600px) scale(0.7) translateZ(-300px);
     opacity: 0.4;
     z-index: 5;
-    pointer-events: none;
+    cursor: pointer;
+  }
+
+  .carousel-card-left:hover {
+    opacity: 0.6;
+    transform: translateX(-600px) scale(0.75) translateZ(-300px);
   }
 
   .carousel-card-right {
     transform: translateX(600px) scale(0.7) translateZ(-300px);
     opacity: 0.4;
     z-index: 5;
-    pointer-events: none;
+    cursor: pointer;
+  }
+
+  .carousel-card-right:hover {
+    opacity: 0.6;
+    transform: translateX(600px) scale(0.75) translateZ(-300px);
   }
 
   .carousel-card-hidden {
