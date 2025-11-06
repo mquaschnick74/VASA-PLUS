@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Link } from 'wouter';
 import { HelpCircle } from 'lucide-react';
 import Header from '@/components/shared/Header';
+import AgentCarousel from '@/components/AgentCarousel';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -632,6 +633,19 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           </div>
 
         </div>
+
+          {/* Agent Carousel Section */}
+          <div className="mt-24 mb-24 w-full">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent mb-4">
+                Meet Your AI Therapeutic Guides
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Choose from four specialized AI agents, each with unique approaches to therapeutic conversation
+              </p>
+            </div>
+            <AgentCarousel />
+          </div>
 
           {/* Features Section - Layered 3D Design */}
           <div className="mt-16 md:mt-24 w-full relative">
