@@ -235,6 +235,7 @@
     width: 100%;
     height: 500px;
     overflow: visible;
+    touch-action: pan-y pinch-zoom;
   }
 
   @media (max-width: 768px) {
@@ -251,6 +252,7 @@
     align-items: center;
     justify-content: center;
     transform-style: preserve-3d;
+    touch-action: none;
   }
 
   .carousel-card {
@@ -337,7 +339,6 @@
   .carousel-card-hidden {
     transform: scale(0.5) translateZ(-500px);
     opacity: 0;
-    pointer-events: none;
     z-index: 1;
   }
 

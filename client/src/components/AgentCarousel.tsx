@@ -25,6 +25,7 @@ export default function AgentCarousel() {
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
   const [selectedAgent, setSelectedAgent] = useState<typeof THERAPEUTIC_AGENTS[0] | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const autoRotateInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-rotation logic (pauses when modal is open)
@@ -42,12 +43,15 @@ export default function AgentCarousel() {
     };
   }, [isPaused, selectedAgent]);
 
-  // Touch swipe handlers
+  // Touch swipe handlers with preventDefault to avoid page scroll
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart(e.targetTouches[0].clientX);
+    setTouchEnd(0); // Reset touch end
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    // Prevent page scrolling while swiping carousel
+    e.preventDefault();
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
@@ -81,17 +85,30 @@ export default function AgentCarousel() {
 
   // Navigate to specific agent
   const goToAgent = (index: number) => {
-    setCurrentIndex(index);
+    if (!isTransitioning) {
+      setCurrentIndex(index);
+      setIsTransitioning(true);
+      setTimeout(() => setIsTransitioning(false), 600); // Match CSS transition time
+    }
   };
 
-  // Handle card click (only when active)
-  const handleCardClick = (index: number) => {
-    if (index === currentIndex) {
-      // Card is active - show agent bio modal
+  // Handle card click with debounce
+  const handleCardClick = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+
+    // Prevent clicks during transition
+    if (isTransitioning) return;
+
+    const position = getCardPosition(index);
+
+    if (position === 'carousel-card-active') {
+      // Active card - show modal
       setSelectedAgent(THERAPEUTIC_AGENTS[index]);
-    } else {
-      // Card is not active - rotate to it
+    } else if (position === 'carousel-card-left' || position === 'carousel-card-right') {
+      // Side cards - rotate to them
       setCurrentIndex(index);
+      setIsTransitioning(true);
+      setTimeout(() => setIsTransitioning(false), 600);
     }
   };
 
@@ -106,28 +123,34 @@ export default function AgentCarousel() {
         onTouchEnd={handleTouchEnd}
       >
         <div className="carousel-track">
-          {THERAPEUTIC_AGENTS.map((agent, index) => (
-            <div
-              key={agent.id}
-              className={`carousel-card ${getCardPosition(index)}`}
-              style={{
-                backgroundImage: `url(${agent.image})`,
-              }}
-              onClick={() => handleCardClick(index)}
-              role="button"
-              tabIndex={index === currentIndex ? 0 : -1}
-              aria-label={`${agent.name} - ${agent.description}`}
-            >
-              <div className="carousel-card-content">
-                <h3 className="text-3xl md:text-4xl font-bold text-white mb-2" style={{ textShadow: '0 4px 8px rgba(0, 0, 0, 0.8)' }}>
-                  {agent.name}
-                </h3>
-                <p className="text-base md:text-lg text-white/90" style={{ textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)' }}>
-                  {agent.description}
-                </p>
+          {THERAPEUTIC_AGENTS.map((agent, index) => {
+            const position = getCardPosition(index);
+            const isClickable = position === 'carousel-card-active' || position === 'carousel-card-left' || position === 'carousel-card-right';
+
+            return (
+              <div
+                key={agent.id}
+                className={`carousel-card ${position}`}
+                style={{
+                  backgroundImage: `url(${agent.image})`,
+                  pointerEvents: isClickable ? 'auto' : 'none',
+                }}
+                onClick={(e) => handleCardClick(e, index)}
+                role="button"
+                tabIndex={index === currentIndex ? 0 : -1}
+                aria-label={`${agent.name} - ${agent.description}`}
+              >
+                <div className="carousel-card-content">
+                  <h3 className="text-3xl md:text-4xl font-bold text-white mb-2" style={{ textShadow: '0 4px 8px rgba(0, 0, 0, 0.8)' }}>
+                    {agent.name}
+                  </h3>
+                  <p className="text-base md:text-lg text-white/90" style={{ textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)' }}>
+                    {agent.description}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
