@@ -374,15 +374,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
-            {/* Logo above the phrases */}
-            <div className="mb-8">
-              <img 
-                src={vasaLogo} 
-                alt="iVASA Logo" 
-                className="w-80 md:w-96 h-auto object-contain"
-              />
-            </div>
-            
             <div className="text-center space-y-6">
               <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
               <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
