@@ -351,6 +351,37 @@
     }
   }
 
+  /* Clickable zones for side cards */
+  .carousel-click-zone {
+    position: absolute;
+    width: 300px;
+    height: 450px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    z-index: 15;
+    transition: opacity 0.3s ease;
+  }
+
+  .carousel-click-zone:hover {
+    opacity: 0.95;
+  }
+
+  .carousel-click-zone-left {
+    left: 0;
+  }
+
+  .carousel-click-zone-right {
+    right: 0;
+  }
+
+  @media (max-width: 768px) {
+    .carousel-click-zone {
+      width: 150px;
+      height: 350px;
+    }
+  }
+
   .carousel-dots {
     display: flex;
     justify-content: center;

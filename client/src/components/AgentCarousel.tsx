@@ -83,6 +83,24 @@ export default function AgentCarousel() {
     return 'carousel-card-hidden';
   };
 
+  // Navigate to previous agent
+  const goToPrevious = () => {
+    if (!isTransitioning) {
+      setCurrentIndex((prev) => (prev - 1 + THERAPEUTIC_AGENTS.length) % THERAPEUTIC_AGENTS.length);
+      setIsTransitioning(true);
+      setTimeout(() => setIsTransitioning(false), 600);
+    }
+  };
+
+  // Navigate to next agent
+  const goToNext = () => {
+    if (!isTransitioning) {
+      setCurrentIndex((prev) => (prev + 1) % THERAPEUTIC_AGENTS.length);
+      setIsTransitioning(true);
+      setTimeout(() => setIsTransitioning(false), 600);
+    }
+  };
+
   // Navigate to specific agent
   const goToAgent = (index: number) => {
     if (!isTransitioning) {
@@ -151,6 +169,20 @@ export default function AgentCarousel() {
               </div>
             );
           })}
+
+          {/* Left Click Zone - positioned where left card visually appears */}
+          <div
+            className="carousel-click-zone carousel-click-zone-left"
+            onClick={goToPrevious}
+            aria-label="Previous agent"
+          />
+
+          {/* Right Click Zone - positioned where right card visually appears */}
+          <div
+            className="carousel-click-zone carousel-click-zone-right"
+            onClick={goToNext}
+            aria-label="Next agent"
+          />
         </div>
       </div>
 
