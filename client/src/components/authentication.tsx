@@ -381,6 +381,53 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
+
+              {/* Assessment CTA Card */}
+              <div className="mt-8 max-w-2xl mx-auto">
+                <div
+                  className="p-6 bg-gradient-to-r from-emerald-500/10 to-emerald-600/10
+                             border border-emerald-400/30 rounded-xl
+                             hover:border-emerald-400/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]
+                             transition-all duration-300
+                             cursor-pointer group"
+                  onClick={() => window.open('https://start.ivasa.ai', '_blank')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      window.open('https://start.ivasa.ai', '_blank');
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-left flex-1">
+                      <h3 className="text-lg md:text-xl text-white font-semibold mb-2 flex items-center gap-2">
+                        <span className="text-2xl">✨</span>
+                        <span>Discover Your Inner Landscape</span>
+                      </h3>
+                      <p className="text-emerald-400/90 text-sm md:text-base">
+                        Take our 2-minute assessment to understand your unique anxiety pattern
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="w-6 h-6 md:w-8 md:h-8 text-emerald-400 group-hover:translate-x-1 transition-transform duration-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 7l5 5m0 0l-5 5m5-5H6"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
