@@ -91,7 +91,7 @@ export default function Dashboard() {
         // Get user profile to determine type
         const { data: profile } = await supabase
         .from('user_profiles')
-        .select('user_type, email, consent_accepted_at, last_onboarding_completed_at')
+        .select('user_type, email, consent_accepted_at, last_onboarding_completed_at, assessment_completed_at')
         .eq('id', user.id)
         .single();
 
@@ -152,6 +152,38 @@ export default function Dashboard() {
             localStorage.removeItem('pendingInvitation');
           } else {
             console.error('Failed to accept invitation:', await inviteResponse.json());
+          }
+        }
+
+        // Check for pending assessment data
+        const pendingAssessment = localStorage.getItem('pendingAssessmentData');
+        if (pendingAssessment) {
+          console.log('📋 Processing pending assessment data...');
+
+          try {
+            const assessmentData = JSON.parse(pendingAssessment);
+
+            const assessmentResponse = await fetch('/api/assessment/link', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                userId: user.id,
+                email: freshSession.user.email,
+                assessmentData
+              })
+            });
+
+            if (assessmentResponse.ok) {
+              console.log('✅ Assessment data linked successfully');
+              localStorage.removeItem('pendingAssessmentData');
+            } else {
+              console.error('Failed to link assessment:', await assessmentResponse.json());
+            }
+          } catch (error) {
+            console.error('Error processing pending assessment:', error);
           }
         }
 
