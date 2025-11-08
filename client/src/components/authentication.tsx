@@ -381,24 +381,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
-
-              {/* Assessment CTA */}
-              <div className="mt-8 max-w-2xl mx-auto">
-                <div className="text-center space-y-4">
-                  <h3 className="text-xl md:text-2xl text-white font-semibold">
-                    Complementary Assessment
-                  </h3>
-                  <p className="text-muted-foreground text-sm md:text-base max-w-lg mx-auto">
-                    Complete 5 questions to better understand how iVASA practitioners can assist you.
-                  </p>
-                  <Button
-                    onClick={() => window.open('https://start.ivasa.ai', '_blank')}
-                    className="bg-gradient-to-r from-primary to-accent py-3 px-8 rounded-xl"
-                  >
-                    Begin.
-                  </Button>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -642,6 +624,28 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           </div>
 
         </div>
+
+          {/* Assessment CTA Section */}
+          <div className="mt-16 w-full max-w-3xl mx-auto">
+            <Card className="glass rounded-2xl border-2 border-emerald-400/60">
+              <CardContent className="p-8 md:p-10">
+                <div className="text-center space-y-4">
+                  <h3 className="text-xl md:text-2xl text-white font-semibold">
+                    Complementary Assessment
+                  </h3>
+                  <p className="text-muted-foreground text-sm md:text-base max-w-lg mx-auto">
+                    Complete 5 questions to better understand how iVASA practitioners can assist you.
+                  </p>
+                  <Button
+                    onClick={() => window.open('https://start.ivasa.ai', '_blank')}
+                    className="bg-gradient-to-r from-primary to-accent py-3 px-8 rounded-xl"
+                  >
+                    Begin.
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Agent Carousel Section */}
           <div className="mt-24 mb-24 w-full">
