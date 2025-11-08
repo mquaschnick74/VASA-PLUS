@@ -87,11 +87,9 @@ const useVapi = ({
           setIsLoading(false);
         });
 
-        vapiInstance.on('call-end', (endData: any) => {
+        vapiInstance.on('call-end', () => {
           console.log('📴 Call ended');
-          console.log('📊 Call end data:', endData);
 
-          // If call ended too quickly, it might be an error
           setIsSessionActive(false);
           setConnectionStatus('disconnected');
         });
