@@ -250,35 +250,45 @@ if (pendingAssessment) {
 
 ## Onboarding Questionnaire Replacement
 
-### Automatic Skip Logic
+### Complete Replacement
 
-Users who complete the Inner Landscape Assessment will **automatically skip** the onboarding questionnaire. This prevents redundant data collection since the assessment provides richer insights than the basic onboarding questions.
+The Inner Landscape Assessment has **completely replaced** the onboarding questionnaire. Users will never see the onboarding popup - they proceed directly to their dashboard after accepting consent.
 
-**Logic Flow:**
-1. User completes assessment (before or after signup)
-2. `assessment_completed_at` timestamp is set in database
-3. Dashboard checks for `assessment_completed_at`
-4. If present → Skip onboarding questionnaire
-5. If absent → Show normal onboarding flow
+**New Flow:**
+1. User signs up
+2. Accepts consent popup
+3. **Proceeds directly to dashboard** (no onboarding questionnaire)
+4. Assessment CTA appears on landing page (optional to complete)
 
 **Implementation:**
 ```typescript
-// In dashboard.tsx
-if (profile.assessment_completed_at) {
-  console.log('✅ Assessment completed, skipping onboarding');
-  setOnboardingChecked(true);
-  sessionStorage.setItem('onboarding_completed_this_session', 'true');
-} else {
-  // Show regular onboarding questionnaire
-  setShowOnboarding(true);
-}
+// In dashboard.tsx - Onboarding questionnaire disabled
+console.log('✅ [DASHBOARD] Skipping onboarding (replaced by assessment)');
+setOnboardingChecked(true);
+sessionStorage.setItem('onboarding_completed_this_session', 'true');
 ```
 
+**User Flows:**
+
+**Flow 1: Assessment First (Recommended)**
+1. User clicks "Begin." on landing page
+2. Completes 5-question assessment
+3. Signs up for account
+4. Assessment data automatically linked
+5. Accepts consent
+6. Goes directly to dashboard (assessment data available)
+
+**Flow 2: Sign Up First**
+1. User creates account
+2. Accepts consent
+3. Goes directly to dashboard
+4. Can complete assessment later (optional)
+
 **Benefits:**
-- Better user experience (no duplicate questions)
-- Higher completion rates (one form instead of two)
-- Richer data (assessment provides deeper insights)
-- Seamless flow from assessment to therapy
+- Streamlined onboarding (one less step)
+- Assessment provides richer therapeutic data than basic onboarding
+- Optional - users can skip assessment and still use the platform
+- Flexible - assessment can be completed before or after signup
 
 ## Using Assessment Data in Therapy
 

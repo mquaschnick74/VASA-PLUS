@@ -113,29 +113,12 @@ export default function Dashboard() {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
 
-              // SHOW ONBOARDING - For individuals, clients, and therapists
-              // SKIP if user has completed the Inner Landscape Assessment
-              // Check sessionStorage to prevent repeated showing during navigation
-              const onboardingCompletedThisSession = sessionStorage.getItem('onboarding_completed_this_session');
-
-              if (detectedType === 'individual' || detectedType === 'client' || detectedType === 'therapist') {
-                // Skip onboarding if assessment already completed
-                if (profile.assessment_completed_at) {
-                  console.log('✅ [DASHBOARD] Assessment completed, skipping onboarding questionnaire');
-                  setOnboardingChecked(true);
-                  // Mark as completed in session to maintain consistency
-                  sessionStorage.setItem('onboarding_completed_this_session', 'true');
-                } else if (onboardingCompletedThisSession === 'true') {
-                  console.log('✅ [DASHBOARD] Onboarding already completed this session, skipping');
-                  setOnboardingChecked(true);
-                } else {
-                  console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire for user type:', detectedType);
-                  setShowOnboarding(true);
-                }
-              } else {
-                console.log('✅ [DASHBOARD] Onboarding not required for user type:', detectedType);
-                setOnboardingChecked(true);
-              }
+              // ONBOARDING QUESTIONNAIRE DISABLED
+              // Users complete the Inner Landscape Assessment instead
+              // No onboarding popup - users proceed directly to dashboard
+              console.log('✅ [DASHBOARD] Skipping onboarding (replaced by assessment)');
+              setOnboardingChecked(true);
+              sessionStorage.setItem('onboarding_completed_this_session', 'true');
             }
           }
         }
@@ -384,33 +367,12 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // Show onboarding for individuals, clients, and therapists
-    // SKIP if user has completed the Inner Landscape Assessment
-    // Check sessionStorage to prevent repeated showing during navigation
-    const onboardingCompletedThisSession = sessionStorage.getItem('onboarding_completed_this_session');
-
-    if (userType === 'individual' || userType === 'client' || userType === 'therapist') {
-      // Check if user has completed assessment - if so, skip onboarding
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('assessment_completed_at')
-        .eq('id', userId)
-        .single();
-
-      if (profile?.assessment_completed_at) {
-        console.log('✅ [DASHBOARD] Assessment completed, skipping onboarding questionnaire');
-        setOnboardingChecked(true);
-        sessionStorage.setItem('onboarding_completed_this_session', 'true');
-      } else if (onboardingCompletedThisSession === 'true') {
-        console.log('✅ [DASHBOARD] Onboarding already completed this session, skipping');
-        setOnboardingChecked(true);
-      } else {
-        console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire for user type:', userType);
-        setShowOnboarding(true);
-      }
-    } else {
-      setOnboardingChecked(true);
-    }
+    // ONBOARDING QUESTIONNAIRE DISABLED
+    // Users complete the Inner Landscape Assessment instead
+    // No onboarding popup - proceed directly to dashboard
+    console.log('✅ [DASHBOARD] Skipping onboarding (replaced by assessment)');
+    setOnboardingChecked(true);
+    sessionStorage.setItem('onboarding_completed_this_session', 'true');
   };
 
   // Handle onboarding completion
