@@ -2,9 +2,7 @@
 // API routes for Inner Landscape Assessment integration
 
 import { Router } from 'express';
-import { db } from '@db';
-import { userProfiles } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
@@ -35,13 +33,13 @@ router.post('/webhook', async (req, res) => {
     }
 
     // Find user by email
-    const userProfile = await db
-      .select()
-      .from(userProfiles)
-      .where(eq(userProfiles.email, email.toLowerCase()))
-      .limit(1);
+    const { data: userProfile, error: findError } = await supabase
+      .from('user_profiles')
+      .select('id, email')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
 
-    if (userProfile.length === 0) {
+    if (findError || !userProfile) {
       console.log('⚠️ [ASSESSMENT] User not found, storing for later:', email);
 
       // Store in temporary storage (localStorage-like approach)
@@ -55,24 +53,33 @@ router.post('/webhook', async (req, res) => {
     }
 
     // Update user profile with assessment data
-    const result = await db
-      .update(userProfiles)
-      .set({
-        assessment_completed_at: new Date(),
+    const { data: result, error: updateError } = await supabase
+      .from('user_profiles')
+      .update({
+        assessment_completed_at: new Date().toISOString(),
         assessment_responses: responses,
         inner_landscape_type: landscapeType || null,
         assessment_insights: insights || null,
-        updated_at: new Date()
+        updated_at: new Date().toISOString()
       })
-      .where(eq(userProfiles.id, userProfile[0].id))
-      .returning();
+      .eq('id', userProfile.id)
+      .select()
+      .single();
 
-    console.log('✅ [ASSESSMENT] Assessment data saved for user:', userProfile[0].id);
+    if (updateError) {
+      console.error('❌ [ASSESSMENT] Error updating profile:', updateError);
+      return res.status(500).json({
+        error: 'Failed to save assessment data',
+        message: updateError.message
+      });
+    }
+
+    console.log('✅ [ASSESSMENT] Assessment data saved for user:', userProfile.id);
 
     return res.json({
       success: true,
       message: 'Assessment data saved successfully',
-      userId: userProfile[0].id
+      userId: userProfile.id
     });
 
   } catch (error) {
@@ -113,24 +120,33 @@ router.post('/link', async (req, res) => {
     }
 
     // Update user profile with assessment data
-    const result = await db
-      .update(userProfiles)
-      .set({
-        assessment_completed_at: new Date(),
+    const { data: result, error: updateError } = await supabase
+      .from('user_profiles')
+      .update({
+        assessment_completed_at: new Date().toISOString(),
         assessment_responses: assessmentData.responses,
         inner_landscape_type: assessmentData.landscapeType || null,
         assessment_insights: assessmentData.insights || null,
-        updated_at: new Date()
+        updated_at: new Date().toISOString()
       })
-      .where(eq(userProfiles.id, userId))
-      .returning();
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ [ASSESSMENT] Error linking assessment:', updateError);
+      return res.status(500).json({
+        error: 'Failed to link assessment data',
+        message: updateError.message
+      });
+    }
 
     console.log('✅ [ASSESSMENT] Assessment linked successfully');
 
     return res.json({
       success: true,
       message: 'Assessment data linked to user account',
-      profile: result[0]
+      profile: result
     });
 
   } catch (error) {
@@ -150,23 +166,20 @@ router.get('/status/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const userProfile = await db
-      .select({
-        assessmentCompleted: userProfiles.assessment_completed_at,
-        landscapeType: userProfiles.inner_landscape_type,
-      })
-      .from(userProfiles)
-      .where(eq(userProfiles.id, userId))
-      .limit(1);
+    const { data: userProfile, error } = await supabase
+      .from('user_profiles')
+      .select('assessment_completed_at, inner_landscape_type')
+      .eq('id', userId)
+      .maybeSingle();
 
-    if (userProfile.length === 0) {
+    if (error || !userProfile) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     return res.json({
-      completed: !!userProfile[0].assessmentCompleted,
-      landscapeType: userProfile[0].landscapeType,
-      completedAt: userProfile[0].assessmentCompleted
+      completed: !!userProfile.assessment_completed_at,
+      landscapeType: userProfile.inner_landscape_type,
+      completedAt: userProfile.assessment_completed_at
     });
 
   } catch (error) {
