@@ -250,45 +250,42 @@ if (pendingAssessment) {
 
 ## Onboarding Questionnaire Replacement
 
-### Complete Replacement
+### Automatic Redirect to Assessment
 
-The Inner Landscape Assessment has **completely replaced** the onboarding questionnaire. Users will never see the onboarding popup - they proceed directly to their dashboard after accepting consent.
+The Inner Landscape Assessment has **completely replaced** the onboarding questionnaire. After accepting consent, users are automatically redirected to the assessment funnel to complete it before accessing their dashboard.
 
-**New Flow:**
+**New User Flow:**
 1. User signs up
 2. Accepts consent popup
-3. **Proceeds directly to dashboard** (no onboarding questionnaire)
-4. Assessment CTA appears on landing page (optional to complete)
+3. **Automatically redirected to assessment** (start.ivasa.ai)
+4. Completes 5-question assessment
+5. Assessment sends webhook to VASA backend
+6. User returns to VASA dashboard
+7. Assessment data is already linked to their profile
 
 **Implementation:**
 ```typescript
-// In dashboard.tsx - Onboarding questionnaire disabled
-console.log('✅ [DASHBOARD] Skipping onboarding (replaced by assessment)');
+// In dashboard.tsx - After consent acceptance
+if (!profile.assessment_completed_at) {
+  // Redirect to assessment funnel
+  sessionStorage.setItem('returnAfterAssessment', 'true');
+  window.location.href = 'https://start.ivasa.ai';
+  return;
+}
+
+// If assessment already completed, proceed to dashboard
 setOnboardingChecked(true);
-sessionStorage.setItem('onboarding_completed_this_session', 'true');
 ```
 
-**User Flows:**
-
-**Flow 1: Assessment First (Recommended)**
-1. User clicks "Begin." on landing page
-2. Completes 5-question assessment
-3. Signs up for account
-4. Assessment data automatically linked
-5. Accepts consent
-6. Goes directly to dashboard (assessment data available)
-
-**Flow 2: Sign Up First**
-1. User creates account
-2. Accepts consent
-3. Goes directly to dashboard
-4. Can complete assessment later (optional)
+**Returning User Flow:**
+- Users who already completed assessment → Go directly to dashboard
+- No repeated assessment required
 
 **Benefits:**
-- Streamlined onboarding (one less step)
-- Assessment provides richer therapeutic data than basic onboarding
-- Optional - users can skip assessment and still use the platform
-- Flexible - assessment can be completed before or after signup
+- Guaranteed assessment completion for all new users
+- Immediate therapeutic data collection
+- Streamlined single-path onboarding
+- No optional steps - clear guided flow
 
 ## Using Assessment Data in Therapy
 

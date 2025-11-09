@@ -113,10 +113,20 @@ export default function Dashboard() {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
 
-              // ONBOARDING QUESTIONNAIRE DISABLED
-              // Users complete the Inner Landscape Assessment instead
-              // No onboarding popup - users proceed directly to dashboard
-              console.log('✅ [DASHBOARD] Skipping onboarding (replaced by assessment)');
+              // Check if user has completed assessment
+              if (!profile.assessment_completed_at) {
+                console.log('📋 [DASHBOARD] Redirecting to assessment funnel');
+
+                // Store return URL to come back after assessment
+                sessionStorage.setItem('returnAfterAssessment', 'true');
+
+                // Redirect to assessment
+                window.location.href = 'https://start.ivasa.ai';
+                return;
+              }
+
+              // If assessment already completed, proceed to dashboard
+              console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
               setOnboardingChecked(true);
               sessionStorage.setItem('onboarding_completed_this_session', 'true');
             }
@@ -367,10 +377,27 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // ONBOARDING QUESTIONNAIRE DISABLED
-    // Users complete the Inner Landscape Assessment instead
-    // No onboarding popup - proceed directly to dashboard
-    console.log('✅ [DASHBOARD] Skipping onboarding (replaced by assessment)');
+    // Check if user has completed assessment
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('assessment_completed_at')
+      .eq('id', userId)
+      .single();
+
+    // If assessment not completed, redirect to assessment funnel
+    if (!profile?.assessment_completed_at) {
+      console.log('📋 [DASHBOARD] Redirecting to assessment funnel');
+
+      // Store return URL to come back after assessment
+      sessionStorage.setItem('returnAfterAssessment', 'true');
+
+      // Redirect to assessment
+      window.location.href = 'https://start.ivasa.ai';
+      return;
+    }
+
+    // If assessment already completed, proceed to dashboard
+    console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
     setOnboardingChecked(true);
     sessionStorage.setItem('onboarding_completed_this_session', 'true');
   };
