@@ -248,6 +248,38 @@ if (pendingAssessment) {
 }
 ```
 
+## Onboarding Questionnaire Replacement
+
+### Automatic Skip Logic
+
+Users who complete the Inner Landscape Assessment will **automatically skip** the onboarding questionnaire. This prevents redundant data collection since the assessment provides richer insights than the basic onboarding questions.
+
+**Logic Flow:**
+1. User completes assessment (before or after signup)
+2. `assessment_completed_at` timestamp is set in database
+3. Dashboard checks for `assessment_completed_at`
+4. If present → Skip onboarding questionnaire
+5. If absent → Show normal onboarding flow
+
+**Implementation:**
+```typescript
+// In dashboard.tsx
+if (profile.assessment_completed_at) {
+  console.log('✅ Assessment completed, skipping onboarding');
+  setOnboardingChecked(true);
+  sessionStorage.setItem('onboarding_completed_this_session', 'true');
+} else {
+  // Show regular onboarding questionnaire
+  setShowOnboarding(true);
+}
+```
+
+**Benefits:**
+- Better user experience (no duplicate questions)
+- Higher completion rates (one form instead of two)
+- Richer data (assessment provides deeper insights)
+- Seamless flow from assessment to therapy
+
 ## Using Assessment Data in Therapy
 
 ### Accessing Assessment Data
