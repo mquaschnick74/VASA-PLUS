@@ -634,7 +634,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     Complementary Assessment
                   </h3>
                   <p className="text-muted-foreground text-sm md:text-base max-w-lg mx-auto">
-                    Complete 5 questions to better understand how iVASA practitioners can assist you.
+                    Complete 5 questions to better understand how an iVASA guide can assist you.
                   </p>
                   <Button
                     onClick={() => window.open('https://start.ivasa.ai', '_blank')}
@@ -654,7 +654,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 Meet Your AI Therapeutic Guides
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Choose from four specialized AI agents, each with unique approaches to therapeutic conversation
+                Choose from four specialized AI Guides, each with unique approaches to therapeutic conversation
               </p>
             </div>
             <AgentCarousel />
