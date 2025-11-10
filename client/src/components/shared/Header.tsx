@@ -41,9 +41,9 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
             className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
           >
             <img
-              src="/iVASA_Heiti.png"
+              src="/apple-touch-icon.png"
               alt="iVASA"
-              className="h-10 w-auto object-contain"
+              className="h-10 w-10 object-contain rounded-lg"
             />
           </div>
 

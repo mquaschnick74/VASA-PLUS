@@ -7,6 +7,7 @@ import VoiceInterface from '@/components/voice-interface';
 import ClientDashboard from '@/pages/client-dashboard';
 import ConsentPopup from '@/components/ConsentPopup';
 import OnboardingQuestionnaire from '@/components/OnboardingQuestionnaire';
+import AssessmentModal from '@/components/AssessmentModal';
 import TherapistDashboard from '@/pages/therapist-dashboard';
 import PartnerDashboard from '@/pages/partner-dashboard';
 import InfluencerDashboard from '@/pages/influencer-dashboard';
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const [consentChecked, setConsentChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const authListenerRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
@@ -91,7 +93,7 @@ export default function Dashboard() {
         // Get user profile to determine type
         const { data: profile } = await supabase
         .from('user_profiles')
-        .select('user_type, email, consent_accepted_at, last_onboarding_completed_at')
+        .select('user_type, email, consent_accepted_at, last_onboarding_completed_at, assessment_completed_at')
         .eq('id', user.id)
         .single();
 
@@ -113,21 +115,15 @@ export default function Dashboard() {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
 
-              // SHOW ONBOARDING - For individuals, clients, and therapists
-              // Check sessionStorage to prevent repeated showing during navigation
-              const onboardingCompletedThisSession = sessionStorage.getItem('onboarding_completed_this_session');
-
-              if (detectedType === 'individual' || detectedType === 'client' || detectedType === 'therapist') {
-                if (onboardingCompletedThisSession === 'true') {
-                  console.log('✅ [DASHBOARD] Onboarding already completed this session, skipping');
-                  setOnboardingChecked(true);
-                } else {
-                  console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire for user type:', detectedType);
-                  setShowOnboarding(true);
-                }
+              // Check if user has completed assessment
+              if (!profile.assessment_completed_at) {
+                console.log('📋 [DASHBOARD] Showing assessment modal');
+                setShowAssessmentModal(true);
               } else {
-                console.log('✅ [DASHBOARD] Onboarding not required for user type:', detectedType);
+                // If assessment already completed, proceed to dashboard
+                console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
                 setOnboardingChecked(true);
+                sessionStorage.setItem('onboarding_completed_this_session', 'true');
               }
             }
           }
@@ -152,6 +148,38 @@ export default function Dashboard() {
             localStorage.removeItem('pendingInvitation');
           } else {
             console.error('Failed to accept invitation:', await inviteResponse.json());
+          }
+        }
+
+        // Check for pending assessment data
+        const pendingAssessment = localStorage.getItem('pendingAssessmentData');
+        if (pendingAssessment) {
+          console.log('📋 Processing pending assessment data...');
+
+          try {
+            const assessmentData = JSON.parse(pendingAssessment);
+
+            const assessmentResponse = await fetch('/api/assessment/link', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                userId: user.id,
+                email: freshSession.user.email,
+                assessmentData
+              })
+            });
+
+            if (assessmentResponse.ok) {
+              console.log('✅ Assessment data linked successfully');
+              localStorage.removeItem('pendingAssessmentData');
+            } else {
+              console.error('Failed to link assessment:', await assessmentResponse.json());
+            }
+          } catch (error) {
+            console.error('Error processing pending assessment:', error);
           }
         }
 
@@ -345,21 +373,31 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // Show onboarding for individuals, clients, and therapists
-    // Check sessionStorage to prevent repeated showing during navigation
-    const onboardingCompletedThisSession = sessionStorage.getItem('onboarding_completed_this_session');
+    // Check if user has completed assessment
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('assessment_completed_at')
+      .eq('id', userId)
+      .single();
 
-    if (userType === 'individual' || userType === 'client' || userType === 'therapist') {
-      if (onboardingCompletedThisSession === 'true') {
-        console.log('✅ [DASHBOARD] Onboarding already completed this session, skipping');
-        setOnboardingChecked(true);
-      } else {
-        console.log('⚠️ [DASHBOARD] Showing onboarding questionnaire for user type:', userType);
-        setShowOnboarding(true);
-      }
+    // If assessment not completed, show modal
+    if (!profile?.assessment_completed_at) {
+      console.log('📋 [DASHBOARD] Showing assessment modal');
+      setShowAssessmentModal(true);
     } else {
+      // If assessment already completed, proceed to dashboard
+      console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
       setOnboardingChecked(true);
+      sessionStorage.setItem('onboarding_completed_this_session', 'true');
     }
+  };
+
+  // Handle assessment modal close
+  const handleAssessmentClose = () => {
+    console.log('📋 [DASHBOARD] Assessment modal closed');
+    setShowAssessmentModal(false);
+    setOnboardingChecked(true);
+    sessionStorage.setItem('onboarding_completed_this_session', 'true');
   };
 
   // Handle onboarding completion
@@ -446,6 +484,11 @@ export default function Dashboard() {
   // Show consent popup if not yet accepted
   if (showConsent) {
     return <ConsentPopup userId={userId} userEmail={userEmail} onConsentAccepted={handleConsentAccepted} />;
+  }
+
+  // Show assessment modal if not yet completed
+  if (showAssessmentModal) {
+    return <AssessmentModal isOpen={true} onClose={handleAssessmentClose} userEmail={userEmail} />;
   }
 
   // Wait for consent check to complete before showing dashboard

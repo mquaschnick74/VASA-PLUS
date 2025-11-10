@@ -15,6 +15,13 @@ export async function buildMemoryContext(userId: string): Promise<string> {
 
     const userName = userProfile?.first_name || 'there';
 
+    // Fetch assessment data from user_profiles
+    const { data: assessmentData } = await supabase
+      .from('user_profiles')
+      .select('assessment_completed_at, assessment_responses, inner_landscape_type, assessment_insights')
+      .eq('id', userId)
+      .single();
+
     // Fetch recent sessions
     const { data: sessions, error: sessionsError } = await supabase
       .from('therapeutic_sessions')
@@ -52,6 +59,41 @@ export async function buildMemoryContext(userId: string): Promise<string> {
 
     // Format memory context
     let memoryContext = '';
+
+    // Include assessment data if available
+    if (assessmentData?.assessment_completed_at) {
+      const isFirstSession = !sessions || sessions.length === 0;
+
+      if (isFirstSession) {
+        // FIRST SESSION: Include detailed assessment data
+        memoryContext += `\n===== PRE-SESSION ASSESSMENT =====\n`;
+        memoryContext += `Before this first session, ${userName} completed an Inner Landscape Assessment.\n\n`;
+
+        if (assessmentData.inner_landscape_type) {
+          memoryContext += `🔍 Identified Pattern: ${assessmentData.inner_landscape_type}\n\n`;
+        }
+
+        if (assessmentData.assessment_responses) {
+          memoryContext += `Assessment Responses:\n`;
+          const responses = assessmentData.assessment_responses as Record<string, any>;
+          Object.entries(responses).forEach(([question, answer], index) => {
+            memoryContext += `  Q${index + 1}. ${question}\n`;
+            memoryContext += `      → ${answer}\n\n`;
+          });
+        }
+
+        if (assessmentData.assessment_insights) {
+          memoryContext += `📋 Key Insights:\n${assessmentData.assessment_insights}\n`;
+        }
+
+        memoryContext += `\n💡 Use this assessment data to inform your therapeutic approach and build on ${userName}'s self-identified patterns.\n`;
+        memoryContext += `===== END ASSESSMENT =====\n\n`;
+      } else {
+        // SUBSEQUENT SESSIONS: Include lighter version
+        memoryContext += `\n📋 Note: ${userName} completed a pre-session assessment identifying their pattern as "${assessmentData.inner_landscape_type || 'exploring their inner landscape'}". `;
+        memoryContext += `This provides foundational context for your ongoing work together.\n\n`;
+      }
+    }
 
     if (sessions && sessions.length > 0) {
       // Use actual user name instead of "this user"

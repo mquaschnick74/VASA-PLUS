@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
+import AssessmentModal from './AssessmentModal';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import autumnRoadImage from '@assets/autumn-road.jpg';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -40,6 +41,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     influencerName?: string;
   } | null>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
 
   // ============= NEW: Invitation handling state =============
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
@@ -365,9 +367,17 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   }
 
   return (
-    <div className="min-h-screen gradient-bg">
-      <Header hideSignInButton={true} />
-      <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
+    <>
+      {/* Assessment Modal */}
+      <AssessmentModal
+        isOpen={showAssessmentModal}
+        onClose={() => setShowAssessmentModal(false)}
+        userEmail={email}
+      />
+
+      <div className="min-h-screen gradient-bg">
+        <Header hideSignInButton={true} />
+        <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
       <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
@@ -375,9 +385,18 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-6">
+              {/* iVASA Logo */}
+              <div className="flex justify-center mb-4">
+                <img
+                  src="/iVASA_Heiti.png"
+                  alt="iVASA"
+                  className="h-16 md:h-20 lg:h-24 w-auto object-contain"
+                />
+              </div>
+              
               <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
               <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
-              <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Assistant.</p>
+              <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Guide.</p>
               <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
@@ -634,10 +653,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     Complementary Assessment
                   </h3>
                   <p className="text-muted-foreground text-sm md:text-base max-w-lg mx-auto">
-                    Complete 5 questions to better understand how iVASA guides can assist you.
+                    Complete 5 questions to better understand how an iVASA guide can assist you.
                   </p>
                   <Button
-                    onClick={() => window.open('https://start.ivasa.ai', '_blank')}
+                    onClick={() => setShowAssessmentModal(true)}
                     className="bg-gradient-to-r from-primary to-accent py-3 px-8 rounded-xl"
                   >
                     Begin.
@@ -654,7 +673,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 Meet Your AI Therapeutic Guides
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Choose from four specialized AI agents, each with unique approaches to therapeutic conversation
+                Choose from four specialized AI Guides, each with unique approaches to therapeutic conversation
               </p>
             </div>
             <AgentCarousel />
@@ -759,7 +778,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           </div>
         </div>
 
+        </div>
       </div>
-    </div>
+    </>
   );
 }

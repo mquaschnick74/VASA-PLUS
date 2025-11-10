@@ -33,6 +33,12 @@ export const userProfiles = pgTable("user_profiles", {
   promo_discount_expires_at: timestamp("promo_discount_expires_at"),
   consent_accepted_at: timestamp("consent_accepted_at", { withTimezone: true }),
   last_onboarding_completed_at: timestamp("last_onboarding_completed_at", { withTimezone: true }),
+
+  // Inner Landscape Assessment fields
+  assessment_completed_at: timestamp("assessment_completed_at", { withTimezone: true }),
+  assessment_responses: jsonb("assessment_responses"), // Store all 5 question responses
+  inner_landscape_type: varchar("inner_landscape_type", { length: 100 }), // Result/pattern identified
+  assessment_insights: text("assessment_insights"), // Summary insights from assessment
 });
 
 // User onboarding responses table
