@@ -7,6 +7,7 @@ import VoiceInterface from '@/components/voice-interface';
 import ClientDashboard from '@/pages/client-dashboard';
 import ConsentPopup from '@/components/ConsentPopup';
 import OnboardingQuestionnaire from '@/components/OnboardingQuestionnaire';
+import AssessmentModal from '@/components/AssessmentModal';
 import TherapistDashboard from '@/pages/therapist-dashboard';
 import PartnerDashboard from '@/pages/partner-dashboard';
 import InfluencerDashboard from '@/pages/influencer-dashboard';
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const [consentChecked, setConsentChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const authListenerRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
@@ -115,20 +117,14 @@ export default function Dashboard() {
 
               // Check if user has completed assessment
               if (!profile.assessment_completed_at) {
-                console.log('📋 [DASHBOARD] Redirecting to assessment funnel');
-
-                // Store return URL to come back after assessment
-                sessionStorage.setItem('returnAfterAssessment', 'true');
-
-                // Redirect to assessment
-                window.location.href = 'https://start.ivasa.ai';
-                return;
+                console.log('📋 [DASHBOARD] Showing assessment modal');
+                setShowAssessmentModal(true);
+              } else {
+                // If assessment already completed, proceed to dashboard
+                console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
+                setOnboardingChecked(true);
+                sessionStorage.setItem('onboarding_completed_this_session', 'true');
               }
-
-              // If assessment already completed, proceed to dashboard
-              console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
-              setOnboardingChecked(true);
-              sessionStorage.setItem('onboarding_completed_this_session', 'true');
             }
           }
         }
@@ -384,20 +380,22 @@ export default function Dashboard() {
       .eq('id', userId)
       .single();
 
-    // If assessment not completed, redirect to assessment funnel
+    // If assessment not completed, show modal
     if (!profile?.assessment_completed_at) {
-      console.log('📋 [DASHBOARD] Redirecting to assessment funnel');
-
-      // Store return URL to come back after assessment
-      sessionStorage.setItem('returnAfterAssessment', 'true');
-
-      // Redirect to assessment
-      window.location.href = 'https://start.ivasa.ai';
-      return;
+      console.log('📋 [DASHBOARD] Showing assessment modal');
+      setShowAssessmentModal(true);
+    } else {
+      // If assessment already completed, proceed to dashboard
+      console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
+      setOnboardingChecked(true);
+      sessionStorage.setItem('onboarding_completed_this_session', 'true');
     }
+  };
 
-    // If assessment already completed, proceed to dashboard
-    console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
+  // Handle assessment modal close
+  const handleAssessmentClose = () => {
+    console.log('📋 [DASHBOARD] Assessment modal closed');
+    setShowAssessmentModal(false);
     setOnboardingChecked(true);
     sessionStorage.setItem('onboarding_completed_this_session', 'true');
   };
@@ -486,6 +484,11 @@ export default function Dashboard() {
   // Show consent popup if not yet accepted
   if (showConsent) {
     return <ConsentPopup userId={userId} userEmail={userEmail} onConsentAccepted={handleConsentAccepted} />;
+  }
+
+  // Show assessment modal if not yet completed
+  if (showAssessmentModal) {
+    return <AssessmentModal isOpen={true} onClose={handleAssessmentClose} userEmail={userEmail} />;
   }
 
   // Wait for consent check to complete before showing dashboard

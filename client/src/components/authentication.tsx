@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
+import AssessmentModal from './AssessmentModal';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import autumnRoadImage from '@assets/autumn-road.jpg';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -40,6 +41,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     influencerName?: string;
   } | null>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
 
   // ============= NEW: Invitation handling state =============
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
@@ -365,9 +367,17 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   }
 
   return (
-    <div className="min-h-screen gradient-bg">
-      <Header hideSignInButton={true} />
-      <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
+    <>
+      {/* Assessment Modal */}
+      <AssessmentModal
+        isOpen={showAssessmentModal}
+        onClose={() => setShowAssessmentModal(false)}
+        userEmail={email}
+      />
+
+      <div className="min-h-screen gradient-bg">
+        <Header hideSignInButton={true} />
+        <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
       <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
@@ -637,7 +647,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     Complete 5 questions to better understand how an iVASA guide can assist you.
                   </p>
                   <Button
-                    onClick={() => window.open('https://start.ivasa.ai', '_blank')}
+                    onClick={() => setShowAssessmentModal(true)}
                     className="bg-gradient-to-r from-primary to-accent py-3 px-8 rounded-xl"
                   >
                     Begin.
@@ -759,7 +769,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           </div>
         </div>
 
+        </div>
       </div>
-    </div>
+    </>
   );
 }
