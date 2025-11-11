@@ -20,6 +20,10 @@ import stripeCheckoutRoutes from './routes/stripe-checkout';
 import blogRoutes from './routes/blog-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Make supabase available to all routes via app.locals
+  app.locals.supabase = supabase;
+  console.log('✅ Supabase client attached to app.locals');
+
   const apiRouter = Router();
 
   // Mount route modules

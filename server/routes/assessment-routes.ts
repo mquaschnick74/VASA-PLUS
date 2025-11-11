@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
+import { Resend } from 'resend';
 
 const router = Router();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface AssessmentData {
   encoded: string;
@@ -70,26 +72,20 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
       });
     }
 
-    // Email sending placeholder
-    // TODO: Integrate with your existing email service
-    // Example using Resend (if that's what you use):
-    /*
+    // Send assessment results via email
     if (process.env.RESEND_API_KEY) {
       try {
-        const { Resend } = require('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
-
         await resend.emails.send({
-          from: 'iVASA <noreply@ivasa.ai>',
+          from: 'iVASA Assessment <noreply@ivasa.ai>',
           to: email,
-          subject: 'Your iVASA Assessment Results',
+          subject: 'Your iVASA Inner Landscape Assessment Results',
           html: generateAssessmentEmail(assessmentData)
         });
+        console.log('✅ Assessment email sent to:', email);
       } catch (emailError) {
-        console.error('Email sending failed:', emailError);
+        console.error('⚠️ Email failed but assessment saved:', emailError);
       }
     }
-    */
 
     res.json({ 
       success: true, 
