@@ -136,14 +136,18 @@ export class SubscriptionService {
 
     const minutesRemaining = Math.max(0, (subscription.usage_minutes_limit || 0) - (subscription.usage_minutes_used || 0));
 
+    // FIX: Allow voice usage if there are minutes remaining, even if trial period has ended
+    // Users should be able to use their allocated minutes regardless of trial day expiration
+    const canUseVoice = minutesRemaining > 0 && subscription.subscription_status !== 'expired';
+
     const limits: SubscriptionLimits = {
-      can_use_voice: !isExpired && minutesRemaining > 0,
+      can_use_voice: canUseVoice,
       minutes_remaining: minutesRemaining,
       minutes_used: subscription.usage_minutes_used || 0,
       minutes_limit: subscription.usage_minutes_limit || 0,
       subscription_active: !isExpired,
       is_trial: subscription.subscription_status === 'trialing',
-      trial_days_left: subscription.trial_ends_at ? 
+      trial_days_left: subscription.trial_ends_at ?
         Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0,
       subscription_tier: subscription.subscription_tier,
       user_type: profile.user_type || 'individual',
