@@ -1,193 +1,313 @@
-// server/routes/assessment-routes.ts
-// API routes for Inner Landscape Assessment integration
-
-import { Router } from 'express';
-import { supabase } from '../services/supabase-service';
+import { Router, Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+interface AssessmentData {
+  encoded: string;
+  profile: {
+    pattern: string;
+    metaphor: string;
+    description: string;
+    register: string;
+    cvdcPattern: string;
+    chronicity: string;
+    restCapacity: string;
+    goal: string;
+  };
+  answers: Record<string, string>;
+  email?: string;
+  action: string;
+}
+
 /**
- * POST /api/assessment/webhook
- * Receives assessment data from the Replit funnel (start.ivasa.ai)
- *
- * Expected payload:
- * {
- *   email: string,
- *   responses: object, // All 5 question responses
- *   landscapeType: string, // Result pattern
- *   insights: string // Summary
- * }
+ * POST /api/assessment/save-for-later
+ * Save assessment results for users who want to receive them via email
+ * Note: This is a public endpoint (no auth required for initial capture)
  */
-router.post('/webhook', async (req, res) => {
+router.post('/save-for-later', async (req: Request, res: Response) => {
   try {
-    const { email, responses, landscapeType, insights } = req.body;
+    const { email, assessmentData } = req.body as { 
+      email: string; 
+      assessmentData: AssessmentData 
+    };
 
-    console.log('📋 [ASSESSMENT] Webhook received for:', email);
-
-    // Validate required fields
-    if (!email || !responses) {
-      console.error('❌ [ASSESSMENT] Missing required fields');
-      return res.status(400).json({
-        error: 'Missing required fields: email and responses are required'
+    if (!email || !assessmentData) {
+      return res.status(400).json({ 
+        error: 'Email and assessment data are required' 
       });
     }
 
-    // Find user by email
-    const { data: userProfile, error: findError } = await supabase
-      .from('user_profiles')
-      .select('id, email')
-      .eq('email', email.toLowerCase())
-      .maybeSingle();
+    console.log('📧 Saving assessment for email delivery:', email);
 
-    if (findError || !userProfile) {
-      console.log('⚠️ [ASSESSMENT] User not found, storing for later:', email);
+    // Import supabase from your app context
+    const { supabase } = req.app.locals;
 
-      // Store in temporary storage (localStorage-like approach)
-      // When user signs up, we'll check for pending assessments
-      // For now, return success and let the signup flow handle it
-      return res.json({
-        success: true,
-        message: 'Assessment received. Complete signup to link results.',
-        pendingAssessment: true
-      });
-    }
-
-    // Update user profile with assessment data
-    const { data: result, error: updateError } = await supabase
-      .from('user_profiles')
-      .update({
-        assessment_completed_at: new Date().toISOString(),
-        assessment_responses: responses,
-        inner_landscape_type: landscapeType || null,
-        assessment_insights: insights || null,
-        updated_at: new Date().toISOString()
+    // Store assessment in database
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .insert({
+        email,
+        profile_data: assessmentData.profile,
+        answers: assessmentData.answers,
+        encoded_profile: assessmentData.encoded,
+        pattern_name: assessmentData.profile.pattern,
+        metaphor: assessmentData.profile.metaphor,
+        register: assessmentData.profile.register,
+        status: 'pending_email',
+        source: 'iframe',
+        questions_answered: Object.keys(assessmentData.answers).length,
+        created_at: new Date().toISOString()
       })
-      .eq('id', userProfile.id)
       .select()
       .single();
 
-    if (updateError) {
-      console.error('❌ [ASSESSMENT] Error updating profile:', updateError);
-      return res.status(500).json({
-        error: 'Failed to save assessment data',
-        message: updateError.message
+    if (error) {
+      console.error('❌ Error saving assessment:', error);
+      return res.status(500).json({ 
+        error: 'Failed to save assessment results',
+        details: error.message 
       });
     }
 
-    console.log('✅ [ASSESSMENT] Assessment data saved for user:', userProfile.id);
+    // Email sending placeholder
+    // TODO: Integrate with your existing email service
+    // Example using Resend (if that's what you use):
+    /*
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const { Resend } = require('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
 
-    return res.json({
-      success: true,
-      message: 'Assessment data saved successfully',
-      userId: userProfile.id
+        await resend.emails.send({
+          from: 'iVASA <noreply@ivasa.ai>',
+          to: email,
+          subject: 'Your iVASA Assessment Results',
+          html: generateAssessmentEmail(assessmentData)
+        });
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+      }
+    }
+    */
+
+    res.json({ 
+      success: true, 
+      message: 'Assessment saved successfully',
+      assessmentId: data?.id 
     });
 
-  } catch (error) {
-    console.error('❌ [ASSESSMENT] Error processing webhook:', error);
-    return res.status(500).json({
-      error: 'Failed to process assessment data',
-      message: error instanceof Error ? error.message : 'Unknown error'
+  } catch (error: any) {
+    console.error('❌ Error in save-for-later:', error);
+    res.status(500).json({ 
+      error: 'An unexpected error occurred',
+      message: error.message 
     });
   }
 });
 
 /**
- * POST /api/assessment/link
- * Links pending assessment data to a newly created user account
- * Called during signup flow when user has completed assessment first
- *
- * Expected payload:
- * {
- *   userId: string,
- *   email: string,
- *   assessmentData: {
- *     responses: object,
- *     landscapeType: string,
- *     insights: string
- *   }
- * }
+ * GET /api/assessment/:id
+ * Retrieve assessment results by ID
+ * Public endpoint - assessments can be viewed by ID
  */
-router.post('/link', async (req, res) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const { userId, email, assessmentData } = req.body;
+    const { id } = req.params;
+    const { supabase } = req.app.locals;
 
-    console.log('🔗 [ASSESSMENT] Linking assessment to user:', userId);
-
-    if (!userId || !assessmentData) {
-      return res.status(400).json({
-        error: 'Missing required fields: userId and assessmentData are required'
-      });
-    }
-
-    // Update user profile with assessment data
-    const { data: result, error: updateError } = await supabase
-      .from('user_profiles')
-      .update({
-        assessment_completed_at: new Date().toISOString(),
-        assessment_responses: assessmentData.responses,
-        inner_landscape_type: assessmentData.landscapeType || null,
-        assessment_insights: assessmentData.insights || null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
-      .select()
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .select('*')
+      .eq('id', id)
       .single();
 
-    if (updateError) {
-      console.error('❌ [ASSESSMENT] Error linking assessment:', updateError);
-      return res.status(500).json({
-        error: 'Failed to link assessment data',
-        message: updateError.message
+    if (error || !data) {
+      return res.status(404).json({ 
+        error: 'Assessment not found' 
       });
     }
 
-    console.log('✅ [ASSESSMENT] Assessment linked successfully');
+    res.json(data);
 
-    return res.json({
-      success: true,
-      message: 'Assessment data linked to user account',
-      profile: result
-    });
-
-  } catch (error) {
-    console.error('❌ [ASSESSMENT] Error linking assessment:', error);
-    return res.status(500).json({
-      error: 'Failed to link assessment data',
-      message: error instanceof Error ? error.message : 'Unknown error'
+  } catch (error: any) {
+    console.error('❌ Error fetching assessment:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch assessment',
+      message: error.message
     });
   }
 });
 
 /**
- * GET /api/assessment/status/:userId
- * Checks if a user has completed the assessment
+ * POST /api/assessment/link-to-user
+ * Link an assessment to a user account after signup
  */
-router.get('/status/:userId', async (req, res) => {
+router.post('/link-to-user', async (req: Request, res: Response) => {
+  try {
+    const { assessmentId, userId, email } = req.body;
+    const { supabase } = req.app.locals;
+
+    if (!userId) {
+      return res.status(400).json({ 
+        error: 'User ID is required' 
+      });
+    }
+
+    // Build update query
+    const updateData = { 
+      user_id: userId, 
+      status: 'linked',
+      linked_at: new Date().toISOString()
+    };
+
+    let result;
+
+    if (assessmentId) {
+      // Link by assessment ID
+      result = await supabase
+        .from('assessment_results')
+        .update(updateData)
+        .eq('id', assessmentId)
+        .select()
+        .single();
+    } else if (email) {
+      // Link by email (get the most recent pending assessment)
+      result = await supabase
+        .from('assessment_results')
+        .update(updateData)
+        .eq('email', email)
+        .eq('status', 'pending_email')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .select()
+        .single();
+    } else {
+      return res.status(400).json({ 
+        error: 'Assessment ID or email is required' 
+      });
+    }
+
+    const { data, error } = result;
+
+    if (error) {
+      console.error('❌ Error linking assessment:', error);
+      return res.status(500).json({ 
+        error: 'Failed to link assessment to user',
+        details: error.message
+      });
+    }
+
+    console.log('✅ Assessment linked to user:', userId);
+
+    res.json({ 
+      success: true, 
+      assessment: data 
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error in link-to-user:', error);
+    res.status(500).json({ 
+      error: 'An unexpected error occurred',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/assessment/user/:userId
+ * Get all assessments for a specific user
+ */
+router.get('/user/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
+    const { supabase } = req.app.locals;
 
-    const { data: userProfile, error } = await supabase
-      .from('user_profiles')
-      .select('assessment_completed_at, inner_landscape_type')
-      .eq('id', userId)
-      .maybeSingle();
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-    if (error || !userProfile) {
-      return res.status(404).json({ error: 'User not found' });
+    if (error) {
+      console.error('❌ Error fetching user assessments:', error);
+      return res.status(500).json({ 
+        error: 'Failed to fetch assessments',
+        details: error.message
+      });
     }
 
-    return res.json({
-      completed: !!userProfile.assessment_completed_at,
-      landscapeType: userProfile.inner_landscape_type,
-      completedAt: userProfile.assessment_completed_at
+    res.json({
+      success: true,
+      assessments: data || [],
+      count: data?.length || 0
     });
 
-  } catch (error) {
-    console.error('❌ [ASSESSMENT] Error checking status:', error);
-    return res.status(500).json({
-      error: 'Failed to check assessment status'
+  } catch (error: any) {
+    console.error('❌ Error fetching user assessments:', error);
+    res.status(500).json({ 
+      error: 'An unexpected error occurred',
+      message: error.message
     });
   }
 });
+
+// Helper function to generate assessment email HTML
+function generateAssessmentEmail(assessmentData: AssessmentData): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #0f0f1a; color: #10b981; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f5f5f5; }
+        .pattern { font-size: 24px; font-weight: bold; color: #10b981; margin: 20px 0; }
+        .button { display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+        .footer { text-align: center; color: #666; font-size: 14px; margin-top: 30px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Your iVASA Assessment Results</h1>
+        </div>
+
+        <div class="content">
+          <div class="pattern">Your Pattern: ${assessmentData.profile.pattern}</div>
+
+          <h3>About Your Pattern:</h3>
+          <p>You experience anxiety as ${assessmentData.profile.description}.</p>
+
+          <p>When facing difficult choices, ${assessmentData.profile.cvdcPattern}. 
+          This creates a particular kind of exhaustion - the paralysis of contradictions.</p>
+
+          <p>${assessmentData.profile.chronicity}</p>
+
+          <p><strong>Your Rest Capacity:</strong> ${assessmentData.profile.restCapacity}</p>
+
+          <p><strong>Your Goal:</strong> ${assessmentData.profile.goal}</p>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+
+          <h3>Ready to start your therapeutic journey?</h3>
+          <p>Create your free account to see your complete therapeutic profile and begin AI-powered therapy sessions.</p>
+
+          <a href="https://beta.ivasa.ai/signup?source=email&profile=${assessmentData.encoded}" class="button">
+            Create Your Free Account
+          </a>
+        </div>
+
+        <div class="footer">
+          <p>This assessment is based on Pure Contextual Perception (PCP) therapy methodology 
+          developed by licensed therapist Mathew Quaschnick.</p>
+          <p>© ${new Date().getFullYear()} iVASA. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
 
 export default router;

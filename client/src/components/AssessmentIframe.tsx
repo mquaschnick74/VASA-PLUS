@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter'; // Fixed: wouter uses useLocation, not useNavigate
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast'; // Fixed: correct import path
+import { queryClient } from '@/lib/queryClient';
 
 interface AssessmentData {
   encoded: string;
@@ -30,7 +30,8 @@ export default function AssessmentIframe({ onComplete, className }: AssessmentIf
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(700);
   const [isLoading, setIsLoading] = useState(true);
-  const [, navigate] = useNavigate();
+  const [, setLocation] = useLocation(); // Fixed: useLocation returns [location, setLocation]
+  const { toast } = useToast(); // Fixed: destructure toast from hook
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
@@ -77,7 +78,7 @@ export default function AssessmentIframe({ onComplete, className }: AssessmentIf
         sessionStorage.setItem('assessmentData', JSON.stringify(data));
 
         // Navigate to signup with encoded profile
-        navigate(`/signup?source=assessment&profile=${data.encoded}`);
+        setLocation(`/signup?source=assessment&profile=${data.encoded}`);
 
         toast({
           title: 'Assessment Complete!',
@@ -105,6 +106,8 @@ export default function AssessmentIframe({ onComplete, className }: AssessmentIf
               description: `We'll send your assessment results to ${data.email}`,
               duration: 5000,
             });
+          } else {
+            throw new Error('Failed to save assessment');
           }
         } catch (error) {
           console.error('Error saving assessment for later:', error);
@@ -122,7 +125,7 @@ export default function AssessmentIframe({ onComplete, className }: AssessmentIf
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [navigate, onComplete]);
+  }, [setLocation, onComplete, toast]);
 
   return (
     <div className={className}>
