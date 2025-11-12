@@ -8,6 +8,7 @@ import ClientDashboard from '@/pages/client-dashboard';
 import ConsentPopup from '@/components/ConsentPopup';
 import OnboardingQuestionnaire from '@/components/OnboardingQuestionnaire';
 import AssessmentModal from '@/components/AssessmentModal';
+import AssessmentIframe from '@/components/AssessmentIframe';
 import TherapistDashboard from '@/pages/therapist-dashboard';
 import PartnerDashboard from '@/pages/partner-dashboard';
 import InfluencerDashboard from '@/pages/influencer-dashboard';
@@ -115,9 +116,15 @@ export default function Dashboard() {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
 
-              // Check if user has completed assessment
-              if (!profile.assessment_completed_at) {
-                console.log('📋 [DASHBOARD] Showing assessment modal');
+              // Check if user has completed assessment by querying assessment_results table
+              const { data: assessmentData } = await supabase
+                .from('assessment_results')
+                .select('id')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+              if (!assessmentData) {
+                console.log('📋 [DASHBOARD] No assessment found, showing assessment iframe');
                 setShowAssessmentModal(true);
               } else {
                 // If assessment already completed, proceed to dashboard
@@ -373,16 +380,16 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // Check if user has completed assessment
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('assessment_completed_at')
-      .eq('id', userId)
-      .single();
+    // Check if user has completed assessment by querying assessment_results table
+    const { data: assessmentData } = await supabase
+      .from('assessment_results')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
 
     // If assessment not completed, show modal
-    if (!profile?.assessment_completed_at) {
-      console.log('📋 [DASHBOARD] Showing assessment modal');
+    if (!assessmentData) {
+      console.log('📋 [DASHBOARD] Showing assessment iframe');
       setShowAssessmentModal(true);
     } else {
       // If assessment already completed, proceed to dashboard
@@ -392,12 +399,51 @@ export default function Dashboard() {
     }
   };
 
-  // Handle assessment modal close
-  const handleAssessmentClose = () => {
-    console.log('📋 [DASHBOARD] Assessment modal closed');
-    setShowAssessmentModal(false);
-    setOnboardingChecked(true);
-    sessionStorage.setItem('onboarding_completed_this_session', 'true');
+  // Handle assessment completion
+  const handleAssessmentComplete = async (data: any) => {
+    console.log('✅ [DASHBOARD] Assessment completed:', data);
+
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+
+      if (!token) {
+        console.error('No auth token available');
+        return;
+      }
+
+      // Save assessment data to database
+      const response = await fetch('/api/assessment/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId,
+          email: userEmail,
+          assessmentData: data
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ [DASHBOARD] Assessment saved successfully');
+
+        // Update user_profiles to mark assessment as completed
+        await supabase
+          .from('user_profiles')
+          .update({ assessment_completed_at: new Date().toISOString() })
+          .eq('id', userId);
+
+        // Close modal and proceed to dashboard
+        setShowAssessmentModal(false);
+        setOnboardingChecked(true);
+        sessionStorage.setItem('onboarding_completed_this_session', 'true');
+      } else {
+        console.error('Failed to save assessment:', await response.json());
+      }
+    } catch (error) {
+      console.error('Error saving assessment:', error);
+    }
   };
 
   // Handle onboarding completion
@@ -486,9 +532,18 @@ export default function Dashboard() {
     return <ConsentPopup userId={userId} userEmail={userEmail} onConsentAccepted={handleConsentAccepted} />;
   }
 
-  // Show assessment modal if not yet completed
+  // Show assessment iframe modal if not yet completed
   if (showAssessmentModal) {
-    return <AssessmentModal isOpen={true} onClose={handleAssessmentClose} userEmail={userEmail} />;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="relative w-full max-w-5xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-hidden border border-emerald-400/30">
+          <AssessmentIframe
+            onComplete={handleAssessmentComplete}
+            className="h-full w-full"
+          />
+        </div>
+      </div>
+    );
   }
 
   // Wait for consent check to complete before showing dashboard

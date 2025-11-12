@@ -103,6 +103,74 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/assessment/save
+ * Save assessment results for authenticated users
+ * This endpoint is for users completing the assessment while logged in
+ */
+router.post('/save', async (req: Request, res: Response) => {
+  try {
+    const { userId, email, assessmentData } = req.body as {
+      userId: string;
+      email: string;
+      assessmentData: AssessmentData;
+    };
+
+    if (!userId || !assessmentData) {
+      return res.status(400).json({
+        error: 'User ID and assessment data are required'
+      });
+    }
+
+    console.log('📋 Saving assessment for user:', userId);
+
+    const { supabase } = req.app.locals;
+
+    // Store assessment in database
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .insert({
+        user_id: userId,
+        email: email || null,
+        profile_data: assessmentData.profile,
+        answers: assessmentData.answers,
+        encoded_profile: assessmentData.encoded,
+        pattern_name: assessmentData.profile.pattern,
+        metaphor: assessmentData.profile.metaphor,
+        register: assessmentData.profile.register,
+        status: 'completed',
+        source: 'dashboard_iframe',
+        questions_answered: Object.keys(assessmentData.answers).length,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error saving assessment:', error);
+      return res.status(500).json({
+        error: 'Failed to save assessment results',
+        details: error.message
+      });
+    }
+
+    console.log('✅ Assessment saved successfully for user:', userId);
+
+    res.json({
+      success: true,
+      message: 'Assessment saved successfully',
+      assessmentId: data?.id
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error in save assessment:', error);
+    res.status(500).json({
+      error: 'An unexpected error occurred',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/assessment/:id
  * Retrieve assessment results by ID
  * Public endpoint - assessments can be viewed by ID
