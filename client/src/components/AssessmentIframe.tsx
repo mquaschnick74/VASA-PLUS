@@ -24,9 +24,10 @@ interface AssessmentData {
 interface AssessmentIframeProps {
   onComplete?: (data: AssessmentData) => void;
   className?: string;
+  dashboardMode?: boolean; // Skip built-in navigation for logged-in users
 }
 
-export default function AssessmentIframe({ onComplete, className }: AssessmentIframeProps) {
+export default function AssessmentIframe({ onComplete, className, dashboardMode = false }: AssessmentIframeProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(700);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +71,12 @@ export default function AssessmentIframe({ onComplete, className }: AssessmentIf
       // Call parent callback if provided
       if (onComplete) {
         onComplete(data);
+      }
+
+      // Skip built-in navigation if in dashboard mode (parent handles it)
+      if (dashboardMode) {
+        console.log('[AssessmentIframe] Dashboard mode - skipping built-in navigation');
+        return;
       }
 
       // Handle based on action type
@@ -143,7 +150,7 @@ export default function AssessmentIframe({ onComplete, className }: AssessmentIf
 
       <iframe
         ref={iframeRef}
-        src="https://start.ivasa.ai"
+        src={dashboardMode ? "https://start.ivasa.ai?mode=dashboard" : "https://start.ivasa.ai"}
         style={{
           width: '100%',
           height: `${iframeHeight}px`,

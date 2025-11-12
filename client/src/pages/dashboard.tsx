@@ -540,6 +540,7 @@ export default function Dashboard() {
           <AssessmentIframe
             onComplete={handleAssessmentComplete}
             className="h-full w-full"
+            dashboardMode={true}
           />
         </div>
       </div>
