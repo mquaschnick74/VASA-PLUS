@@ -52,6 +52,24 @@ export const userOnboardingResponses = pgTable("user_onboarding_responses", {
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+// Assessment results table - stores start.ivasa.ai assessment data
+export const assessmentResults = pgTable("assessment_results", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }), // Nullable for pre-signup assessments
+  email: varchar("email"), // For pre-signup assessments
+  profile_data: jsonb("profile_data"), // Complete profile object
+  answers: jsonb("answers"), // User's question answers
+  encoded_profile: text("encoded_profile"), // Encoded profile string
+  pattern_name: varchar("pattern_name"), // E.g., "The Trapped Rebel"
+  metaphor: text("metaphor"), // E.g., "caught between the wall and the door"
+  register: varchar("register"), // Symbolic/Imaginary/Real
+  status: varchar("status").default('completed'), // 'pending_email', 'completed', 'linked'
+  source: varchar("source"), // 'iframe', 'dashboard_iframe'
+  questions_answered: integer("questions_answered"), // Count of answered questions
+  linked_at: timestamp("linked_at", { withTimezone: true }), // When linked to user account
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 // Subscriptions table - FIXED to reference users.id
 export const subscriptions = pgTable("subscriptions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
