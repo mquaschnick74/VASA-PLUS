@@ -6,7 +6,6 @@ import Authentication from '@/components/authentication';
 import VoiceInterface from '@/components/voice-interface';
 import ClientDashboard from '@/pages/client-dashboard';
 import ConsentPopup from '@/components/ConsentPopup';
-import OnboardingQuestionnaire from '@/components/OnboardingQuestionnaire';
 import AssessmentModal from '@/components/AssessmentModal';
 import AssessmentIframe from '@/components/AssessmentIframe';
 import TherapistDashboard from '@/pages/therapist-dashboard';
@@ -24,9 +23,8 @@ export default function Dashboard() {
   const [message, setMessage] = useState<string | null>(null);
   const [showConsent, setShowConsent] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [assessmentChecked, setAssessmentChecked] = useState(false);
   const authListenerRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
@@ -94,7 +92,7 @@ export default function Dashboard() {
         // Get user profile to determine type
         const { data: profile } = await supabase
         .from('user_profiles')
-        .select('user_type, email, consent_accepted_at, last_onboarding_completed_at, assessment_completed_at')
+        .select('user_type, email, consent_accepted_at, assessment_completed_at')
         .eq('id', user.id)
         .single();
 
@@ -129,8 +127,7 @@ export default function Dashboard() {
               } else {
                 // If assessment already completed, proceed to dashboard
                 console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
-                setOnboardingChecked(true);
-                sessionStorage.setItem('onboarding_completed_this_session', 'true');
+                setAssessmentChecked(true);
               }
             }
           }
@@ -394,8 +391,7 @@ export default function Dashboard() {
     } else {
       // If assessment already completed, proceed to dashboard
       console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
-      setOnboardingChecked(true);
-      sessionStorage.setItem('onboarding_completed_this_session', 'true');
+      setAssessmentChecked(true);
     }
   };
 
@@ -436,8 +432,7 @@ export default function Dashboard() {
 
         // Close modal and proceed to dashboard
         setShowAssessmentModal(false);
-        setOnboardingChecked(true);
-        sessionStorage.setItem('onboarding_completed_this_session', 'true');
+        setAssessmentChecked(true);
       } else {
         console.error('Failed to save assessment:', await response.json());
       }
@@ -446,14 +441,6 @@ export default function Dashboard() {
     }
   };
 
-  // Handle onboarding completion
-  const handleOnboardingCompleted = () => {
-    console.log('✅ [DASHBOARD] Onboarding completed');
-    // Set sessionStorage flag to prevent re-showing during navigation
-    sessionStorage.setItem('onboarding_completed_this_session', 'true');
-    setShowOnboarding(false);
-    setOnboardingChecked(true);
-  };
 
   // ============================================================================
   // ADMIN VIEW-AS MODE
@@ -559,14 +546,8 @@ export default function Dashboard() {
     );
   }
 
-  // Show onboarding questionnaire for individuals, clients, and therapists
-  if (showOnboarding) {
-    return <OnboardingQuestionnaire userId={userId} onComplete={handleOnboardingCompleted} />;
-  }
-
-  // Wait for onboarding check to complete before showing dashboard
-  const shouldShowOnboarding = userType === 'individual' || userType === 'client' || userType === 'therapist';
-  if (!onboardingChecked && !showOnboarding && shouldShowOnboarding) {
+  // Wait for assessment check to complete before showing dashboard
+  if (!assessmentChecked && !showAssessmentModal) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="text-center">
