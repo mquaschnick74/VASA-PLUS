@@ -184,6 +184,10 @@ partner_equity_vesting_schedule    # Equity vesting timeline
 - Privacy-focused data handling
 
 ## Recent Updates (Nov 2025)
+- **Assessment Schema Fix (Nov 12)**: Added missing `assessment_results` table to schema.ts
+  - Table existed in Supabase but wasn't in local schema definition
+  - Added all columns: profile_data, answers, encoded_profile, pattern_name, metaphor, register, status, source, questions_answered, questions_skipped, completion_time_seconds
+  - Fixes assessment hanging issue after deployment
 - **OnboardingQuestionnaire Removal (Nov 10)**: Replaced the internal 2-question onboarding (Your Voice/Your Journey) with the start.ivasa.ai assessment iframe
   - New user flow: Sign up → Consent → Assessment (start.ivasa.ai) → Dashboard
   - Removed OnboardingQuestionnaire component from flow

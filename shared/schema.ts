@@ -66,6 +66,8 @@ export const assessmentResults = pgTable("assessment_results", {
   status: varchar("status").default('completed'), // 'pending_email', 'completed', 'linked'
   source: varchar("source"), // 'iframe', 'dashboard_iframe'
   questions_answered: integer("questions_answered"), // Count of answered questions
+  questions_skipped: integer("questions_skipped"), // Count of skipped questions
+  completion_time_seconds: integer("completion_time_seconds"), // Time taken to complete
   linked_at: timestamp("linked_at", { withTimezone: true }), // When linked to user account
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
