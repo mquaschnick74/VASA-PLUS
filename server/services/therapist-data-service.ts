@@ -214,7 +214,21 @@ export class TherapistDataService {
     }
 
     if (!session) {
-      console.error(`❌ [THERAPIST-DATA] No session found for call_id=${callId}, user_id=${clientId}`);
+      console.log(`⚠️ [THERAPIST-DATA] No session found for call_id=${callId}, user_id=${clientId}`);
+
+      // Debug: Check if session exists with different user_id
+      const { data: anySession } = await supabase
+        .from('therapeutic_sessions')
+        .select('*')
+        .eq('call_id', callId)
+        .maybeSingle();
+
+      if (anySession) {
+        console.log(`⚠️ [THERAPIST-DATA] Session EXISTS but with different user_id: ${anySession.user_id} vs expected ${clientId}`);
+      } else {
+        console.log(`⚠️ [THERAPIST-DATA] No session exists at all for call_id=${callId}`);
+      }
+
       throw new Error('Session not found');
     }
 
