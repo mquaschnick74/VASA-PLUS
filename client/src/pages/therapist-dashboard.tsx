@@ -4,12 +4,20 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import SubscriptionStatus from "@/components/SubscriptionStatus";
 import VoiceInterface from "@/components/voice-interface";
+import PCAMasterAnalyst from "@/components/PCAMasterAnalyst";
 import { supabase } from "@/lib/supabaseClient";
 import { handleLogout } from "@/lib/auth-helpers";
 import { useSubscription } from "@/hooks/use-subscription";
-import { Users, Clock, TrendingUp, UserPlus, HelpCircle } from "lucide-react";
+import { Users, Clock, TrendingUp, UserPlus, HelpCircle, Brain } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/shared/Header";
@@ -50,6 +58,8 @@ export default function TherapistDashboard({
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedClientForAnalysis, setSelectedClientForAnalysis] = useState<ClientData | null>(null);
+  const [clientAnalysisStatus, setClientAnalysisStatus] = useState<Record<string, boolean>>({});
   const mountedRef = useRef(true);
   const loadAttemptRef = useRef(0);
   const [, setLocation] = useLocation();
@@ -69,6 +79,18 @@ export default function TherapistDashboard({
       mountedRef.current = false;
     };
   }, [userId]);
+
+  const handleAnalysisDialogClose = () => {
+    // When closing the analysis dialog, mark this client as having been analyzed
+    // (user either ran analysis or viewed existing one)
+    if (selectedClientForAnalysis) {
+      setClientAnalysisStatus(prev => ({
+        ...prev,
+        [selectedClientForAnalysis.id]: true
+      }));
+    }
+    setSelectedClientForAnalysis(null);
+  };
 
   const loadDashboardData = async () => {
     loadAttemptRef.current++;
@@ -657,43 +679,66 @@ export default function TherapistDashboard({
                     className="p-4 rounded-lg glass-subtle border border-white/10"
                     data-testid={`card-client-${client.id}`}
                   >
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                      <div 
-                        className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
-                      >
-                        <p className="font-medium">{client.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{client.email}</p>
-                        {client.last_session && (
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div
+                          className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
+                        >
+                          <p className="font-medium">{client.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{client.email}</p>
+                          {client.last_session && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Last session: {new Date(client.last_session).toLocaleDateString()}
+                            </p>
+                          )}
                           <p className="text-xs text-muted-foreground mt-1">
-                            Last session: {new Date(client.last_session).toLocaleDateString()}
+                            {client.total_sessions} sessions • {client.total_minutes} minutes
                           </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {client.total_sessions} sessions • {client.total_minutes} minutes
-                        </p>
+                        </div>
+
+                        {/* Time Limit Control */}
+                        <div className="flex items-center gap-2 min-w-[200px]">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">
+                            Session limit:
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            defaultValue={Math.floor(client.session_duration_limit / 60)}
+                            className="w-16 px-2 py-1 text-sm rounded bg-white/5 border border-white/10"
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              const minutes = parseInt(e.target.value);
+                              if (minutes >= 1 && minutes <= 120) {
+                                updateClientTimeLimit(client.id, minutes);
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-muted-foreground">min</span>
+                        </div>
                       </div>
 
-                      {/* Time Limit Control */}
-                      <div className="flex items-center gap-2 min-w-[200px]">
-                        <label className="text-xs text-muted-foreground whitespace-nowrap">
-                          Session limit:
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="120"
-                          defaultValue={Math.floor(client.session_duration_limit / 60)}
-                          className="w-16 px-2 py-1 text-sm rounded bg-white/5 border border-white/10"
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            const minutes = parseInt(e.target.value);
-                            if (minutes >= 1 && minutes <= 120) {
-                              updateClientTimeLimit(client.id, minutes);
-                            }
-                          }}
-                        />
-                        <span className="text-xs text-muted-foreground">min</span>
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedClientForAnalysis(client)}
+                          className="flex items-center gap-2"
+                        >
+                          <Brain className="h-4 w-4" />
+                          {clientAnalysisStatus[client.id] ? "View Analysis" : "Run Analysis"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
+                          className="flex items-center gap-2"
+                        >
+                          View Sessions
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -712,6 +757,31 @@ export default function TherapistDashboard({
           />
         </div>
       </div>
+
+      {/* PCA Master Analysis Dialog */}
+      <Dialog
+        open={selectedClientForAnalysis !== null}
+        onOpenChange={(open) => {
+          if (!open) handleAnalysisDialogClose();
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              Clinical Analysis for {selectedClientForAnalysis?.full_name}
+            </DialogTitle>
+            <DialogDescription>
+              Viewing PsychoContextual Analysis for {selectedClientForAnalysis?.email}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedClientForAnalysis && (
+            <div className="mt-4">
+              <PCAMasterAnalyst userId={selectedClientForAnalysis.id} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -38,7 +38,7 @@ export class TherapistDataService {
   async logAccess(
     therapistId: string,
     clientId: string,
-    accessType: 'session_list' | 'session_summary' | 'session_transcript',
+    accessType: 'session_list' | 'session_summary' | 'session_transcript' | 'pca_analysis',
     sessionId?: string,
     ipAddress?: string,
     userAgent?: string
@@ -58,6 +58,8 @@ export class TherapistDataService {
   }
 
   async getClientSessions(clientId: string): Promise<{ sessions: SessionData[]; total_sessions: number; total_minutes: number }> {
+    console.log(`📊 [THERAPIST-DATA] getClientSessions called for clientId=${clientId}`);
+
     // Query usage_sessions as the primary source of truth for what sessions actually occurred
     const { data: usageSessions, error: usageError } = await supabase
       .from('usage_sessions')
@@ -67,9 +69,13 @@ export class TherapistDataService {
 
     if (usageError) throw new Error('Failed to fetch sessions');
 
+    console.log(`📊 [THERAPIST-DATA] Found ${usageSessions?.length || 0} usage sessions`);
+
     // For each usage session, get the therapeutic_session details if available
     const sessionsWithMetadata = await Promise.all(
-      (usageSessions || []).map(async (usageSession) => {
+      (usageSessions || []).map(async (usageSession, index) => {
+        console.log(`  📝 [THERAPIST-DATA] Processing session ${index + 1}: vapi_call_id=${usageSession.vapi_call_id}`);
+
         // Try to find the corresponding therapeutic_session by vapi_call_id
         const { data: therapeuticSession } = await supabase
           .from('therapeutic_sessions')
@@ -77,12 +83,17 @@ export class TherapistDataService {
           .eq('call_id', usageSession.vapi_call_id)
           .maybeSingle();
 
-        // Check for transcript
+        console.log(`    ${therapeuticSession ? '✅' : '⚠️'} [THERAPIST-DATA] Therapeutic session ${therapeuticSession ? 'found' : 'NOT found'} for call_id=${usageSession.vapi_call_id}`);
+
+        // Check for transcript (must have role='complete' to be viewable)
         const { data: transcript } = await supabase
           .from('session_transcripts')
           .select('id')
           .eq('call_id', usageSession.vapi_call_id)
+          .eq('role', 'complete')
           .maybeSingle();
+
+        console.log(`    ${transcript ? '✅' : '⚠️'} [THERAPIST-DATA] Transcript ${transcript ? 'found' : 'NOT found'}`);
 
         // Check for summary
         const { data: summary } = await supabase
@@ -92,8 +103,10 @@ export class TherapistDataService {
           .eq('context_type', 'call_summary')
           .maybeSingle();
 
+        console.log(`    ${summary ? '✅' : '⚠️'} [THERAPIST-DATA] Summary ${summary ? 'found' : 'NOT found'}`);
+
         return {
-          id: usageSession.id,
+          id: usageSession.vapi_call_id, // Use vapi_call_id as the common identifier across tables
           date: usageSession.session_date ? new Date(usageSession.session_date).toISOString().split('T')[0] : null,
           start_time: therapeuticSession?.start_time || usageSession.session_date,
           duration_minutes: usageSession.duration_minutes,
@@ -114,70 +127,120 @@ export class TherapistDataService {
     };
   }
 
-  async getSessionSummary(clientId: string, sessionId: string) {
-    const { data: session, error: sessionError } = await supabase
-      .from('therapeutic_sessions')
-      .select('*')
-      .eq('id', sessionId)
-      .eq('user_id', clientId)
-      .single();
+  async getSessionSummary(clientId: string, callId: string) {
+    // sessionId is now actually the vapi_call_id (common identifier across tables)
+    console.log(`📋 [THERAPIST-DATA] getSessionSummary called with clientId=${clientId}, callId=${callId}`);
 
-    if (sessionError || !session) {
-      throw new Error('Session not found');
-    }
-
+    // Fetch summary directly - it's stored in therapeutic_context indexed by call_id
     const { data: summaryData, error: summaryError } = await supabase
       .from('therapeutic_context')
       .select('*')
-      .eq('call_id', session.call_id)
+      .eq('call_id', callId)
       .eq('context_type', 'call_summary')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (summaryError || !summaryData) {
+    if (summaryError) {
+      console.error('❌ [THERAPIST-DATA] Error fetching summary:', summaryError);
       throw new Error('Summary not found');
     }
 
+    if (!summaryData) {
+      console.log(`⚠️ [THERAPIST-DATA] No summary found for call_id=${callId}`);
+      throw new Error('Summary not found');
+    }
+
+    console.log(`✅ [THERAPIST-DATA] Summary found, length=${summaryData.content?.length || 0} chars`);
+
+    // Try to get session metadata from therapeutic_sessions (may not exist for all sessions)
+    const { data: therapeuticSession } = await supabase
+      .from('therapeutic_sessions')
+      .select('*')
+      .eq('call_id', callId)
+      .maybeSingle();
+
+    // Fallback to usage_sessions for basic metadata if therapeutic_sessions doesn't have it
+    const { data: usageSession } = await supabase
+      .from('usage_sessions')
+      .select('*')
+      .eq('vapi_call_id', callId)
+      .eq('user_id', clientId)
+      .maybeSingle();
+
+    console.log(`📊 [THERAPIST-DATA] Session metadata - therapeutic: ${!!therapeuticSession}, usage: ${!!usageSession}`);
+
     return {
-      session_id: session.id,
-      date: session.start_time ? new Date(session.start_time).toISOString().split('T')[0] : null,
-      start_time: session.start_time,
-      duration_minutes: session.duration_seconds ? Math.ceil(session.duration_seconds / 60) : 0,
-      agent_name: session.agent_name || 'Unknown',
+      session_id: therapeuticSession?.id || callId,
+      date: therapeuticSession?.start_time
+        ? new Date(therapeuticSession.start_time).toISOString().split('T')[0]
+        : usageSession?.session_date
+          ? new Date(usageSession.session_date).toISOString().split('T')[0]
+          : null,
+      start_time: therapeuticSession?.start_time || usageSession?.session_date,
+      duration_minutes: therapeuticSession?.duration_seconds
+        ? Math.ceil(therapeuticSession.duration_seconds / 60)
+        : usageSession?.duration_minutes || 0,
+      agent_name: therapeuticSession?.agent_name || 'Unknown',
       summary: summaryData.content
     };
   }
 
-  async getSessionTranscript(clientId: string, sessionId: string) {
-    const { data: session, error: sessionError } = await supabase
-      .from('therapeutic_sessions')
-      .select('*')
-      .eq('id', sessionId)
-      .eq('user_id', clientId)
-      .single();
+  async getSessionTranscript(clientId: string, callId: string) {
+    // sessionId is now actually the vapi_call_id (common identifier across tables)
+    console.log(`📄 [THERAPIST-DATA] getSessionTranscript called with clientId=${clientId}, callId=${callId}`);
 
-    if (sessionError || !session) {
-      throw new Error('Session not found');
-    }
-
+    // Fetch transcript directly - it's stored in session_transcripts indexed by call_id
     const { data: transcriptData, error: transcriptError } = await supabase
       .from('session_transcripts')
       .select('*')
-      .eq('call_id', session.call_id)
-      .eq('role', 'complete')
-      .single();
+      .eq('call_id', callId)
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (transcriptError || !transcriptData) {
+    if (transcriptError) {
+      console.error('❌ [THERAPIST-DATA] Error fetching transcript:', transcriptError);
       throw new Error('Transcript not found');
     }
 
+    if (!transcriptData) {
+      console.log(`⚠️ [THERAPIST-DATA] No transcript found for call_id=${callId}`);
+      throw new Error('Transcript not found');
+    }
+
+    console.log(`✅ [THERAPIST-DATA] Transcript found, role=${transcriptData.role}, length=${transcriptData.text?.length || 0} chars`);
+
+    // Try to get session metadata from therapeutic_sessions (may not exist for all sessions)
+    const { data: therapeuticSession } = await supabase
+      .from('therapeutic_sessions')
+      .select('*')
+      .eq('call_id', callId)
+      .maybeSingle();
+
+    // Fallback to usage_sessions for basic metadata if therapeutic_sessions doesn't have it
+    const { data: usageSession } = await supabase
+      .from('usage_sessions')
+      .select('*')
+      .eq('vapi_call_id', callId)
+      .eq('user_id', clientId)
+      .maybeSingle();
+
+    console.log(`📊 [THERAPIST-DATA] Session metadata - therapeutic: ${!!therapeuticSession}, usage: ${!!usageSession}`);
+
     return {
-      session_id: session.id,
-      date: session.start_time ? new Date(session.start_time).toISOString().split('T')[0] : null,
-      start_time: session.start_time,
-      duration_minutes: session.duration_seconds ? Math.ceil(session.duration_seconds / 60) : 0,
-      agent_name: session.agent_name || 'Unknown',
+      session_id: therapeuticSession?.id || callId,
+      call_id: callId,
+      date: therapeuticSession?.start_time
+        ? new Date(therapeuticSession.start_time).toISOString().split('T')[0]
+        : usageSession?.session_date
+          ? new Date(usageSession.session_date).toISOString().split('T')[0]
+          : null,
+      start_time: therapeuticSession?.start_time || usageSession?.session_date,
+      duration_minutes: therapeuticSession?.duration_seconds
+        ? Math.ceil(therapeuticSession.duration_seconds / 60)
+        : usageSession?.duration_minutes || 0,
+      agent_name: therapeuticSession?.agent_name || 'Unknown',
       transcript: transcriptData.text,
       accessed_at: new Date().toISOString()
     };

@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabase } from '../services/supabase-service';
+import { therapistDataService } from '../services/therapist-data-service';
 
 const router = Router();
 
@@ -114,6 +115,16 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
       }
 
       console.log(`✅ Permission granted for therapist ${authUserProfile.id} to analyze client ${targetUserId}`);
+
+      // Log therapist access to client's PCA analysis
+      await therapistDataService.logAccess(
+        authUserProfile.id,
+        targetUserId,
+        'pca_analysis',
+        undefined,
+        req.ip || req.socket.remoteAddress,
+        req.headers['user-agent']
+      );
     } else {
       console.log(`✅ Self-analysis: user ${authUserProfile.id} analyzing own data`);
     }
@@ -227,35 +238,99 @@ router.get('/pca-master/:analysisId', requireAuth, async (req: AuthRequest, res)
 
 /**
  * GET /api/analysis/pca-master
- * Get all PCA analyses for authenticated user
+ * Get all PCA analyses for authenticated user or specified user (with permission)
  *
  * Query params:
+ *   - userId: string (optional) - User ID to fetch analyses for (therapist must have permission)
  *   - limit: number (default 10) - Maximum number of analyses to return
  */
 router.get('/pca-master', requireAuth, async (req: AuthRequest, res) => {
   try {
+    const authUserId = req.user?.id;  // Supabase auth ID
     const authUserEmail = req.user?.email;
-    if (!authUserEmail) {
+
+    if (!authUserId || !authUserEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    // Get user's profile ID using email
-    const { data: userProfile } = await supabase
+    // Get authenticated user's profile using email
+    const { data: authUserProfile } = await supabase
       .from('user_profiles')
-      .select('id')
+      .select('id, user_type, email')
       .eq('email', authUserEmail)
       .maybeSingle();
 
-    if (!userProfile) {
+    if (!authUserProfile) {
       return res.status(403).json({ error: 'User profile not found' });
+    }
+
+    // Get target userId from query params (for therapist viewing client data)
+    const targetUserId = (req.query.userId as string) || authUserProfile.id;
+
+    // If fetching analyses for a different user, verify permission
+    if (targetUserId !== authUserProfile.id) {
+      console.log(`🔐 Checking permission: user ${authUserProfile.id} (${authUserProfile.user_type}) → target ${targetUserId}`);
+
+      // Only therapists can fetch other users' analyses
+      if (authUserProfile.user_type !== 'therapist') {
+        return res.status(403).json({
+          error: 'Access denied',
+          message: 'Only therapists can view other users\' analyses'
+        });
+      }
+
+      let hasPermission = false;
+
+      // Method 1: Check therapist_client_relationships table
+      const { data: relationship } = await supabase
+        .from('therapist_client_relationships')
+        .select('id, status')
+        .eq('therapist_id', authUserProfile.id)
+        .eq('client_id', targetUserId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (relationship) {
+        hasPermission = true;
+      }
+
+      // Method 2: Fallback check - user_profiles.invited_by field
+      if (!hasPermission) {
+        const { data: clientProfile } = await supabase
+          .from('user_profiles')
+          .select('invited_by')
+          .eq('id', targetUserId)
+          .maybeSingle();
+
+        if (clientProfile?.invited_by === authUserProfile.id) {
+          hasPermission = true;
+        }
+      }
+
+      if (!hasPermission) {
+        return res.status(403).json({
+          error: 'Access denied',
+          message: 'You do not have permission to view this user\'s analyses'
+        });
+      }
+
+      // Log therapist access
+      await therapistDataService.logAccess(
+        authUserProfile.id,
+        targetUserId,
+        'pca_analysis',
+        undefined,
+        req.ip || req.socket.remoteAddress,
+        req.headers['user-agent']
+      );
     }
 
     const limit = parseInt(req.query.limit as string) || 10;
 
-    console.log(`📋 Fetching analyses for user ${userProfile.id} (limit: ${limit})`);
+    console.log(`📋 Fetching analyses for user ${targetUserId} (limit: ${limit})`);
 
     const service = await getPCAService();
-    const analyses = await service.getUserAnalyses(userProfile.id, limit);
+    const analyses = await service.getUserAnalyses(targetUserId, limit);
 
     res.json({
       success: true,
