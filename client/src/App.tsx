@@ -14,6 +14,7 @@ import FAQPage from '@/pages/faq';
 import { ClientSessionsView } from '@/components/therapist/ClientSessionsView';
 import BlogListPage from '@/pages/blog-list-page';
 import BlogPostPage from '@/pages/blog-post-page';
+import AssessmentEmbed from '@/pages/assessment-embed';
 
 function Router() {
   return (
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/therapist/client/:clientId/sessions" component={ClientSessionsView} />
       <Route path="/blog" component={BlogListPage} />
       <Route path="/blog/:slug" component={BlogPostPage} />
+      <Route path="/assessment" component={AssessmentEmbed} />
       {/* Catch-all route that redirects to dashboard */}
       <Route component={Dashboard} />
     </Switch>

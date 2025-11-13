@@ -1,7 +1,7 @@
 # VASA - Therapeutic Voice Assistant MVP
 
 ## Overview
-AI-powered therapeutic voice assistant with real-time CSS (Conversational State Sensing) pattern detection, multi-agent support, and persistent memory across sessions. Features role-based dashboards (Therapist/Client/Individual/Partner), subscription-based usage tracking, client invitation system, partner revenue tracking, and HIPAA-compliant audit logging. Glassmorphic UI with purple theming and mobile-responsive design.
+AI-powered therapeutic voice assistant with real-time CSS (Conversational State Sensing) pattern detection, multi-agent support, and persistent memory across sessions. Features role-based dashboards (Therapist/Client/Individual/Partner), subscription-based usage tracking, client invitation system, partner revenue tracking, and HIPAA-compliant audit logging. Glassmorphic UI with emerald green theming and mobile-responsive design. New users complete the start.ivasa.ai assessment (5-question Inner Landscape quiz) during onboarding.
 
 ## File Structure
 
@@ -183,7 +183,22 @@ partner_equity_vesting_schedule    # Equity vesting timeline
 - Mobile-responsive design priority
 - Privacy-focused data handling
 
-## Recent Updates (Oct 2025)
+## Recent Updates (Nov 2025)
+- **Assessment Schema Fix (Nov 12)**: Added missing `assessment_results` table to schema.ts
+  - Table existed in Supabase but wasn't in local schema definition
+  - Added all columns: profile_data, answers, encoded_profile, pattern_name, metaphor, register, status, source, questions_answered, questions_skipped, completion_time_seconds
+  - Fixes assessment hanging issue after deployment
+- **OnboardingQuestionnaire Removal (Nov 10)**: Replaced the internal 2-question onboarding (Your Voice/Your Journey) with the start.ivasa.ai assessment iframe
+  - New user flow: Sign up → Consent → Assessment (start.ivasa.ai) → Dashboard
+  - Removed OnboardingQuestionnaire component from flow
+  - Assessment is now the only onboarding step
+  - Users who completed assessment proceed directly to dashboard
+- **Logo Updates (Nov 9-10)**: 
+  - Moved iVASA_Heiti.png to landing page (above "Your Voice. Your Journey." titles)
+  - Header logo changed to apple-touch-icon.png (simple icon)
+  - Updated og-image.png with "Discover" section featuring emerald green button
+
+## Previous Updates (Oct 2025)
 - **Stripe Customer Portal (Oct 16)**: Integrated Stripe billing portal for subscription management
   - Smart button: "Upgrade Plan" for trial users, "Manage Subscription" for paid subscribers
   - Secure authentication-based access using requireAuth middleware

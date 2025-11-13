@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
+import { Resend } from 'resend';
 
 const router = Router();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface AssessmentData {
   encoded: string;
@@ -70,26 +72,20 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
       });
     }
 
-    // Email sending placeholder
-    // TODO: Integrate with your existing email service
-    // Example using Resend (if that's what you use):
-    /*
+    // Send assessment results via email
     if (process.env.RESEND_API_KEY) {
       try {
-        const { Resend } = require('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
-
         await resend.emails.send({
-          from: 'iVASA <noreply@ivasa.ai>',
+          from: 'iVASA Assessment <noreply@ivasa.ai>',
           to: email,
-          subject: 'Your iVASA Assessment Results',
+          subject: 'Your iVASA Inner Landscape Assessment Results',
           html: generateAssessmentEmail(assessmentData)
         });
+        console.log('✅ Assessment email sent to:', email);
       } catch (emailError) {
-        console.error('Email sending failed:', emailError);
+        console.error('⚠️ Email failed but assessment saved:', emailError);
       }
     }
-    */
 
     res.json({ 
       success: true, 
@@ -102,6 +98,74 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
     res.status(500).json({ 
       error: 'An unexpected error occurred',
       message: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/assessment/save
+ * Save assessment results for authenticated users
+ * This endpoint is for users completing the assessment while logged in
+ */
+router.post('/save', async (req: Request, res: Response) => {
+  try {
+    const { userId, email, assessmentData } = req.body as {
+      userId: string;
+      email: string;
+      assessmentData: AssessmentData;
+    };
+
+    if (!userId || !assessmentData) {
+      return res.status(400).json({
+        error: 'User ID and assessment data are required'
+      });
+    }
+
+    console.log('📋 Saving assessment for user:', userId);
+
+    const { supabase } = req.app.locals;
+
+    // Store assessment in database
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .insert({
+        user_id: userId,
+        email: email || null,
+        profile_data: assessmentData.profile,
+        answers: assessmentData.answers,
+        encoded_profile: assessmentData.encoded,
+        pattern_name: assessmentData.profile.pattern,
+        metaphor: assessmentData.profile.metaphor,
+        register: assessmentData.profile.register,
+        status: 'completed',
+        source: 'dashboard_iframe',
+        questions_answered: Object.keys(assessmentData.answers).length,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error saving assessment:', error);
+      return res.status(500).json({
+        error: 'Failed to save assessment results',
+        details: error.message
+      });
+    }
+
+    console.log('✅ Assessment saved successfully for user:', userId);
+
+    res.json({
+      success: true,
+      message: 'Assessment saved successfully',
+      assessmentId: data?.id
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error in save assessment:', error);
+    res.status(500).json({
+      error: 'An unexpected error occurred',
+      message: error.message
     });
   }
 });
