@@ -1,12 +1,12 @@
 // Location: client/src/components/PCAMasterAnalyst.tsx
 // PCA Master Analyst component for triggering and viewing analysis
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Brain, AlertCircle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Brain, AlertCircle, CheckCircle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 interface PCAMasterAnalystProps {
@@ -20,15 +20,72 @@ interface AnalysisResult {
   registerDominance: string;
   fullAnalysis?: string;
   therapeuticContext?: string;
+  created_at?: string;
 }
 
 export default function PCAMasterAnalyst({ userId }: PCAMasterAnalystProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [sessionCount, setSessionCount] = useState(3);
   const [error, setError] = useState<string | null>(null);
   const [showFullAnalysis, setShowFullAnalysis] = useState(false);
   const [showContext, setShowContext] = useState(false);
+
+  // Load existing analysis on mount
+  useEffect(() => {
+    loadExistingAnalysis();
+  }, [userId]);
+
+  const loadExistingAnalysis = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+
+      if (!token) {
+        console.log('No auth token available');
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch most recent analysis for this user
+      // Pass userId to support therapists viewing client analyses
+      const response = await fetch(`/api/analysis/pca-master?userId=${userId}&limit=1`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        console.log('No existing analysis found or error fetching');
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data && result.data.length > 0) {
+        const latestAnalysis = result.data[0];
+        setAnalysis({
+          analysisId: latestAnalysis.analysis_id,
+          currentCssStage: latestAnalysis.current_css_stage,
+          safetyAssessment: latestAnalysis.safety_assessment,
+          registerDominance: latestAnalysis.register_dominance,
+          fullAnalysis: latestAnalysis.full_analysis,
+          therapeuticContext: latestAnalysis.therapeutic_context,
+          created_at: latestAnalysis.created_at
+        });
+        console.log('✅ Loaded existing analysis:', latestAnalysis.analysis_id);
+      }
+    } catch (err: any) {
+      console.error('Error loading existing analysis:', err);
+      // Don't show error to user, just leave analysis as null
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const triggerAnalysis = async () => {
     setIsAnalyzing(true);
@@ -122,57 +179,81 @@ export default function PCAMasterAnalyst({ userId }: PCAMasterAnalystProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Analysis Controls */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Sessions to analyze:</label>
-              <select
-                value={sessionCount}
-                onChange={(e) => setSessionCount(Number(e.target.value))}
-                disabled={isAnalyzing}
-                className="border rounded px-3 py-1.5 bg-background text-sm"
-              >
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n} {n === 1 ? 'session' : 'sessions'}
-                  </option>
-                ))}
-              </select>
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">Loading analysis...</span>
             </div>
+          )}
 
-            <Button
-              onClick={triggerAnalysis}
-              disabled={isAnalyzing}
-              className="w-full sm:w-auto"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Brain className="mr-2 h-4 w-4" />
-                  Run Analysis
-                </>
+          {/* Content (only show when not loading) */}
+          {!isLoading && (
+            <>
+              {/* Analysis Controls */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Sessions to analyze:</label>
+                  <select
+                    value={sessionCount}
+                    onChange={(e) => setSessionCount(Number(e.target.value))}
+                    disabled={isAnalyzing}
+                    className="border rounded px-3 py-1.5 bg-background text-sm"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>
+                        {n} {n === 1 ? 'session' : 'sessions'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <Button
+                  onClick={triggerAnalysis}
+                  disabled={isAnalyzing}
+                  className="w-full sm:w-auto"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      {analysis ? (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Brain className="mr-2 h-4 w-4" />
+                      )}
+                      {analysis ? 'Run New Analysis' : 'Run Analysis'}
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Error Display */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            </>
           )}
 
           {/* Analysis Results */}
           {analysis && (
             <div className="mt-6 space-y-4">
-              <div className="flex items-center gap-2 text-green-600">
-                <CheckCircle className="h-5 w-5" />
-                <span className="font-medium">Analysis Complete</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="font-medium">Analysis Complete</span>
+                </div>
+                {analysis.created_at && (
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(analysis.created_at).toLocaleString()}
+                  </span>
+                )}
               </div>
 
               {/* Key Metrics */}
@@ -264,7 +345,7 @@ export default function PCAMasterAnalyst({ userId }: PCAMasterAnalystProps) {
           )}
 
           {/* Help Text */}
-          {!analysis && !error && (
+          {!isLoading && !analysis && !error && (
             <div className="text-sm text-muted-foreground">
               <p>
                 The PCA Master Analyst reviews your recent session transcripts and provides:
