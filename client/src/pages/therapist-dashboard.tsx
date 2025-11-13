@@ -59,6 +59,7 @@ export default function TherapistDashboard({
   const [profile, setProfile] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedClientForAnalysis, setSelectedClientForAnalysis] = useState<ClientData | null>(null);
+  const [clientAnalysisStatus, setClientAnalysisStatus] = useState<Record<string, boolean>>({});
   const mountedRef = useRef(true);
   const loadAttemptRef = useRef(0);
   const [, setLocation] = useLocation();
@@ -78,6 +79,18 @@ export default function TherapistDashboard({
       mountedRef.current = false;
     };
   }, [userId]);
+
+  const handleAnalysisDialogClose = () => {
+    // When closing the analysis dialog, mark this client as having been analyzed
+    // (user either ran analysis or viewed existing one)
+    if (selectedClientForAnalysis) {
+      setClientAnalysisStatus(prev => ({
+        ...prev,
+        [selectedClientForAnalysis.id]: true
+      }));
+    }
+    setSelectedClientForAnalysis(null);
+  };
 
   const loadDashboardData = async () => {
     loadAttemptRef.current++;
@@ -716,7 +729,7 @@ export default function TherapistDashboard({
                           className="flex items-center gap-2"
                         >
                           <Brain className="h-4 w-4" />
-                          View Analysis
+                          {clientAnalysisStatus[client.id] ? "View Analysis" : "Run Analysis"}
                         </Button>
                         <Button
                           variant="outline"
@@ -749,7 +762,7 @@ export default function TherapistDashboard({
       <Dialog
         open={selectedClientForAnalysis !== null}
         onOpenChange={(open) => {
-          if (!open) setSelectedClientForAnalysis(null);
+          if (!open) handleAnalysisDialogClose();
         }}
       >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
