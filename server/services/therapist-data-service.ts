@@ -77,11 +77,12 @@ export class TherapistDataService {
           .eq('call_id', usageSession.vapi_call_id)
           .maybeSingle();
 
-        // Check for transcript
+        // Check for transcript (must have role='complete' to be viewable)
         const { data: transcript } = await supabase
           .from('session_transcripts')
           .select('id')
           .eq('call_id', usageSession.vapi_call_id)
+          .eq('role', 'complete')
           .maybeSingle();
 
         // Check for summary
@@ -175,14 +176,36 @@ export class TherapistDataService {
       throw new Error('Session not found');
     }
 
-    const { data: transcriptData, error: transcriptError } = await supabase
+    // First try to get complete transcript
+    let { data: transcriptData, error: transcriptError } = await supabase
       .from('session_transcripts')
       .select('*')
       .eq('call_id', callId)
       .eq('role', 'complete')
       .maybeSingle();
 
-    if (transcriptError || !transcriptData) {
+    // If no complete transcript, try to get any transcript for this call
+    if (!transcriptData) {
+      console.log(`No 'complete' transcript found for call ${callId}, trying any role...`);
+      const result = await supabase
+        .from('session_transcripts')
+        .select('*')
+        .eq('call_id', callId)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      transcriptData = result.data;
+      transcriptError = result.error;
+    }
+
+    if (transcriptError) {
+      console.error('Error fetching transcript:', transcriptError);
+      throw new Error('Transcript not found');
+    }
+
+    if (!transcriptData) {
+      console.log(`No transcript data found for call ${callId}`);
       throw new Error('Transcript not found');
     }
 
