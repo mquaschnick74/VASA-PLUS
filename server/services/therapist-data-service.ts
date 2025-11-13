@@ -58,6 +58,8 @@ export class TherapistDataService {
   }
 
   async getClientSessions(clientId: string): Promise<{ sessions: SessionData[]; total_sessions: number; total_minutes: number }> {
+    console.log(`📊 [THERAPIST-DATA] getClientSessions called for clientId=${clientId}`);
+
     // Query usage_sessions as the primary source of truth for what sessions actually occurred
     const { data: usageSessions, error: usageError } = await supabase
       .from('usage_sessions')
@@ -67,15 +69,21 @@ export class TherapistDataService {
 
     if (usageError) throw new Error('Failed to fetch sessions');
 
+    console.log(`📊 [THERAPIST-DATA] Found ${usageSessions?.length || 0} usage sessions`);
+
     // For each usage session, get the therapeutic_session details if available
     const sessionsWithMetadata = await Promise.all(
-      (usageSessions || []).map(async (usageSession) => {
+      (usageSessions || []).map(async (usageSession, index) => {
+        console.log(`  📝 [THERAPIST-DATA] Processing session ${index + 1}: vapi_call_id=${usageSession.vapi_call_id}`);
+
         // Try to find the corresponding therapeutic_session by vapi_call_id
         const { data: therapeuticSession } = await supabase
           .from('therapeutic_sessions')
           .select('*')
           .eq('call_id', usageSession.vapi_call_id)
           .maybeSingle();
+
+        console.log(`    ${therapeuticSession ? '✅' : '⚠️'} [THERAPIST-DATA] Therapeutic session ${therapeuticSession ? 'found' : 'NOT found'} for call_id=${usageSession.vapi_call_id}`);
 
         // Check for transcript (must have role='complete' to be viewable)
         const { data: transcript } = await supabase
@@ -85,6 +93,8 @@ export class TherapistDataService {
           .eq('role', 'complete')
           .maybeSingle();
 
+        console.log(`    ${transcript ? '✅' : '⚠️'} [THERAPIST-DATA] Transcript ${transcript ? 'found' : 'NOT found'}`);
+
         // Check for summary
         const { data: summary } = await supabase
           .from('therapeutic_context')
@@ -92,6 +102,8 @@ export class TherapistDataService {
           .eq('call_id', usageSession.vapi_call_id)
           .eq('context_type', 'call_summary')
           .maybeSingle();
+
+        console.log(`    ${summary ? '✅' : '⚠️'} [THERAPIST-DATA] Summary ${summary ? 'found' : 'NOT found'}`);
 
         return {
           id: usageSession.vapi_call_id, // Use vapi_call_id as the common identifier across tables
@@ -117,6 +129,8 @@ export class TherapistDataService {
 
   async getSessionSummary(clientId: string, callId: string) {
     // sessionId is now actually the vapi_call_id (common identifier across tables)
+    console.log(`📋 [THERAPIST-DATA] getSessionSummary called with clientId=${clientId}, callId=${callId}`);
+
     // Verify session belongs to client
     const { data: session, error: sessionError } = await supabase
       .from('therapeutic_sessions')
@@ -126,13 +140,30 @@ export class TherapistDataService {
       .maybeSingle();
 
     if (sessionError) {
-      console.error('Error finding session:', sessionError);
+      console.error('❌ [THERAPIST-DATA] Error finding session:', sessionError);
       throw new Error('Session not found');
     }
 
     if (!session) {
+      console.log(`⚠️ [THERAPIST-DATA] No session found for call_id=${callId} and user_id=${clientId}`);
+
+      // Debug: Check if session exists with this call_id but different user_id
+      const { data: anySession } = await supabase
+        .from('therapeutic_sessions')
+        .select('*')
+        .eq('call_id', callId)
+        .maybeSingle();
+
+      if (anySession) {
+        console.log(`⚠️ [THERAPIST-DATA] Session exists but with different user_id: ${anySession.user_id} vs expected ${clientId}`);
+      } else {
+        console.log(`⚠️ [THERAPIST-DATA] No session exists at all for call_id=${callId}`);
+      }
+
       throw new Error('Session not found');
     }
+
+    console.log(`✅ [THERAPIST-DATA] Session found: ${session.id}`);
 
     const { data: summaryData, error: summaryError } = await supabase
       .from('therapeutic_context')
@@ -143,9 +174,17 @@ export class TherapistDataService {
       .limit(1)
       .maybeSingle();
 
-    if (summaryError || !summaryData) {
+    if (summaryError) {
+      console.error('❌ [THERAPIST-DATA] Error fetching summary:', summaryError);
       throw new Error('Summary not found');
     }
+
+    if (!summaryData) {
+      console.log(`⚠️ [THERAPIST-DATA] No summary found for call_id=${callId}`);
+      throw new Error('Summary not found');
+    }
+
+    console.log(`✅ [THERAPIST-DATA] Summary found, length=${summaryData.content?.length || 0} chars`);
 
     return {
       session_id: session.id,
