@@ -156,43 +156,14 @@ export default function Dashboard() {
             setUserEmail(profile.email);
             isSignedInRef.current = true;
 
-            // 🆕 STEP 1: Check for pending invitation FIRST (highest priority)
-            const pendingToken = localStorage.getItem('pendingInvitation');
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlToken = urlParams.get('token');
-            const invitationToken = urlToken || pendingToken;
-
-            if (invitationToken && !invitationChecked) {
-              console.log('🎫 [DASHBOARD] Found pending invitation, processing BEFORE any modals...');
-              await handlePendingInvitation(invitationToken);
-            } else {
-              console.log('✅ [DASHBOARD] No pending invitation or already processed');
-              setInvitationChecked(true);
-            }
-
-            // 🆕 STEP 2: CHECK FOR CONSENT (only after invitation is processed)
+            // ✅ ONLY store consent/assessment status here, don't show modals yet
+            // Modals will be handled in a separate useEffect after invitation is processed
             if (!profile.consent_accepted_at) {
-              console.log('⚠️ [DASHBOARD] Consent not yet accepted, showing popup');
-              setShowConsent(true);
+              console.log('⚠️ [DASHBOARD] Consent not yet accepted');
+              // Don't set showConsent here - will be handled in useEffect
             } else {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
-
-              // 🆕 STEP 3: Check if user has completed assessment (only after consent and invitation)
-              const { data: assessmentData } = await supabase
-                .from('assessment_results')
-                .select('id')
-                .eq('user_id', user.id)
-                .maybeSingle();
-
-              if (!assessmentData) {
-                console.log('📋 [DASHBOARD] No assessment found, showing assessment iframe');
-                setShowAssessmentModal(true);
-              } else {
-                // If assessment already completed, proceed to dashboard
-                console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
-                setAssessmentChecked(true);
-              }
             }
           }
         }
@@ -414,6 +385,67 @@ export default function Dashboard() {
 
     return () => clearInterval(checkInterval);
   }, [userId]);
+
+  // 🆕 NEW: Separate effect to handle invitation, consent, and assessment checks
+  // This runs AFTER userId is set and ensures proper sequential processing
+  useEffect(() => {
+    if (!userId) return;
+    if (invitationChecked) return; // Only run once
+
+    const processInvitationAndModals = async () => {
+      console.log('🔄 [DASHBOARD] Starting invitation/modal processing flow');
+
+      // STEP 1: Check for pending invitation FIRST
+      const pendingToken = localStorage.getItem('pendingInvitation');
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      const invitationToken = urlToken || pendingToken;
+
+      if (invitationToken) {
+        console.log('🎫 [DASHBOARD] Found pending invitation, processing FIRST...');
+        await handlePendingInvitation(invitationToken);
+      } else {
+        console.log('✅ [DASHBOARD] No pending invitation found');
+        setInvitationChecked(true);
+      }
+
+      // STEP 2: After invitation is processed, check consent
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('consent_accepted_at')
+        .eq('id', userId)
+        .single();
+
+      if (profile && !profile.consent_accepted_at) {
+        console.log('⚠️ [DASHBOARD] Consent not yet accepted, showing popup');
+        setShowConsent(true);
+        return; // Stop here, consent handler will check assessment
+      }
+
+      // If consent already accepted, mark it as checked
+      setConsentChecked(true);
+
+      // STEP 3: After consent check, check assessment
+      const { data: assessmentData } = await supabase
+        .from('assessment_results')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!assessmentData) {
+        console.log('📋 [DASHBOARD] No assessment found, showing assessment modal');
+        setShowAssessmentModal(true);
+      } else {
+        console.log('✅ [DASHBOARD] Assessment already completed');
+        setAssessmentChecked(true);
+      }
+    };
+
+    processInvitationAndModals().catch((error) => {
+      console.error('❌ [DASHBOARD] Error in invitation/modal processing:', error);
+      setInvitationChecked(true); // Allow proceeding even if error
+    });
+  }, [userId, invitationChecked]);
 
   // Handle consent acceptance
   const handleConsentAccepted = async () => {
