@@ -159,6 +159,8 @@ export class TherapistDataService {
 
   async getSessionTranscript(clientId: string, callId: string) {
     // sessionId is now actually the vapi_call_id (common identifier across tables)
+    console.log(`📄 [THERAPIST-DATA] getSessionTranscript called with clientId=${clientId}, callId=${callId}`);
+
     // Verify session belongs to client
     const { data: session, error: sessionError } = await supabase
       .from('therapeutic_sessions')
@@ -168,46 +170,52 @@ export class TherapistDataService {
       .maybeSingle();
 
     if (sessionError) {
-      console.error('Error finding session:', sessionError);
+      console.error('❌ [THERAPIST-DATA] Error finding session:', sessionError);
       throw new Error('Session not found');
     }
 
     if (!session) {
+      console.error(`❌ [THERAPIST-DATA] No session found for call_id=${callId}, user_id=${clientId}`);
       throw new Error('Session not found');
     }
 
-    // First try to get complete transcript
-    let { data: transcriptData, error: transcriptError } = await supabase
+    console.log(`✅ [THERAPIST-DATA] Session found: ${session.id}`);
+
+    // Try to get ANY transcript for this call (check without role filter first to debug)
+    const { data: transcriptData, error: transcriptError } = await supabase
       .from('session_transcripts')
       .select('*')
       .eq('call_id', callId)
-      .eq('role', 'complete')
+      .order('timestamp', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    // If no complete transcript, try to get any transcript for this call
+    if (transcriptError) {
+      console.error('❌ [THERAPIST-DATA] Error fetching transcript:', transcriptError);
+      throw new Error('Transcript not found');
+    }
+
     if (!transcriptData) {
-      console.log(`No 'complete' transcript found for call ${callId}, trying any role...`);
-      const result = await supabase
+      console.log(`❌ [THERAPIST-DATA] No transcript found for call ${callId}`);
+
+      // Debug: Check if transcript exists for different user_id
+      const { data: anyTranscript } = await supabase
         .from('session_transcripts')
         .select('*')
         .eq('call_id', callId)
-        .order('timestamp', { ascending: false })
-        .limit(1)
         .maybeSingle();
 
-      transcriptData = result.data;
-      transcriptError = result.error;
-    }
+      if (anyTranscript) {
+        console.log(`⚠️ [THERAPIST-DATA] Transcript exists but with different user_id: ${anyTranscript.user_id} vs expected ${clientId}`);
+      } else {
+        console.log(`⚠️ [THERAPIST-DATA] No transcript exists at all for call_id=${callId}`);
+      }
 
-    if (transcriptError) {
-      console.error('Error fetching transcript:', transcriptError);
       throw new Error('Transcript not found');
     }
 
-    if (!transcriptData) {
-      console.log(`No transcript data found for call ${callId}`);
-      throw new Error('Transcript not found');
-    }
+    console.log(`✅ [THERAPIST-DATA] Transcript found, role=${transcriptData.role}, length=${transcriptData.text?.length || 0} chars`);
+
 
     return {
       session_id: session.id,
