@@ -38,7 +38,7 @@ export class TherapistDataService {
   async logAccess(
     therapistId: string,
     clientId: string,
-    accessType: 'session_list' | 'session_summary' | 'session_transcript',
+    accessType: 'session_list' | 'session_summary' | 'session_transcript' | 'pca_analysis',
     sessionId?: string,
     ipAddress?: string,
     userAgent?: string

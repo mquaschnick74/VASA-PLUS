@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabase } from '../services/supabase-service';
+import { therapistDataService } from '../services/therapist-data-service';
 
 const router = Router();
 
@@ -114,6 +115,16 @@ router.post('/pca-master', requireAuth, async (req: AuthRequest, res) => {
       }
 
       console.log(`✅ Permission granted for therapist ${authUserProfile.id} to analyze client ${targetUserId}`);
+
+      // Log therapist access to client's PCA analysis
+      await therapistDataService.logAccess(
+        authUserProfile.id,
+        targetUserId,
+        'pca_analysis',
+        undefined,
+        req.ip || req.socket.remoteAddress,
+        req.headers['user-agent']
+      );
     } else {
       console.log(`✅ Self-analysis: user ${authUserProfile.id} analyzing own data`);
     }
