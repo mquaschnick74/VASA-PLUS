@@ -25,10 +25,60 @@ export default function Dashboard() {
   const [consentChecked, setConsentChecked] = useState(false);
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [assessmentChecked, setAssessmentChecked] = useState(false);
+  // 🆕 NEW: Track invitation acceptance status
+  const [invitationProcessing, setInvitationProcessing] = useState(false);
+  const [invitationChecked, setInvitationChecked] = useState(false);
   const authListenerRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
   const lastEventRef = useRef<string>('');
+
+  // 🆕 NEW: Handle invitation acceptance FIRST, before any modals
+  const handlePendingInvitation = async (token: string) => {
+    console.log('🎫 [DASHBOARD] Processing pending invitation...');
+    setInvitationProcessing(true);
+
+    try {
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!authToken) {
+        console.error('❌ [DASHBOARD] No auth token available for invitation');
+        setInvitationChecked(true);
+        setInvitationProcessing(false);
+        return false;
+      }
+
+      const response = await fetch('/api/therapist/accept-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ token })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ [DASHBOARD] Invitation accepted successfully:', result);
+        localStorage.removeItem('pendingInvitation');
+        setInvitationChecked(true);
+        setInvitationProcessing(false);
+        return true;
+      } else {
+        const errorData = await response.json();
+        console.error('❌ [DASHBOARD] Failed to accept invitation:', errorData);
+        setMessage(`Failed to accept invitation: ${errorData.error || 'Unknown error'}`);
+        setInvitationChecked(true);
+        setInvitationProcessing(false);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ [DASHBOARD] Error accepting invitation:', error);
+      setMessage('Error accepting invitation. Please contact your therapist.');
+      setInvitationChecked(true);
+      setInvitationProcessing(false);
+      return false;
+    }
+  };
 
   const ensureUserProfile = async (session: any) => {
     // Try to get current session first
@@ -106,7 +156,21 @@ export default function Dashboard() {
             setUserEmail(profile.email);
             isSignedInRef.current = true;
 
-            // CHECK FOR CONSENT - NEW CODE
+            // 🆕 STEP 1: Check for pending invitation FIRST (highest priority)
+            const pendingToken = localStorage.getItem('pendingInvitation');
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get('token');
+            const invitationToken = urlToken || pendingToken;
+
+            if (invitationToken && !invitationChecked) {
+              console.log('🎫 [DASHBOARD] Found pending invitation, processing BEFORE any modals...');
+              await handlePendingInvitation(invitationToken);
+            } else {
+              console.log('✅ [DASHBOARD] No pending invitation or already processed');
+              setInvitationChecked(true);
+            }
+
+            // 🆕 STEP 2: CHECK FOR CONSENT (only after invitation is processed)
             if (!profile.consent_accepted_at) {
               console.log('⚠️ [DASHBOARD] Consent not yet accepted, showing popup');
               setShowConsent(true);
@@ -114,7 +178,7 @@ export default function Dashboard() {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
 
-              // Check if user has completed assessment by querying assessment_results table
+              // 🆕 STEP 3: Check if user has completed assessment (only after consent and invitation)
               const { data: assessmentData } = await supabase
                 .from('assessment_results')
                 .select('id')
@@ -133,27 +197,7 @@ export default function Dashboard() {
           }
         }
 
-        // Check for pending invitation
-        const pendingToken = localStorage.getItem('pendingInvitation');
-        if (pendingToken) {
-          console.log('Processing pending invitation...');
-
-          const inviteResponse = await fetch('/api/therapist/accept-invitation', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ token: pendingToken })
-          });
-
-          if (inviteResponse.ok) {
-            console.log('✅ Invitation accepted successfully');
-            localStorage.removeItem('pendingInvitation');
-          } else {
-            console.error('Failed to accept invitation:', await inviteResponse.json());
-          }
-        }
+        // ✅ REMOVED OLD INVITATION CODE - Now handled earlier in the flow (lines 159-171)
 
         // Check for pending assessment data
         const pendingAssessment = localStorage.getItem('pendingAssessmentData');
@@ -514,12 +558,26 @@ export default function Dashboard() {
     return <Authentication setUserId={setUserId} />;
   }
 
-  // Show consent popup if not yet accepted
+  // 🆕 CRITICAL: Wait for invitation processing to complete BEFORE showing any modals
+  if (invitationProcessing || !invitationChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">
+            {invitationProcessing ? 'Accepting invitation...' : 'Checking for invitations...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show consent popup if not yet accepted (only after invitation is processed)
   if (showConsent) {
     return <ConsentPopup userId={userId} userEmail={userEmail} onConsentAccepted={handleConsentAccepted} />;
   }
 
-  // Show assessment iframe modal if not yet completed
+  // Show assessment iframe modal if not yet completed (only after consent and invitation)
   if (showAssessmentModal) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
