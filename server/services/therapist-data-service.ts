@@ -93,7 +93,7 @@ export class TherapistDataService {
           .maybeSingle();
 
         return {
-          id: usageSession.id,
+          id: usageSession.vapi_call_id, // Use vapi_call_id as the common identifier across tables
           date: usageSession.session_date ? new Date(usageSession.session_date).toISOString().split('T')[0] : null,
           start_time: therapeuticSession?.start_time || usageSession.session_date,
           duration_minutes: usageSession.duration_minutes,
@@ -114,26 +114,33 @@ export class TherapistDataService {
     };
   }
 
-  async getSessionSummary(clientId: string, sessionId: string) {
+  async getSessionSummary(clientId: string, callId: string) {
+    // sessionId is now actually the vapi_call_id (common identifier across tables)
+    // Verify session belongs to client
     const { data: session, error: sessionError } = await supabase
       .from('therapeutic_sessions')
       .select('*')
-      .eq('id', sessionId)
+      .eq('call_id', callId)
       .eq('user_id', clientId)
-      .single();
+      .maybeSingle();
 
-    if (sessionError || !session) {
+    if (sessionError) {
+      console.error('Error finding session:', sessionError);
+      throw new Error('Session not found');
+    }
+
+    if (!session) {
       throw new Error('Session not found');
     }
 
     const { data: summaryData, error: summaryError } = await supabase
       .from('therapeutic_context')
       .select('*')
-      .eq('call_id', session.call_id)
+      .eq('call_id', callId)
       .eq('context_type', 'call_summary')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (summaryError || !summaryData) {
       throw new Error('Summary not found');
@@ -149,24 +156,31 @@ export class TherapistDataService {
     };
   }
 
-  async getSessionTranscript(clientId: string, sessionId: string) {
+  async getSessionTranscript(clientId: string, callId: string) {
+    // sessionId is now actually the vapi_call_id (common identifier across tables)
+    // Verify session belongs to client
     const { data: session, error: sessionError } = await supabase
       .from('therapeutic_sessions')
       .select('*')
-      .eq('id', sessionId)
+      .eq('call_id', callId)
       .eq('user_id', clientId)
-      .single();
+      .maybeSingle();
 
-    if (sessionError || !session) {
+    if (sessionError) {
+      console.error('Error finding session:', sessionError);
+      throw new Error('Session not found');
+    }
+
+    if (!session) {
       throw new Error('Session not found');
     }
 
     const { data: transcriptData, error: transcriptError } = await supabase
       .from('session_transcripts')
       .select('*')
-      .eq('call_id', session.call_id)
+      .eq('call_id', callId)
       .eq('role', 'complete')
-      .single();
+      .maybeSingle();
 
     if (transcriptError || !transcriptData) {
       throw new Error('Transcript not found');
@@ -174,6 +188,7 @@ export class TherapistDataService {
 
     return {
       session_id: session.id,
+      call_id: callId,
       date: session.start_time ? new Date(session.start_time).toISOString().split('T')[0] : null,
       start_time: session.start_time,
       duration_minutes: session.duration_seconds ? Math.ceil(session.duration_seconds / 60) : 0,
