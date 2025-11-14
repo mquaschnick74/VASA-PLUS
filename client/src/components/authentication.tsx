@@ -144,40 +144,8 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     }
   };
 
-  // ============= NEW: Function to accept invitation after signup =============
-  const acceptInvitation = async (token: string, userId: string) => {
-    try {
-      console.log('Accepting invitation with token:', token.substring(0, 10) + '...');
-
-      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!authToken) {
-        console.error('No auth token available');
-        return false;
-      }
-
-      const response = await fetch('/api/therapist/accept-invitation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ token })
-      });
-
-      if (response.ok) {
-        console.log('✅ Invitation accepted successfully');
-        return true;
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to accept invitation:', errorData);
-        return false;
-      }
-    } catch (error) {
-      console.error('Error accepting invitation:', error);
-      return false;
-    }
-  };
-  // ===========================================================================
+  // ✅ REMOVED: acceptInvitation function - Now handled in Dashboard component
+  // This ensures invitation is accepted BEFORE any modals appear
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,16 +157,22 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     try {
       if (mode === 'signup') {
         // Create account with email verification
+        // Use environment variable for redirect URL to avoid Replit workspace redirect
+        const baseUrl = import.meta.env.VITE_SERVER_URL || window.location.origin;
+        const redirectUrl = `${baseUrl}/dashboard`;
+
+        console.log('📧 [AUTH] Email verification will redirect to:', redirectUrl);
+
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { 
+            data: {
               first_name: firstName || email.split('@')[0],
               needs_profile: true,
               user_type: userType
             },
-            emailRedirectTo: `${window.location.origin}/dashboard`
+            emailRedirectTo: redirectUrl
           }
         });
 
@@ -274,15 +248,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             setUserId(user.id);
             localStorage.setItem('userId', user.id);
 
-            // ============= NEW: Accept invitation if signing in from invitation link OR after signup =============
-            const storedToken = localStorage.getItem('pendingInvitation');
-            if (invitationToken || storedToken) {
-              const tokenToUse = (invitationToken || storedToken)!;
-              console.log('Sign-in completed, now accepting invitation...');
-              await acceptInvitation(tokenToUse, user.id);
-              localStorage.removeItem('pendingInvitation'); // Clear after use
+            // ✅ UPDATED: Just ensure invitation token is stored, Dashboard will handle acceptance
+            // This prevents the assessment modal from interrupting the invitation acceptance flow
+            if (invitationToken && !localStorage.getItem('pendingInvitation')) {
+              console.log('📝 [AUTH] Storing invitation token for Dashboard to process');
+              localStorage.setItem('pendingInvitation', invitationToken);
             }
-            // =====================================================================================================
+
+            console.log('✅ [AUTH] Sign-in complete, Dashboard will now handle invitation acceptance');
+            // Dashboard component will process the invitation BEFORE showing any modals
           } else {
             // If profile creation fails, redirect to dashboard anyway
             window.location.href = '/dashboard';
