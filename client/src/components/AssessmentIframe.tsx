@@ -32,22 +32,18 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
   const [iframeHeight, setIframeHeight] = useState(700);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [, setLocation] = useLocation(); // Fixed: useLocation returns [location, setLocation]
-  const { toast } = useToast(); // Fixed: destructure toast from hook
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
     console.log('[AssessmentIframe] Component mounted, dashboardMode:', dashboardMode);
 
-    // Add a timeout to show the iframe even if IFRAME_READY never arrives
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('[AssessmentIframe] Timeout waiting for IFRAME_READY, showing iframe anyway');
-        setIsLoading(false);
-      }
-    }, 5000); // 5 second timeout
+    // Show iframe quickly after a brief delay (perceived as instant but allows for smooth render)
+    const quickShowTimeout = setTimeout(() => {
+      setIsLoading(false);
+    }, 800); // Show after 800ms instead of waiting for IFRAME_READY
 
     const handleMessage = async (event: MessageEvent) => {
-      // Log ALL messages for debugging
       console.log('[AssessmentIframe] Received postMessage:', {
         origin: event.origin,
         data: event.data,
@@ -65,13 +61,8 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
       switch (event.data.type) {
         case 'IFRAME_READY':
           console.log('[AssessmentIframe] Quiz is ready!');
-          clearTimeout(timeout);
+          clearTimeout(quickShowTimeout);
           setIsLoading(false);
-          toast({
-            title: 'Assessment Ready',
-            description: 'You can now begin the assessment.',
-            duration: 2000,
-          });
           break;
 
         case 'RESIZE_IFRAME':
@@ -174,17 +165,43 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
     window.addEventListener('message', handleMessage);
 
     return () => {
-      clearTimeout(timeout);
+      clearTimeout(quickShowTimeout);
       window.removeEventListener('message', handleMessage);
       if (iframe) {
         iframe.removeEventListener('load', handleIframeLoad);
         iframe.removeEventListener('error', handleIframeError);
       }
     };
-  }, [setLocation, onComplete, toast, dashboardMode, isLoading]);
+  }, [setLocation, onComplete, toast, dashboardMode]);
 
   return (
-    <div className={className}>
+    <div className={className} style={{ position: 'relative' }}>
+      {/* Minimal loading overlay with fade out */}
+      {isLoading && !loadError && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 10,
+            animation: 'fadeOut 0.5s ease-out forwards',
+            animationDelay: '0.3s'
+          }}
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-white">Loading assessment...</p>
+          </div>
+        </div>
+      )}
+
       {loadError && (
         <Card className="p-8 text-center border-destructive">
           <div className="space-y-4">
@@ -200,19 +217,6 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
         </Card>
       )}
 
-      {isLoading && !loadError && (
-        <Card className="p-8 text-center">
-          <div className="space-y-4">
-            <div className="animate-pulse">
-              <div className="h-8 bg-muted rounded w-3/4 mx-auto mb-4"></div>
-              <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
-            </div>
-            <p className="text-muted-foreground">Loading assessment...</p>
-            <p className="text-xs text-muted-foreground mt-2">If this takes too long, the iframe will appear automatically</p>
-          </div>
-        </Card>
-      )}
-
       <iframe
         ref={iframeRef}
         src={dashboardMode ? "https://start.ivasa.ai?mode=dashboard" : "https://start.ivasa.ai"}
@@ -221,14 +225,27 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
           height: `${iframeHeight}px`,
           border: 'none',
           minHeight: '600px',
-          display: isLoading || loadError ? 'none' : 'block',
-          transition: 'height 0.3s ease',
+          display: loadError ? 'none' : 'block',
+          opacity: isLoading ? 0.3 : 1,
+          transition: 'opacity 0.5s ease-in-out, height 0.3s ease',
         }}
         sandbox="allow-scripts allow-same-origin allow-forms"
         title="iVASA Inner Landscape Assessment"
         onLoad={() => console.log('[AssessmentIframe] onLoad event fired')}
         onError={() => console.error('[AssessmentIframe] onError event fired')}
       />
+
+      <style>{`
+        @keyframes fadeOut {
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+            pointer-events: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }
