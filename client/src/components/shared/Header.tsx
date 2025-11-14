@@ -60,19 +60,6 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
               </Button>
             )}
 
-            {/* Assessment */}
-            <Button
-              variant="ghost"
-              className={`text-sm backdrop-filter backdrop-blur-md bg-transparent border transition-all ${
-                location === '/assessment'
-                  ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(0,208,98,0.3)]'
-                  : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10'
-              }`}
-              onClick={() => setLocation('/assessment')}
-            >
-              Assessment
-            </Button>
-
             {/* Learn More (Blog) */}
             <Button
               variant="ghost"
