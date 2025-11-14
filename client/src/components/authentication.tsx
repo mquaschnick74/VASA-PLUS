@@ -157,16 +157,22 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     try {
       if (mode === 'signup') {
         // Create account with email verification
+        // Use environment variable for redirect URL to avoid Replit workspace redirect
+        const baseUrl = import.meta.env.VITE_SERVER_URL || window.location.origin;
+        const redirectUrl = `${baseUrl}/dashboard`;
+
+        console.log('📧 [AUTH] Email verification will redirect to:', redirectUrl);
+
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { 
+            data: {
               first_name: firstName || email.split('@')[0],
               needs_profile: true,
               user_type: userType
             },
-            emailRedirectTo: `${window.location.origin}/dashboard`
+            emailRedirectTo: redirectUrl
           }
         });
 
