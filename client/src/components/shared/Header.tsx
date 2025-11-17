@@ -93,6 +93,16 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   <DropdownMenuSeparator className="bg-white/10" />
 
                   <DropdownMenuItem
+                    onClick={() => setLocation('/settings')}
+                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="bg-white/10" />
+
+                  <DropdownMenuItem
                     onClick={() => setLocation('/blog')}
                     className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
                   >
