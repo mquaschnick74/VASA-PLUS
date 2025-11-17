@@ -40,13 +40,28 @@ export default function Settings() {
         }
 
         const currentUserId = session.user.id;
-        setUserId(currentUserId);
 
-        // Fetch user type
+        // Fetch user's internal ID and type from user_profiles
+        // Note: session.user.id is the auth_user_id, we need the internal user ID
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', currentUserId)
+          .single();
+
+        if (userError || !userData) {
+          console.error('Error fetching user:', userError);
+          setLocation('/');
+          return;
+        }
+
+        setUserId(userData.id);
+
+        // Fetch user type using the internal user ID
         const { data: profileData, error: profileError } = await supabase
           .from('user_profiles')
           .select('user_type')
-          .eq('user_id', currentUserId)
+          .eq('id', userData.id)
           .single();
 
         if (profileError) {

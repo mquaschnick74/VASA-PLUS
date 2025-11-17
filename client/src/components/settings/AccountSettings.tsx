@@ -32,16 +32,28 @@ export default function AccountSettings({ userId, setUserId, userType }: Account
       if (!userId) return;
 
       try {
-        // Fetch user profile
+        // Get email from auth session
+        const { data: { session } } = await supabase.auth.getSession();
+        const userEmail = session?.user?.email;
+
+        // Fetch user profile (using 'id' not 'user_id')
         const { data: profileData, error: profileError } = await supabase
           .from('user_profiles')
           .select('*')
-          .eq('user_id', userId)
+          .eq('id', userId)
           .single();
 
-        if (profileError) throw profileError;
-
-        setProfile(profileData || {});
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          // Still try to set email from auth if profile fetch fails
+          setProfile({ email: userEmail });
+        } else {
+          // Merge profile data with email from auth (most reliable source)
+          setProfile({
+            ...profileData,
+            email: profileData?.email || userEmail
+          });
+        }
 
         // Fetch session count
         const { count, error: countError } = await supabase
@@ -49,7 +61,9 @@ export default function AccountSettings({ userId, setUserId, userType }: Account
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId);
 
-        if (countError) throw countError;
+        if (countError) {
+          console.error('Error fetching session count:', countError);
+        }
 
         setSessionCount(count || 0);
       } catch (error) {
