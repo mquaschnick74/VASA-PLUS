@@ -55,9 +55,9 @@ export default function AccountSettings({ userId, setUserId, userType }: Account
           });
         }
 
-        // Fetch session count
+        // Fetch session count from usage_sessions table
         const { count, error: countError } = await supabase
-          .from('sessions')
+          .from('usage_sessions')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId);
 
