@@ -616,7 +616,7 @@ export default function Dashboard() {
         <div className="relative w-full max-w-5xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-y-auto border border-emerald-400/30">
           <AssessmentIframe
             onComplete={handleAssessmentComplete}
-            className="h-full w-full"
+            className="w-full"
             dashboardMode={true}
           />
         </div>
