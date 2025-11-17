@@ -14,6 +14,7 @@ import { handleLogout } from '@/lib/auth-helpers';
 import { useSubscription } from '@/hooks/use-subscription';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 import { Link } from 'wouter';
+import Header from './shared/Header';
 
 interface VoiceInterfaceProps {
   userId: string;
@@ -862,61 +863,29 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
   return (
     <div className="min-h-screen gradient-bg">
-      {/* Navigation Header */}
-      <nav className="sticky top-0 z-50 glass-strong">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 sm:h-16">
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <div className="flex items-center space-x-1 sm:space-x-2">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full glass flex items-center justify-center p-1">
-                  <img 
-                    src={vasaLogo} 
-                    alt="iVASA Logo" 
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <span className="text-lg sm:text-xl font-semibold">iVASA</span>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <div className="hidden sm:block glass rounded-full px-3 sm:px-4 py-1 sm:py-2">
-                <span className="text-xs sm:text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
-              </div>
-              <DeleteAccount
-                userId={userId}
-                userEmail={userContext.profile?.email}
-                sessionCount={userContext.sessionCount}
-                onAccountDeleted={() => {
-                  console.log('🔓 Account deleted callback - using handleLogout...');
-                  // Use centralized logout with timeout protection
-                  handleLogout(setUserId);
-                }}
-              />
-              <Link href="/faq">
-                <Button 
-                  variant="outline"
-                  data-testid="button-faq"
-                >
-                  <HelpCircle className="w-4 h-4 mr-2" />
-                  FAQ
-                </Button>
-              </Link>
-              {!hideLogoutButton && (
-                <Button 
-                  onClick={handleSignOut}
-                  data-testid="button-signOut"
-                >
-                  Log Out
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      {/* Shared Navigation Header */}
+      <Header userId={userId} setUserId={setUserId} userType="individual" />
 
       {/* Main Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {/* Welcome & Account Management Bar */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:gap-4 glass rounded-lg p-3 sm:p-4">
+          <div className="glass rounded-full px-3 sm:px-4 py-1 sm:py-2">
+            <span className="text-xs sm:text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <DeleteAccount
+              userId={userId}
+              userEmail={userContext.profile?.email}
+              sessionCount={userContext.sessionCount}
+              onAccountDeleted={() => {
+                console.log('🔓 Account deleted callback - using handleLogout...');
+                // Use centralized logout with timeout protection
+                handleLogout(setUserId);
+              }}
+            />
+          </div>
+        </div>
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
 
           {/* Voice Assistant Interface - Main Column */}

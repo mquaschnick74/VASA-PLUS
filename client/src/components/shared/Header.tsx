@@ -5,6 +5,15 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { handleLogout } from '@/lib/auth-helpers';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import { Settings, BookOpen, DollarSign, HelpCircle, LogOut, User } from 'lucide-react';
 
 interface HeaderProps {
   userId?: string | null;
@@ -60,58 +69,69 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
               </Button>
             )}
 
-            {/* Learn More (Blog) */}
-            <Button
-              variant="ghost"
-              className={`text-sm backdrop-filter backdrop-blur-md bg-transparent border transition-all ${
-                location.startsWith('/blog')
-                  ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(0,208,98,0.3)]'
-                  : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10'
-              }`}
-              onClick={() => setLocation('/blog')}
-            >
-              Learn More
-            </Button>
-
-            {/* Pricing */}
-            <Button
-              variant="ghost"
-              className={`text-sm backdrop-filter backdrop-blur-md bg-transparent border transition-all ${
-                location === '/pricing' || location === '/public-pricing'
-                  ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(0,208,98,0.3)]'
-                  : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10'
-              }`}
-              onClick={() => setLocation(isLoggedIn ? "/pricing" : "/public-pricing")}
-            >
-              Pricing
-            </Button>
-
-            {/* FAQ */}
-            <Button
-              variant="ghost"
-              data-testid="button-faq"
-              className={`text-sm backdrop-filter backdrop-blur-md bg-transparent border transition-all ${
-                location === '/faq'
-                  ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(0,208,98,0.3)]'
-                  : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10'
-              }`}
-              onClick={() => setLocation('/faq')}
-            >
-              FAQ
-            </Button>
-
-            {/* Auth Buttons */}
+            {/* Settings Dropdown - Shown when logged in */}
             {isLoggedIn ? (
-              <Button
-                onClick={handleSignOut}
-                data-testid="button-signout"
-                variant="ghost"
-                className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all duration-200"
-                disabled={loggingOut}
-              >
-                {loggingOut ? 'Signing Out...' : 'Sign Out'}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                    data-testid="button-settings"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Menu
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 glass-strong border-white/10 backdrop-blur-xl"
+                >
+                  <DropdownMenuLabel className="text-emerald-500/80">
+                    <User className="h-4 w-4 inline mr-2" />
+                    {userType ? userType.charAt(0).toUpperCase() + userType.slice(1) : 'User'} Menu
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-white/10" />
+
+                  <DropdownMenuItem
+                    onClick={() => setLocation('/blog')}
+                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Learn More
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setLocation('/pricing')}
+                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Pricing
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setLocation('/faq')}
+                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                    data-testid="menu-item-faq"
+                  >
+                    <HelpCircle className="h-4 w-4 mr-2" />
+                    FAQ
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="bg-white/10" />
+
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    disabled={loggingOut}
+                    className="cursor-pointer hover:bg-red-500/10 focus:bg-red-500/10 text-red-400"
+                    data-testid="menu-item-signout"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    {loggingOut ? 'Signing Out...' : 'Sign Out'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : !hideSignInButton && (
+              /* Sign In Button - Shown when not logged in */
               <Button
                 variant="ghost"
                 className="text-sm backdrop-filter backdrop-blur-md bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-500/60 hover:bg-emerald-500/15 shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all"
