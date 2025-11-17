@@ -10,45 +10,61 @@ import SubscriptionSettings from '@/components/settings/SubscriptionSettings';
 import SupportSettings from '@/components/settings/SupportSettings';
 import { supabase } from '@/lib/supabaseClient';
 
-interface SettingsProps {
-  userId: string;
-  setUserId: (id: string | null) => void;
-}
-
-export default function Settings({ userId, setUserId }: SettingsProps) {
+export default function Settings() {
   const [, params] = useRoute('/settings/:section?');
   const [location, setLocation] = useLocation();
+  const [userId, setUserId] = useState<string | null>(null);
   const [userType, setUserType] = useState<string>('individual');
   const [loading, setLoading] = useState(true);
 
   // Get current section from URL or default to 'account'
   const currentSection = params?.section || 'account';
 
-  // Fetch user type
+  // Check authentication and fetch user data
   useEffect(() => {
-    const fetchUserType = async () => {
-      if (!userId) return;
-
+    const initializeAuth = async () => {
       try {
-        const { data, error } = await supabase
+        // Get current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          setLocation('/');
+          return;
+        }
+
+        if (!session) {
+          console.log('No session found, redirecting to login');
+          setLocation('/');
+          return;
+        }
+
+        const currentUserId = session.user.id;
+        setUserId(currentUserId);
+
+        // Fetch user type
+        const { data: profileData, error: profileError } = await supabase
           .from('user_profiles')
           .select('user_type')
-          .eq('user_id', userId)
+          .eq('user_id', currentUserId)
           .single();
 
-        if (error) throw error;
-
-        setUserType(data?.user_type || 'individual');
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+          setUserType('individual');
+        } else {
+          setUserType(profileData?.user_type || 'individual');
+        }
       } catch (error) {
-        console.error('Error fetching user type:', error);
-        setUserType('individual');
+        console.error('Error initializing settings:', error);
+        setLocation('/');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserType();
-  }, [userId]);
+    initializeAuth();
+  }, [setLocation]);
 
   // Define available sections based on user type
   const getSections = () => {
@@ -78,6 +94,8 @@ export default function Settings({ userId, setUserId }: SettingsProps) {
 
   // Render the appropriate section content
   const renderSection = () => {
+    if (!userId) return null;
+
     switch (currentSection) {
       case 'account':
         return <AccountSettings userId={userId} setUserId={setUserId} userType={userType} />;
@@ -90,7 +108,7 @@ export default function Settings({ userId, setUserId }: SettingsProps) {
     }
   };
 
-  if (loading) {
+  if (loading || !userId) {
     return (
       <div className="min-h-screen gradient-bg">
         <Header userId={userId} setUserId={setUserId} userType={userType} />
