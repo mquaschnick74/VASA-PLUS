@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { ArrowLeft, HelpCircle, Users, Briefcase, Settings, CreditCard, Wrench }
 import Header from '@/components/shared/Header';
 
 export default function FAQPage() {
+  const [, setLocation] = useLocation();
   const [activeCategory, setActiveCategory] = useState('general');
 
   const categories = [
@@ -189,6 +190,16 @@ export default function FAQPage() {
     <div className="min-h-screen gradient-bg">
       <Header showDashboardLink={true} />
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Back to Dashboard Button */}
+        <Button
+          onClick={() => setLocation('/dashboard')}
+          variant="ghost"
+          className="mb-6 text-purple-300 hover:text-white hover:bg-white/10"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Dashboard
+        </Button>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Frequently Asked Questions</h1>

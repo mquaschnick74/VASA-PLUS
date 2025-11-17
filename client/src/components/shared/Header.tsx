@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { Settings, BookOpen, DollarSign, HelpCircle, LogOut, User } from 'lucide-react';
+import { Settings, BookOpen, HelpCircle, LogOut, User } from 'lucide-react';
 
 interface HeaderProps {
   userId?: string | null;
@@ -108,14 +108,6 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   >
                     <BookOpen className="h-4 w-4 mr-2" />
                     Learn More
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={() => setLocation('/pricing')}
-                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
-                  >
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Pricing
                   </DropdownMenuItem>
 
                   <DropdownMenuItem
