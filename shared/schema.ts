@@ -837,3 +837,27 @@ export const pcaMasterAnalysis = pgTable("pca_master_analysis", {
 // PCA Master Analysis type
 export type PCAMasterAnalysis = typeof pcaMasterAnalysis.$inferSelect;
 export type InsertPCAMasterAnalysis = typeof pcaMasterAnalysis.$inferInsert;
+
+// ============================================================================
+// EMAIL PREFERENCES TABLE (for weekly recaps)
+// ============================================================================
+
+export const userEmailPreferences = pgTable("user_email_preferences", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Weekly recap settings
+  weekly_recap_enabled: boolean("weekly_recap_enabled").default(true),
+  preferred_meditation_voice: varchar("preferred_meditation_voice", { length: 20 }).default('sarah'),
+
+  // Tracking
+  last_recap_sent_at: timestamp("last_recap_sent_at", { withTimezone: true }),
+  meditation_rotation_state: jsonb("meditation_rotation_state")
+    .default(sql`'{"used": [], "available": ["campfire", "ocean", "singing_bowl"]}'`),
+
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type UserEmailPreferences = typeof userEmailPreferences.$inferSelect;
+export type InsertUserEmailPreferences = typeof userEmailPreferences.$inferInsert;

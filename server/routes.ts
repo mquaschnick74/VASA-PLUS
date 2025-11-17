@@ -14,6 +14,7 @@ import adminRoutes from './routes/admin-routes';
 import chatRoutes from './routes/chat-routes';  // NEW: Text-to-text chat
 import pcaAnalysisRoutes from './routes/pca-analysis-routes';  // NEW: PCA Master Analyst
 import assessmentRoutes from './routes/assessment-routes';  // NEW: Assessment integration
+import emailPreferencesRoutes from './routes/email-preferences-routes';
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 import stripeCheckoutRoutes from './routes/stripe-checkout';
@@ -41,6 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('✅ PCA analysis routes mounted at /api/analysis');
   apiRouter.use('/assessment', assessmentRoutes);  // NEW: Assessment integration
   console.log('✅ Assessment routes mounted at /api/assessment');
+  apiRouter.use('/email-preferences', emailPreferencesRoutes);
   apiRouter.use('/stripe/webhook', stripeWebhookRoutes);
   apiRouter.use('/stripe', stripeCheckoutRoutes);
   apiRouter.use('/blog', blogRoutes);
@@ -61,6 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         chat: 'Mounted at /api/chat',  // NEW: Text chat
         analysis: 'Mounted at /api/analysis',  // NEW: PCA Master Analyst
         assessment: 'Mounted at /api/assessment',  // NEW: Assessment integration
+        emailPreferences: 'Mounted at /api/email-preferences',
         health: 'Mounted at /api/health'
       }
     });

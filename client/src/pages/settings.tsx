@@ -8,6 +8,7 @@ import SettingsLayout from '@/components/settings/SettingsLayout';
 import AccountSettings from '@/components/settings/AccountSettings';
 import SubscriptionSettings from '@/components/settings/SubscriptionSettings';
 import SupportSettings from '@/components/settings/SupportSettings';
+import EmailPreferencesSettings from '@/components/settings/EmailPreferencesSettings';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function Settings() {
@@ -97,6 +98,13 @@ export default function Settings() {
       });
     }
 
+    // Add email preferences section for all users
+    baseSections.splice(baseSections.length - 1, 0, {
+      id: 'email-preferences',
+      label: 'Email Preferences',
+      icon: 'Mail'
+    });
+
     return baseSections;
   };
 
@@ -116,6 +124,8 @@ export default function Settings() {
         return <AccountSettings userId={userId} setUserId={setUserId} userType={userType} />;
       case 'subscription':
         return <SubscriptionSettings userId={userId} userType={userType} />;
+      case 'email-preferences':
+        return <EmailPreferencesSettings userId={userId} userType={userType} />;
       case 'support':
         return <SupportSettings userType={userType} />;
       default:
