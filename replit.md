@@ -1,257 +1,52 @@
-# VASA - Therapeutic Voice Assistant MVP
+# VASA - AI-Powered Therapeutic Voice Assistant
 
 ## Overview
-AI-powered therapeutic voice assistant with real-time CSS (Conversational State Sensing) pattern detection, multi-agent support, and persistent memory across sessions. Features role-based dashboards (Therapist/Client/Individual/Partner), subscription-based usage tracking, client invitation system, partner revenue tracking, and HIPAA-compliant audit logging. Glassmorphic UI with emerald green theming and mobile-responsive design. New users complete the start.ivasa.ai assessment (5-question Inner Landscape quiz) during onboarding.
-
-## File Structure
-
-```
-vasa-mvp/
-├── client/
-│   ├── public/
-│   │   ├── og-image.png              # Social media preview image
-│   │   ├── favicon.png               # Browser tab icon
-│   │   └── apple-touch-icon.png      # iOS home screen icon
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── ui/                   # shadcn/ui components
-│   │   │   ├── therapist/
-│   │   │   │   └── ClientSessionsView.tsx  # Client session details modal
-│   │   │   ├── voice-interface.tsx   # Main voice UI with call controls
-│   │   │   ├── AgentSelector.tsx     # Multi-agent selection UI
-│   │   │   ├── authentication.tsx    # Email auth component
-│   │   │   ├── DeleteAccount.tsx     # Account deletion UI
-│   │   │   ├── SubscriptionStatus.tsx # Usage tracking display
-│   │   │   └── AIDisclosureCard.tsx  # AI limitations dropdown
-│   │   ├── config/
-│   │   │   └── agent-configs.ts      # Sarah/Mathew agent definitions v3
-│   │   ├── hooks/
-│   │   │   ├── use-vapi.ts          # VAPI WebSocket management
-│   │   │   └── use-subscription.ts   # Subscription data fetching
-│   │   ├── pages/
-│   │   │   ├── dashboard.tsx         # Main routing page
-│   │   │   ├── therapist-dashboard.tsx  # Therapist view
-│   │   │   ├── client-dashboard.tsx  # Client view
-│   │   │   └── partner-dashboard.tsx # Partner revenue portal
-│   │   ├── lib/
-│   │   │   ├── queryClient.ts        # TanStack Query setup
-│   │   │   ├── auth-helpers.ts       # Centralized logout handling
-│   │   │   ├── supabaseClient.ts     # Supabase auth client
-│   │   │   └── utils.ts              # Utility functions
-│   │   ├── App.tsx                   # Root app component
-│   │   └── index.css                 # Tailwind + glassmorphic styles
-│   └── index.html                    # Entry HTML with SEO meta tags
-│
-├── server/
-│   ├── routes/
-│   │   ├── auth-routes.ts            # Authentication endpoints
-│   │   ├── therapist-routes.ts       # Therapist data access endpoints
-│   │   ├── partner-routes.ts         # Partner revenue & analytics endpoints
-│   │   ├── vapi-routes.ts            # VAPI configuration endpoints
-│   │   └── webhook-routes.ts         # VAPI webhook handler
-│   ├── services/
-│   │   ├── orchestration-service.ts  # Session & transcript management
-│   │   ├── therapist-data-service.ts # Client data access with audit logs
-│   │   ├── css-pattern-service.ts    # CSS stage detection (CVDC/IBM/Thend/CYVC)
-│   │   ├── memory-service.ts         # Context building & persistence
-│   │   ├── supabase-service.ts       # Database client
-│   │   └── auth-service.ts           # User authentication
-│   ├── middleware/
-│   │   └── auth.ts                   # requireAuth & authenticateToken
-│   ├── utils/
-│   │   └── parseAssistantOutput.ts   # Speak/meta tag parser
-│   ├── storage.ts                    # Storage interfaces
-│   ├── index.ts                      # Express server entry
-│   └── vite.ts                       # Vite dev server integration
-│
-├── shared/
-│   └── schema.ts                     # Drizzle ORM schemas
-│
-├── drizzle/
-│   └── migrations/                   # Database migrations
-│
-└── attached_assets/                  # User-uploaded assets
-```
-
-## Key Features
-
-### Role-Based Dashboards
-- **Therapist Dashboard**: Client management, invitation system, usage monitoring, own voice sessions
-- **Client Dashboard**: Therapist info, voice sessions using therapist's subscription
-- **Individual Dashboard**: Personal voice sessions with own subscription
-- **Partner Dashboard**: Revenue tracking, therapist attribution, equity management, referral analytics
-
-### Subscription System
-- **Usage Tracking**: Minutes used/remaining display with progress bars
-- **Tier-based Limits**: Trial (15 min), Plus (100 min), Pro (unlimited)
-- **Client Transparency**: Shows "used by ALL clients" for therapist subscription usage
-- **7-day free trial**: No credit card required promotional messaging
-- **Stripe Customer Portal**: Smart button that shows "Upgrade Plan" for trial users and "Manage Subscription" for paid subscribers
-  - Secure authentication-based access (requireAuth middleware)
-  - Opens Stripe portal in new tab for subscription management
-  - Users can update payment methods, view invoices, change plans, and cancel subscriptions
-
-### Client Invitation System
-- **Email Invitations**: Therapists can invite clients via email
-- **Token-based**: Secure invitation links with unique tokens
-- **Auto-acceptance**: Invitation processed after email verification
-- **Relationship Tracking**: therapist_client_relationships table
-
-### Therapist Data Access
-- **Session List**: View all client sessions with timestamps
-- **View Summary**: Modal showing conversational summary and session insights
-- **View Transcript**: Modal showing full conversation history
-- **HIPAA Audit Logging**: All data access logged to audit_logs table
-
-### Partner Portal
-- **Revenue Dashboard**: Track total revenue, partner share, and monthly recurring revenue
-- **Therapist Attribution**: Monitor attributed therapists, their usage, and revenue generation
-- **Tier System**: Bronze/Silver/Gold/Platinum progression based on MRR thresholds
-- **Equity Management**: Vested/unvested equity tracking with vesting schedules
-- **Referral Network**: Direct/indirect referral tracking with network bonuses
-- **Analytics**: Growth metrics, usage patterns, and session analytics with visualizations
-- **Transaction History**: Detailed revenue transaction logs with filtering
-- **Partnership Models**: Support for revenue share, equity, and hybrid partnerships
-
-### CSS Pattern Detection
-- **CVDC**: Contradiction detection between opposing desires
-- **IBM**: Intention-behavior mismatch patterns  
-- **Thend**: Therapeutic shift moments
-- **CYVC**: Choice/flexibility emergence
-- **Register Tracking**: Symbolic/Imaginary/Real dominance
-
-### Agent System v3
-- **Natural Voice**: Separated `<speak>` and `<meta>` tags
-- **Sarah**: Warm emotional support, feeling-first approach
-- **Mathew**: Analytical pattern recognition, intention-action gaps
-- **Crisis Module**: Grounding techniques for acute distress
-- **HSFB Process**: Hearing/Seeing/Feeling/Breathing (sparse use)
-
-### Session Management
-- **Two-tier cache**: ActiveSessions Map + CheckedSessions Set
-- **Race protection**: Promise-based initialization locks
-- **Auto-cleanup**: 30-minute stale session removal
-- **Duplicate prevention**: Transcript hash tracking
-
-### Database Schema
-```sql
-user_profiles                      # User accounts (therapist/client/individual/partner)
-therapist_client_relationships     # Therapist-client connections
-subscriptions                      # Subscription plans and limits
-therapeutic_sessions               # Voice session metadata
-therapeutic_context                # Persistent memory/insights
-session_transcripts                # Full conversation history (end-of-call only)
-css_patterns                       # Detected therapeutic patterns
-audit_logs                         # HIPAA-compliant access logs
-partner_organizations              # Partner organization details
-partner_users                      # Partner user access management
-partner_therapist_attribution      # Therapist-partner linkage & revenue tracking
-partner_revenue_transactions       # Detailed revenue transactions
-partner_metrics_snapshots          # Periodic metrics aggregation
-partner_equity_vesting_schedule    # Equity vesting timeline
-```
-
-## Architecture
-
-### Frontend
-- **React 18** + TypeScript + Vite
-- **shadcn/ui** + Radix UI primitives
-- **Tailwind CSS** with glassmorphic design
-- **TanStack Query** for data fetching
-- **wouter** for routing
-
-### Backend  
-- **Express.js** + TypeScript
-- **PostgreSQL** + Drizzle ORM
-- **Supabase** for database services
-- **VAPI** webhook integration
-
-### Voice Integration
-- **VAPI Platform** for voice processing
-- **WebSocket** connection management
-- **Real-time** transcript processing
-- **Memory context** injection
-
-### Authentication & Security
-- **Supabase Auth**: Email verification required
-- **requireAuth middleware**: Blocks unauthorized requests (401)
-- **Centralized logout**: handleLogout helper prevents localStorage issues
-- **HIPAA Audit Logging**: All therapist data access logged
+VASA (Variable Assessment Solution Agent) is an AI-powered therapeutic voice assistant platform designed to provide natural and effective voice therapy sessions. It features real-time Conversational State Sensing (CSS) pattern detection, multi-agent support, and persistent memory across sessions. The platform supports various user roles, including Therapists, Clients, Individuals, Partners, Influencers, and Admins, each with tailored dashboards and functionalities. Key capabilities include subscription management, client invitation systems, HIPAA-compliant audit logging, influencer commission tracking, a comprehensive blog, and advanced PsychoContextual Analysis (PCA) for deep therapeutic insights. The business vision is to revolutionize mental wellness support through accessible, AI-driven therapeutic conversations, expanding into broader markets by empowering both individual users and mental health professionals, and leveraging partnerships and influencer networks for growth.
 
 ## User Preferences
 - Simple, everyday language communication
 - Mobile-responsive design priority
 - Privacy-focused data handling
+- No emojis in communication unless explicitly requested
 
-## Recent Updates (Nov 2025)
-- **Assessment Schema Fix (Nov 12)**: Added missing `assessment_results` table to schema.ts
-  - Table existed in Supabase but wasn't in local schema definition
-  - Added all columns: profile_data, answers, encoded_profile, pattern_name, metaphor, register, status, source, questions_answered, questions_skipped, completion_time_seconds
-  - Fixes assessment hanging issue after deployment
-- **OnboardingQuestionnaire Removal (Nov 10)**: Replaced the internal 2-question onboarding (Your Voice/Your Journey) with the start.ivasa.ai assessment iframe
-  - New user flow: Sign up → Consent → Assessment (start.ivasa.ai) → Dashboard
-  - Removed OnboardingQuestionnaire component from flow
-  - Assessment is now the only onboarding step
-  - Users who completed assessment proceed directly to dashboard
-- **Logo Updates (Nov 9-10)**: 
-  - Moved iVASA_Heiti.png to landing page (above "Your Voice. Your Journey." titles)
-  - Header logo changed to apple-touch-icon.png (simple icon)
-  - Updated og-image.png with "Discover" section featuring emerald green button
+## System Architecture
 
-## Previous Updates (Oct 2025)
-- **Stripe Customer Portal (Oct 16)**: Integrated Stripe billing portal for subscription management
-  - Smart button: "Upgrade Plan" for trial users, "Manage Subscription" for paid subscribers
-  - Secure authentication-based access using requireAuth middleware
-  - Users can update payment methods, view invoices, change plans, and cancel subscriptions
-  - Opens portal in new tab with automatic return to dashboard
-- **Invitation System Fix (Oct 8)**: Fixed silent failure when inviting existing clients
-  - Now creates `therapist_invitations` record for both new AND existing clients
-  - Fixed missing `updated_at` column causing silent database trigger failures
-  - Pending invitations now appear correctly in therapist dashboard
-  - Proper rollback on email sending failures for data integrity
-- **Partner Portal**: Full revenue tracking and analytics dashboard
-  - Revenue/equity/therapist/referral management tabs
-  - Tier progression system (Bronze → Silver → Gold → Platinum)
-  - Transaction history with filtering and pagination
-  - Growth analytics with visualizations (charts/graphs)
-  - Therapist attribution and performance tracking
-  - Vesting schedule management for equity partners
-- **Role-Based System**: Therapist/client/individual/partner dashboards with full functionality
-- **Subscription Management**: Usage tracking, tier-based limits, transparent client usage display
-- **Client Invitation**: Email-based invitation system with secure token handling
-- **Therapist Data Access**: View client sessions, summaries, and transcripts with audit logging
-- **Mobile Responsiveness**: Comprehensive mobile-first design
-  - Authentication page: Centered content, responsive text, flexible padding
-  - Dashboard headers: Stacked buttons on mobile, responsive text sizes
-  - Promotional text: "7 day free trial, No credit card required"
-- **Branding Assets**: og-image.png, favicon.png, apple-touch-icon.png
-- **Logout Bug Fix**: Fixed partner-dashboard.tsx logout button (removed localStorage.clear() calls)
-- **Auth Improvements**: requireAuth middleware returns 401 for unauthorized requests
-- Natural voice configuration (v3) with speak/meta separation
-- AI disclosure card with crisis hotline info
-- Efficient transcript storage (end-of-call only)
-- CSS pattern detection with flexible regex patterns
+### UI/UX Decisions
+The frontend is built with React 18, TypeScript, and Vite, utilizing `shadcn/ui` and Radix UI for components. Styling is managed with Tailwind CSS, featuring a glassmorphic design theme with an emerald green accent. The design prioritizes a clean, modern aesthetic with a focus on user experience across various roles.
 
-## Important Implementation Notes
+### Technical Implementations
+- **Frontend:** React 18, TypeScript, Vite, TanStack Query v5 for server state, wouter for routing, react-hook-form with zodResolver for forms, lucide-react and react-icons for iconography, and `@vapi-ai/web` SDK for voice interface.
+- **Backend:** Node.js with Express.js, TypeScript, PostgreSQL (Neon-backed via Replit/Supabase), Drizzle ORM, Supabase Auth, VAPI for voice processing webhooks, OpenAI GPT-4o for AI models, Resend API for transactional emails, and Stripe for payments.
+- **Development:** Vite for frontend build, esbuild for backend, npm for package management, TypeScript 5.6.3 for type checking, and Drizzle Kit for database migrations.
 
-### Logout Pattern
-- **NEVER** call `localStorage.clear()` or `sessionStorage.clear()` while components are mounted
-- Always use `handleLogout()` from `@/lib/auth-helpers` which only calls `supabase.auth.signOut()`
-- This prevents React event handlers from breaking
+### Feature Specifications
+- **Voice Therapy Sessions:** Real-time voice processing via VAPI, natural conversation flow using `<speak>` and `<meta>` tags, persistent session memory through CSS pattern tracking, and support for four specialized therapeutic agents (Sarah, Mathew, Marcus, Zhanna). Includes a crisis module for acute distress.
+- **CSS Pattern Detection:** Real-time detection of therapeutic patterns like Contradiction (CVDC), Intention-Behavior Mismatch (IBM), Therapeutic Shift (Thend), Choice/Contextual Variation (CYVC), and Register Tracking, progressing through defined CSS stages.
+- **Role-Based Dashboards:** Specialized dashboards for Individual, Therapist, Client, Partner, Influencer, and Admin roles, each providing tailored features and data access.
+- **Subscription System:** Tiered subscriptions (Trial, Plus, Pro, Premium) with real-time usage tracking, progress bars, and integration with Stripe for secure checkout, webhooks, and customer portal management.
+- **Client Invitation System:** Therapists can invite clients via email using secure, expiring tokens, facilitating the creation of `therapist_client_relationships`.
+- **Assessment & Onboarding:** Integration with `start.ivasa.ai` for a 5-question "Inner Landscape Assessment" embedded into the user flow, capturing profile data and insights.
+- **Therapist Data Access (HIPAA-Compliant):** Therapists can view client session lists, summaries, and full transcripts, with all access being logged to `therapist_access_logs` for audit purposes.
+- **Partner Program:** Supports various partnership models (revenue share, equity), tracks revenue, manages therapist attribution, and includes a tiered system and referral network.
+- **Influencer Program:** Tracks content performance, clicks, conversions, and manages commissions (default 15%), promo codes, and a multi-level referral network.
+- **Blog System:** Publicly accessible blog with SEO optimization, and an admin interface for managing posts (create, edit, publish, draft).
+- **PCA Master Analyst:** An AI-powered deep analysis of therapeutic sessions using OpenAI's GPT-4o-mini model, applying Pure Contextual Perception (PCP) theory and PsychoContextual Analysis (PCA) methodology to generate clinical assessments and condensed agent contexts.
+- **FAQ System:** Categorized FAQ section for general, therapist, client, settings, billing, and technical support queries.
+- **Settings Pages:** Consolidated user settings for account management, subscription & billing, and support.
+- **Memory & Context System:** Utilizes a two-tier cache (`activeSessions` Map, `checkedSessions` Set) for session state and context persistence, with race protection and auto-cleanup mechanisms. Context is built from recent sessions, CSS patterns, and therapeutic insights to generate memory prompts for the AI agent.
+- **Authentication & Authorization:** Supabase Auth for email verification, with `requireAuth` middleware for blocking unauthorized requests and `authenticateToken` for attaching user information. Features HIPAA audit logging and role-based route protection.
 
-### Routing
-- Uses **wouter** (NOT react-router-dom)
-- Use `useLocation`/`setLocation` instead of `useNavigate`
+### System Design Choices
+- **Microservice-like structure:** Backend services are logically separated (e.g., `orchestration-service`, `memory-service`, `css-pattern-service`).
+- **ORM:** Drizzle ORM is chosen for type-safe database interactions and schema management.
+- **Real-time capabilities:** VAPI integration for voice and WebSocket management via `use-vapi` hook for dynamic interactions.
+- **Scalability:** Supabase for authentication and PostgreSQL/Neon for database provide a scalable foundation.
+- **Security:** Focus on HIPAA compliance for therapist data access, secure token handling for invitations, and robust authentication middleware.
 
-### Authentication
-- **requireAuth middleware**: Blocks unauthorized requests (401 response)
-- **authenticateToken**: Does NOT block, just attaches user info
-
-### Display Summaries
-- `buildUserDisplayContext` excludes `call_summary`
-- Only shows `conversational_summary` and `session_insight` on client/individual dashboards
-- Full access for therapists via therapist-routes
-
-### Database Operations
-- Use `npm run db:push` for schema changes (never manual SQL migrations)
-- Use `npm run db:push --force` if data-loss warning appears
+## External Dependencies
+- **Supabase:** Authentication (Auth) and Database (PostgreSQL) services.
+- **VAPI:** Real-time voice processing and webhook handling.
+- **OpenAI:** AI models (GPT-4o, GPT-4o-mini) for therapeutic agents and PCA analysis.
+- **Stripe:** Subscription management, payment processing, webhooks, and customer portal.
+- **Resend:** Transactional email sending.
+- **start.ivasa.ai:** External platform for the "Inner Landscape Assessment" integrated via iframe.
