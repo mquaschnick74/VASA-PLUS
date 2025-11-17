@@ -11,6 +11,7 @@ import PublicPricing from '@/pages/public-pricing';
 import PaymentSuccess from '@/pages/payment-success';
 import PaymentCancel from '@/pages/payment-cancel';
 import FAQPage from '@/pages/faq';
+import Settings from '@/pages/settings';
 import { ClientSessionsView } from '@/components/therapist/ClientSessionsView';
 import BlogListPage from '@/pages/blog-list-page';
 import BlogPostPage from '@/pages/blog-post-page';
@@ -21,6 +22,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/settings" component={Settings} />
+      <Route path="/settings/:section" component={Settings} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/public-pricing" component={PublicPricing} />
