@@ -113,6 +113,7 @@
     const [showInfluencerForm, setShowInfluencerForm] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [blogSubmitting, setBlogSubmitting] = useState(false);
+    const [sessionToken, setSessionToken] = useState<string | null>(null);
 
     // Add mounted ref to prevent state updates after unmount
     const mountedRef = useRef(true);
@@ -147,6 +148,9 @@
       }
 
       const token = session.access_token;
+
+      // Store token in state for form submissions
+      setSessionToken(token);
 
       try {
         switch (activeTab) {
@@ -431,21 +435,11 @@
       setBlogSubmitting(true);
 
       try {
-        // Get session - should be fast now without re-render blocking
-        console.log('📝 [BLOG-CREATE] Getting session');
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        // Use stored session token instead of calling getSession()
+        console.log('📝 [BLOG-CREATE] Using stored session token');
 
-        console.log('📝 [BLOG-CREATE] Session retrieved:', !!sessionData?.session);
-
-        if (sessionError) {
-          console.error('❌ [BLOG-CREATE] Session error:', sessionError);
-          throw new Error(`Session error: ${sessionError.message}`);
-        }
-
-        const session = sessionData?.session;
-
-        if (!session?.access_token) {
-          console.log('❌ [BLOG-CREATE] No session or access token, aborting');
+        if (!sessionToken) {
+          console.log('❌ [BLOG-CREATE] No session token available, aborting');
           alert('Session expired. Please refresh the page and try again.');
           return;
         }
@@ -460,7 +454,7 @@
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${sessionToken}`,
           },
           body: JSON.stringify({
             title: formData.get("title"),
@@ -559,21 +553,11 @@
       setBlogSubmitting(true);
 
       try {
-        // Get session - should be fast now without re-render blocking
-        console.log('🔄 [BLOG-UPDATE] Getting session');
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        // Use stored session token instead of calling getSession()
+        console.log('🔄 [BLOG-UPDATE] Using stored session token');
 
-        console.log('🔄 [BLOG-UPDATE] Session retrieved:', !!sessionData?.session);
-
-        if (sessionError) {
-          console.error('❌ [BLOG-UPDATE] Session error:', sessionError);
-          throw new Error(`Session error: ${sessionError.message}`);
-        }
-
-        const session = sessionData?.session;
-
-        if (!session?.access_token || !editingBlogPost) {
-          console.log('❌ [BLOG-UPDATE] No session/token or editingBlogPost, aborting');
+        if (!sessionToken || !editingBlogPost) {
+          console.log('❌ [BLOG-UPDATE] No session token or editingBlogPost, aborting');
           alert('Session expired. Please refresh the page and try again.');
           return;
         }
@@ -588,7 +572,7 @@
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${sessionToken}`,
           },
           body: JSON.stringify({
             title: formData.get("title"),
