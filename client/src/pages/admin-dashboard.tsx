@@ -418,12 +418,10 @@
       const form = e.currentTarget;
       console.log('📝 [BLOG-CREATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
 
-      console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
-      setBlogSubmitting(true);
-
       try {
-        // Get session token
-        console.log('📝 [BLOG-CREATE] Getting session');
+        // Get session token FIRST, before triggering re-render with setBlogSubmitting
+        // Large textareas cause expensive re-renders that block getSession()
+        console.log('📝 [BLOG-CREATE] Getting session (before setting blogSubmitting)');
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
@@ -439,6 +437,10 @@
           alert('Session expired. Please refresh the page and try again.');
           return;
         }
+
+        // NOW set blogSubmitting AFTER we have the session
+        console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
+        setBlogSubmitting(true);
 
         // Extract form data using the captured form reference
         console.log('📝 [BLOG-CREATE] Extracting form data from captured form');
@@ -539,12 +541,10 @@
       const form = e.currentTarget;
       console.log('🔄 [BLOG-UPDATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
 
-      console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
-      setBlogSubmitting(true);
-
       try {
-        // Get session token
-        console.log('🔄 [BLOG-UPDATE] Getting session');
+        // Get session token FIRST, before triggering re-render with setBlogSubmitting
+        // Large textareas cause expensive re-renders that block getSession()
+        console.log('🔄 [BLOG-UPDATE] Getting session (before setting blogSubmitting)');
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
@@ -560,6 +560,10 @@
           alert('Session expired. Please refresh the page and try again.');
           return;
         }
+
+        // NOW set blogSubmitting AFTER we have the session
+        console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
+        setBlogSubmitting(true);
 
         // Extract form data using the captured form reference
         console.log('🔄 [BLOG-UPDATE] Extracting form data from captured form');
