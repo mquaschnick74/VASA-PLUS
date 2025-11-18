@@ -416,17 +416,19 @@
       console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
       setBlogSubmitting(true);
 
-      console.log('📝 [BLOG-CREATE] Extracting form data');
-      const formData = new FormData(e.currentTarget);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
-      if (!session) {
-        console.log('❌ [BLOG-CREATE] No session, aborting');
-        setBlogSubmitting(false);
-        return;
-      }
-
       try {
+        console.log('📝 [BLOG-CREATE] Extracting form data');
+        const formData = new FormData(e.currentTarget);
+
+        console.log('📝 [BLOG-CREATE] Getting session');
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        if (!session) {
+          console.log('❌ [BLOG-CREATE] No session, aborting');
+          setBlogSubmitting(false);
+          return;
+        }
+
         console.log('📝 [BLOG-CREATE] Sending API request...');
         const res = await fetch("/api/blog/admin/posts", {
           method: "POST",
@@ -496,17 +498,19 @@
       console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
       setBlogSubmitting(true);
 
-      console.log('🔄 [BLOG-UPDATE] Extracting form data');
-      const formData = new FormData(e.currentTarget);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
-      if (!session || !editingBlogPost) {
-        console.log('❌ [BLOG-UPDATE] No session or editingBlogPost, aborting');
-        setBlogSubmitting(false);
-        return;
-      }
-
       try {
+        console.log('🔄 [BLOG-UPDATE] Extracting form data');
+        const formData = new FormData(e.currentTarget);
+
+        console.log('🔄 [BLOG-UPDATE] Getting session');
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        if (!session || !editingBlogPost) {
+          console.log('❌ [BLOG-UPDATE] No session or editingBlogPost, aborting');
+          setBlogSubmitting(false);
+          return;
+        }
+
         console.log('🔄 [BLOG-UPDATE] Sending API request to update post:', editingBlogPost.id);
         const res = await fetch(`/api/blog/admin/posts/${editingBlogPost.id}`, {
           method: "PUT",
