@@ -414,32 +414,28 @@
       }
 
       // CRITICAL: Capture form reference BEFORE any async operations
-      // React's synthetic events are cleaned up after async calls
       const form = e.currentTarget;
       console.log('📝 [BLOG-CREATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
 
-      // Set submitting immediately so user sees feedback
-      console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
+      // Find the submit button and update it directly via DOM (no React re-render)
+      // This avoids expensive re-renders with large textareas that block getSession()
+      const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const originalButtonText = submitButton?.textContent || 'Create Post';
+
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+      }
+
+      // Set React state for double-click prevention
       setBlogSubmitting(true);
 
       try {
-        // Get session with timeout to prevent infinite hang
-        console.log('📝 [BLOG-CREATE] Getting session with 3s timeout');
+        // Get session - should be fast now without re-render blocking
+        console.log('📝 [BLOG-CREATE] Getting session');
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Session timeout after 3 seconds')), 3000)
-        );
-
-        const { data: sessionData, error: sessionError } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]).catch((err) => {
-          console.error('❌ [BLOG-CREATE] Promise.race error:', err);
-          throw err;
-        }) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
-
-        console.log('📝 [BLOG-CREATE] Session promise resolved');
+        console.log('📝 [BLOG-CREATE] Session retrieved:', !!sessionData?.session);
 
         if (sessionError) {
           console.error('❌ [BLOG-CREATE] Session error:', sessionError);
@@ -447,7 +443,6 @@
         }
 
         const session = sessionData?.session;
-        console.log('📝 [BLOG-CREATE] Session retrieved:', !!session, 'has token:', !!session?.access_token);
 
         if (!session?.access_token) {
           console.log('❌ [BLOG-CREATE] No session or access token, aborting');
@@ -455,15 +450,8 @@
           return;
         }
 
-        // Extract form data using the captured form reference
-        console.log('📝 [BLOG-CREATE] Extracting form data from captured form');
-        console.log('📝 [BLOG-CREATE] Form is still valid:', form instanceof HTMLFormElement);
-
-        if (!(form instanceof HTMLFormElement)) {
-          console.error('❌ [BLOG-CREATE] Form is not an HTMLFormElement:', form);
-          throw new Error('Form reference is invalid');
-        }
-
+        // Extract form data
+        console.log('📝 [BLOG-CREATE] Extracting form data');
         const formData = new FormData(form);
         console.log('📝 [BLOG-CREATE] FormData created successfully');
 
@@ -532,8 +520,13 @@
         }
         alert(errorMessage);
       } finally {
-        console.log('📝 [BLOG-CREATE] Finally block - resetting blogSubmitting');
-        // Always reset blogSubmitting, regardless of mount status
+        console.log('📝 [BLOG-CREATE] Finally block - resetting state');
+        // Restore button via DOM
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+        }
+        // Reset React state
         setBlogSubmitting(false);
         console.log('📝 [BLOG-CREATE] Done');
       }
@@ -550,32 +543,27 @@
       }
 
       // CRITICAL: Capture form reference BEFORE any async operations
-      // React's synthetic events are cleaned up after async calls
       const form = e.currentTarget;
       console.log('🔄 [BLOG-UPDATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
 
-      // Set submitting immediately so user sees feedback
-      console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
+      // Find the submit button and update it directly via DOM (no React re-render)
+      const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const originalButtonText = submitButton?.textContent || 'Update Post';
+
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+      }
+
+      // Set React state for double-click prevention
       setBlogSubmitting(true);
 
       try {
-        // Get session with timeout to prevent infinite hang
-        console.log('🔄 [BLOG-UPDATE] Getting session with 3s timeout');
+        // Get session - should be fast now without re-render blocking
+        console.log('🔄 [BLOG-UPDATE] Getting session');
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Session timeout after 3 seconds')), 3000)
-        );
-
-        const { data: sessionData, error: sessionError } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]).catch((err) => {
-          console.error('❌ [BLOG-UPDATE] Promise.race error:', err);
-          throw err;
-        }) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
-
-        console.log('🔄 [BLOG-UPDATE] Session promise resolved');
+        console.log('🔄 [BLOG-UPDATE] Session retrieved:', !!sessionData?.session);
 
         if (sessionError) {
           console.error('❌ [BLOG-UPDATE] Session error:', sessionError);
@@ -583,7 +571,6 @@
         }
 
         const session = sessionData?.session;
-        console.log('🔄 [BLOG-UPDATE] Session retrieved:', !!session, 'has token:', !!session?.access_token);
 
         if (!session?.access_token || !editingBlogPost) {
           console.log('❌ [BLOG-UPDATE] No session/token or editingBlogPost, aborting');
@@ -591,15 +578,8 @@
           return;
         }
 
-        // Extract form data using the captured form reference
-        console.log('🔄 [BLOG-UPDATE] Extracting form data from captured form');
-        console.log('🔄 [BLOG-UPDATE] Form is still valid:', form instanceof HTMLFormElement);
-
-        if (!(form instanceof HTMLFormElement)) {
-          console.error('❌ [BLOG-UPDATE] Form is not an HTMLFormElement:', form);
-          throw new Error('Form reference is invalid');
-        }
-
+        // Extract form data
+        console.log('🔄 [BLOG-UPDATE] Extracting form data');
         const formData = new FormData(form);
         console.log('🔄 [BLOG-UPDATE] FormData created successfully');
 
@@ -668,8 +648,13 @@
         }
         alert(errorMessage);
       } finally {
-        console.log('🔄 [BLOG-UPDATE] Finally block - resetting blogSubmitting');
-        // Always reset blogSubmitting, regardless of mount status
+        console.log('🔄 [BLOG-UPDATE] Finally block - resetting state');
+        // Restore button via DOM
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+        }
+        // Reset React state
         setBlogSubmitting(false);
         console.log('🔄 [BLOG-UPDATE] Done');
       }
