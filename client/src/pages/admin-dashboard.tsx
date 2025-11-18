@@ -417,9 +417,7 @@
       setBlogSubmitting(true);
 
       try {
-        console.log('📝 [BLOG-CREATE] Extracting form data');
-        const formData = new FormData(e.currentTarget);
-
+        // Get session FIRST, before extracting large form data that might block the thread
         console.log('📝 [BLOG-CREATE] Getting session');
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
@@ -436,6 +434,10 @@
           alert('Session expired. Please refresh the page and try again.');
           return;
         }
+
+        // NOW extract form data after we have the session
+        console.log('📝 [BLOG-CREATE] Extracting form data');
+        const formData = new FormData(e.currentTarget);
 
         console.log('📝 [BLOG-CREATE] Sending API request...');
         const res = await fetch("/api/blog/admin/posts", {
@@ -515,9 +517,7 @@
       setBlogSubmitting(true);
 
       try {
-        console.log('🔄 [BLOG-UPDATE] Extracting form data');
-        const formData = new FormData(e.currentTarget);
-
+        // Get session FIRST, before extracting large form data that might block the thread
         console.log('🔄 [BLOG-UPDATE] Getting session');
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
@@ -534,6 +534,10 @@
           alert('Session expired. Please refresh the page and try again.');
           return;
         }
+
+        // NOW extract form data after we have the session
+        console.log('🔄 [BLOG-UPDATE] Extracting form data');
+        const formData = new FormData(e.currentTarget);
 
         console.log('🔄 [BLOG-UPDATE] Sending API request to update post:', editingBlogPost.id);
         const res = await fetch(`/api/blog/admin/posts/${editingBlogPost.id}`, {
