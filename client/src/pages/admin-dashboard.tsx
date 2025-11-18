@@ -139,18 +139,27 @@
 
     const loadData = async () => {
       setLoading(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
 
-      if (!session) {
-        setLoading(false);
-        return;
+      let token: string;
+
+      // Use stored token if available, otherwise get fresh session
+      if (sessionToken) {
+        console.log('📊 [LOAD-DATA] Using stored session token');
+        token = sessionToken;
+      } else {
+        console.log('📊 [LOAD-DATA] Getting fresh session (first load)');
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+
+        if (!session) {
+          setLoading(false);
+          return;
+        }
+
+        token = session.access_token;
+        // Store token for future use
+        setSessionToken(token);
       }
-
-      const token = session.access_token;
-
-      // Store token in state for form submissions
-      setSessionToken(token);
 
       try {
         switch (activeTab) {
