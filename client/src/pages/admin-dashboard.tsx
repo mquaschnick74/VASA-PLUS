@@ -413,11 +413,16 @@
         return;
       }
 
+      // CRITICAL: Capture form reference BEFORE any async operations
+      // React's synthetic events are cleaned up after async calls
+      const form = e.currentTarget;
+      console.log('📝 [BLOG-CREATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
+
       console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
       setBlogSubmitting(true);
 
       try {
-        // Get session FIRST, before extracting large form data that might block the thread
+        // Get session token
         console.log('📝 [BLOG-CREATE] Getting session');
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
@@ -435,9 +440,17 @@
           return;
         }
 
-        // NOW extract form data after we have the session
-        console.log('📝 [BLOG-CREATE] Extracting form data');
-        const formData = new FormData(e.currentTarget);
+        // Extract form data using the captured form reference
+        console.log('📝 [BLOG-CREATE] Extracting form data from captured form');
+        console.log('📝 [BLOG-CREATE] Form is still valid:', form instanceof HTMLFormElement);
+
+        if (!(form instanceof HTMLFormElement)) {
+          console.error('❌ [BLOG-CREATE] Form is not an HTMLFormElement:', form);
+          throw new Error('Form reference is invalid');
+        }
+
+        const formData = new FormData(form);
+        console.log('📝 [BLOG-CREATE] FormData created successfully');
 
         console.log('📝 [BLOG-CREATE] Sending API request...');
         const res = await fetch("/api/blog/admin/posts", {
@@ -485,16 +498,24 @@
           alert(`Failed: ${error.error ?? "Unknown error"}`);
         }
       } catch (error) {
-        console.error("❌ [BLOG-CREATE] Exception:", error);
+        console.error("❌ [BLOG-CREATE] Exception caught:", error);
         console.error("❌ [BLOG-CREATE] Exception type:", typeof error);
-        console.error("❌ [BLOG-CREATE] Exception message:", error instanceof Error ? error.message : 'Not an Error object');
+        console.error("❌ [BLOG-CREATE] Exception constructor:", error?.constructor?.name);
+        console.error("❌ [BLOG-CREATE] Exception message:", error instanceof Error ? error.message : String(error));
+        console.error("❌ [BLOG-CREATE] Exception stack:", error instanceof Error ? error.stack : 'No stack');
 
         // Show user-friendly error
-        if (error instanceof Error && error.message === 'Session retrieval timeout') {
-          alert("Session retrieval timed out. Please refresh the page and try again.");
-        } else {
-          alert("Failed to create blog post. Please try again.");
+        let errorMessage = "Failed to create blog post. Please try again.";
+        if (error instanceof Error) {
+          if (error.message.includes('Session')) {
+            errorMessage = "Session error. Please refresh the page and try again.";
+          } else if (error.message.includes('Form')) {
+            errorMessage = "Form error. Please refresh the page and try again.";
+          } else if (error.message.includes('FormData')) {
+            errorMessage = "Form data error. Please refresh the page and try again.";
+          }
         }
+        alert(errorMessage);
       } finally {
         console.log('📝 [BLOG-CREATE] Finally block - resetting blogSubmitting');
         // Always reset blogSubmitting, regardless of mount status
@@ -513,11 +534,16 @@
         return;
       }
 
+      // CRITICAL: Capture form reference BEFORE any async operations
+      // React's synthetic events are cleaned up after async calls
+      const form = e.currentTarget;
+      console.log('🔄 [BLOG-UPDATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
+
       console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
       setBlogSubmitting(true);
 
       try {
-        // Get session FIRST, before extracting large form data that might block the thread
+        // Get session token
         console.log('🔄 [BLOG-UPDATE] Getting session');
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
@@ -535,9 +561,17 @@
           return;
         }
 
-        // NOW extract form data after we have the session
-        console.log('🔄 [BLOG-UPDATE] Extracting form data');
-        const formData = new FormData(e.currentTarget);
+        // Extract form data using the captured form reference
+        console.log('🔄 [BLOG-UPDATE] Extracting form data from captured form');
+        console.log('🔄 [BLOG-UPDATE] Form is still valid:', form instanceof HTMLFormElement);
+
+        if (!(form instanceof HTMLFormElement)) {
+          console.error('❌ [BLOG-UPDATE] Form is not an HTMLFormElement:', form);
+          throw new Error('Form reference is invalid');
+        }
+
+        const formData = new FormData(form);
+        console.log('🔄 [BLOG-UPDATE] FormData created successfully');
 
         console.log('🔄 [BLOG-UPDATE] Sending API request to update post:', editingBlogPost.id);
         const res = await fetch(`/api/blog/admin/posts/${editingBlogPost.id}`, {
@@ -585,16 +619,24 @@
           alert(`Failed: ${error.error ?? "Unknown error"}`);
         }
       } catch (error) {
-        console.error("❌ [BLOG-UPDATE] Exception:", error);
+        console.error("❌ [BLOG-UPDATE] Exception caught:", error);
         console.error("❌ [BLOG-UPDATE] Exception type:", typeof error);
-        console.error("❌ [BLOG-UPDATE] Exception message:", error instanceof Error ? error.message : 'Not an Error object');
+        console.error("❌ [BLOG-UPDATE] Exception constructor:", error?.constructor?.name);
+        console.error("❌ [BLOG-UPDATE] Exception message:", error instanceof Error ? error.message : String(error));
+        console.error("❌ [BLOG-UPDATE] Exception stack:", error instanceof Error ? error.stack : 'No stack');
 
         // Show user-friendly error
-        if (error instanceof Error && error.message === 'Session retrieval timeout') {
-          alert("Session retrieval timed out. Please refresh the page and try again.");
-        } else {
-          alert("Failed to update blog post. Please try again.");
+        let errorMessage = "Failed to update blog post. Please try again.";
+        if (error instanceof Error) {
+          if (error.message.includes('Session')) {
+            errorMessage = "Session error. Please refresh the page and try again.";
+          } else if (error.message.includes('Form')) {
+            errorMessage = "Form error. Please refresh the page and try again.";
+          } else if (error.message.includes('FormData')) {
+            errorMessage = "Form data error. Please refresh the page and try again.";
+          }
         }
+        alert(errorMessage);
       } finally {
         console.log('🔄 [BLOG-UPDATE] Finally block - resetting blogSubmitting');
         // Always reset blogSubmitting, regardless of mount status
