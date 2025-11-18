@@ -418,11 +418,28 @@
       const form = e.currentTarget;
       console.log('📝 [BLOG-CREATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
 
+      // Set submitting immediately so user sees feedback
+      console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
+      setBlogSubmitting(true);
+
       try {
-        // Get session token FIRST, before triggering re-render with setBlogSubmitting
-        // Large textareas cause expensive re-renders that block getSession()
-        console.log('📝 [BLOG-CREATE] Getting session (before setting blogSubmitting)');
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        // Get session with timeout to prevent infinite hang
+        console.log('📝 [BLOG-CREATE] Getting session with 3s timeout');
+
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Session timeout after 3 seconds')), 3000)
+        );
+
+        const { data: sessionData, error: sessionError } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]).catch((err) => {
+          console.error('❌ [BLOG-CREATE] Promise.race error:', err);
+          throw err;
+        }) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
+
+        console.log('📝 [BLOG-CREATE] Session promise resolved');
 
         if (sessionError) {
           console.error('❌ [BLOG-CREATE] Session error:', sessionError);
@@ -430,17 +447,13 @@
         }
 
         const session = sessionData?.session;
-        console.log('📝 [BLOG-CREATE] Session retrieved:', !!session);
+        console.log('📝 [BLOG-CREATE] Session retrieved:', !!session, 'has token:', !!session?.access_token);
 
         if (!session?.access_token) {
           console.log('❌ [BLOG-CREATE] No session or access token, aborting');
           alert('Session expired. Please refresh the page and try again.');
           return;
         }
-
-        // NOW set blogSubmitting AFTER we have the session
-        console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
-        setBlogSubmitting(true);
 
         // Extract form data using the captured form reference
         console.log('📝 [BLOG-CREATE] Extracting form data from captured form');
@@ -541,11 +554,28 @@
       const form = e.currentTarget;
       console.log('🔄 [BLOG-UPDATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
 
+      // Set submitting immediately so user sees feedback
+      console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
+      setBlogSubmitting(true);
+
       try {
-        // Get session token FIRST, before triggering re-render with setBlogSubmitting
-        // Large textareas cause expensive re-renders that block getSession()
-        console.log('🔄 [BLOG-UPDATE] Getting session (before setting blogSubmitting)');
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        // Get session with timeout to prevent infinite hang
+        console.log('🔄 [BLOG-UPDATE] Getting session with 3s timeout');
+
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Session timeout after 3 seconds')), 3000)
+        );
+
+        const { data: sessionData, error: sessionError } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]).catch((err) => {
+          console.error('❌ [BLOG-UPDATE] Promise.race error:', err);
+          throw err;
+        }) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
+
+        console.log('🔄 [BLOG-UPDATE] Session promise resolved');
 
         if (sessionError) {
           console.error('❌ [BLOG-UPDATE] Session error:', sessionError);
@@ -553,17 +583,13 @@
         }
 
         const session = sessionData?.session;
-        console.log('🔄 [BLOG-UPDATE] Session retrieved:', !!session);
+        console.log('🔄 [BLOG-UPDATE] Session retrieved:', !!session, 'has token:', !!session?.access_token);
 
         if (!session?.access_token || !editingBlogPost) {
           console.log('❌ [BLOG-UPDATE] No session/token or editingBlogPost, aborting');
           alert('Session expired. Please refresh the page and try again.');
           return;
         }
-
-        // NOW set blogSubmitting AFTER we have the session
-        console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
-        setBlogSubmitting(true);
 
         // Extract form data using the captured form reference
         console.log('🔄 [BLOG-UPDATE] Extracting form data from captured form');
