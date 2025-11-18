@@ -420,22 +420,20 @@
         console.log('📝 [BLOG-CREATE] Extracting form data');
         const formData = new FormData(e.currentTarget);
 
-        console.log('📝 [BLOG-CREATE] Getting session with timeout');
-        // Add timeout to prevent hanging indefinitely
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Session retrieval timeout')), 5000)
-        );
+        console.log('📝 [BLOG-CREATE] Getting session');
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-        const { data: sessionData } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        if (sessionError) {
+          console.error('❌ [BLOG-CREATE] Session error:', sessionError);
+          throw new Error(`Session error: ${sessionError.message}`);
+        }
+
         const session = sessionData?.session;
-
         console.log('📝 [BLOG-CREATE] Session retrieved:', !!session);
 
-        if (!session) {
-          console.log('❌ [BLOG-CREATE] No session, aborting');
+        if (!session?.access_token) {
+          console.log('❌ [BLOG-CREATE] No session or access token, aborting');
           alert('Session expired. Please refresh the page and try again.');
-          setBlogSubmitting(false);
           return;
         }
 
@@ -486,7 +484,15 @@
         }
       } catch (error) {
         console.error("❌ [BLOG-CREATE] Exception:", error);
-        alert("Failed to create blog post");
+        console.error("❌ [BLOG-CREATE] Exception type:", typeof error);
+        console.error("❌ [BLOG-CREATE] Exception message:", error instanceof Error ? error.message : 'Not an Error object');
+
+        // Show user-friendly error
+        if (error instanceof Error && error.message === 'Session retrieval timeout') {
+          alert("Session retrieval timed out. Please refresh the page and try again.");
+        } else {
+          alert("Failed to create blog post. Please try again.");
+        }
       } finally {
         console.log('📝 [BLOG-CREATE] Finally block - resetting blogSubmitting');
         // Always reset blogSubmitting, regardless of mount status
@@ -512,22 +518,20 @@
         console.log('🔄 [BLOG-UPDATE] Extracting form data');
         const formData = new FormData(e.currentTarget);
 
-        console.log('🔄 [BLOG-UPDATE] Getting session with timeout');
-        // Add timeout to prevent hanging indefinitely
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Session retrieval timeout')), 5000)
-        );
+        console.log('🔄 [BLOG-UPDATE] Getting session');
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-        const { data: sessionData } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        if (sessionError) {
+          console.error('❌ [BLOG-UPDATE] Session error:', sessionError);
+          throw new Error(`Session error: ${sessionError.message}`);
+        }
+
         const session = sessionData?.session;
-
         console.log('🔄 [BLOG-UPDATE] Session retrieved:', !!session);
 
-        if (!session || !editingBlogPost) {
-          console.log('❌ [BLOG-UPDATE] No session or editingBlogPost, aborting');
+        if (!session?.access_token || !editingBlogPost) {
+          console.log('❌ [BLOG-UPDATE] No session/token or editingBlogPost, aborting');
           alert('Session expired. Please refresh the page and try again.');
-          setBlogSubmitting(false);
           return;
         }
 
@@ -578,7 +582,15 @@
         }
       } catch (error) {
         console.error("❌ [BLOG-UPDATE] Exception:", error);
-        alert("Failed to update blog post");
+        console.error("❌ [BLOG-UPDATE] Exception type:", typeof error);
+        console.error("❌ [BLOG-UPDATE] Exception message:", error instanceof Error ? error.message : 'Not an Error object');
+
+        // Show user-friendly error
+        if (error instanceof Error && error.message === 'Session retrieval timeout') {
+          alert("Session retrieval timed out. Please refresh the page and try again.");
+        } else {
+          alert("Failed to update blog post. Please try again.");
+        }
       } finally {
         console.log('🔄 [BLOG-UPDATE] Finally block - resetting blogSubmitting');
         // Always reset blogSubmitting, regardless of mount status
