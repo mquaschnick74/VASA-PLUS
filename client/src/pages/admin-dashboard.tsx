@@ -477,9 +477,8 @@
         alert("Failed to create blog post");
       } finally {
         console.log('📝 [BLOG-CREATE] Finally block - resetting blogSubmitting');
-        if (mountedRef.current) {
-          setBlogSubmitting(false);
-        }
+        // Always reset blogSubmitting, regardless of mount status
+        setBlogSubmitting(false);
         console.log('📝 [BLOG-CREATE] Done');
       }
     };
@@ -558,9 +557,8 @@
         alert("Failed to update blog post");
       } finally {
         console.log('🔄 [BLOG-UPDATE] Finally block - resetting blogSubmitting');
-        if (mountedRef.current) {
-          setBlogSubmitting(false);
-        }
+        // Always reset blogSubmitting, regardless of mount status
+        setBlogSubmitting(false);
         console.log('🔄 [BLOG-UPDATE] Done');
       }
     };
