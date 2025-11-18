@@ -420,11 +420,21 @@
         console.log('📝 [BLOG-CREATE] Extracting form data');
         const formData = new FormData(e.currentTarget);
 
-        console.log('📝 [BLOG-CREATE] Getting session');
-        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('📝 [BLOG-CREATE] Getting session with timeout');
+        // Add timeout to prevent hanging indefinitely
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Session retrieval timeout')), 5000)
+        );
+
+        const { data: sessionData } = await Promise.race([sessionPromise, timeoutPromise]) as any;
         const session = sessionData?.session;
+
+        console.log('📝 [BLOG-CREATE] Session retrieved:', !!session);
+
         if (!session) {
           console.log('❌ [BLOG-CREATE] No session, aborting');
+          alert('Session expired. Please refresh the page and try again.');
           setBlogSubmitting(false);
           return;
         }
@@ -502,11 +512,21 @@
         console.log('🔄 [BLOG-UPDATE] Extracting form data');
         const formData = new FormData(e.currentTarget);
 
-        console.log('🔄 [BLOG-UPDATE] Getting session');
-        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('🔄 [BLOG-UPDATE] Getting session with timeout');
+        // Add timeout to prevent hanging indefinitely
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Session retrieval timeout')), 5000)
+        );
+
+        const { data: sessionData } = await Promise.race([sessionPromise, timeoutPromise]) as any;
         const session = sessionData?.session;
+
+        console.log('🔄 [BLOG-UPDATE] Session retrieved:', !!session);
+
         if (!session || !editingBlogPost) {
           console.log('❌ [BLOG-UPDATE] No session or editingBlogPost, aborting');
+          alert('Session expired. Please refresh the page and try again.');
           setBlogSubmitting(false);
           return;
         }
