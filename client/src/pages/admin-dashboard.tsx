@@ -113,6 +113,7 @@
     const [showInfluencerForm, setShowInfluencerForm] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [blogSubmitting, setBlogSubmitting] = useState(false);
+    const [sessionToken, setSessionToken] = useState<string | null>(null);
 
     // Add mounted ref to prevent state updates after unmount
     const mountedRef = useRef(true);
@@ -138,15 +139,27 @@
 
     const loadData = async () => {
       setLoading(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
 
-      if (!session) {
-        setLoading(false);
-        return;
+      let token: string;
+
+      // Use stored token if available, otherwise get fresh session
+      if (sessionToken) {
+        console.log('📊 [LOAD-DATA] Using stored session token');
+        token = sessionToken;
+      } else {
+        console.log('📊 [LOAD-DATA] Getting fresh session (first load)');
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+
+        if (!session) {
+          setLoading(false);
+          return;
+        }
+
+        token = session.access_token;
+        // Store token for future use
+        setSessionToken(token);
       }
-
-      const token = session.access_token;
 
       try {
         switch (activeTab) {
@@ -413,26 +426,44 @@
         return;
       }
 
-      console.log('📝 [BLOG-CREATE] Setting blogSubmitting to true');
-      setBlogSubmitting(true);
+      // CRITICAL: Capture form reference BEFORE any async operations
+      const form = e.currentTarget;
+      console.log('📝 [BLOG-CREATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
 
-      console.log('📝 [BLOG-CREATE] Extracting form data');
-      const formData = new FormData(e.currentTarget);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
-      if (!session) {
-        console.log('❌ [BLOG-CREATE] No session, aborting');
-        setBlogSubmitting(false);
-        return;
+      // Find the submit button and update it directly via DOM (no React re-render)
+      // This avoids expensive re-renders with large textareas that block getSession()
+      const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const originalButtonText = submitButton?.textContent || 'Create Post';
+
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
       }
 
+      // Set React state for double-click prevention
+      setBlogSubmitting(true);
+
       try {
+        // Use stored session token instead of calling getSession()
+        console.log('📝 [BLOG-CREATE] Using stored session token');
+
+        if (!sessionToken) {
+          console.log('❌ [BLOG-CREATE] No session token available, aborting');
+          alert('Session expired. Please refresh the page and try again.');
+          return;
+        }
+
+        // Extract form data
+        console.log('📝 [BLOG-CREATE] Extracting form data');
+        const formData = new FormData(form);
+        console.log('📝 [BLOG-CREATE] FormData created successfully');
+
         console.log('📝 [BLOG-CREATE] Sending API request...');
         const res = await fetch("/api/blog/admin/posts", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${sessionToken}`,
           },
           body: JSON.stringify({
             title: formData.get("title"),
@@ -473,13 +504,33 @@
           alert(`Failed: ${error.error ?? "Unknown error"}`);
         }
       } catch (error) {
-        console.error("❌ [BLOG-CREATE] Exception:", error);
-        alert("Failed to create blog post");
-      } finally {
-        console.log('📝 [BLOG-CREATE] Finally block - resetting blogSubmitting');
-        if (mountedRef.current) {
-          setBlogSubmitting(false);
+        console.error("❌ [BLOG-CREATE] Exception caught:", error);
+        console.error("❌ [BLOG-CREATE] Exception type:", typeof error);
+        console.error("❌ [BLOG-CREATE] Exception constructor:", error?.constructor?.name);
+        console.error("❌ [BLOG-CREATE] Exception message:", error instanceof Error ? error.message : String(error));
+        console.error("❌ [BLOG-CREATE] Exception stack:", error instanceof Error ? error.stack : 'No stack');
+
+        // Show user-friendly error
+        let errorMessage = "Failed to create blog post. Please try again.";
+        if (error instanceof Error) {
+          if (error.message.includes('Session')) {
+            errorMessage = "Session error. Please refresh the page and try again.";
+          } else if (error.message.includes('Form')) {
+            errorMessage = "Form error. Please refresh the page and try again.";
+          } else if (error.message.includes('FormData')) {
+            errorMessage = "Form data error. Please refresh the page and try again.";
+          }
         }
+        alert(errorMessage);
+      } finally {
+        console.log('📝 [BLOG-CREATE] Finally block - resetting state');
+        // Restore button via DOM
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+        }
+        // Reset React state
+        setBlogSubmitting(false);
         console.log('📝 [BLOG-CREATE] Done');
       }
     };
@@ -494,26 +545,43 @@
         return;
       }
 
-      console.log('🔄 [BLOG-UPDATE] Setting blogSubmitting to true');
-      setBlogSubmitting(true);
+      // CRITICAL: Capture form reference BEFORE any async operations
+      const form = e.currentTarget;
+      console.log('🔄 [BLOG-UPDATE] Form element captured:', form?.tagName, form instanceof HTMLFormElement);
 
-      console.log('🔄 [BLOG-UPDATE] Extracting form data');
-      const formData = new FormData(e.currentTarget);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
-      if (!session || !editingBlogPost) {
-        console.log('❌ [BLOG-UPDATE] No session or editingBlogPost, aborting');
-        setBlogSubmitting(false);
-        return;
+      // Find the submit button and update it directly via DOM (no React re-render)
+      const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const originalButtonText = submitButton?.textContent || 'Update Post';
+
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
       }
 
+      // Set React state for double-click prevention
+      setBlogSubmitting(true);
+
       try {
+        // Use stored session token instead of calling getSession()
+        console.log('🔄 [BLOG-UPDATE] Using stored session token');
+
+        if (!sessionToken || !editingBlogPost) {
+          console.log('❌ [BLOG-UPDATE] No session token or editingBlogPost, aborting');
+          alert('Session expired. Please refresh the page and try again.');
+          return;
+        }
+
+        // Extract form data
+        console.log('🔄 [BLOG-UPDATE] Extracting form data');
+        const formData = new FormData(form);
+        console.log('🔄 [BLOG-UPDATE] FormData created successfully');
+
         console.log('🔄 [BLOG-UPDATE] Sending API request to update post:', editingBlogPost.id);
         const res = await fetch(`/api/blog/admin/posts/${editingBlogPost.id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${sessionToken}`,
           },
           body: JSON.stringify({
             title: formData.get("title"),
@@ -554,13 +622,33 @@
           alert(`Failed: ${error.error ?? "Unknown error"}`);
         }
       } catch (error) {
-        console.error("❌ [BLOG-UPDATE] Exception:", error);
-        alert("Failed to update blog post");
-      } finally {
-        console.log('🔄 [BLOG-UPDATE] Finally block - resetting blogSubmitting');
-        if (mountedRef.current) {
-          setBlogSubmitting(false);
+        console.error("❌ [BLOG-UPDATE] Exception caught:", error);
+        console.error("❌ [BLOG-UPDATE] Exception type:", typeof error);
+        console.error("❌ [BLOG-UPDATE] Exception constructor:", error?.constructor?.name);
+        console.error("❌ [BLOG-UPDATE] Exception message:", error instanceof Error ? error.message : String(error));
+        console.error("❌ [BLOG-UPDATE] Exception stack:", error instanceof Error ? error.stack : 'No stack');
+
+        // Show user-friendly error
+        let errorMessage = "Failed to update blog post. Please try again.";
+        if (error instanceof Error) {
+          if (error.message.includes('Session')) {
+            errorMessage = "Session error. Please refresh the page and try again.";
+          } else if (error.message.includes('Form')) {
+            errorMessage = "Form error. Please refresh the page and try again.";
+          } else if (error.message.includes('FormData')) {
+            errorMessage = "Form data error. Please refresh the page and try again.";
+          }
         }
+        alert(errorMessage);
+      } finally {
+        console.log('🔄 [BLOG-UPDATE] Finally block - resetting state');
+        // Restore button via DOM
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+        }
+        // Reset React state
+        setBlogSubmitting(false);
         console.log('🔄 [BLOG-UPDATE] Done');
       }
     };
