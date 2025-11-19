@@ -32,10 +32,10 @@ export default function MeditationLibrary() {
       id: "campfire",
       title: "Campfire Meditation",
       description: "A soothing meditation by the warmth of a virtual campfire",
-      instructor: "Sarah",
+      instructor: "Mathew",
       duration: "10:00",
       category: "Relaxation",
-      audioUrl: "/meditations/sarah/campfire_meditation.mp3"
+      audioUrl: "/meditations/mathew/campfire_meditation.mp3"
     },
     {
       id: "ocean",
