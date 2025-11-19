@@ -49,6 +49,20 @@ app.use('/api/stripe/webhook', express.raw({
 app.use(express.json({ limit: '10mb' }));  // Increased from default 100kb
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+// Redirect ivasa.ai to beta.ivasa.ai
+app.use((req, res, next) => {
+  const host = req.get('host');
+
+  // Check if request is coming to ivasa.ai (with or without www)
+  if (host === 'ivasa.ai' || host === 'www.ivasa.ai') {
+    const redirectUrl = `https://beta.ivasa.ai${req.originalUrl}`;
+    console.log(`🔀 Redirecting ${host} to beta.ivasa.ai`);
+    return res.redirect(301, redirectUrl);
+  }
+
+  next();
+});
+
 // Diagnostic logging for malformed auth headers (temporary - helps identify polling source)
 app.use((req, res, next) => {
   const authHeader = req.headers['authorization'];
