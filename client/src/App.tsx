@@ -16,6 +16,9 @@ import { ClientSessionsView } from '@/components/therapist/ClientSessionsView';
 import BlogListPage from '@/pages/blog-list-page';
 import BlogPostPage from '@/pages/blog-post-page';
 import AssessmentEmbed from '@/pages/assessment-embed';
+import LearnMore from '@/pages/LearnMore';
+import MeditationLibrary from '@/pages/MeditationLibrary';
+import VideoLibrary from '@/pages/VideoLibrary';
 
 function Router() {
   return (
@@ -34,6 +37,9 @@ function Router() {
       <Route path="/blog" component={BlogListPage} />
       <Route path="/blog/:slug" component={BlogPostPage} />
       <Route path="/assessment" component={AssessmentEmbed} />
+      <Route path="/learn-more" component={LearnMore} />
+      <Route path="/meditations" component={MeditationLibrary} />
+      <Route path="/videos" component={VideoLibrary} />
       {/* Catch-all route that redirects to dashboard */}
       <Route component={Dashboard} />
     </Switch>

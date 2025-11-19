@@ -103,7 +103,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   <DropdownMenuSeparator className="bg-white/10" />
 
                   <DropdownMenuItem
-                    onClick={() => setLocation('/blog')}
+                    onClick={() => setLocation('/learn-more')}
                     className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
                   >
                     <BookOpen className="h-4 w-4 mr-2" />
@@ -132,15 +132,27 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : !hideSignInButton && (
-              /* Sign In Button - Shown when not logged in */
-              <Button
-                variant="ghost"
-                className="text-sm backdrop-filter backdrop-blur-md bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-500/60 hover:bg-emerald-500/15 shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all"
-                onClick={() => setLocation('/')}
-              >
-                Sign In
-              </Button>
+            ) : (
+              /* Buttons shown when not logged in */
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                  onClick={() => setLocation('/learn-more')}
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Learn More
+                </Button>
+                {!hideSignInButton && (
+                  <Button
+                    variant="ghost"
+                    className="text-sm backdrop-filter backdrop-blur-md bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-500/60 hover:bg-emerald-500/15 shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all"
+                    onClick={() => setLocation('/')}
+                  >
+                    Sign In
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>
