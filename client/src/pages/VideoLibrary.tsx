@@ -29,7 +29,14 @@ export default function VideoLibrary() {
   // Placeholder video data - replace youtubeId with actual YouTube video IDs
   const videos: VideoItem[] = [
     {
-      youtubeId: 'VIDEO_ID_1', // Replace with real YouTube ID
+      youtubeId: 'qnQJZUwhvR0', // Replace with real YouTube ID
+      title: 'Frictionless Account Creation',
+      description: 'Learn how easy it is to create an account and other features of iVASA.',
+      category: 'Getting Started',
+      duration: '1:43'
+    },
+    {
+      youtubeId: '', // Replace with real YouTube ID
       title: 'Introduction to Therapeutic Practice',
       description: 'Learn the foundations of our therapeutic approach and how voice analysis can support your mental wellness journey.',
       category: 'Getting Started',
