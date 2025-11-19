@@ -28,6 +28,9 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
   const [loggingOut, setLoggingOut] = useState(false);
   const isLoggedIn = !!userId;
 
+  // Check if we're on a "learn more" related page
+  const isOnLearnMorePages = location === '/learn-more' || location === '/meditations' || location === '/videos';
+
   const handleSignOut = async () => {
     if (setUserId && !loggingOut) {
       setLoggingOut(true);
@@ -132,8 +135,8 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              /* Buttons shown when not logged in */
+            ) : !isOnLearnMorePages ? (
+              /* Buttons shown when not logged in (except on learn-more pages) */
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -153,7 +156,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   </Button>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
