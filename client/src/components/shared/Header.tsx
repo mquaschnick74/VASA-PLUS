@@ -144,7 +144,10 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   onClick={() => setLocation('/learn-more')}
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
-                  Learn More
+                  <span className="flex flex-col items-start leading-tight">
+                    <span>Learn More</span>
+                    <span className="text-[10px] opacity-70">and more</span>
+                  </span>
                 </Button>
                 {!hideSignInButton && (
                   <Button
