@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Calendar, Eye, ArrowLeft } from "lucide-react";
 import Header from "@/components/shared/Header";
+import SmartBackButton from "@/components/SmartBackButton";
 
 interface BlogPost {
   id: string;
@@ -92,15 +93,8 @@ export default function BlogListPage() {
     <div className="min-h-screen gradient-bg">
       <Header showDashboardLink={true} />
       <div className="max-w-4xl mx-auto py-12 px-4">
-        {/* Back to Dashboard Button */}
-        <Button
-          onClick={() => setLocation('/dashboard')}
-          variant="ghost"
-          className="mb-6 text-purple-300 hover:text-white hover:bg-white/10"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
-        </Button>
+        {/* Smart Back Button - shows Dashboard or Resources based on auth */}
+        <SmartBackButton />
 
         {/* Header */}
         <div className="text-center mb-12">

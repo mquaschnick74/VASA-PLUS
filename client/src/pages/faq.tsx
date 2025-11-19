@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, HelpCircle, Users, Briefcase, Settings, CreditCard, Wrench } from 'lucide-react';
 import Header from '@/components/shared/Header';
+import SmartBackButton from '@/components/SmartBackButton';
 
 export default function FAQPage() {
   const [, setLocation] = useLocation();
@@ -190,15 +191,8 @@ export default function FAQPage() {
     <div className="min-h-screen gradient-bg">
       <Header showDashboardLink={true} />
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Back to Dashboard Button */}
-        <Button
-          onClick={() => setLocation('/dashboard')}
-          variant="ghost"
-          className="mb-6 text-purple-300 hover:text-white hover:bg-white/10"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
-        </Button>
+        {/* Smart Back Button - shows Dashboard or Resources based on auth */}
+        <SmartBackButton />
 
         {/* Header */}
         <div className="mb-8">
