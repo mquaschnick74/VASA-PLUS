@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { ArrowLeft, Clock, User, Waves } from "lucide-react";
 import Header from "@/components/shared/Header";
+import SmartBackButton from "@/components/SmartBackButton";
 
 interface Meditation {
   id: string;
@@ -29,59 +30,45 @@ export default function MeditationLibrary() {
 
   const meditations: Meditation[] = [
     {
-      id: "campfire",
+      id: "campfire-mathew",
       title: "Campfire Meditation",
-      description: "A soothing meditation by the warmth of a virtual campfire",
+      description: "Find warmth and grounding in the gentle crackle of a campfire",
       instructor: "Mathew",
-      duration: "10:00",
+      duration: "8:00",
       category: "Relaxation",
       audioUrl: "/meditations/mathew/campfire_meditation.mp3"
     },
     {
-      id: "ocean",
-      title: "Ocean Waves",
-      description: "Find peace with the gentle rhythm of ocean waves",
-      instructor: "Sarah",
-      duration: "12:00",
-      category: "Nature",
-      audioUrl: "/meditations/sarah/ocean_meditation.mp3"
-    },
-    {
-      id: "forest",
-      title: "Forest Walk",
-      description: "A peaceful journey through a serene forest setting",
-      instructor: "Sarah",
-      duration: "15:00",
-      category: "Nature",
-      audioUrl: "/meditations/sarah/forest_meditation.mp3"
-    },
-    {
-      id: "morning",
-      title: "Morning Mindfulness",
-      description: "Start your day with clarity and intention",
-      instructor: "Mathew",
-      duration: "8:00",
-      category: "Mindfulness",
-      audioUrl: "/meditations/mathew/morning_meditation.mp3"
-    },
-    {
-      id: "evening",
-      title: "Evening Wind Down",
-      description: "Release the day's tension and prepare for restful sleep",
-      instructor: "Mathew",
-      duration: "12:00",
-      category: "Relaxation",
-      audioUrl: "/meditations/mathew/evening_meditation.mp3"
-    },
-    {
-      id: "breath",
-      title: "Breath Awareness",
-      description: "Focus on your breath to center and calm your mind",
+      id: "ocean-mathew",
+      title: "Ocean Meditation",
+      description: "Let the rhythmic waves wash away stress and tension",
       instructor: "Mathew",
       duration: "10:00",
+      category: "Nature",
+      audioUrl: "/meditations/mathew/ocean_meditation.mp3"
+    },
+    {
+      id: "singing-bowl-mathew",
+      title: "Singing Bowl Meditation",
+      description: "Experience deep relaxation with Tibetan singing bowl tones",
+      instructor: "Mathew",
+      duration: "12:00",
       category: "Mindfulness",
-      audioUrl: "/meditations/mathew/breath_meditation.mp3"
+      audioUrl: "/meditations/mathew/singing_bowl_meditation.mp3"
     }
+
+    // ==========================================
+    // TEMPLATE: Copy this block to add new meditations
+    // ==========================================
+    // {
+    //   id: "meditation-name-instructor", // Unique ID (no spaces)
+    //   title: "Meditation Display Name",
+    //   description: "Brief description of what this meditation offers",
+    //   instructor: "Sarah", // or "Mathew"
+    //   duration: "10:00", // Approximate duration (MM:SS)
+    //   category: "Relaxation", // Options: Relaxation, Nature, Mindfulness, Sleep, Energy
+    //   audioUrl: "/meditations/instructor-name/filename.mp3" // Path to file in public folder
+    // }
   ];
 
   const categories = ["all", ...Array.from(new Set(meditations.map(m => m.category)))];
@@ -126,15 +113,8 @@ export default function MeditationLibrary() {
       `}</style>
 
       <div className="max-w-4xl mx-auto py-12 px-4">
-        {/* Breadcrumb / Back Navigation */}
-        <Button
-          variant="ghost"
-          onClick={() => setLocation('/learn-more')}
-          className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Learn More
-        </Button>
+        {/* Smart Back Button - shows Dashboard or Resources based on auth */}
+        <SmartBackButton className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10" />
 
         {/* Header Section */}
         <div className="text-center mb-8">
@@ -218,14 +198,6 @@ export default function MeditationLibrary() {
           <p className="text-purple-300 text-sm mb-4">
             New meditations added regularly
           </p>
-          <Button
-            variant="outline"
-            onClick={() => setLocation('/learn-more')}
-            className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Learn More
-          </Button>
         </div>
       </div>
     </div>

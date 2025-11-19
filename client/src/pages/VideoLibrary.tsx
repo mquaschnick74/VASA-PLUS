@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { ArrowLeft, Clock, PlayCircle } from "lucide-react";
 import Header from "@/components/shared/Header";
+import SmartBackButton from "@/components/SmartBackButton";
 
 interface VideoItem {
   youtubeId: string;
@@ -83,15 +84,8 @@ export default function VideoLibrary() {
       `}</style>
 
       <div className="max-w-5xl mx-auto py-12 px-4">
-        {/* Breadcrumb / Back Navigation */}
-        <Button
-          variant="ghost"
-          onClick={() => setLocation('/learn-more')}
-          className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Learn More
-        </Button>
+        {/* Smart Back Button - shows Dashboard or Resources based on auth */}
+        <SmartBackButton className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10" />
 
         {/* Header Section */}
         <div className="text-center mb-8">
@@ -180,14 +174,6 @@ export default function VideoLibrary() {
           <p className="text-purple-300 text-sm mb-4">
             New videos added regularly
           </p>
-          <Button
-            variant="outline"
-            onClick={() => setLocation('/learn-more')}
-            className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Learn More
-          </Button>
         </div>
       </div>
     </div>
