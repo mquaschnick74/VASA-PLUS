@@ -5,6 +5,7 @@ import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
+import { blogSocialMetaMiddleware } from "./middleware/blog-social-meta";
 
 const viteLogger = createLogger();
 
@@ -41,6 +42,30 @@ export async function setupVite(app: Express, server: Server) {
   });
 
   app.use(vite.middlewares);
+
+  // Helper function to get the HTML template for development
+  const getDevHtmlTemplate = async () => {
+    const clientTemplate = path.resolve(
+      import.meta.dirname,
+      "..",
+      "client",
+      "index.html",
+    );
+
+    let template = await fs.promises.readFile(clientTemplate, "utf-8");
+    template = template.replace(
+      `src="/src/main.tsx"`,
+      `src="/src/main.tsx?v=${nanoid()}"`,
+    );
+    return await vite.transformIndexHtml("", template);
+  };
+
+  // Handle blog post social meta tags before the catch-all route
+  app.use("*", async (req, res, next) => {
+    await blogSocialMetaMiddleware(req, res, next, getDevHtmlTemplate);
+  });
+
+  // Catch-all route for all other pages
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
@@ -77,6 +102,16 @@ export function serveStatic(app: Express) {
   }
 
   app.use(express.static(distPath));
+
+  // Helper function to get the HTML template for production
+  const getProdHtmlTemplate = async () => {
+    return fs.promises.readFile(path.resolve(distPath, "index.html"), "utf-8");
+  };
+
+  // Handle blog post social meta tags before the catch-all route
+  app.use("*", async (req, res, next) => {
+    await blogSocialMetaMiddleware(req, res, next, getProdHtmlTemplate);
+  });
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
