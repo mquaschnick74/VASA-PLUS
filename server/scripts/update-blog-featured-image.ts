@@ -5,7 +5,7 @@ import { supabase } from '../services/supabase-service';
 
 async function updateBlogPostImage() {
   const slug = 'how-vasa-listens-differently-when-therapy-meets-technology';
-  const featuredImageUrl = '/images/your-post-image.png';
+  const featuredImageUrl = '/images/blog-post.jpg';
 
   console.log(`Updating blog post: ${slug}`);
   console.log(`Setting featured_image_url to: ${featuredImageUrl}`);
