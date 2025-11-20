@@ -116,6 +116,7 @@ function generateMetaTags(post: BlogPost, postUrl: string): string {
     <meta property="og:site_name" content="iVASA" />
     <meta property="article:published_time" content="${publishedDate}" />
     <meta property="article:author" content="${authorName}" />
+    ${process.env.FACEBOOK_APP_ID ? `<meta property="fb:app_id" content="${process.env.FACEBOOK_APP_ID}" />` : '<!-- fb:app_id not configured (optional) -->'}
 
     <!-- Twitter Card Tags -->
     <meta name="twitter:card" content="summary_large_image" />
