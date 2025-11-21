@@ -220,14 +220,40 @@ router.post('/webhook', async (req, res) => {
     }
 
     if (!userId || !callId) {
-      console.warn('⚠️ Missing critical data - userId:', userId, 'callId:', callId);
-      console.warn('Full message metadata:', JSON.stringify(message?.call?.metadata || message?.metadata || {}));
+      console.error('❌ CRITICAL: Missing critical data - userId:', userId, 'callId:', callId);
+      console.error('Event Type:', eventType);
+      console.error('Full message metadata:', JSON.stringify(message?.call?.metadata || message?.metadata || {}));
+      console.error('All message keys:', Object.keys(message || {}));
+      console.error('Call object keys:', message?.call ? Object.keys(message.call) : 'N/A');
+      console.error('Assistant object keys:', message?.assistant ? Object.keys(message.assistant) : 'N/A');
+      console.error('Full message structure (first 500 chars):', JSON.stringify(message, null, 2).substring(0, 500));
       console.log('═══════════════════════════════════════════');
       console.log('');
-      return res.status(200).json({ received: true });
+
+      // IMPORTANT: Return error status so the issue is visible
+      return res.status(400).json({
+        error: 'Missing userId or callId',
+        received: true,
+        debug: {
+          userId,
+          callId,
+          eventType,
+          availableMetadataKeys: Object.keys(message?.call?.metadata || message?.metadata || {})
+        }
+      });
     }
 
     console.log('✅ Extracted: userId =', userId, ', callId =', callId, ', agent =', agentName);
+
+    // DEBUGGING: Log specific user
+    const PROBLEM_USER_ID = '64a60006-1cea-44c3-bdce-0ce01ecc6536';
+    if (userId === PROBLEM_USER_ID) {
+      console.log('🔍🔍🔍 TRACKED USER DETECTED: arttay1090@gmail.com');
+      console.log('   Event Type:', eventType);
+      console.log('   Call ID:', callId);
+      console.log('   Agent:', agentName);
+      console.log('   Full metadata:', JSON.stringify(message?.call?.metadata || message?.metadata || {}, null, 2));
+    }
 
     switch (eventType) {
       case 'call-started':
@@ -530,7 +556,7 @@ router.post('/recover-orphaned-sessions', async (req, res) => {
 // PRESERVED: All your extraction functions with production debugging
 function extractUserId(message: any): string | null {
   // Try multiple locations for userId
-  const userId = message?.call?.metadata?.userId || 
+  const userId = message?.call?.metadata?.userId ||
          message?.metadata?.userId ||
          message?.call?.assistant?.metadata?.userId ||
          message?.assistant?.metadata?.userId ||
@@ -547,14 +573,23 @@ function extractUserId(message: any): string | null {
   }
 
   if (!userId) {
-    console.warn('⚠️ Could not extract userId from webhook');
-    console.warn('Available paths:', {
+    console.error('❌ Could not extract userId from webhook');
+    console.error('Event type:', message?.type || 'unknown');
+    console.error('Available paths:', {
       hasCallMetadata: !!message?.call?.metadata,
       hasDirectMetadata: !!message?.metadata,
       callMetadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : [],
       directMetadataKeys: message?.metadata ? Object.keys(message.metadata) : [],
-      messageKeys: Object.keys(message || {})
+      messageKeys: Object.keys(message || {}),
+      callKeys: message?.call ? Object.keys(message.call) : []
     });
+    console.error('Metadata values (sanitized):', {
+      callMetadata: message?.call?.metadata,
+      directMetadata: message?.metadata,
+      assistantMetadata: message?.assistant?.metadata
+    });
+  } else {
+    console.log(`✅ Extracted userId: ${userId}`);
   }
 
   return userId;

@@ -79,10 +79,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const [typewriterMessageId, setTypewriterMessageId] = useState<string | null>(null);
   const [displayedContent, setDisplayedContent] = useState<Record<string, string>>({});
   const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Voice message buffering state (to pool complete thoughts)
   const [voiceMessageBuffer, setVoiceMessageBuffer] = useState<string>('');
   const bufferedMessageIdRef = useRef<string | null>(null);
+  const bufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Persist text session state to localStorage
   useEffect(() => {
@@ -183,6 +185,57 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     });
   }, [onTranscript, selectedAgentId]);
 
+  // Helper function to finalize buffered voice message
+  const finalizeVoiceBuffer = useCallback(() => {
+    // Clear any existing timeout
+    if (bufferTimeoutRef.current) {
+      clearTimeout(bufferTimeoutRef.current);
+      bufferTimeoutRef.current = null;
+    }
+
+    setVoiceMessageBuffer(currentBuffer => {
+      if (currentBuffer && bufferedMessageIdRef.current) {
+        const finalMessageId = bufferedMessageIdRef.current;
+        console.log('📝 [VOICE] ✅ Complete message ready:', {
+          id: finalMessageId,
+          length: currentBuffer.length,
+          preview: currentBuffer.substring(0, 80) + '...'
+        });
+
+        // Add complete message to transcript
+        const extendedMessage: ExtendedTranscriptMessage = {
+          id: finalMessageId,
+          role: 'assistant',
+          content: currentBuffer,
+          timestamp: new Date(),
+          source: 'voice',
+          agentId: selectedAgentId
+        };
+
+        setTranscript(prev => [...prev, extendedMessage]);
+        console.log('📝 [VOICE] Message added to transcript');
+
+        // Trigger typewriter effect for complete message
+        setDisplayedContent(prev => {
+          console.log('📝 [VOICE] Setting displayedContent to empty for:', finalMessageId);
+          return {
+            ...prev,
+            [finalMessageId]: ''
+          };
+        });
+
+        setTypewriterMessageId(finalMessageId);
+        console.log('📝 [VOICE] 🎨 Typewriter effect triggered for:', finalMessageId);
+      } else {
+        console.log('📝 [VOICE] ⚠️ No buffer content or ID, skipping finalization');
+      }
+
+      // Clear buffer
+      bufferedMessageIdRef.current = null;
+      return '';
+    });
+  }, [selectedAgentId]);
+
   // Listen for speech-update events to finalize buffered assistant messages
   useEffect(() => {
     onSpeechUpdate((message: SpeechUpdateMessage) => {
@@ -194,51 +247,38 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       // When assistant stops speaking, finalize the buffered message
       if (message.role === 'assistant' && message.status === 'stopped') {
         console.log('🎤 [VOICE] Assistant stopped speaking - finalizing buffer');
-
-        setVoiceMessageBuffer(currentBuffer => {
-          if (currentBuffer && bufferedMessageIdRef.current) {
-            const finalMessageId = bufferedMessageIdRef.current;
-            console.log('📝 [VOICE] ✅ Complete message ready:', {
-              id: finalMessageId,
-              length: currentBuffer.length,
-              preview: currentBuffer.substring(0, 80) + '...'
-            });
-
-            // Add complete message to transcript
-            const extendedMessage: ExtendedTranscriptMessage = {
-              id: finalMessageId,
-              role: 'assistant',
-              content: currentBuffer,
-              timestamp: new Date(),
-              source: 'voice',
-              agentId: selectedAgentId
-            };
-
-            setTranscript(prev => [...prev, extendedMessage]);
-            console.log('📝 [VOICE] Message added to transcript');
-
-            // Trigger typewriter effect for complete message
-            setDisplayedContent(prev => {
-              console.log('📝 [VOICE] Setting displayedContent to empty for:', finalMessageId);
-              return {
-                ...prev,
-                [finalMessageId]: ''
-              };
-            });
-
-            setTypewriterMessageId(finalMessageId);
-            console.log('📝 [VOICE] 🎨 Typewriter effect triggered for:', finalMessageId);
-          } else {
-            console.log('📝 [VOICE] ⚠️ No buffer content or ID, skipping finalization');
-          }
-
-          // Clear buffer
-          bufferedMessageIdRef.current = null;
-          return '';
-        });
+        finalizeVoiceBuffer();
       }
     });
-  }, [onSpeechUpdate, selectedAgentId]);
+  }, [onSpeechUpdate, finalizeVoiceBuffer]);
+
+  // CRITICAL FIX: Force-finalize buffered messages after timeout to prevent stuck state
+  useEffect(() => {
+    // If there's a buffered message, set a timeout to force-finalize it
+    if (voiceMessageBuffer && bufferedMessageIdRef.current) {
+      console.log('⏰ [VOICE] Setting 10s timeout for buffer:', bufferedMessageIdRef.current);
+
+      // Clear any existing timeout
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+      }
+
+      // Set new timeout (10 seconds)
+      bufferTimeoutRef.current = setTimeout(() => {
+        console.warn('⚠️ [VOICE] Buffer timeout reached - force-finalizing message');
+        console.warn('   This may indicate a missing speech-update event from VAPI');
+        finalizeVoiceBuffer();
+      }, 10000); // 10 second timeout
+    }
+
+    // Cleanup timeout on unmount or when buffer clears
+    return () => {
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+        bufferTimeoutRef.current = null;
+      }
+    };
+  }, [voiceMessageBuffer, finalizeVoiceBuffer]);
 
   // Auto-scroll to bottom when transcript updates
   useEffect(() => {
@@ -247,7 +287,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
   // Typewriter effect for assistant messages
   useEffect(() => {
-    if (!typewriterMessageId) return;
+    if (!typewriterMessageId) {
+      // Clear timeout when typewriter is done
+      if (typewriterTimeoutRef.current) {
+        clearTimeout(typewriterTimeoutRef.current);
+        typewriterTimeoutRef.current = null;
+      }
+      return;
+    }
 
     const message = transcript.find(m => m.id === typewriterMessageId);
     if (!message) return;
@@ -261,14 +308,48 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       return;
     }
 
-    // Clear any existing interval
+    // Clear any existing interval and timeout
     if (typewriterIntervalRef.current) {
       clearInterval(typewriterIntervalRef.current);
+    }
+    if (typewriterTimeoutRef.current) {
+      clearTimeout(typewriterTimeoutRef.current);
     }
 
     // Typewriter animation: add 2-3 characters at a time for smooth flow
     const charsPerInterval = 2;
     const intervalDelay = 30; // milliseconds (faster = more fluid)
+
+    // CRITICAL FIX: Add safety timeout to force-complete typewriter if it gets stuck
+    // Calculate expected duration: (fullContent.length / charsPerInterval) * intervalDelay + buffer
+    const expectedDuration = (fullContent.length / charsPerInterval) * intervalDelay;
+    const safetyTimeout = Math.max(expectedDuration * 2, 15000); // At least 15 seconds
+
+    console.log('🎨 [TYPEWRITER] Starting animation:', {
+      messageId: typewriterMessageId,
+      contentLength: fullContent.length,
+      expectedDuration: `${Math.round(expectedDuration / 1000)}s`,
+      safetyTimeout: `${Math.round(safetyTimeout / 1000)}s`
+    });
+
+    typewriterTimeoutRef.current = setTimeout(() => {
+      console.warn('⚠️ [TYPEWRITER] Safety timeout reached - force-completing animation');
+      console.warn('   Message ID:', typewriterMessageId);
+      console.warn('   Current length:', currentDisplayed.length, '/ Full length:', fullContent.length);
+
+      // Force-complete the typewriter
+      if (typewriterIntervalRef.current) {
+        clearInterval(typewriterIntervalRef.current);
+        typewriterIntervalRef.current = null;
+      }
+
+      setDisplayedContent(prev => ({
+        ...prev,
+        [typewriterMessageId]: fullContent
+      }));
+
+      setTypewriterMessageId(null);
+    }, safetyTimeout);
 
     typewriterIntervalRef.current = setInterval(() => {
       setDisplayedContent(prev => {
@@ -280,7 +361,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
             clearInterval(typewriterIntervalRef.current);
             typewriterIntervalRef.current = null;
           }
+          if (typewriterTimeoutRef.current) {
+            clearTimeout(typewriterTimeoutRef.current);
+            typewriterTimeoutRef.current = null;
+          }
           setTypewriterMessageId(null);
+          console.log('✅ [TYPEWRITER] Animation completed normally for:', typewriterMessageId);
           return prev;
         }
 
@@ -296,6 +382,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     return () => {
       if (typewriterIntervalRef.current) {
         clearInterval(typewriterIntervalRef.current);
+      }
+      if (typewriterTimeoutRef.current) {
+        clearTimeout(typewriterTimeoutRef.current);
       }
     };
   }, [typewriterMessageId, transcript, displayedContent]);

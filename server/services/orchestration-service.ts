@@ -124,6 +124,43 @@ export async function initializeSession(
   callId: string,
   agentName: string
 ): Promise<SessionState> {
+  // CRITICAL FIX: Validate user exists before creating session
+  console.log(`🔍 Validating user exists: ${userId}`);
+
+  const { data: userExists, error: userCheckError } = await supabase
+    .from('users')
+    .select('id, email, first_name')
+    .eq('id', userId)
+    .single();
+
+  if (userCheckError || !userExists) {
+    console.error(`❌ CRITICAL: User ${userId} does not exist in database!`);
+    console.error(`   This will cause foreign key constraint violations.`);
+    console.error(`   Error: ${userCheckError?.message || 'User not found'}`);
+    console.error(`   Call ID: ${callId}`);
+    console.error(`   Agent: ${agentName}`);
+
+    // Still create in-memory session for backward compatibility, but log the issue
+    const session: SessionState = {
+      userId,
+      callId,
+      agentName,
+      currentCSSStage: 'pointed_origin',
+      sessionStartTime: new Date(),
+      processedTranscripts: new Set(),
+      exchangeCount: 0,
+      narrativePhase: 'narrative_collection'
+    };
+
+    activeSessions.set(callId, session);
+    checkedSessions.add(callId);
+
+    console.error(`⚠️ Created in-memory session but DATABASE SAVE WILL FAIL`);
+    return session;
+  }
+
+  console.log(`✅ User validated: ${userExists.email} (${userExists.first_name})`);
+
   const session: SessionState = {
     userId,
     callId,
@@ -143,6 +180,7 @@ export async function initializeSession(
     console.log(`🔄 Attempting to save session to database:`, {
       call_id: callId,
       user_id: userId,
+      user_email: userExists.email,
       agent_name: agentName,
       status: 'active'
     });
@@ -164,21 +202,37 @@ export async function initializeSession(
       console.error(`❌ Failed to save session to database:`, error);
       console.error(`   Error code: ${error.code}`);
       console.error(`   Error message: ${error.message}`);
-      console.error(`   Full details: ${JSON.stringify(error, null, 2)}`);
+      console.error(`   Error hint: ${error.hint || 'N/A'}`);
+      console.error(`   Error details: ${error.details || 'N/A'}`);
+      console.error(`   User ID: ${userId}`);
+      console.error(`   User Email: ${userExists.email}`);
+      console.error(`   Call ID: ${callId}`);
+      console.error(`   Full error object: ${JSON.stringify(error, null, 2)}`);
+
+      // Log specific error types
+      if (error.code === '23503') {
+        console.error(`   🔥 FOREIGN KEY VIOLATION: User ${userId} reference is invalid!`);
+      } else if (error.code === '23505') {
+        console.error(`   🔥 UNIQUE CONSTRAINT VIOLATION: Session with call_id ${callId} already exists!`);
+      }
+
       // Don't throw - keep session in memory even if DB fails
     } else {
       console.log(`✅ Session saved to database successfully!`);
       console.log(`   Session ID: ${data?.[0]?.id}`);
       console.log(`   Call ID: ${data?.[0]?.call_id}`);
+      console.log(`   User: ${userExists.email}`);
     }
   } catch (dbError) {
     console.error(`❌ Database operation failed with exception:`, dbError);
     console.error(`   Exception type: ${dbError instanceof Error ? dbError.constructor.name : typeof dbError}`);
     console.error(`   Exception message: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
+    console.error(`   User ID: ${userId}`);
+    console.error(`   Call ID: ${callId}`);
     // Continue with in-memory session even if DB fails
   }
 
-  console.log(`✅ Session initialized: ${callId} for user ${userId}`);
+  console.log(`✅ Session initialized: ${callId} for user ${userId} (${userExists.email})`);
   return session;
 }
 
