@@ -19,6 +19,11 @@ export interface SpeechUpdateMessage {
   role: 'assistant' | 'user';
 }
 
+// New: User speech events (separate from assistant speech-update)
+export interface UserSpeechEvent {
+  type: 'start' | 'end';
+}
+
 interface UseVapiProps {
   userId: string;
   memoryContext: string;
@@ -38,6 +43,7 @@ interface UseVapiReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
   onTranscript: (callback: (message: TranscriptMessage) => void) => void;
   onSpeechUpdate: (callback: (message: SpeechUpdateMessage) => void) => void;
+  onUserSpeech: (callback: (event: UserSpeechEvent) => void) => void;
   error: string | null;
   clearError: () => void;
 }
@@ -60,6 +66,7 @@ const useVapi = ({
   const vapiRef = useRef<any>(null);
   const transcriptCallbackRef = useRef<((message: TranscriptMessage) => void) | null>(null);
   const speechUpdateCallbackRef = useRef<((message: SpeechUpdateMessage) => void) | null>(null);
+  const userSpeechCallbackRef = useRef<((event: UserSpeechEvent) => void) | null>(null);
 
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
@@ -94,13 +101,19 @@ const useVapi = ({
           setConnectionStatus('disconnected');
         });
 
-        // Add more event listeners for debugging
+        // User speech events (separate from assistant speech-update)
         vapiInstance.on('speech-start', () => {
           console.log('🎤 User started speaking');
+          if (userSpeechCallbackRef.current) {
+            userSpeechCallbackRef.current({ type: 'start' });
+          }
         });
 
         vapiInstance.on('speech-end', () => {
           console.log('🎤 User stopped speaking');
+          if (userSpeechCallbackRef.current) {
+            userSpeechCallbackRef.current({ type: 'end' });
+          }
         });
 
         vapiInstance.on('message', (message: any) => {
@@ -444,6 +457,10 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     speechUpdateCallbackRef.current = callback;
   }, []);
 
+  const onUserSpeech = useCallback((callback: (event: UserSpeechEvent) => void) => {
+    userSpeechCallbackRef.current = callback;
+  }, []);
+
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -456,6 +473,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     connectionStatus,
     onTranscript,
     onSpeechUpdate,
+    onUserSpeech,
     error,
     clearError
   };

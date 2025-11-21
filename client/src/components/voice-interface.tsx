@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
-import useVapi, { TranscriptMessage, SpeechUpdateMessage } from '@/hooks/use-vapi';
+import useVapi, { TranscriptMessage, SpeechUpdateMessage, UserSpeechEvent } from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { DeleteAccount } from './DeleteAccount';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
@@ -123,6 +123,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     connectionStatus,
     onTranscript,
     onSpeechUpdate,
+    onUserSpeech,
     error: vapiError,
     clearError
   } = useVapi({
@@ -283,7 +284,20 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     });
   }, [selectedAgentId]);
 
-  // Listen for speech-update events to finalize buffered messages
+  // Listen for user speech-end events to finalize user messages
+  useEffect(() => {
+    onUserSpeech((event: UserSpeechEvent) => {
+      console.log('🎤 [VOICE] User speech event:', event.type);
+
+      // When user STOPS speaking, finalize the buffered user message
+      if (event.type === 'end') {
+        console.log('🎤 [VOICE] User stopped speaking - finalizing user buffer');
+        finalizeUserBuffer();
+      }
+    });
+  }, [onUserSpeech, finalizeUserBuffer]);
+
+  // Listen for speech-update events to finalize assistant messages
   useEffect(() => {
     onSpeechUpdate((message: SpeechUpdateMessage) => {
       console.log('🎤 [VOICE] Speech update:', {
@@ -291,20 +305,13 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         role: message.role
       });
 
-      // When assistant STARTS speaking, finalize any buffered user message
-      // (This indicates the user's complete turn is done)
-      if (message.role === 'assistant' && message.status === 'started') {
-        console.log('🎤 [VOICE] Assistant started speaking - finalizing user buffer');
-        finalizeUserBuffer();
-      }
-
       // When assistant stops speaking, finalize the buffered assistant message
       if (message.role === 'assistant' && message.status === 'stopped') {
         console.log('🎤 [VOICE] Assistant stopped speaking - finalizing assistant buffer');
         finalizeVoiceBuffer();
       }
     });
-  }, [onSpeechUpdate, finalizeVoiceBuffer, finalizeUserBuffer]);
+  }, [onSpeechUpdate, finalizeVoiceBuffer]);
 
   // CRITICAL FIX: Force-finalize buffered messages after timeout to prevent stuck state
   useEffect(() => {
@@ -338,19 +345,19 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   useEffect(() => {
     // If there's a buffered user message, set a timeout to force-finalize it
     if (userMessageBuffer && bufferedUserMessageIdRef.current) {
-      console.log('⏰ [VOICE] Setting 3s timeout for user buffer:', bufferedUserMessageIdRef.current);
+      console.log('⏰ [VOICE] Setting 5s timeout for user buffer:', bufferedUserMessageIdRef.current);
 
       // Clear any existing timeout
       if (userBufferTimeoutRef.current) {
         clearTimeout(userBufferTimeoutRef.current);
       }
 
-      // Set new timeout (3 seconds) - shorter than assistant since we expect quick turnaround
+      // Set new timeout (5 seconds) - fallback in case speech-end event doesn't fire
       userBufferTimeoutRef.current = setTimeout(() => {
         console.warn('⚠️ [VOICE] User buffer timeout reached - force-finalizing message');
-        console.warn('   This may indicate assistant is taking longer to respond');
+        console.warn('   This may indicate speech-end event was not received');
         finalizeUserBuffer();
-      }, 3000); // 3 second timeout
+      }, 5000); // 5 second timeout
     }
 
     // Cleanup timeout on unmount or when buffer clears
