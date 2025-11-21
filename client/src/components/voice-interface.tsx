@@ -291,15 +291,16 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         role: message.role
       });
 
-      // When user stops speaking, finalize the buffered user message
-      if (message.role === 'user' && message.status === 'stopped') {
-        console.log('🎤 [VOICE] User stopped speaking - finalizing user buffer');
+      // When assistant STARTS speaking, finalize any buffered user message
+      // (This indicates the user's complete turn is done)
+      if (message.role === 'assistant' && message.status === 'started') {
+        console.log('🎤 [VOICE] Assistant started speaking - finalizing user buffer');
         finalizeUserBuffer();
       }
 
-      // When assistant stops speaking, finalize the buffered message
+      // When assistant stops speaking, finalize the buffered assistant message
       if (message.role === 'assistant' && message.status === 'stopped') {
-        console.log('🎤 [VOICE] Assistant stopped speaking - finalizing buffer');
+        console.log('🎤 [VOICE] Assistant stopped speaking - finalizing assistant buffer');
         finalizeVoiceBuffer();
       }
     });
@@ -337,19 +338,19 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   useEffect(() => {
     // If there's a buffered user message, set a timeout to force-finalize it
     if (userMessageBuffer && bufferedUserMessageIdRef.current) {
-      console.log('⏰ [VOICE] Setting 10s timeout for user buffer:', bufferedUserMessageIdRef.current);
+      console.log('⏰ [VOICE] Setting 3s timeout for user buffer:', bufferedUserMessageIdRef.current);
 
       // Clear any existing timeout
       if (userBufferTimeoutRef.current) {
         clearTimeout(userBufferTimeoutRef.current);
       }
 
-      // Set new timeout (10 seconds)
+      // Set new timeout (3 seconds) - shorter than assistant since we expect quick turnaround
       userBufferTimeoutRef.current = setTimeout(() => {
         console.warn('⚠️ [VOICE] User buffer timeout reached - force-finalizing message');
-        console.warn('   This may indicate a missing speech-update event from VAPI');
+        console.warn('   This may indicate assistant is taking longer to respond');
         finalizeUserBuffer();
-      }, 10000); // 10 second timeout
+      }, 3000); // 3 second timeout
     }
 
     // Cleanup timeout on unmount or when buffer clears
