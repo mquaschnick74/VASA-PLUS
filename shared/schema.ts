@@ -548,6 +548,7 @@ export const influencerProfiles = pgTable("influencer_profiles", {
 
   // Commission structure
   commission_percentage: real("commission_percentage").default(15), // Default 15%
+  discount_duration_months: integer("discount_duration_months").default(1), // How many months of 50% off after trial
   equity_percentage: real("equity_percentage").default(0), // Equity grant if applicable
   equity_vested_percentage: real("equity_vested_percentage").default(0),
 

@@ -70,8 +70,8 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
         subscription_status: 'trialing',
         plan_type: 'recurring',
         trial_ends_at: trialEndDate.toISOString(),
-        trial_minutes_limit: 45,
-        usage_minutes_limit: 45,
+        trial_minutes_limit: 240,
+        usage_minutes_limit: 240,
         usage_minutes_used: 0
       });
   }
