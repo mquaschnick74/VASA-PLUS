@@ -939,12 +939,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     return lines.length > 0 ? lines : ['Starting your therapeutic journey'];
   };
 
-  if (memoryLoading || !userContext) {
+  if (memoryLoading || !userContext || !selectedAgent) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your therapeutic space...</p>
+          <p className="text-muted-foreground">
+            {!selectedAgent ? 'Loading agent configuration...' : 'Loading your therapeutic space...'}
+          </p>
         </div>
       </div>
     );
