@@ -150,7 +150,7 @@ const useVapi = ({
         vapiInstance.on('message', (message: any) => {
           console.log('📨 VAPI message:', message);
 
-          // Handle transcript events
+          // Handle transcript events (assistant messages)
           if (message.type === 'transcript' && message.transcriptType === 'final') {
             const transcriptMessage: TranscriptMessage = {
               role: message.role === 'assistant' ? 'assistant' : 'user',
@@ -164,16 +164,17 @@ const useVapi = ({
             }
           }
 
-          // Handle speech-update events
-          if (message.type === 'speech-update') {
-            const speechUpdateMessage: SpeechUpdateMessage = {
-              status: message.status,
-              role: message.role === 'assistant' ? 'assistant' : 'user'
+          // Handle voice-input events (user messages) 
+          if (message.type === 'voice-input') {
+            const transcriptMessage: TranscriptMessage = {
+              role: 'user',
+              content: message.input || '',
+              timestamp: new Date()
             };
 
-            // Call the speech update callback if it exists
-            if (speechUpdateCallbackRef.current) {
-              speechUpdateCallbackRef.current(speechUpdateMessage);
+            // Call the transcript callback if it exists
+            if (transcriptCallbackRef.current) {
+              transcriptCallbackRef.current(transcriptMessage);
             }
           }
         });
