@@ -239,7 +239,7 @@ export default function Pricing() {
                         </Badge>
                       </div>
                       <stripe-pricing-table
-                        pricing-table-id="PRICING_TABLE_A_ID_PLACEHOLDER"
+                        pricing-table-id="prctbl_1SG3sP4gtJy4JzhOKL4JWBqj"
                         publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
                         client-reference-id={userId}
                         customer-email={userEmail}
@@ -256,7 +256,7 @@ export default function Pricing() {
                         </Badge>
                       </div>
                       <stripe-pricing-table
-                        pricing-table-id="PRICING_TABLE_B_ID_PLACEHOLDER"
+                        pricing-table-id="prctbl_1SG3sP4gtJy4JzhOKL4JWBqj"
                         publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
                         client-reference-id={userId}
                         customer-email={userEmail}
