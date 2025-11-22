@@ -206,23 +206,35 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
             console.error('Failed to save promo code:', updateError);
           }
 
-          // Create initial conversion record (status: pending)
-          const { error: conversionError } = await supabase
+          // Check if conversion already exists to prevent duplicates
+          const { data: existingConversion } = await supabase
             .from('influencer_conversions')
-            .insert({
-              influencer_id: influencer.id,
-              converted_user_id: existingUser.id,
-              conversion_type: 'trial',
-              promo_code_used: cleanCode,
-              commission_percentage_applied: influencer.commission_percentage,
-              conversion_status: 'active',
-              conversion_date: new Date().toISOString()
-            });
+            .select('id')
+            .eq('influencer_id', influencer.id)
+            .eq('converted_user_id', existingUser.id)
+            .maybeSingle();
 
-          if (conversionError) {
-            console.error('Failed to create conversion record:', conversionError);
+          if (!existingConversion) {
+            // Create initial conversion record only if none exists
+            const { error: conversionError } = await supabase
+              .from('influencer_conversions')
+              .insert({
+                influencer_id: influencer.id,
+                converted_user_id: existingUser.id,
+                conversion_type: 'trial',
+                promo_code_used: cleanCode,
+                commission_percentage_applied: influencer.commission_percentage,
+                conversion_status: 'active',
+                conversion_date: new Date().toISOString()
+              });
+
+            if (conversionError) {
+              console.error('Failed to create conversion record:', conversionError);
+            } else {
+              console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+            }
           } else {
-            console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+            console.log(`ℹ️ Conversion already exists for user ${email} with influencer ${influencer.influencer_name}`);
           }
         } else {
           console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
@@ -271,19 +283,31 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
             .update({ referred_by_promo_code: cleanCode })
             .eq('id', doubleCheck.id);
 
-          await supabase
+          // Check if conversion already exists to prevent duplicates
+          const { data: existingConversion } = await supabase
             .from('influencer_conversions')
-            .insert({
-              influencer_id: influencer.id,
-              converted_user_id: doubleCheck.id,
-              conversion_type: 'trial',
-              promo_code_used: cleanCode,
-              commission_percentage_applied: influencer.commission_percentage,
-              conversion_status: 'active',
-              conversion_date: new Date().toISOString()
-            });
+            .select('id')
+            .eq('influencer_id', influencer.id)
+            .eq('converted_user_id', doubleCheck.id)
+            .maybeSingle();
 
-          console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+          if (!existingConversion) {
+            await supabase
+              .from('influencer_conversions')
+              .insert({
+                influencer_id: influencer.id,
+                converted_user_id: doubleCheck.id,
+                conversion_type: 'trial',
+                promo_code_used: cleanCode,
+                commission_percentage_applied: influencer.commission_percentage,
+                conversion_status: 'active',
+                conversion_date: new Date().toISOString()
+              });
+
+            console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+          } else {
+            console.log(`ℹ️ Conversion already exists for user ${email}`);
+          }
         } else {
           console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
         }
@@ -337,19 +361,31 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
                 .update({ referred_by_promo_code: cleanCode })
                 .eq('id', existingAfterError.id);
 
-              await supabase
+              // Check if conversion already exists to prevent duplicates
+              const { data: existingConversion } = await supabase
                 .from('influencer_conversions')
-                .insert({
-                  influencer_id: influencer.id,
-                  converted_user_id: existingAfterError.id,
-                  conversion_type: 'trial',
-                  promo_code_used: cleanCode,
-                  commission_percentage_applied: influencer.commission_percentage,
-                  conversion_status: 'active',
-                  conversion_date: new Date().toISOString()
-                });
+                .select('id')
+                .eq('influencer_id', influencer.id)
+                .eq('converted_user_id', existingAfterError.id)
+                .maybeSingle();
 
-              console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+              if (!existingConversion) {
+                await supabase
+                  .from('influencer_conversions')
+                  .insert({
+                    influencer_id: influencer.id,
+                    converted_user_id: existingAfterError.id,
+                    conversion_type: 'trial',
+                    promo_code_used: cleanCode,
+                    commission_percentage_applied: influencer.commission_percentage,
+                    conversion_status: 'active',
+                    conversion_date: new Date().toISOString()
+                  });
+
+                console.log(`✅ Conversion tracked for influencer ${influencer.influencer_name}`);
+              } else {
+                console.log(`ℹ️ Conversion already exists for user ${email}`);
+              }
             } else {
               console.log(`❌ Invalid or inactive promo code: ${cleanCode}`);
             }
@@ -362,10 +398,10 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
       throw error;
     }
 
-    // PROMO CODE TRACKING
+    // PROMO CODE TRACKING (for truly new users - no duplicate check needed since user was just created)
     if (promoCode && promoCode.trim().length > 0) {
       const cleanCode = promoCode.trim().toUpperCase();
-      console.log(`🎟️ Processing promo code: ${cleanCode} for user: ${email}`);
+      console.log(`🎟️ Processing promo code: ${cleanCode} for new user: ${email}`);
 
       const { data: influencer } = await supabase
         .from('influencer_profiles')
