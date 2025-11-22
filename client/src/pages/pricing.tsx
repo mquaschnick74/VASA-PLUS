@@ -230,15 +230,49 @@ export default function Pricing() {
                 )}
 
                 {scriptLoaded && userId && userEmail ? (
-                  isPromoActive ? (
-                    // DISCOUNTED PRICING - Shows when user has active promo
+                  promoCode === 'TESTA2025' ? (
+                    // PROMO A: 30 days free + 50% off for 1 month
+                    <div>
+                      <div className="text-center mb-4">
+                        <Badge className="bg-green-500">
+                          🎉 30 Days FREE + 50% Off Next Month - Code: {promoCode}
+                        </Badge>
+                      </div>
+                      <stripe-pricing-table
+                        pricing-table-id="prctbl_1SG3sP4gtJy4JzhOKL4JWBqj"
+                        publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                        client-reference-id={userId}
+                        customer-email={userEmail}
+                        customer-promo-code="TESTA2025"
+                      >
+                      </stripe-pricing-table>
+                    </div>
+                  ) : promoCode === 'TESTB2025' ? (
+                    // PROMO B: 30 days free + 50% off for 2 months
+                    <div>
+                      <div className="text-center mb-4">
+                        <Badge className="bg-green-500">
+                          🎉 30 Days FREE + 50% Off Next 2 Months - Code: {promoCode}
+                        </Badge>
+                      </div>
+                      <stripe-pricing-table
+                        pricing-table-id="prctbl_1SG3sP4gtJy4JzhOKL4JWBqj"
+                        publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                        client-reference-id={userId}
+                        customer-email={userEmail}
+                        customer-promo-code="TESTB2025"
+                      >
+                      </stripe-pricing-table>
+                    </div>
+                  ) : isPromoActive ? (
+                    // EXISTING GENERIC PROMO (keep as fallback for old INFLUENCER50 code)
                     <div>
                       <div className="text-center mb-4">
                         <Badge className="bg-green-500">
                           🎉 50% OFF First Month - Code: INFLUENCER50
                         </Badge>
                       </div>
-                      <stripe-pricing-table 
+                      <stripe-pricing-table
                         pricing-table-id="prctbl_1SG3sP4gtJy4JzhOKL4JWBqj"
                         publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
                         client-reference-id={userId}
@@ -248,8 +282,8 @@ export default function Pricing() {
                       </stripe-pricing-table>
                     </div>
                   ) : (
-                    // NORMAL PRICING - Shows when no promo or promo expired
-                    <stripe-pricing-table 
+                    // NORMAL PRICING - No promo code applied
+                    <stripe-pricing-table
                       pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
                       publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
                       client-reference-id={userId}
