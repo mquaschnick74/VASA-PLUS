@@ -21,6 +21,7 @@
     FileText,
     Edit,
     Trash2,
+    MessageCircle,
   } from "lucide-react";
 
   interface AdminDashboardProps {
@@ -96,14 +97,29 @@
     created_at: string;
   }
 
+  interface BlogComment {
+    id: string;
+    author_name: string;
+    author_email: string | null;
+    content: string;
+    status: "pending" | "approved" | "rejected";
+    created_at: string;
+    post_id: string;
+    blog_posts: {
+      title: string;
+      slug: string;
+    } | null;
+  }
+
   export default function AdminDashboard({ userId, setUserId }: AdminDashboardProps) {
-    const [activeTab, setActiveTab] = useState<"overview" | "partners" | "influencers" | "content" | "blog">("overview");
+    const [activeTab, setActiveTab] = useState<"overview" | "partners" | "influencers" | "content" | "blog" | "comments">("overview");
     const [loading, setLoading] = useState(true);
     const [overview, setOverview] = useState<OverviewStats | null>(null);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [influencers, setInfluencers] = useState<Influencer[]>([]);
     const [pendingContent, setPendingContent] = useState<ContentItem[]>([]);
     const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+    const [blogComments, setBlogComments] = useState<BlogComment[]>([]);
     const [showBlogForm, setShowBlogForm] = useState(false);
     const [editingBlogPost, setEditingBlogPost] = useState<BlogPost | null>(null);
     const [formKey, setFormKey] = useState(0); // Force form remount on each operation
@@ -214,6 +230,17 @@
             if (blogRes.ok) {
               const data = (await blogRes.json()) as { posts: BlogPost[] };
               setBlogPosts(data.posts ?? []);
+            }
+            break;
+          }
+
+          case "comments": {
+            const commentsRes = await fetch("/api/blog/admin/comments", {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (commentsRes.ok) {
+              const data = (await commentsRes.json()) as { comments: BlogComment[] };
+              setBlogComments(data.comments ?? []);
             }
             break;
           }
@@ -679,6 +706,60 @@
       }
     };
 
+    const updateCommentStatus = async (commentId: string, status: "approved" | "rejected") => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session;
+      if (!session) return;
+
+      try {
+        const res = await fetch(`/api/blog/admin/comments/${commentId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ status }),
+        });
+
+        if (res.ok) {
+          alert(`Comment ${status} successfully!`);
+          void loadData();
+        } else {
+          const error = await res.json();
+          alert(`Failed: ${error.error ?? "Unknown error"}`);
+        }
+      } catch (error) {
+        console.error("Update comment error:", error);
+        alert("Failed to update comment");
+      }
+    };
+
+    const deleteComment = async (commentId: string) => {
+      if (!confirm("Are you sure you want to delete this comment?")) return;
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session;
+      if (!session) return;
+
+      try {
+        const res = await fetch(`/api/blog/admin/comments/${commentId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (res.ok) {
+          alert("Comment deleted successfully!");
+          void loadData();
+        } else {
+          const error = await res.json();
+          alert(`Failed: ${error.error ?? "Unknown error"}`);
+        }
+      } catch (error) {
+        console.error("Delete comment error:", error);
+        alert("Failed to delete comment");
+      }
+    };
+
     if (loading) {
       return (
         <div className="min-h-screen flex items-center justify-center gradient-bg">
@@ -719,6 +800,10 @@
             </Button>
             <Button variant={activeTab === "blog" ? "default" : "outline"} onClick={() => setActiveTab("blog")}>
               Blog Posts
+            </Button>
+            <Button variant={activeTab === "comments" ? "default" : "outline"} onClick={() => setActiveTab("comments")}>
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Comments
             </Button>
             <Button variant="outline" disabled className="opacity-50">
               Commissions (Coming Soon)
@@ -1292,6 +1377,104 @@
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Comments Moderation */}
+          {activeTab === "comments" && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Blog Comments</h2>
+                <p className="text-sm text-muted-foreground">
+                  {blogComments.filter(c => c.status === "pending").length} pending review
+                </p>
+              </div>
+
+              {blogComments.length === 0 ? (
+                <Card className="glass">
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    No comments yet.
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {blogComments.map((comment) => (
+                    <Card key={comment.id} className="glass">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold">{comment.author_name}</p>
+                              <Badge
+                                variant={
+                                  comment.status === "approved"
+                                    ? "default"
+                                    : comment.status === "pending"
+                                    ? "secondary"
+                                    : "destructive"
+                                }
+                              >
+                                {comment.status}
+                              </Badge>
+                            </div>
+                            {comment.author_email && (
+                              <p className="text-xs text-muted-foreground mb-1">{comment.author_email}</p>
+                            )}
+                            <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">
+                              {comment.content}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              On:{" "}
+                              {comment.blog_posts ? (
+                                <a
+                                  href={`/blog/${comment.blog_posts.slug}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  {comment.blog_posts.title}
+                                </a>
+                              ) : (
+                                "Unknown post"
+                              )}{" "}
+                              • {new Date(comment.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex gap-2 ml-4">
+                            {comment.status !== "approved" && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => updateCommentStatus(comment.id, "approved")}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Approve
+                              </Button>
+                            )}
+                            {comment.status !== "rejected" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateCommentStatus(comment.id, "rejected")}
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Reject
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteComment(comment.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
