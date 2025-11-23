@@ -1380,13 +1380,13 @@
             </div>
           )}
 
-          {/* Comments Moderation */}
+          {/* Comments Management */}
           {activeTab === "comments" && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Blog Comments</h2>
                 <p className="text-sm text-muted-foreground">
-                  {blogComments.filter(c => c.status === "pending").length} pending review
+                  {blogComments.length} total comments
                 </p>
               </div>
 
@@ -1405,17 +1405,6 @@
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-semibold">{comment.author_name}</p>
-                              <Badge
-                                variant={
-                                  comment.status === "approved"
-                                    ? "default"
-                                    : comment.status === "pending"
-                                    ? "secondary"
-                                    : "destructive"
-                                }
-                              >
-                                {comment.status}
-                              </Badge>
                             </div>
                             {comment.author_email && (
                               <p className="text-xs text-muted-foreground mb-1">{comment.author_email}</p>
@@ -1440,35 +1429,14 @@
                               • {new Date(comment.created_at).toLocaleString()}
                             </p>
                           </div>
-                          <div className="flex gap-2 ml-4">
-                            {comment.status !== "approved" && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => updateCommentStatus(comment.id, "approved")}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1" />
-                                Approve
-                              </Button>
-                            )}
-                            {comment.status !== "rejected" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateCommentStatus(comment.id, "rejected")}
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Reject
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => deleteComment(comment.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteComment(comment.id)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
