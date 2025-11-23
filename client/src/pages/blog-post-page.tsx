@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Eye, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/shared/Header";
+import BlogComments from "@/components/BlogComments";
 
 interface BlogPost {
   id: string;
@@ -269,12 +270,15 @@ export default function BlogPostPage() {
             </div>
 
             {/* Post Content */}
-            <div 
+            <div
               className="prose prose-invert prose-purple max-w-none"
               dangerouslySetInnerHTML={{ __html: markdownToHtml(post.content) }}
             />
           </CardContent>
         </Card>
+
+        {/* Comments Section */}
+        {params?.slug && <BlogComments slug={params.slug} />}
       </div>
     </div>
   );
