@@ -805,6 +805,37 @@ export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = typeof blogPosts.$inferInsert;
 
 // ============================================================================
+// BLOG COMMENTS TABLE
+// ============================================================================
+
+export const blogComments = pgTable("blog_comments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Relationships
+  post_id: uuid("post_id").notNull().references(() => blogPosts.id, { onDelete: "cascade" }),
+  user_id: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+
+  // Comment content
+  author_name: varchar("author_name", { length: 255 }).notNull(),
+  author_email: varchar("author_email", { length: 255 }),
+  content: text("content").notNull(),
+
+  // Parent comment for nested replies (optional)
+  parent_id: uuid("parent_id"),
+
+  // Moderation
+  status: varchar("status", { length: 20 }).default('approved'), // 'pending', 'approved', 'rejected'
+
+  // Timestamps
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// Blog comment type
+export type BlogComment = typeof blogComments.$inferSelect;
+export type InsertBlogComment = typeof blogComments.$inferInsert;
+
+// ============================================================================
 // PCA MASTER ANALYSIS TABLE
 // ============================================================================
 
