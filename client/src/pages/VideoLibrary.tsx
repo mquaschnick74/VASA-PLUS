@@ -36,11 +36,11 @@ export default function VideoLibrary() {
       duration: '1:43'
     },
     {
-      youtubeId: '', // Replace with real YouTube ID
-      title: 'Introduction to Therapeutic Practice',
+      youtubeId: '9gPCGf9XPCo', // Replace with real YouTube ID
+      title: 'Introduction to VASA',
       description: 'Learn the foundations of our therapeutic approach and how voice analysis can support your mental wellness journey.',
       category: 'Getting Started',
-      duration: '10:30'
+      duration: '1:21'
     },
     {
       youtubeId: 'VIDEO_ID_2', // Replace with real YouTube ID
