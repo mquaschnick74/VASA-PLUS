@@ -1397,47 +1397,79 @@
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-3">
-                  {blogComments.map((comment) => (
-                    <Card key={comment.id} className="glass">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-semibold">{comment.author_name}</p>
-                            </div>
-                            {comment.author_email && (
-                              <p className="text-xs text-muted-foreground mb-1">{comment.author_email}</p>
-                            )}
-                            <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">
-                              {comment.content}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              On:{" "}
-                              {comment.blog_posts ? (
-                                <a
-                                  href={`/blog/${comment.blog_posts.slug}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline"
-                                >
-                                  {comment.blog_posts.title}
-                                </a>
-                              ) : (
-                                "Unknown post"
-                              )}{" "}
-                              • {new Date(comment.created_at).toLocaleString()}
-                            </p>
+                <div className="space-y-4">
+                  {/* Group comments by blog post */}
+                  {Object.entries(
+                    blogComments.reduce((acc, comment) => {
+                      const postKey = comment.blog_posts?.slug || "unknown";
+                      const postTitle = comment.blog_posts?.title || "Unknown Post";
+                      if (!acc[postKey]) {
+                        acc[postKey] = { title: postTitle, slug: postKey, comments: [] };
+                      }
+                      acc[postKey].comments.push(comment);
+                      return acc;
+                    }, {} as Record<string, { title: string; slug: string; comments: BlogComment[] }>)
+                  ).map(([postSlug, { title, comments: postComments }]) => (
+                    <Card key={postSlug} className="glass">
+                      <CardHeader
+                        className="cursor-pointer hover:bg-white/5 transition-colors"
+                        onClick={(e) => {
+                          const content = (e.currentTarget as HTMLElement).nextElementSibling;
+                          if (content) {
+                            content.classList.toggle("hidden");
+                          }
+                        }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <FileText className="w-5 h-5" />
+                            {title}
+                          </CardTitle>
+                          <div className="flex items-center gap-3">
+                            <Badge variant="secondary">{postComments.length} comments</Badge>
+                            <a
+                              href={`/blog/${postSlug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              View post
+                            </a>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteComment(comment.id)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </Button>
                         </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3 pt-0">
+                        {postComments.map((comment) => (
+                          <div
+                            key={comment.id}
+                            className="bg-white/5 rounded-lg p-4 flex justify-between items-start"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold text-sm">{comment.author_name}</p>
+                                {comment.author_email && (
+                                  <span className="text-xs text-muted-foreground">
+                                    ({comment.author_email})
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">
+                                {comment.content}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(comment.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteComment(comment.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
                       </CardContent>
                     </Card>
                   ))}
