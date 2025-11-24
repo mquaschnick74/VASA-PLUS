@@ -75,6 +75,28 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
         usage_minutes_used: 0
       });
   }
+
+  // Check email preferences and create with Active defaults if not exists
+  const { data: existingEmailPrefs } = await supabase
+    .from('user_email_preferences')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!existingEmailPrefs) {
+    // Create email preferences with Active (enabled) as default
+    await supabase
+      .from('user_email_preferences')
+      .insert({
+        user_id: userId,
+        weekly_recap_enabled: true,  // Active by default
+        preferred_meditation_voice: 'sarah',
+        meditation_rotation_state: {
+          used: [],
+          available: ['campfire', 'ocean', 'singing_bowl']
+        }
+      });
+  }
 }
 
 // Create or get user - REQUIRES AUTHENTICATION
