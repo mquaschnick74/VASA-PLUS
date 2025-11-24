@@ -13,12 +13,12 @@ INSERT INTO user_email_preferences (
   updated_at
 )
 SELECT
-  u.id AS user_id,
-  true AS weekly_recap_enabled,  -- Active by default
-  'sarah' AS preferred_meditation_voice,
-  '{"used": [], "available": ["campfire", "ocean", "singing_bowl"]}'::jsonb AS meditation_rotation_state,
-  NOW() AS created_at,
-  NOW() AS updated_at
+  u.id,
+  true,
+  'sarah',
+  '{"used": [], "available": ["campfire", "ocean", "singing_bowl"]}'::jsonb,
+  NOW(),
+  NOW()
 FROM users u
 WHERE NOT EXISTS (
   SELECT 1
@@ -32,7 +32,3 @@ SET
   weekly_recap_enabled = true,
   updated_at = NOW()
 WHERE weekly_recap_enabled = false OR weekly_recap_enabled IS NULL;
-
--- Verify the migration
--- Uncomment the line below to check the results:
--- SELECT COUNT(*) as total_users_with_active_emails FROM user_email_preferences WHERE weekly_recap_enabled = true;
