@@ -20,6 +20,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { Users, Clock, TrendingUp, UserPlus, HelpCircle, Brain } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/shared/Header";
 
 interface TherapistDashboardProps {
   userId: string;
@@ -530,6 +531,7 @@ export default function TherapistDashboard({
 
   return (
     <div className="min-h-screen gradient-bg">
+      <Header userId={userId} setUserId={setUserId} userType="therapist" />
       <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-6">
         {/* Dashboard Title */}
         <div>

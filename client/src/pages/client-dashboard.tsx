@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { Link } from 'wouter';
 import { HelpCircle } from 'lucide-react';
+import Header from '@/components/shared/Header';
 
 interface ClientDashboardProps {
   userId: string;
@@ -110,6 +111,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
 
   return (
     <div className="min-h-screen gradient-bg">
+      <Header userId={userId} setUserId={setUserId} userType="client" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Dashboard Title */}
         <h1 className="text-2xl sm:text-3xl font-bold mb-6">Client Dashboard</h1>

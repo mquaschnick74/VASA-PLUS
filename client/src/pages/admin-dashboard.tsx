@@ -8,6 +8,7 @@
   import { TechnicalSupportCard } from "@/components/TechnicalSupportCard";
   import { supabase } from "@/lib/supabaseClient";
   import { handleLogout } from "@/lib/auth-helpers";
+  import Header from "@/components/shared/Header";
   import {
     Users,
     TrendingUp,
@@ -691,6 +692,7 @@
 
     return (
       <div className="min-h-screen gradient-bg">
+        <Header userId={userId} setUserId={setUserId} userType="admin" />
         <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-6">
           {/* Dashboard Title */}
           <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>

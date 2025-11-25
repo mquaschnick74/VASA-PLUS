@@ -11,6 +11,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { handleLogout } from '@/lib/auth-helpers';
 import { supabase } from '@/lib/supabaseClient';
 import { Link } from 'wouter';
+import Header from '@/components/shared/Header';
 import {
   DollarSign,
   Users,
@@ -174,6 +175,7 @@ export default function InfluencerDashboard({ userId, setUserId }: InfluencerDas
 
   return (
     <div className="min-h-screen gradient-bg">
+      <Header userId={userId} setUserId={setUserId} userType="influencer" />
       <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
         {/* Dashboard Title with Timeframe Selector */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
