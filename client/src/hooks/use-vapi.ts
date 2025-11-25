@@ -286,6 +286,32 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
 
       // CHANGE 2: REMOVED the firstMessageTemplate call - no more hardcoded greetings
 
+      // === PHASE 1C AUDIT: Log systemPrompt size breakdown ===
+      const basePromptLen = selectedAgent.systemPrompt.length;
+      const greetingInstructionsLen = systemPrompt.indexOf(selectedAgent.systemPrompt) > 0
+        ? systemPrompt.indexOf(selectedAgent.systemPrompt)
+        : 250; // Approximate greeting instructions length
+      const onboardingLen = hasOnboardingContent
+        ? (onboarding?.voice?.length || 0) + (onboarding?.journey?.length || 0) + 300
+        : 0;
+      const lastSessionLen = (shouldReferenceLastSession && lastSessionSummary)
+        ? lastSessionSummary.length + 150
+        : 0;
+      const memoryLen = (memoryContext && memoryContext.length > 50)
+        ? memoryContext.length + 150
+        : 0;
+      const totalPromptLen = systemPrompt.length;
+      const estimatedTokens = Math.ceil(totalPromptLen / 4);
+
+      console.log('\n📊 ===== VAPI SYSTEM PROMPT SIZE AUDIT =====');
+      console.log(`📏 Base agent prompt:       ${basePromptLen} chars (~${Math.ceil(basePromptLen / 4)} tokens)`);
+      console.log(`📏 Greeting instructions:   ~${greetingInstructionsLen} chars (~${Math.ceil(greetingInstructionsLen / 4)} tokens)`);
+      console.log(`📏 Onboarding context:      ${onboardingLen} chars (~${Math.ceil(onboardingLen / 4)} tokens)`);
+      console.log(`📏 Last session summary:    ${lastSessionLen} chars (~${Math.ceil(lastSessionLen / 4)} tokens)`);
+      console.log(`📏 Memory context:          ${memoryLen} chars (~${Math.ceil(memoryLen / 4)} tokens)`);
+      console.log(`📏 TOTAL systemPrompt:      ${totalPromptLen} chars (~${estimatedTokens} tokens)`);
+      console.log('===== END PROMPT SIZE AUDIT =====\n');
+
       // Get the current server URL for webhook configuration
       // Use environment variable if available, otherwise fall back to window.location.origin
       const baseUrl = import.meta.env.VITE_SERVER_URL || window.location.origin;
