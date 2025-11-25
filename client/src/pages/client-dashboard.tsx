@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import VoiceInterface from '@/components/voice-interface';
-import PCAMasterAnalyst from '@/components/PCAMasterAnalyst';
+import SessionAnalysis from '@/components/SessionAnalysis';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { Link } from 'wouter';
@@ -168,9 +168,9 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
           </Card>
         </div>
 
-        {/* PCA Master Analyst */}
+        {/* Session Analysis */}
         <div className="mb-8">
-          <PCAMasterAnalyst userId={userId} />
+          <SessionAnalysis userId={userId} />
         </div>
 
         {/* Main Voice Interface */}

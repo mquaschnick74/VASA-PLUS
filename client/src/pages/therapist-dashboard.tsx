@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import SubscriptionStatus from "@/components/SubscriptionStatus";
 import VoiceInterface from "@/components/voice-interface";
-import PCAMasterAnalyst from "@/components/PCAMasterAnalyst";
+import SessionAnalysis from "@/components/SessionAnalysis";
 import { supabase } from "@/lib/supabaseClient";
 import { handleLogout } from "@/lib/auth-helpers";
 import { useSubscription } from "@/hooks/use-subscription";
@@ -729,7 +729,7 @@ export default function TherapistDashboard({
                           className="flex items-center gap-2"
                         >
                           <Brain className="h-4 w-4" />
-                          {clientAnalysisStatus[client.id] ? "View Analysis" : "Run Analysis"}
+                          Session Analysis
                         </Button>
                         <Button
                           variant="outline"
@@ -758,7 +758,7 @@ export default function TherapistDashboard({
         </div>
       </div>
 
-      {/* PCA Master Analysis Dialog */}
+      {/* Session Analysis Dialog */}
       <Dialog
         open={selectedClientForAnalysis !== null}
         onOpenChange={(open) => {
@@ -769,15 +769,15 @@ export default function TherapistDashboard({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Brain className="h-5 w-5 text-primary" />
-              Clinical Analysis for {selectedClientForAnalysis?.full_name}
+              Session Analysis for {selectedClientForAnalysis?.full_name}
             </DialogTitle>
             <DialogDescription>
-              Viewing PsychoContextual Analysis for {selectedClientForAnalysis?.email}
+              Analyze sessions for {selectedClientForAnalysis?.email}
             </DialogDescription>
           </DialogHeader>
           {selectedClientForAnalysis && (
             <div className="mt-4">
-              <PCAMasterAnalyst userId={selectedClientForAnalysis.id} />
+              <SessionAnalysis userId={selectedClientForAnalysis.id} />
             </div>
           )}
         </DialogContent>
