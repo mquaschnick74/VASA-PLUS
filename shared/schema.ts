@@ -871,26 +871,10 @@ export type PCAMasterAnalysis = typeof pcaMasterAnalysis.$inferSelect;
 export type InsertPCAMasterAnalysis = typeof pcaMasterAnalysis.$inferInsert;
 
 // ============================================================================
-// USER ANALYSES TABLE (unified analysis storage)
+// ANALYSIS TYPE CONSTANTS (ephemeral - no storage for user-visible types)
 // ============================================================================
 
-// User analyses table - stores all analysis types (user-facing and agent-only)
-export const userAnalyses = pgTable("user_analyses", {
-  id: varchar("id", { length: 255 }).primaryKey(),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  analysis_type: varchar("analysis_type", { length: 50 }).notNull(), // 'session_summary', 'intent_analysis', 'concept_insights', 'pca_master'
-  content: text("content"),  // NULL for pca_master (agent-only)
-  analyzed_sessions: jsonb("analyzed_sessions").notNull(), // Array of call_ids
-  session_count: integer("session_count").notNull(),
-  tokens_used: integer("tokens_used"),
-  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
-
-// User analyses types
-export type UserAnalysis = typeof userAnalyses.$inferSelect;
-export type InsertUserAnalysis = typeof userAnalyses.$inferInsert;
-
-// Analysis type constants
+// Analysis type constants for frontend/backend coordination
 export const ANALYSIS_TYPES = {
   SESSION_SUMMARY: 'session_summary',
   INTENT_ANALYSIS: 'intent_analysis',

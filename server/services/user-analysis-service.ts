@@ -21,9 +21,8 @@ interface TranscriptData {
 }
 
 interface AnalysisResult {
-  analysisId: string;
   analysisType: AnalysisType;
-  content?: string;        // User-visible content
+  content?: string;        // User-visible content (ephemeral - not stored)
   message?: string;        // Confirmation message for pca_master
 }
 
@@ -69,29 +68,21 @@ export class UserAnalysisService {
     // 3. Call OpenAI
     const response = await this.callOpenAI(prompt, analysisType);
 
-    // 4. Generate analysis ID
-    const analysisId = `${analysisType}_${userId}_${Date.now()}`;
-
-    // 5. Store results
-    await this.storeAnalysis(userId, analysisId, analysisType, transcripts, response);
-
     const processingTime = Date.now() - startTime;
     console.log(`✅ ${analysisType} analysis completed in ${processingTime}ms`);
 
-    // 6. Return appropriate response
+    // 4. For pca_master, store to therapeutic_context for agent injection
     if (analysisType === 'pca_master') {
-      // Also store in therapeutic_context for agent injection
       await this.storePCATherapeuticContext(userId, response.content);
 
       return {
-        analysisId,
         analysisType,
         message: 'Analysis complete. Advanced insights are now enhancing your future sessions.'
       };
     }
 
+    // 5. For user-visible types, return content directly (ephemeral - not stored)
     return {
-      analysisId,
       analysisType,
       content: response.content
     };
@@ -137,73 +128,6 @@ export class UserAnalysisService {
         agentName: s.agent_name || 'Sarah',
         durationMinutes: Math.round((s.duration_seconds || 0) / 60)
       }));
-  }
-
-  /**
-   * Get list of past analyses for a user
-   */
-  async getUserAnalyses(
-    userId: string,
-    analysisType?: AnalysisType,
-    limit: number = 10
-  ): Promise<any[]> {
-    let query = supabase
-      .from('user_analyses')
-      .select('id, analysis_type, analyzed_sessions, session_count, created_at')
-      .eq('user_id', userId)
-      .neq('analysis_type', 'pca_master') // Exclude agent-only analyses
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (analysisType && analysisType !== 'pca_master') {
-      query = query.eq('analysis_type', analysisType);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching analyses:', error);
-      return [];
-    }
-
-    // Add session date for display
-    return (data || []).map(analysis => ({
-      analysisId: analysis.id,
-      analysisType: analysis.analysis_type,
-      sessionCount: analysis.session_count,
-      createdAt: analysis.created_at,
-      // For single-session types, extract the date from analyzed_sessions
-      sessionDate: analysis.session_count === 1 ? analysis.created_at : undefined
-    }));
-  }
-
-  /**
-   * Get a specific analysis by ID
-   */
-  async getAnalysis(userId: string, analysisId: string): Promise<any> {
-    const { data, error } = await supabase
-      .from('user_analyses')
-      .select('*')
-      .eq('id', analysisId)
-      .eq('user_id', userId)
-      .single();
-
-    if (error || !data) {
-      throw new Error('Analysis not found');
-    }
-
-    // Don't allow viewing pca_master analyses
-    if (data.analysis_type === 'pca_master') {
-      throw new Error('This analysis type is not viewable');
-    }
-
-    return {
-      analysisId: data.id,
-      analysisType: data.analysis_type,
-      content: data.content,
-      createdAt: data.created_at,
-      sessions: data.analyzed_sessions
-    };
   }
 
   /**
@@ -459,38 +383,7 @@ ${t.text}
   }
 
   /**
-   * Store analysis results
-   */
-  private async storeAnalysis(
-    userId: string,
-    analysisId: string,
-    analysisType: AnalysisType,
-    transcripts: TranscriptData[],
-    response: any
-  ): Promise<void> {
-    const callIds = transcripts.map(t => t.call_id);
-
-    const { error } = await supabase.from('user_analyses').insert({
-      id: analysisId,
-      user_id: userId,
-      analysis_type: analysisType,
-      content: analysisType === 'pca_master' ? null : response.content,
-      analyzed_sessions: callIds,
-      session_count: transcripts.length,
-      tokens_used: response.usage?.total_tokens || 0,
-      created_at: new Date().toISOString()
-    });
-
-    if (error) {
-      console.error('❌ Error storing analysis:', error);
-      throw new Error(`Failed to store analysis: ${error.message}`);
-    }
-
-    console.log(`💾 Stored ${analysisType} analysis: ${analysisId}`);
-  }
-
-  /**
-   * Store PCA therapeutic context for agent injection
+   * Store PCA therapeutic context for agent injection (pca_master only)
    */
   private async storePCATherapeuticContext(userId: string, fullResponse: string): Promise<void> {
     // Extract OUTPUT 2 (therapeutic context) from PCA response
