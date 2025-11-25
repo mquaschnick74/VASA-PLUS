@@ -748,6 +748,11 @@ export default function TherapistDashboard({
           </CardContent>
         </Card>
 
+        {/* Your Session Analysis - for therapist's own sessions */}
+        <div className="mt-8">
+          <SessionAnalysis userId={userId} />
+        </div>
+
         {/* Voice Interface Section */}
         <div className="mt-8">
           <VoiceInterface
