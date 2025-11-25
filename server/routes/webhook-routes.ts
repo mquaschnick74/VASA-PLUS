@@ -202,9 +202,20 @@ router.post('/webhook', async (req, res) => {
     console.log('Event Type:', eventType);
     console.log('Message Keys:', Object.keys(message || {}));
 
-    const userId = extractUserId(message);
+    let userId = extractUserId(message);
     const callId = extractCallId(message);
-    const agentName = extractAgentName(message);
+    let agentName = extractAgentName(message);
+
+    // FALLBACK: If userId not in message but we have callId, look it up from DB
+    // This is common for end-of-call-report which doesn't include metadata
+    if (!userId && callId) {
+      console.log(`🔄 userId not in webhook, attempting DB lookup for callId: ${callId}`);
+      const lookedUpUserId = await lookupUserIdByCallId(callId);
+      if (lookedUpUserId) {
+        userId = lookedUpUserId;
+        console.log(`✅ Retrieved userId from DB: ${userId}`);
+      }
+    }
 
     // PRESERVED: Enhanced debugging for production
     if (process.env.REPLIT_DEPLOYMENT === '1' || !userId || !callId) {
@@ -573,9 +584,9 @@ function extractUserId(message: any): string | null {
   }
 
   if (!userId) {
-    console.error('❌ Could not extract userId from webhook');
-    console.error('Event type:', message?.type || 'unknown');
-    console.error('Available paths:', {
+    console.log('⚠️ Could not extract userId directly from webhook message');
+    console.log('Event type:', message?.type || 'unknown');
+    console.log('Available paths:', {
       hasCallMetadata: !!message?.call?.metadata,
       hasDirectMetadata: !!message?.metadata,
       callMetadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : [],
@@ -583,16 +594,45 @@ function extractUserId(message: any): string | null {
       messageKeys: Object.keys(message || {}),
       callKeys: message?.call ? Object.keys(message.call) : []
     });
-    console.error('Metadata values (sanitized):', {
-      callMetadata: message?.call?.metadata,
-      directMetadata: message?.metadata,
-      assistantMetadata: message?.assistant?.metadata
-    });
   } else {
     console.log(`✅ Extracted userId: ${userId}`);
   }
 
   return userId;
+}
+
+/**
+ * Lookup userId from therapeutic_sessions table by callId
+ * Used as fallback when webhook doesn't include metadata (e.g., end-of-call-report)
+ */
+async function lookupUserIdByCallId(callId: string): Promise<string | null> {
+  if (!callId) return null;
+
+  try {
+    console.log(`🔍 Looking up userId for callId: ${callId}`);
+
+    const { data: session, error } = await supabase
+      .from('therapeutic_sessions')
+      .select('user_id, agent_name')
+      .eq('call_id', callId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('❌ Error looking up session:', error);
+      return null;
+    }
+
+    if (session?.user_id) {
+      console.log(`✅ Found userId ${session.user_id} from therapeutic_sessions`);
+      return session.user_id;
+    }
+
+    console.log(`⚠️ No session found for callId: ${callId}`);
+    return null;
+  } catch (error) {
+    console.error('❌ Exception looking up userId by callId:', error);
+    return null;
+  }
 }
 
 function extractCallId(message: any): string | null {
