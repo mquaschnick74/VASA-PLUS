@@ -168,17 +168,17 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
           </Card>
         </div>
 
-        {/* Session Analysis */}
-        <div className="mb-8">
-          <SessionAnalysis userId={userId} />
-        </div>
-
         {/* Main Voice Interface */}
         <VoiceInterface
           userId={userId}
           setUserId={setUserId}
           hideLogoutButton={true}
         />
+
+        {/* Session Analysis */}
+        <div className="mt-8">
+          <SessionAnalysis userId={userId} />
+        </div>
       </div>
     </div>
   );
