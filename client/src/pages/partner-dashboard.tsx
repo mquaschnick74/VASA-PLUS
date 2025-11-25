@@ -9,7 +9,6 @@ import { TechnicalSupportCard } from '@/components/TechnicalSupportCard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { Link } from 'wouter';
-import Header from '@/components/shared/Header';
 import {
   DollarSign,
   Users,
@@ -268,8 +267,6 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
 
   return (
     <div className="min-h-screen gradient-bg">
-      <Header userId={userId} setUserId={setUserId} userType="partner" />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Dashboard Title with Tier Badge and Timeframe Selector */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
