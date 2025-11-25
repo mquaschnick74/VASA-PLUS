@@ -240,7 +240,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
             }}
             disabled={isAnalyzing}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100">
               <SelectValue>
                 <div className="flex items-center gap-2">
                   {getIconForType(selectedType)}
@@ -248,14 +248,14 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                 </div>
               </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700">
               {ANALYSIS_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
+                <SelectItem key={type.value} value={type.value} className="text-zinc-900 dark:text-zinc-100 focus:bg-zinc-100 dark:focus:bg-zinc-800">
                   <div className="flex items-center gap-2">
                     {type.icon}
                     <div>
                       <div className="font-medium">{type.label}</div>
-                      <div className="text-xs text-muted-foreground">{type.description}</div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">{type.description}</div>
                     </div>
                   </div>
                 </SelectItem>
@@ -274,12 +274,12 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
               onValueChange={(value) => setSessionCount(parseInt(value))}
               disabled={isAnalyzing}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700">
                 {[1, 2, 3, 4, 5].map((n) => (
-                  <SelectItem key={n} value={n.toString()}>
+                  <SelectItem key={n} value={n.toString()} className="text-zinc-900 dark:text-zinc-100 focus:bg-zinc-100 dark:focus:bg-zinc-800">
                     {n} {n === 1 ? 'session' : 'sessions'} (most recent)
                   </SelectItem>
                 ))}
@@ -308,15 +308,15 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                 onValueChange={setSelectedSessionId}
                 disabled={isAnalyzing}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100">
                   <SelectValue placeholder="Select a session..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700">
                   {availableSessions.map((session) => (
-                    <SelectItem key={session.callId} value={session.callId}>
+                    <SelectItem key={session.callId} value={session.callId} className="text-zinc-900 dark:text-zinc-100 focus:bg-zinc-100 dark:focus:bg-zinc-800">
                       <div className="flex items-center justify-between gap-4">
                         <span>{formatSessionDate(session.date)}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
                           {session.agentName} - {session.durationMinutes} min
                         </span>
                       </div>
@@ -328,15 +328,26 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
           </div>
         )}
 
+        {/* Ephemeral Notice - for user-visible types */}
+        {selectedType !== 'pca_master' && (
+          <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-700">
+            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+              <strong>Note:</strong> This analysis is generated on-demand and not saved.
+              Copy or screenshot any insights you want to keep.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* PCA Master IP Notice */}
         {selectedType === 'pca_master' && (
-          <Alert className="bg-primary/5 border-primary/20">
-            <Info className="h-4 w-4 text-primary" />
-            <AlertDescription className="text-sm">
-              <strong>Proprietary Analysis:</strong> This analysis uses our advanced therapeutic
-              framework to enhance your future sessions. Results are processed internally and
-              will improve your AI companion's understanding of your therapeutic journey.
-              The analysis itself is not displayed due to intellectual property considerations.
+          <Alert className="bg-violet-50 dark:bg-violet-950 border-violet-300 dark:border-violet-700">
+            <Brain className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            <AlertDescription className="text-violet-800 dark:text-violet-200 text-sm">
+              <strong>Proprietary Analysis:</strong> This uses our advanced therapeutic
+              framework to enhance your future sessions. Results are processed internally
+              and improve your AI companion's understanding. The analysis is not displayed
+              due to intellectual property considerations.
             </AlertDescription>
           </Alert>
         )}
@@ -383,12 +394,12 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
               )}
             </div>
 
-            {/* Content for user-visible types */}
+            {/* Content for user-visible types - HIGH CONTRAST */}
             {result.content && (
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border-2 border-zinc-300 dark:border-zinc-600 rounded-lg overflow-hidden">
                 <button
                   onClick={() => setShowContent(!showContent)}
-                  className="w-full flex items-center justify-between p-4 bg-muted hover:bg-muted/80 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors text-zinc-900 dark:text-zinc-100"
                 >
                   <span className="font-semibold">View Analysis</span>
                   {showContent ? (
@@ -398,8 +409,10 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                   )}
                 </button>
                 {showContent && (
-                  <div className="p-4 bg-background prose prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown>{result.content}</ReactMarkdown>
+                  <div className="p-6 bg-white dark:bg-zinc-900">
+                    <div className="prose prose-zinc dark:prose-invert max-w-none prose-headings:text-zinc-900 dark:prose-headings:text-zinc-100 prose-p:text-zinc-700 dark:prose-p:text-zinc-300 prose-li:text-zinc-700 dark:prose-li:text-zinc-300 prose-strong:text-zinc-900 dark:prose-strong:text-zinc-100">
+                      <ReactMarkdown>{result.content}</ReactMarkdown>
+                    </div>
                   </div>
                 )}
               </div>
