@@ -84,6 +84,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const bufferedMessageIdRef = useRef<string | null>(null);
   const bufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // User message buffering state (to consolidate fragmented user speech)
+  const [userMessageBuffer, setUserMessageBuffer] = useState<string>('');
+  const userBufferedMessageIdRef = useRef<string | null>(null);
+  const userBufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Persist text session state to localStorage
   useEffect(() => {
     if (activeTextSessionId) {
