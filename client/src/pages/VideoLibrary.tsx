@@ -29,7 +29,7 @@ export default function VideoLibrary() {
   // Placeholder video data - replace youtubeId with actual YouTube video IDs
   const videos: VideoItem[] = [
     {
-      youtubeId: 'qnQJZUwhvR0', // Replace with real YouTube ID
+      youtubeId: 'ZeXBf6YkDuk', // Replace with real YouTube ID
       title: 'Frictionless Account Creation',
       description: 'Learn how easy it is to create an account and other features of iVASA.',
       category: 'Getting Started',
