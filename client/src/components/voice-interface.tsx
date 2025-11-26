@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import useVapi, { TranscriptMessage, SpeechUpdateMessage } from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
-import { DeleteAccount } from './DeleteAccount';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
@@ -955,22 +954,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     <div className="min-h-screen gradient-bg">
       {/* Main Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Welcome & Account Management Bar */}
+        {/* Welcome Bar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:gap-4 glass rounded-lg p-3 sm:p-4">
           <div className="glass rounded-full px-3 sm:px-4 py-1 sm:py-2">
             <span className="text-xs sm:text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <DeleteAccount
-              userId={userId}
-              userEmail={userContext.profile?.email}
-              sessionCount={userContext.sessionCount}
-              onAccountDeleted={() => {
-                console.log('🔓 Account deleted callback - using handleLogout...');
-                // Use centralized logout with timeout protection
-                handleLogout(setUserId);
-              }}
-            />
           </div>
         </div>
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
