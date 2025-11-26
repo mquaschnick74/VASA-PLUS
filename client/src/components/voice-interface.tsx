@@ -242,7 +242,46 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     });
   }, [selectedAgentId]);
 
-  // Listen for speech-update events to finalize buffered assistant messages
+  // Helper function to finalize buffered user message
+  const finalizeUserBuffer = useCallback(() => {
+    // Clear any existing timeout
+    if (userBufferTimeoutRef.current) {
+      clearTimeout(userBufferTimeoutRef.current);
+      userBufferTimeoutRef.current = null;
+    }
+
+    setUserMessageBuffer(currentBuffer => {
+      if (currentBuffer && userBufferedMessageIdRef.current) {
+        const finalMessageId = userBufferedMessageIdRef.current;
+        console.log('📝 [VOICE] ✅ Complete user message ready:', {
+          id: finalMessageId,
+          length: currentBuffer.length,
+          preview: currentBuffer.substring(0, 80) + '...'
+        });
+
+        // Add complete user message to transcript
+        const extendedMessage: ExtendedTranscriptMessage = {
+          id: finalMessageId,
+          role: 'user',
+          content: currentBuffer.trim(),
+          timestamp: new Date(),
+          source: 'voice',
+          agentId: selectedAgentId
+        };
+
+        setTranscript(prev => [...prev, extendedMessage]);
+        console.log('📝 [VOICE] User message added to transcript');
+      } else {
+        console.log('📝 [VOICE] ⚠️ No user buffer content or ID, skipping finalization');
+      }
+
+      // Clear buffer
+      userBufferedMessageIdRef.current = null;
+      return '';
+    });
+  }, [selectedAgentId]);
+
+  // Listen for speech-update events to finalize buffered messages
   useEffect(() => {
     onSpeechUpdate((message: SpeechUpdateMessage) => {
       console.log('🎤 [VOICE] Speech update:', {
@@ -250,13 +289,27 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         role: message.role
       });
 
-      // When assistant stops speaking, finalize the buffered message
+      // When user stops speaking, finalize the user buffer
+      if (message.role === 'user' && message.status === 'stopped') {
+        console.log('🎤 [VOICE] User stopped speaking - finalizing user buffer');
+        finalizeUserBuffer();
+      }
+
+      // When assistant stops speaking, finalize the assistant buffer
       if (message.role === 'assistant' && message.status === 'stopped') {
         console.log('🎤 [VOICE] Assistant stopped speaking - finalizing buffer');
         finalizeVoiceBuffer();
       }
+
+      // When assistant starts speaking, flush any remaining user buffer (interruption fallback)
+      if (message.role === 'assistant' && message.status === 'started') {
+        if (userMessageBuffer && userBufferedMessageIdRef.current) {
+          console.log('🎤 [VOICE] Assistant started - flushing user buffer (interruption)');
+          finalizeUserBuffer();
+        }
+      }
     });
-  }, [onSpeechUpdate, finalizeVoiceBuffer]);
+  }, [onSpeechUpdate, finalizeVoiceBuffer, finalizeUserBuffer, userMessageBuffer]);
 
   // CRITICAL FIX: Force-finalize buffered messages after timeout to prevent stuck state
   useEffect(() => {
