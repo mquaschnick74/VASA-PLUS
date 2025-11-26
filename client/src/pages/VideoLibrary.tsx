@@ -50,11 +50,11 @@ export default function VideoLibrary() {
       duration: '15:45'
     },
     {
-      youtubeId: 'VIDEO_ID_3', // Replace with real YouTube ID
-      title: 'Guided Meditation Practice',
+      youtubeId: 'Oc_TCQNyqO8', // Replace with real YouTube ID
+      title: 'Guided Meditation Practice: Singing Bowl',
       description: 'A comprehensive 10-minute guided meditation session to help you develop a consistent mindfulness practice.',
       category: 'Practice',
-      duration: '10:00'
+      duration: '12:35'
     }
   ];
 
