@@ -339,6 +339,42 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     };
   }, [voiceMessageBuffer, finalizeVoiceBuffer]);
 
+  // User buffer timeout - shorter timeout with punctuation-aware debouncing
+  useEffect(() => {
+    // If there's a buffered user message, set a timeout to finalize it
+    if (userMessageBuffer && userBufferedMessageIdRef.current) {
+      // Check if last chunk ends with strong punctuation (natural sentence end)
+      const endsWithPunctuation = /[.!?;]$/.test(userMessageBuffer.trim());
+      // Use shorter timeout (1.5s) for punctuated sentences, longer (2.5s) for trailing off
+      const timeoutDuration = endsWithPunctuation ? 1500 : 2500;
+      
+      console.log('⏰ [VOICE] Setting user buffer timeout:', {
+        id: userBufferedMessageIdRef.current,
+        duration: `${timeoutDuration}ms`,
+        hasPunctuation: endsWithPunctuation
+      });
+
+      // Clear any existing timeout
+      if (userBufferTimeoutRef.current) {
+        clearTimeout(userBufferTimeoutRef.current);
+      }
+
+      // Set debounce timeout
+      userBufferTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ [VOICE] User buffer timeout reached - finalizing message');
+        finalizeUserBuffer();
+      }, timeoutDuration);
+    }
+
+    // Cleanup timeout on unmount or when buffer clears
+    return () => {
+      if (userBufferTimeoutRef.current) {
+        clearTimeout(userBufferTimeoutRef.current);
+        userBufferTimeoutRef.current = null;
+      }
+    };
+  }, [userMessageBuffer, finalizeUserBuffer]);
+
   // Auto-scroll to bottom when transcript updates
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -454,6 +490,18 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       // Clear voice buffer when session ends
       setVoiceMessageBuffer('');
       bufferedMessageIdRef.current = null;
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+        bufferTimeoutRef.current = null;
+      }
+      
+      // Clear user buffer when session ends
+      setUserMessageBuffer('');
+      userBufferedMessageIdRef.current = null;
+      if (userBufferTimeoutRef.current) {
+        clearTimeout(userBufferTimeoutRef.current);
+        userBufferTimeoutRef.current = null;
+      }
       // Option: Clear transcript when session ends, or keep it for review
       // setTranscript([]);
     }
@@ -733,6 +781,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   };
 
   const handleEndCall = async () => {
+    // Flush any remaining user buffer before ending the call
+    if (userMessageBuffer && userBufferedMessageIdRef.current) {
+      console.log('📴 [VOICE] Call ending - flushing remaining user buffer');
+      finalizeUserBuffer();
+    }
+
     if (!currentCallId) {
       // If no call ID, just use regular endSession
       endSession();
