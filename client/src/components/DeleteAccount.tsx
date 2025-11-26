@@ -90,14 +90,14 @@ export const DeleteAccount: React.FC<DeleteAccountProps> = ({
 
       console.log('✅ Account deletion complete!');
 
-      // STEP 6: Callback or redirect
+      // STEP 6: Call callback if provided (for any cleanup), then ALWAYS redirect
       if (onAccountDeleted) {
         onAccountDeleted();
-      } else {
-        // Force a hard reload to clear any in-memory state
-        window.location.href = '/';
-        window.location.reload();
       }
+
+      // Always redirect to landing page after account deletion
+      // This prevents infinite loop where settings page keeps trying to load deleted user
+      window.location.href = '/';
 
     } catch (error) {
       console.error('❌ Unexpected error during deletion:', error);
