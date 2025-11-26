@@ -445,7 +445,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     image: '/agents/sarah.jpg',
     color: 'purple',
     model: { temperature: 0.7, model: 'gpt-4o' },
-    voice: { provider: '11labs', voiceId: 'EXAVITQu4vr4xnSDxMaL', stability: 0.75, similarityBoost: 0.80, speed: 0.95 },
+    voice: { provider: '11labs', voiceId: 'EXAVITQu4vr4xnSDxMaL', stability: 0.85, similarityBoost: 0.80, speed: 0.95 },
     systemPrompt: `Your proper name is **Sarah**.
 
 ${VASA_SYSTEM_PROMPT}`,
@@ -502,7 +502,7 @@ ${VASA_SYSTEM_PROMPT}`,
     image: '/agents/zhanna.jpg',
     color: 'amber',
     model: { temperature: 0.85, model: 'gpt-4o' },
-    voice: { provider: '11labs', voiceId: 'Qggl4b0xRMiqOwhPtVWT', stability: 0.75, similarityBoost: 0.80, speed: 0.9 },
+    voice: { provider: '11labs', voiceId: 'Qggl4b0xRMiqOwhPtVWT', stability: 0.85, similarityBoost: 0.80, speed: 0.9 },
     systemPrompt: `Your proper name is **Zhanna**.
 
 ${VASA_SYSTEM_PROMPT}`,
