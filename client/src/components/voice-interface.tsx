@@ -375,10 +375,18 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     };
   }, [userMessageBuffer, finalizeUserBuffer]);
 
-  // Auto-scroll to bottom when transcript updates
+  // Auto-scroll to bottom when transcript updates (debounced to prevent jumping)
+  const lastTranscriptLengthRef = useRef(0);
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [transcript]);
+    // Only scroll when a new message is actually added (not on every re-render)
+    if (transcript.length > lastTranscriptLengthRef.current) {
+      lastTranscriptLengthRef.current = transcript.length;
+      // Use requestAnimationFrame for smoother scrolling
+      requestAnimationFrame(() => {
+        transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+  }, [transcript.length]);
 
   // Typewriter effect for assistant messages
   useEffect(() => {

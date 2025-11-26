@@ -391,6 +391,12 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           "speech-update",
           "transcript"
         ],
+        clientMessages: [
+          "transcript",
+          "speech-update",
+          "status-update",
+          "conversation-update"
+        ],
         server: {
           url: serverUrl,
           timeoutSeconds: 20,  // This is for webhook timeout, not call duration
