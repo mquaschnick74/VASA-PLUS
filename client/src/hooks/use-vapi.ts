@@ -207,7 +207,11 @@ const useVapi = ({
 
     try {
       // Build system prompt with agent-specific configuration
-      const hasMemory = memoryContext && memoryContext.length > 50;
+      // hasMemory: true if we have lastSessionSummary OR substantial memoryContext
+      const hasMemory = !!(
+        lastSessionSummary ||
+        (memoryContext && memoryContext.trim().length > 50)
+      );
 
       let systemPrompt = selectedAgent.systemPrompt;
 
@@ -284,7 +288,12 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
 
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
-      // CHANGE 2: REMOVED the firstMessageTemplate call - no more hardcoded greetings
+      // CHANGE 2: RE-ENABLED - Generate differentiated first message based on agent personality
+      const firstMessage = selectedAgent.firstMessageTemplate(
+        firstName,
+        hasMemory,
+        lastSessionSummary
+      );
 
       // === PHASE 1C AUDIT: Log systemPrompt size breakdown ===
       const basePromptLen = selectedAgent.systemPrompt.length;
@@ -394,8 +403,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           timeoutSeconds: 20,  // This is for webhook timeout, not call duration
           secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
         },
-        firstMessage: null,  // MUST be null, not undefined or omitted
-        firstMessageMode: "assistant-speaks-first-with-model-generated-message",
+        firstMessage: firstMessage,
+        firstMessageMode: "assistant-speaks-first",
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
