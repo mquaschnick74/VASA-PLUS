@@ -152,19 +152,22 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         length: message.content.length
       });
 
-      // Handle user messages immediately (no buffering needed)
+      // Buffer user messages to consolidate fragmented speech into complete thoughts
       if (message.role === 'user') {
-        const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const extendedMessage: ExtendedTranscriptMessage = {
-          id: messageId,
-          role: message.role,
-          content: message.content,
-          timestamp: message.timestamp,
-          source: 'voice',
-          agentId: selectedAgentId
-        };
-        setTranscript(prev => [...prev, extendedMessage]);
-        console.log('📝 [VOICE] User message added immediately');
+        console.log('📝 [VOICE] User message - adding to buffer');
+
+        // Create message ID on first chunk
+        if (!userBufferedMessageIdRef.current) {
+          userBufferedMessageIdRef.current = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          console.log('📝 [VOICE] Created new user message ID:', userBufferedMessageIdRef.current);
+        }
+
+        // Accumulate content with proper spacing
+        setUserMessageBuffer(prev => {
+          const newContent = prev + (prev ? ' ' : '') + message.content;
+          console.log('📝 [VOICE] User buffer updated, total length:', newContent.length);
+          return newContent;
+        });
         return;
       }
 
