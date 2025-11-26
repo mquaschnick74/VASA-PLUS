@@ -274,11 +274,6 @@ export async function processTranscript(
       console.log(`📖 Narrative phase: ${(parsed.meta as any).phase}`);
     }
 
-    // Update exchange count if present
-    if (parsed.meta && 'exchange_count' in parsed.meta) {
-      session.exchangeCount = (parsed.meta as any).exchange_count;
-    }
-
     // Store metadata in database if present
     if (parsed.meta && parsed.meta.css?.stage && parsed.meta.css.stage !== 'NONE') {
       await supabase
@@ -289,9 +284,15 @@ export async function processTranscript(
           pattern_type: 'META',
           content: JSON.stringify(parsed.meta),
           css_stage: parsed.meta.css?.stage || 'NONE',
-          confidence: parsed.meta.css?.confidence || 0,
-          safety_flag: parsed.meta.safety?.flag || false,
-          crisis_flag: (parsed.meta.safety as any)?.crisis || false,
+          confidence: (() => {
+            const quality = parsed.meta.css?.integration_quality;
+            if (quality === 'cyvc_achieved') return 1.0;
+            if (quality === 'thend_emerging') return 0.75;
+            if (quality === 'holding_contradiction') return 0.5;
+            return 0.25; // cvdc_visible or default
+          })(),
+          safety_flag: parsed.meta.safety?.flag ?? false,
+          crisis_flag: parsed.meta.safety?.crisis ?? false,
           detected_at: new Date().toISOString()
         });
 
