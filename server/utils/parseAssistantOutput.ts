@@ -4,28 +4,37 @@
 export interface ParsedOutput {
   speak: string;
   meta: {
-    register?: 'symbolic' | 'imaginary' | 'real' | 'mixed';
+    phase?: 'narrative_development' | 'css_active' | 'crisis_intervention';
+    session_type?: 'first' | 'returning';
+    dominant_modality?: 'auditory' | 'visual' | 'kinesthetic' | 'undetermined';
+    register_balance?: 'symbolic_dominant' | 'imaginary_dominant' | 'real_dominant' | 'balanced' | 'undetermined';
+    register?: 'symbolic' | 'imaginary' | 'real' | 'mixed'; // Keep for backwards compatibility
+    readiness?: {
+      feels_heard: boolean;
+      patterns_visible: boolean;
+      contradictions_emerged: boolean;
+      trust_established: boolean;
+      user_questioning_patterns: boolean;
+    };
     css?: {
-      stage: 'not_started' | 'pointed_origin' | 'focus_bind' | 'suspension' | 'gesture_toward' | 'completion' | 'terminal';
+      stage: string;
       evidence: string[];
-      confidence: number;
+      integration_quality?: 'cvdc_visible' | 'holding_contradiction' | 'thend_emerging' | 'cyvc_achieved';
     };
     detected_patterns?: {
-      cvdc?: string[];
-      ibm?: string[];
-      thend?: string[];
-      cyvc?: string[];
+      cvdc: string[];
+      ibm: string[];
+      thend: string[];
+      cyvc: string[];
     };
     themes?: string[];
+    trauma_indicators?: {
+      complexity: 'traditional' | 'complex' | 'undetermined';
+      narrative_breakdown_points: string[];
+    };
     safety?: {
       flag: boolean;
-      level: 'low' | 'moderate' | 'high' | 'crisis';
-      indicators?: string[];
-    };
-    session?: {
-      exchange_count: number;
-      narrative_depth: 'building' | 'established' | 'deep';
-      rapport: 'forming' | 'solid' | 'strong';
+      crisis: boolean;
     };
   } | null;
 }
@@ -48,7 +57,8 @@ export function parseAssistantOutput(text: string): ParsedOutput {
       console.warn('Failed to parse meta JSON:', e);
       // If parse fails, try to extract what we can
       meta = {
-        css: { stage: 'not_started', evidence: [], confidence: 0 }
+        phase: 'narrative_development',
+        css: { stage: 'not_started', evidence: [], integration_quality: 'cvdc_visible' }
       };
     }
   }
@@ -85,9 +95,7 @@ export function extractCSSStage(meta: ParsedOutput['meta']): string | null {
 export function needsSafetyIntervention(meta: ParsedOutput['meta']): boolean {
   if (!meta?.safety) return false;
 
-  return meta.safety.flag === true || 
-         meta.safety.level === 'high' || 
-         meta.safety.level === 'crisis';
+  return meta.safety.flag === true || meta.safety.crisis === true;
 }
 
 // Helper to extract register dominance
@@ -118,32 +126,55 @@ export function extractPatterns(meta: ParsedOutput['meta']): {
 
 // Helper to assess session progress
 export function getSessionProgress(meta: ParsedOutput['meta']): {
-  exchanges: number;
-  depth: string;
-  rapport: string;
+  phase: string;
+  readinessScore: number;
+  dominantModality: string;
 } {
+  if (!meta) return { phase: 'unknown', readinessScore: 0, dominantModality: 'undetermined' };
+
+  const readinessScore = meta.readiness
+    ? Object.values(meta.readiness).filter(Boolean).length
+    : 0;
+
   return {
-    exchanges: meta?.session?.exchange_count || 0,
-    depth: meta?.session?.narrative_depth || 'building',
-    rapport: meta?.session?.rapport || 'forming'
+    phase: meta.phase || 'narrative_development',
+    readinessScore,
+    dominantModality: meta.dominant_modality || 'undetermined'
   };
 }
 
 // Helper to determine if ready for CSS work
 export function isReadyForCSSWork(meta: ParsedOutput['meta']): boolean {
-  if (!meta?.session) return false;
+  if (!meta?.readiness) return false;
+  const r = meta.readiness;
+  // Require feels_heard AND patterns_visible, plus at least 3 of 5 total criteria
+  const criteriaCount = [
+    r.feels_heard,
+    r.patterns_visible,
+    r.contradictions_emerged,
+    r.trust_established,
+    r.user_questioning_patterns
+  ].filter(Boolean).length;
 
-  return meta.session.exchange_count >= 15 && 
-         meta.session.narrative_depth === 'established' &&
-         meta.session.rapport !== 'forming';
+  return r.feels_heard && r.patterns_visible && criteriaCount >= 3;
 }
 
-// Helper to get CSS confidence level
-export function getCSSConfidence(meta: ParsedOutput['meta']): number {
-  return meta?.css?.confidence || 0;
+// Map integration_quality to numeric confidence for backwards compatibility
+export function getIntegrationQuality(meta: ParsedOutput['meta']): string {
+  return meta?.css?.integration_quality ?? 'cvdc_visible';
 }
 
-// Helper to get safety level
-export function getSafetyLevel(meta: ParsedOutput['meta']): string {
-  return meta?.safety?.level || 'low';
+export function integrationQualityToConfidence(quality: string): number {
+  switch (quality) {
+    case 'cyvc_achieved': return 1.0;
+    case 'thend_emerging': return 0.75;
+    case 'holding_contradiction': return 0.5;
+    case 'cvdc_visible': return 0.25;
+    default: return 0.25;
+  }
+}
+
+// Helper to check if in crisis state
+export function isInCrisis(meta: ParsedOutput['meta']): boolean {
+  return meta?.safety?.crisis === true;
 }
