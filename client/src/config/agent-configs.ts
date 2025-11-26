@@ -13,9 +13,11 @@ export interface TherapeuticAgent {
   voice: {
     provider: string;
     voiceId: string;
+    model?: string;
     stability?: number;
     similarityBoost?: number;
     speed?: number;
+    useSpeakerBoost?: boolean;
   };
   model: {
     temperature: number;
@@ -445,7 +447,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     image: '/agents/sarah.jpg',
     color: 'purple',
     model: { temperature: 0.7, model: 'gpt-4o' },
-    voice: { provider: '11labs', voiceId: 'EXAVITQu4vr4xnSDxMaL', stability: 0.85, similarityBoost: 0.80, speed: 0.95 },
+    voice: { provider: '11labs', voiceId: 'EXAVITQu4vr4xnSDxMaL', model: 'eleven_flash_v2_5', stability: 0.9, similarityBoost: 0.85, speed: 1.0, useSpeakerBoost: true },
     systemPrompt: `Your proper name is **Sarah**.
 
 ${VASA_SYSTEM_PROMPT}`,
@@ -464,7 +466,7 @@ ${VASA_SYSTEM_PROMPT}`,
     image: '/agents/marcus.png',
     color: 'orange',
     model: { temperature: 0.8, model: 'gpt-4o' },
-    voice: { provider: '11labs', voiceId: 'ErXwobaYiN019PkySvjV', stability: 0.85, similarityBoost: 0.80, speed: 0.9 },
+    voice: { provider: '11labs', voiceId: 'ErXwobaYiN019PkySvjV', model: 'eleven_flash_v2_5', stability: 0.9, similarityBoost: 0.85, speed: 1.0, useSpeakerBoost: true },
     systemPrompt: `Your proper name is **Marcus**.
 
 ${VASA_SYSTEM_PROMPT}`,
@@ -483,7 +485,7 @@ ${VASA_SYSTEM_PROMPT}`,
     image: '/agents/mathew.jpg',
     color: 'blue',
     model: { temperature: 0.6, model: 'gpt-4o' },
-    voice: { provider: '11labs', voiceId: '2hsbsDeRu57rsKFAC7uE', stability: 0.8, similarityBoost: 0.80, speed: 1.0 },
+    voice: { provider: '11labs', voiceId: '2hsbsDeRu57rsKFAC7uE', model: 'eleven_flash_v2_5', stability: 0.9, similarityBoost: 0.85, speed: 1.0, useSpeakerBoost: true },
     systemPrompt: `Your proper name is **Mathew**.
 
 ${VASA_SYSTEM_PROMPT}`,
@@ -502,7 +504,7 @@ ${VASA_SYSTEM_PROMPT}`,
     image: '/agents/zhanna.jpg',
     color: 'amber',
     model: { temperature: 0.85, model: 'gpt-4o' },
-    voice: { provider: '11labs', voiceId: 'Qggl4b0xRMiqOwhPtVWT', stability: 0.85, similarityBoost: 0.80, speed: 0.9 },
+    voice: { provider: '11labs', voiceId: 'Qggl4b0xRMiqOwhPtVWT', model: 'eleven_flash_v2_5', stability: 0.9, similarityBoost: 0.85, speed: 1.0, useSpeakerBoost: true },
     systemPrompt: `Your proper name is **Zhanna**.
 
 ${VASA_SYSTEM_PROMPT}`,
