@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import VoiceInterface from '@/components/voice-interface';
-import PCAMasterAnalyst from '@/components/PCAMasterAnalyst';
+import SessionAnalysis from '@/components/SessionAnalysis';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { Link } from 'wouter';
@@ -112,7 +112,6 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
   return (
     <div className="min-h-screen gradient-bg">
       <Header userId={userId} setUserId={setUserId} userType="client" />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Dashboard Title */}
         <h1 className="text-2xl sm:text-3xl font-bold mb-6">Client Dashboard</h1>
@@ -168,17 +167,17 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
           </Card>
         </div>
 
-        {/* PCA Master Analyst */}
-        <div className="mb-8">
-          <PCAMasterAnalyst userId={userId} />
-        </div>
-
         {/* Main Voice Interface */}
         <VoiceInterface
           userId={userId}
           setUserId={setUserId}
           hideLogoutButton={true}
         />
+
+        {/* Session Analysis */}
+        <div className="mt-8">
+          <SessionAnalysis userId={userId} />
+        </div>
       </div>
     </div>
   );

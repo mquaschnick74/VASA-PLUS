@@ -1,11 +1,305 @@
 import { supabase } from './supabase-service';
 
 /**
+ * PHASE 1B AUDIT: Query PCA master analysis context size
+ * Call this to check the size of therapeutic context being stored
+ */
+export async function auditPCAContextSize(userId: string): Promise<void> {
+  console.log('\n📊 ===== PCA CONTEXT SIZE AUDIT =====');
+
+  // Query recent PCA analyses
+  const { data: pcaData, error: pcaError } = await supabase
+    .from('pca_master_analysis')
+    .select('analysis_id, therapeutic_context, full_analysis, current_css_stage, register_dominance, safety_assessment, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (pcaError) {
+    console.error('❌ Error fetching PCA data:', pcaError);
+    return;
+  }
+
+  if (!pcaData || pcaData.length === 0) {
+    console.log('⚠️ No PCA master analyses found for this user');
+    console.log('===== END PCA AUDIT =====\n');
+    return;
+  }
+
+  console.log(`📄 Found ${pcaData.length} PCA analyses:`);
+  pcaData.forEach((analysis, i) => {
+    const contextChars = analysis.therapeutic_context?.length || 0;
+    const fullChars = analysis.full_analysis?.length || 0;
+    console.log(`\n  📋 Analysis ${i + 1} (${analysis.analysis_id}):`);
+    console.log(`     - Created: ${analysis.created_at}`);
+    console.log(`     - CSS Stage: ${analysis.current_css_stage}`);
+    console.log(`     - Register: ${analysis.register_dominance}`);
+    console.log(`     - Safety: ${analysis.safety_assessment}`);
+    console.log(`     - therapeutic_context: ${contextChars} chars (~${Math.ceil(contextChars / 4)} tokens)`);
+    console.log(`     - full_analysis: ${fullChars} chars (~${Math.ceil(fullChars / 4)} tokens)`);
+  });
+  console.log('\n===== END PCA AUDIT =====\n');
+}
+
+/**
+ * PHASE 1D AUDIT: Compare PCA context with existing injected data
+ * Shows what's redundant and what's unique
+ */
+/**
+ * Get condensed PCA context for agent injection
+ * Extracts unique therapeutic guidance not available from other sources
+ * @param userId - The user ID to fetch context for
+ * @param maxChars - Maximum characters to inject (default 2500 ≈ 625 tokens)
+ */
+export async function getPCAContextForAgent(userId: string, maxChars: number = 2500): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('pca_master_analysis')
+      .select('therapeutic_context, current_css_stage, safety_assessment, register_dominance')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data?.therapeutic_context) {
+      // PGRST116 = no rows returned, not an error for new users
+      if (error?.code !== 'PGRST116') {
+        console.log('📋 No PCA context available for injection');
+      }
+      return null;
+    }
+
+    // Extract only the unique sections not redundant with css_patterns
+    const uniqueSections = extractUniquePCASections(data.therapeutic_context, data.safety_assessment);
+
+    if (!uniqueSections || uniqueSections.length === 0) {
+      console.log('📋 PCA context exists but no unique sections extracted');
+      return null;
+    }
+
+    // Apply character limit with smart truncation
+    if (uniqueSections.length > maxChars) {
+      console.log(`⚠️ PCA context truncated from ${uniqueSections.length} to ${maxChars} chars`);
+      return truncatePCAByPriority(uniqueSections, maxChars);
+    }
+
+    console.log(`✅ PCA context extracted: ${uniqueSections.length} chars (~${Math.ceil(uniqueSections.length / 4)} tokens)`);
+    return uniqueSections;
+
+  } catch (error) {
+    console.error('Error fetching PCA context:', error);
+    return null;
+  }
+}
+
+/**
+ * Extract sections from PCA context that provide unique value
+ * Skips CSS Stage and CVDC (already in css_patterns)
+ * Keeps: therapeutic approach, key quotes, safety details, protocols
+ */
+function extractUniquePCASections(fullContext: string, safetyLevel?: string): string {
+  if (!fullContext) return '';
+
+  let extracted = '';
+
+  // 1. SAFETY SECTION - Include if not "low" risk (unique detailed guidance)
+  const safetyMatch = fullContext.match(/## SAFETY STATUS:[\s\S]*?(?=##|\n===|$)/i);
+  if (safetyMatch) {
+    const safetyText = safetyMatch[0];
+    // Only include if there's meaningful safety content (not just "low risk")
+    const isLowRisk = safetyText.toLowerCase().includes('low risk') ||
+                      safetyText.toLowerCase().includes('no immediate') ||
+                      (safetyLevel && safetyLevel.toLowerCase() === 'low');
+
+    if (!isLowRisk) {
+      extracted += '## SAFETY ALERT\n';
+      extracted += safetyText.trim() + '\n\n';
+    }
+  }
+
+  // 2. PERCEPTUAL STRUCTURE - Unique register dominance details
+  const perceptualMatch = fullContext.match(/## PERCEPTUAL STRUCTURE:[\s\S]*?(?=##|\n===|$)/i);
+  if (perceptualMatch) {
+    // Extract just the key info, not the full section
+    const perceptualText = perceptualMatch[0];
+    const clinicalPattern = perceptualText.match(/\*\*Clinical Pattern\*\*:([^\n]+)/i);
+    if (clinicalPattern) {
+      extracted += `Perceptual Focus: ${clinicalPattern[1].trim()}\n\n`;
+    }
+  }
+
+  // 3. KEY QUOTES TO REFERENCE - Unique and high value for continuity
+  const quotesMatch = fullContext.match(/## KEY QUOTES TO REFERENCE[\s\S]*?(?=##|\n===|$)/i);
+  if (quotesMatch) {
+    extracted += quotesMatch[0].trim() + '\n\n';
+  }
+
+  // 4. THERAPEUTIC APPROACH - The most unique and valuable section
+  const approachMatch = fullContext.match(/## YOUR THERAPEUTIC APPROACH[\s\S]*?(?=\n===|$)/i);
+  if (approachMatch) {
+    extracted += approachMatch[0].trim() + '\n';
+  }
+
+  // Fallback: If we couldn't extract structured sections, take a condensed version
+  if (extracted.trim().length < 100) {
+    // Look for any intervention or protocol content
+    const interventionMatch = fullContext.match(/Intervention[^:]*:[\s\S]{0,500}/gi);
+    if (interventionMatch && interventionMatch.length > 0) {
+      extracted = '## Therapeutic Interventions\n';
+      extracted += interventionMatch.slice(0, 3).join('\n\n');
+    }
+  }
+
+  return extracted.trim();
+}
+
+/**
+ * Truncate PCA context by priority
+ * Priority order: Safety > Therapeutic Approach > Key Quotes > Perceptual
+ */
+function truncatePCAByPriority(content: string, maxChars: number): string {
+  // If content is already under limit, return as-is
+  if (content.length <= maxChars) return content;
+
+  // Split into sections by ## headers
+  const sections: { name: string; content: string; priority: number }[] = [];
+  const sectionMatches = content.split(/(?=## )/);
+
+  sectionMatches.forEach(section => {
+    if (!section.trim()) return;
+
+    const headerMatch = section.match(/^## ([^\n]+)/);
+    const name = headerMatch ? headerMatch[1].toUpperCase() : 'OTHER';
+
+    // Assign priority (lower = higher priority)
+    let priority = 5;
+    if (name.includes('SAFETY')) priority = 1;
+    else if (name.includes('THERAPEUTIC') || name.includes('APPROACH')) priority = 2;
+    else if (name.includes('QUOTE')) priority = 3;
+    else if (name.includes('PERCEPTUAL') || name.includes('INTERVENTION')) priority = 4;
+
+    sections.push({ name, content: section, priority });
+  });
+
+  // Sort by priority
+  sections.sort((a, b) => a.priority - b.priority);
+
+  // Build result respecting character limit
+  let result = '';
+  for (const section of sections) {
+    if (result.length + section.content.length <= maxChars) {
+      result += section.content;
+    } else {
+      // Add truncated section if there's room for at least 200 chars
+      const remaining = maxChars - result.length;
+      if (remaining > 200) {
+        result += section.content.substring(0, remaining - 50);
+        result += '\n[Truncated for brevity]\n';
+      }
+      break;
+    }
+  }
+
+  return result.trim();
+}
+
+export async function auditRedundancy(userId: string): Promise<void> {
+  console.log('\n📊 ===== REDUNDANCY ANALYSIS =====');
+
+  // 1. Get CSS patterns (already injected)
+  const { data: cssPatterns } = await supabase
+    .from('css_patterns')
+    .select('css_stage, pattern_type, content, extracted_contradiction')
+    .eq('user_id', userId)
+    .order('detected_at', { ascending: false })
+    .limit(5);
+
+  console.log('\n🔵 CSS_PATTERNS (currently injected):');
+  if (cssPatterns && cssPatterns.length > 0) {
+    cssPatterns.forEach((p, i) => {
+      console.log(`   ${i + 1}. Stage: ${p.css_stage}, Type: ${p.pattern_type}`);
+      console.log(`      Content: ${(p.content || '').substring(0, 100)}...`);
+      if (p.extracted_contradiction) {
+        console.log(`      Contradiction: ${p.extracted_contradiction.substring(0, 80)}...`);
+      }
+    });
+  } else {
+    console.log('   No CSS patterns found');
+  }
+
+  // 2. Get therapeutic_context (existing types that ARE injected)
+  const { data: existingContext } = await supabase
+    .from('therapeutic_context')
+    .select('context_type, content, created_at')
+    .eq('user_id', userId)
+    .in('context_type', ['session_insight', 'call_summary', 'conversational_summary'])
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  console.log('\n🟢 THERAPEUTIC_CONTEXT (currently injected types):');
+  if (existingContext && existingContext.length > 0) {
+    existingContext.forEach((c, i) => {
+      console.log(`   ${i + 1}. Type: ${c.context_type}`);
+      console.log(`      Content: ${(c.content || '').substring(0, 150)}...`);
+    });
+  } else {
+    console.log('   No existing therapeutic context found');
+  }
+
+  // 3. Get PCA master analysis (NOT injected - the gap!)
+  const { data: pcaAnalysis } = await supabase
+    .from('pca_master_analysis')
+    .select('therapeutic_context, current_css_stage, register_dominance, safety_assessment')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  console.log('\n🔴 PCA_MASTER_ANALYSIS (NOT currently injected):');
+  if (pcaAnalysis) {
+    const contextLen = pcaAnalysis.therapeutic_context?.length || 0;
+    console.log(`   CSS Stage: ${pcaAnalysis.current_css_stage}`);
+    console.log(`   Register: ${pcaAnalysis.register_dominance}`);
+    console.log(`   Safety: ${pcaAnalysis.safety_assessment}`);
+    console.log(`   Context length: ${contextLen} chars (~${Math.ceil(contextLen / 4)} tokens)`);
+
+    // Show unique sections in PCA therapeutic_context
+    console.log('\n   📑 PCA Therapeutic Context Preview:');
+    const lines = (pcaAnalysis.therapeutic_context || '').split('\n').slice(0, 30);
+    lines.forEach(line => {
+      if (line.trim()) console.log(`      ${line.substring(0, 100)}`);
+    });
+
+    // Analyze unique value
+    console.log('\n   🔍 UNIQUE VALUE ANALYSIS:');
+    const content = pcaAnalysis.therapeutic_context || '';
+    const hasApproach = content.includes('YOUR THERAPEUTIC APPROACH') || content.includes('THERAPEUTIC APPROACH');
+    const hasQuotes = content.includes('KEY QUOTES TO REFERENCE') || content.includes('KEY QUOTES');
+    const hasSafety = content.includes('SAFETY STATUS');
+    const hasProtocol = content.includes('SESSION CLOSING') || content.includes('CLOSING PROTOCOL');
+    const hasIntervention = content.includes('Intervention') || content.includes('INTERVENTION');
+
+    console.log(`      - Has therapeutic approach scripts: ${hasApproach ? '✅ YES (UNIQUE)' : '❌ NO'}`);
+    console.log(`      - Has key quotes to reference: ${hasQuotes ? '✅ YES (UNIQUE)' : '❌ NO'}`);
+    console.log(`      - Has safety status: ${hasSafety ? '✅ YES (may duplicate css_patterns)' : '❌ NO'}`);
+    console.log(`      - Has session protocols: ${hasProtocol ? '✅ YES (UNIQUE)' : '❌ NO'}`);
+    console.log(`      - Has specific interventions: ${hasIntervention ? '✅ YES (UNIQUE)' : '❌ NO'}`);
+  } else {
+    console.log('   No PCA analysis found');
+  }
+
+  console.log('\n===== END REDUNDANCY ANALYSIS =====\n');
+}
+
+/**
  * Builds memory context for display to users AND AI agents
  * Now filters insights to only show user-friendly content
  */
 export async function buildMemoryContext(userId: string): Promise<string> {
   try {
+    // === PHASE 1A AUDIT LOGGING ===
+    const auditSizes: Record<string, number> = {};
+
     // Fetch user's name for proper display
     const { data: userProfile } = await supabase
       .from('users')
@@ -61,6 +355,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     let memoryContext = '';
 
     // Include assessment data if available
+    const preAssessmentLen = memoryContext.length;
     if (assessmentData?.assessment_completed_at) {
       const isFirstSession = !sessions || sessions.length === 0;
 
@@ -94,7 +389,9 @@ export async function buildMemoryContext(userId: string): Promise<string> {
         memoryContext += `This provides foundational context for your ongoing work together.\n\n`;
       }
     }
+    auditSizes['assessment_data'] = memoryContext.length - preAssessmentLen;
 
+    const preSessionHistoryLen = memoryContext.length;
     if (sessions && sessions.length > 0) {
       // Use actual user name instead of "this user"
       memoryContext += `You have had ${sessions.length} previous sessions with ${userName}. `;
@@ -108,8 +405,10 @@ export async function buildMemoryContext(userId: string): Promise<string> {
         memoryContext += `It lasted ${minutes} minutes. `;
       }
     }
+    auditSizes['session_history'] = memoryContext.length - preSessionHistoryLen;
 
     // MODIFIED: Better filtering and formatting of insights
+    const preInsightsLen = memoryContext.length;
     if (insights && insights.length > 0) {
       memoryContext += '\n\nKey insights from previous sessions:\n';
 
@@ -117,7 +416,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       const userFriendlyInsights = insights.filter(insight => {
         const content = insight.content.toLowerCase();
         // Exclude entries that look like technical metadata
-        return !content.includes('"exchangecount"') && 
+        return !content.includes('"exchangecount"') &&
                !content.includes('"narrativedepth"') &&
                !content.includes('"therapeuticarc"') &&
                !content.includes('"dominantmovement"') &&
@@ -140,8 +439,10 @@ export async function buildMemoryContext(userId: string): Promise<string> {
         memoryContext += `${index + 1}. ${content}\n`;
       });
     }
+    auditSizes['insights'] = memoryContext.length - preInsightsLen;
 
     // Add CSS patterns for agent context (but keep it subtle for user display)
+    const preCssPatternsLen = memoryContext.length;
     if (cssPatterns && cssPatterns.length > 0) {
       const currentStage = cssPatterns[0].css_stage;
       memoryContext += `\n\nTherapeutic Progress: Currently in ${formatStageName(currentStage)} stage. `;
@@ -152,8 +453,10 @@ export async function buildMemoryContext(userId: string): Promise<string> {
         memoryContext += `Key pattern: "${contradiction}" `;
       }
     }
+    auditSizes['css_patterns'] = memoryContext.length - preCssPatternsLen;
 
     // ADDED: CSS Stage Guidance from Process Metrics
+    const preCssGuidanceLen = memoryContext.length;
     const { data: processMetrics } = await supabase
       .from('css_patterns')
       .select('css_stage, confidence, content')
@@ -184,6 +487,47 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       memoryContext += `Remember: Stage progression should be organic and therapeutically appropriate, not automatic.\n`;
       memoryContext += `===== END GUIDANCE =====\n`;
     }
+    auditSizes['css_stage_guidance'] = memoryContext.length - preCssGuidanceLen;
+
+    // ========================================
+    // NEW: Add PCA Clinical Context if available
+    // This injects unique therapeutic guidance from master PCA analysis
+    // ========================================
+    const prePcaLen = memoryContext.length;
+    const pcaContext = await getPCAContextForAgent(userId);
+    if (pcaContext) {
+      memoryContext += `\n\n===== PCA CLINICAL GUIDANCE =====\n`;
+      memoryContext += `The following is specialized therapeutic guidance from the most recent clinical analysis:\n\n`;
+      memoryContext += pcaContext;
+      memoryContext += `\n===== END PCA GUIDANCE =====\n`;
+    }
+    auditSizes['pca_context'] = memoryContext.length - prePcaLen;
+
+    // ========================================
+    // TOTAL CONTEXT LIMIT - prevent token overflow
+    // ========================================
+    const MAX_CONTEXT_CHARS = 12000; // ~3000 tokens - safe limit for VAPI
+    if (memoryContext.length > MAX_CONTEXT_CHARS) {
+      console.warn(`⚠️ Memory context exceeds limit (${memoryContext.length} chars). Truncating to ${MAX_CONTEXT_CHARS}.`);
+      memoryContext = memoryContext.substring(0, MAX_CONTEXT_CHARS) +
+        '\n\n[Context truncated for token efficiency - focus on most recent therapeutic guidance]';
+    }
+
+    // === PHASE 1A AUDIT: Log sizes ===
+    const totalChars = memoryContext.length;
+    const estimatedTokens = Math.ceil(totalChars / 4);
+    console.log('\n📊 ===== MEMORY CONTEXT SIZE AUDIT =====');
+    console.log(`📏 Assessment data:      ${auditSizes['assessment_data'] || 0} chars (~${Math.ceil((auditSizes['assessment_data'] || 0) / 4)} tokens)`);
+    console.log(`📏 Session history:      ${auditSizes['session_history'] || 0} chars (~${Math.ceil((auditSizes['session_history'] || 0) / 4)} tokens)`);
+    console.log(`📏 Insights:             ${auditSizes['insights'] || 0} chars (~${Math.ceil((auditSizes['insights'] || 0) / 4)} tokens)`);
+    console.log(`📏 CSS patterns:         ${auditSizes['css_patterns'] || 0} chars (~${Math.ceil((auditSizes['css_patterns'] || 0) / 4)} tokens)`);
+    console.log(`📏 CSS stage guidance:   ${auditSizes['css_stage_guidance'] || 0} chars (~${Math.ceil((auditSizes['css_stage_guidance'] || 0) / 4)} tokens)`);
+    console.log(`📏 PCA context:          ${auditSizes['pca_context'] || 0} chars (~${Math.ceil((auditSizes['pca_context'] || 0) / 4)} tokens)`);
+    console.log(`📏 TOTAL memoryContext:  ${totalChars} chars (~${estimatedTokens} tokens)`);
+    if (totalChars > MAX_CONTEXT_CHARS - 1000) {
+      console.log(`⚠️ WARNING: Approaching token limit!`);
+    }
+    console.log('===== END SIZE AUDIT =====\n');
 
     return memoryContext || 'This is your first session together.';
   } catch (error) {

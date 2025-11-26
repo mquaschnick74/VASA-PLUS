@@ -14,7 +14,6 @@ import { handleLogout } from '@/lib/auth-helpers';
 import { useSubscription } from '@/hooks/use-subscription';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 import { Link } from 'wouter';
-import Header from './shared/Header';
 
 interface VoiceInterfaceProps {
   userId: string;
@@ -954,9 +953,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
   return (
     <div className="min-h-screen gradient-bg">
-      {/* Shared Navigation Header */}
-      <Header userId={userId} setUserId={setUserId} userType="individual" />
-
       {/* Main Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Welcome & Account Management Bar */}

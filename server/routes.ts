@@ -12,7 +12,7 @@ import partnerRoutes from './routes/partner-routes';
 import influencerRoutes from './routes/influencer-routes';
 import adminRoutes from './routes/admin-routes';
 import chatRoutes from './routes/chat-routes';  // NEW: Text-to-text chat
-import pcaAnalysisRoutes from './routes/pca-analysis-routes';  // NEW: PCA Master Analyst
+import analysisRoutes from './routes/analysis-routes';  // Unified analysis routes (includes legacy PCA)
 import assessmentRoutes from './routes/assessment-routes';  // NEW: Assessment integration
 import emailPreferencesRoutes from './routes/email-preferences-routes';
 import { supabase } from './services/supabase-service';
@@ -38,8 +38,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/influencer', influencerRoutes);
   apiRouter.use('/chat', chatRoutes);  // NEW: Text chat
   console.log('✅ Chat routes mounted at /api/chat');
-  apiRouter.use('/analysis', pcaAnalysisRoutes);  // NEW: PCA Master Analyst
-  console.log('✅ PCA analysis routes mounted at /api/analysis');
+  apiRouter.use('/analysis', analysisRoutes);  // Unified analysis routes
+  console.log('✅ Analysis routes mounted at /api/analysis');
   apiRouter.use('/assessment', assessmentRoutes);  // NEW: Assessment integration
   console.log('✅ Assessment routes mounted at /api/assessment');
   apiRouter.use('/email-preferences', emailPreferencesRoutes);
@@ -61,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         therapist: 'Mounted at /api/therapist',  // ADD THIS LINE
         admin: 'Mounted at /api/admin',
         chat: 'Mounted at /api/chat',  // NEW: Text chat
-        analysis: 'Mounted at /api/analysis',  // NEW: PCA Master Analyst
+        analysis: 'Mounted at /api/analysis (unified)',  // Unified analysis routes
         assessment: 'Mounted at /api/assessment',  // NEW: Assessment integration
         emailPreferences: 'Mounted at /api/email-preferences',
         health: 'Mounted at /api/health'

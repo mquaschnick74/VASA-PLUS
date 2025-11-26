@@ -871,6 +871,20 @@ export type PCAMasterAnalysis = typeof pcaMasterAnalysis.$inferSelect;
 export type InsertPCAMasterAnalysis = typeof pcaMasterAnalysis.$inferInsert;
 
 // ============================================================================
+// ANALYSIS TYPE CONSTANTS (ephemeral - no storage for user-visible types)
+// ============================================================================
+
+// Analysis type constants for frontend/backend coordination
+export const ANALYSIS_TYPES = {
+  SESSION_SUMMARY: 'session_summary',
+  INTENT_ANALYSIS: 'intent_analysis',
+  CONCEPT_INSIGHTS: 'concept_insights',
+  PCA_MASTER: 'pca_master'
+} as const;
+
+export type AnalysisType = typeof ANALYSIS_TYPES[keyof typeof ANALYSIS_TYPES];
+
+// ============================================================================
 // EMAIL PREFERENCES TABLE (for weekly recaps)
 // ============================================================================
 
