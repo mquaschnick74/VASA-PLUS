@@ -71,6 +71,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     return localStorage.getItem('vasa_text_session_id');
   });
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const textChatContainerRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Feature flag to hide live transcript display (set to true to show transcripts)
@@ -378,7 +379,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     };
   }, [userMessageBuffer, finalizeUserBuffer]);
 
-  // Auto-scroll to bottom when transcript updates (debounced to prevent jumping)
+  // Auto-scroll to bottom when transcript updates (scrolls within container only, not the page)
   const lastTranscriptLengthRef = useRef(0);
   useEffect(() => {
     // Only scroll when a new message is actually added (not on every re-render)
@@ -386,10 +387,17 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       lastTranscriptLengthRef.current = transcript.length;
       // Use requestAnimationFrame for smoother scrolling
       requestAnimationFrame(() => {
-        transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Scroll within the text chat container only (not the entire page)
+        if (textChatContainerRef.current) {
+          textChatContainerRef.current.scrollTop = textChatContainerRef.current.scrollHeight;
+        }
+        // For live transcript (if enabled), use the same approach
+        if (showLiveTranscript && transcriptEndRef.current?.parentElement) {
+          transcriptEndRef.current.parentElement.scrollTop = transcriptEndRef.current.parentElement.scrollHeight;
+        }
       });
     }
-  }, [transcript.length]);
+  }, [transcript.length, showLiveTranscript]);
 
   // Typewriter effect for assistant messages
   useEffect(() => {
@@ -1453,7 +1461,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                       <h3 className="text-base sm:text-lg font-semibold">Conversation</h3>
                     </div>
 
-                    <div className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="text-chat-container">
+                    <div ref={textChatContainerRef} className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="text-chat-container">
                       {transcript.filter(msg => msg.source === 'text').length === 0 ? (
                         <div className="bg-secondary/50 rounded-lg p-3">
                           <div className="flex items-center space-x-2 mb-2">
@@ -1508,8 +1516,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                           );
                         })
                       )}
-                      {/* Auto-scroll anchor */}
-                      <div ref={transcriptEndRef} />
                     </div>
 
                     <form
