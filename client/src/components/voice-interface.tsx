@@ -73,6 +73,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Feature flag to hide live transcript display (set to true to show transcripts)
+  const showLiveTranscript = false;
+
   // Typewriter effect state
   const [typewriterMessageId, setTypewriterMessageId] = useState<string | null>(null);
   const [displayedContent, setDisplayedContent] = useState<Record<string, string>>({});
@@ -1353,7 +1356,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                   )}
                 </div>
 
-                {/* Live Conversation Transcript */}
+                {/* Live Conversation Transcript - Hidden via showLiveTranscript flag */}
+                {showLiveTranscript && (
                 <div className="border-t border-border pt-4">
                   <div className="flex items-center space-x-2 mb-3">
                     <i className="fas fa-comments text-accent text-sm"></i>
@@ -1438,95 +1442,96 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                     {/* Auto-scroll anchor */}
                     <div ref={transcriptEndRef} />
                   </div>
+                </div>
+                )}
 
-                  {/* Text Input Section - Active Text Session */}
-                  {!isSessionActive && activeTextSessionId && (
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          handleSendTextMessage();
-                        }}
-                        className="space-y-3"
-                      >
-                        <div className="flex items-end space-x-2">
-                          <textarea
-                            ref={textInputRef}
-                            value={textInput}
-                            onChange={(e) => setTextInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendTextMessage();
-                              }
-                            }}
-                            placeholder={`Send a text message to ${selectedAgent?.name}...`}
-                            className="flex-1 px-3 py-2 rounded-lg glass border border-white/10 resize-none text-sm"
-                            rows={2}
-                            disabled={isSendingText}
-                            data-testid="input-text-message"
-                            autoFocus={!!activeTextSessionId}
-                          />
+                {/* Text Input Section - Active Text Session (kept outside showLiveTranscript) */}
+                {!isSessionActive && activeTextSessionId && (
+                  <div className="border-t border-border pt-4">
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSendTextMessage();
+                      }}
+                      className="space-y-3"
+                    >
+                      <div className="flex items-end space-x-2">
+                        <textarea
+                          ref={textInputRef}
+                          value={textInput}
+                          onChange={(e) => setTextInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendTextMessage();
+                            }
+                          }}
+                          placeholder={`Send a text message to ${selectedAgent?.name}...`}
+                          className="flex-1 px-3 py-2 rounded-lg glass border border-white/10 resize-none text-sm"
+                          rows={2}
+                          disabled={isSendingText}
+                          data-testid="input-text-message"
+                          autoFocus={!!activeTextSessionId}
+                        />
+                        <Button
+                          type="submit"
+                          disabled={!textInput.trim() || isSendingText}
+                          className="px-4 py-2 h-auto"
+                        >
+                          {isSendingText ? (
+                            <div className="flex items-center space-x-1">
+                              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          ) : (
+                            <span>💬</span>
+                          )}
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Press Enter to send, Shift+Enter for new line</span>
                           <Button
-                            type="submit"
-                            disabled={!textInput.trim() || isSendingText}
-                            className="px-4 py-2 h-auto"
+                            onClick={stopTextSession}
+                            variant="ghost"
+                            size="sm"
+                            disabled={isStoppingSession}
+                            className="h-auto py-1 px-2"
                           >
-                            {isSendingText ? (
+                            {isStoppingSession ? (
                               <div className="flex items-center space-x-1">
-                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                <span className="text-xs">Saving...</span>
                               </div>
                             ) : (
-                              <span>💬</span>
+                              <span className="text-xs">⏹️ Stop Session</span>
                             )}
                           </Button>
                         </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Press Enter to send, Shift+Enter for new line</span>
-                            <Button
-                              onClick={stopTextSession}
-                              variant="ghost"
-                              size="sm"
-                              disabled={isStoppingSession}
-                              className="h-auto py-1 px-2"
-                            >
-                              {isStoppingSession ? (
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                  <span className="text-xs">Saving...</span>
-                                </div>
-                              ) : (
-                                <span className="text-xs">⏹️ Stop Session</span>
-                              )}
-                            </Button>
-                          </div>
-                          <p className="text-xs text-emerald-500/80 text-center">
-                            ✨ Text conversations are unlimited and free
-                          </p>
-                        </div>
-                      </form>
-                    </div>
-                  )}
+                        <p className="text-xs text-emerald-500/80 text-center">
+                          ✨ Text conversations are unlimited and free
+                        </p>
+                      </div>
+                    </form>
+                  </div>
+                )}
 
-                  {/* Voice Mode Indicator */}
-                  {isSessionActive && (
-                    <div className="mt-4 pt-3 border-t border-border">
-                      <p className="text-xs text-center text-muted-foreground">
-                        🎤 Voice mode active - End voice session to use text chat
-                      </p>
-                    </div>
-                  )}
+                {/* Voice Mode Indicator */}
+                {isSessionActive && (
+                  <div className="border-t border-border pt-4">
+                    <p className="text-xs text-center text-muted-foreground">
+                      🎤 Voice mode active - End voice session to use text chat
+                    </p>
+                  </div>
+                )}
 
-                  {/* Idle State Hint */}
-                  {!isSessionActive && !activeTextSessionId && transcript.length === 0 && (
-                    <div className="mt-4 pt-3 border-t border-border">
-                      <p className="text-xs text-center text-muted-foreground">
-                        Choose voice or text session to begin your conversation
-                      </p>
-                    </div>
-                  )}
-                </div>
+                {/* Idle State Hint */}
+                {!isSessionActive && !activeTextSessionId && (
+                  <div className="border-t border-border pt-4">
+                    <p className="text-xs text-center text-muted-foreground">
+                      Choose voice or text session to begin your conversation
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
