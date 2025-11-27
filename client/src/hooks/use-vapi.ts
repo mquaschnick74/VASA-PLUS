@@ -353,9 +353,11 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         voice: {
           provider: selectedAgent.voice.provider,
           voiceId: selectedAgent.voice.voiceId,
-          stability: selectedAgent.voice.stability || 0.75,
-          similarityBoost: selectedAgent.voice.similarityBoost || 0.80,
-          speed: selectedAgent.voice.speed || 1.0
+          model: selectedAgent.voice.model || 'eleven_flash_v2_5',
+          stability: selectedAgent.voice.stability || 0.9,
+          similarityBoost: selectedAgent.voice.similarityBoost || 0.85,
+          speed: selectedAgent.voice.speed || 1.0,
+          useSpeakerBoost: selectedAgent.voice.useSpeakerBoost ?? true
         },
         // 🎯 NEW: Therapeutic Speech Configuration
         // These settings make VASA more patient and harder to interrupt accidentally
@@ -388,6 +390,12 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           "status-update", 
           "speech-update",
           "transcript"
+        ],
+        clientMessages: [
+          "transcript",
+          "speech-update",
+          "status-update",
+          "conversation-update"
         ],
         server: {
           url: serverUrl,
