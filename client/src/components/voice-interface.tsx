@@ -1445,9 +1445,73 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 </div>
                 )}
 
-                {/* Text Input Section - Active Text Session (kept outside showLiveTranscript) */}
+                {/* Text Chat Display - Shows text messages during active text session */}
                 {!isSessionActive && activeTextSessionId && (
                   <div className="border-t border-border pt-4">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <i className="fas fa-comments text-accent text-sm"></i>
+                      <h3 className="text-base sm:text-lg font-semibold">Conversation</h3>
+                    </div>
+
+                    <div className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="text-chat-container">
+                      {transcript.filter(msg => msg.source === 'text').length === 0 ? (
+                        <div className="bg-secondary/50 rounded-lg p-3">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-sm font-medium text-accent">{selectedAgent?.name || 'Sarah'}</span>
+                            <span className="text-xs text-muted-foreground">AI Therapist</span>
+                          </div>
+                          <p className="text-sm">
+                            Hello! I'm {selectedAgent?.name || 'Sarah'}. How can I help you today?
+                          </p>
+                        </div>
+                      ) : (
+                        transcript.filter(msg => msg.source === 'text').map((msg) => {
+                          const isTyping = msg.id === typewriterMessageId;
+                          const shouldAnimate = msg.role === 'assistant';
+                          const displayContent = shouldAnimate && displayedContent[msg.id] !== undefined
+                            ? displayedContent[msg.id]
+                            : msg.content;
+
+                          return (
+                            <div
+                              key={msg.id}
+                              className={`rounded-lg p-3 ${
+                                msg.role === 'assistant'
+                                  ? 'bg-secondary/50'
+                                  : 'bg-primary/20 ml-8'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2 mb-2">
+                                <span className="text-xs">💬</span>
+                                <span className="text-sm font-medium">
+                                  {msg.role === 'assistant'
+                                    ? (selectedAgent?.name || 'Sarah')
+                                    : 'You'}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(msg.timestamp).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                                {isTyping && (
+                                  <span className="text-xs text-muted-foreground italic ml-auto">
+                                    typing...
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm whitespace-pre-wrap">
+                                {displayContent}
+                                {isTyping && <span className="inline-block w-1 h-4 bg-accent ml-0.5 animate-pulse" />}
+                              </p>
+                            </div>
+                          );
+                        })
+                      )}
+                      {/* Auto-scroll anchor */}
+                      <div ref={transcriptEndRef} />
+                    </div>
+
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
