@@ -1273,15 +1273,19 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                 {/* Session Mode Status */}
                 <div className="flex items-center justify-center mb-4">
                   <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
-                    activeTextSessionId
+                    isSessionActive
+                      ? 'bg-red-500/20 border border-red-500/50'
+                      : activeTextSessionId
                       ? 'bg-blue-500/20 border border-blue-500/50'
                       : 'bg-accent/20 border border-accent/50'
                   }`}>
                     <div className={`w-2 h-2 rounded-full animate-pulse ${
-                      activeTextSessionId ? 'bg-blue-500' : 'bg-accent'
+                      isSessionActive ? 'bg-red-500' : activeTextSessionId ? 'bg-blue-500' : 'bg-accent'
                     }`}></div>
                     <span className="text-xs sm:text-sm font-medium" data-testid="status-call">
-                      {activeTextSessionId
+                      {isSessionActive
+                        ? `🎤 Voice: Connected with ${selectedAgent?.name}`
+                        : activeTextSessionId
                         ? `💬 Text: Chatting with ${selectedAgent?.name}`
                         : 'Ready to start'}
                     </span>
@@ -1290,11 +1294,33 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
                 {/* Session Controls */}
                 <div className="space-y-3 mb-6">
-                  {/* Voice Session Button - TEMPORARILY HIDDEN */}
-                  {/* Voice sessions are disabled while we resolve technical issues */}
+                  {/* Voice Session Button */}
+                  {!activeTextSessionId && (
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={isSessionActive ? handleEndCall : handleStartSession}
+                        disabled={isLoading || memoryLoading || (subscription?.limits.minutes_remaining === 0)}
+                        className={`group relative px-6 py-2 sm:px-8 sm:py-3 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
+                          isSessionActive
+                            ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25'
+                            : subscription && subscription.limits.minutes_remaining === 0
+                            ? 'bg-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
+                        }`}
+                        data-testid="button-call"
+                      >
+                        <span className="text-xs sm:text-sm group-hover:scale-105 transition-transform duration-200">
+                          {isLoading ? 'Connecting...' :
+                           isSessionActive ? '🎤 End Voice Session' :
+                            subscription && subscription.limits.minutes_remaining === 0 ? 'Upgrade Required' :
+                           '🎤 Start Voice Session'}
+                        </span>
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Text Session Button */}
-                  {!activeTextSessionId && (
+                  {!isSessionActive && !activeTextSessionId && (
                     <div className="flex flex-col items-center gap-2">
                       <Button
                         onClick={startTextSession}
@@ -1309,14 +1335,29 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                     </div>
                   )}
 
-                  {/* Call Duration Display - HIDDEN (voice sessions disabled) */}
+                  {/* Call Duration Display */}
+                  {isSessionActive && (
+                    <div className={`flex justify-center`}>
+                      <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg glass ${showDurationWarning ? 'border-2 border-yellow-500/50' : ''}`}>
+                        <div className={`w-2 h-2 ${showDurationWarning ? 'bg-yellow-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
+                        <span className={`text-sm sm:text-base font-mono ${showDurationWarning ? 'text-yellow-500' : ''}`} data-testid="text-callTimer">
+                          {formatTime(callTimer)}
+                        </span>
+                        {showDurationWarning && (
+                          <span className="text-xs text-yellow-500">
+                            (Max: {Math.floor(sessionDurationLimit / 60)}m)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Conversation Transcript */}
+                {/* Live Conversation Transcript */}
                 <div className="border-t border-border pt-4">
                   <div className="flex items-center space-x-2 mb-3">
                     <i className="fas fa-comments text-accent text-sm"></i>
-                    <h3 className="text-base sm:text-lg font-semibold">Conversation</h3>
+                    <h3 className="text-base sm:text-lg font-semibold">Live Conversation</h3>
                   </div>
 
                   <div className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="transcript-container">
@@ -1340,7 +1381,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                           <span className="text-sm font-medium text-primary-foreground">You</span>
                         </div>
                         <p className="text-sm text-muted-foreground italic">
-                          Start a text session and send a message to begin
+                          {isSessionActive
+                            ? "Listening... start speaking to see live transcription"
+                            : "Start a voice session or send a text message to begin"}
                         </p>
                       </div>
                     </>
@@ -1466,11 +1509,20 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                     </div>
                   )}
 
-                  {/* Idle State Hint */}
-                  {!activeTextSessionId && transcript.length === 0 && (
+                  {/* Voice Mode Indicator */}
+                  {isSessionActive && (
                     <div className="mt-4 pt-3 border-t border-border">
                       <p className="text-xs text-center text-muted-foreground">
-                        Click "Start Text Session" to begin your conversation
+                        🎤 Voice mode active - End voice session to use text chat
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Idle State Hint */}
+                  {!isSessionActive && !activeTextSessionId && transcript.length === 0 && (
+                    <div className="mt-4 pt-3 border-t border-border">
+                      <p className="text-xs text-center text-muted-foreground">
+                        Choose voice or text session to begin your conversation
                       </p>
                     </div>
                   )}
