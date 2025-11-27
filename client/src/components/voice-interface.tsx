@@ -379,17 +379,29 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     };
   }, [userMessageBuffer, finalizeUserBuffer]);
 
-  // Auto-scroll to bottom when transcript updates (scrolls within container only, not the page)
+  // Auto-scroll to show new messages (scrolls to start of new message, not bottom)
   const lastTranscriptLengthRef = useRef(0);
   useEffect(() => {
     // Only scroll when a new message is actually added (not on every re-render)
     if (transcript.length > lastTranscriptLengthRef.current) {
+      const previousLength = lastTranscriptLengthRef.current;
       lastTranscriptLengthRef.current = transcript.length;
-      // Use requestAnimationFrame for smoother scrolling
+
+      // Use requestAnimationFrame to wait for DOM update
       requestAnimationFrame(() => {
         // Scroll within the text chat container only (not the entire page)
         if (textChatContainerRef.current) {
-          textChatContainerRef.current.scrollTop = textChatContainerRef.current.scrollHeight;
+          const container = textChatContainerRef.current;
+          const messages = container.querySelectorAll('[data-message]');
+
+          // Find the first new message and scroll to show it at the top
+          if (messages.length > previousLength) {
+            const newMessage = messages[previousLength] as HTMLElement;
+            if (newMessage) {
+              // Scroll to position the new message at the top of the container
+              container.scrollTop = newMessage.offsetTop - 8; // 8px padding
+            }
+          }
         }
         // For live transcript (if enabled), use the same approach
         if (showLiveTranscript && transcriptEndRef.current?.parentElement) {
@@ -1483,6 +1495,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                           return (
                             <div
                               key={msg.id}
+                              data-message={msg.id}
                               className={`rounded-lg p-3 ${
                                 msg.role === 'assistant'
                                   ? 'bg-secondary/50'
