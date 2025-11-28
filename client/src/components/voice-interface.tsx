@@ -380,12 +380,16 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   }, [userMessageBuffer, finalizeUserBuffer]);
 
   // Auto-scroll to show new messages (scrolls to start of new message, not bottom)
-  const lastTranscriptLengthRef = useRef(0);
+  const lastTextMessageCountRef = useRef(0);
   useEffect(() => {
-    // Only scroll when a new message is actually added (not on every re-render)
-    if (transcript.length > lastTranscriptLengthRef.current) {
-      const previousLength = lastTranscriptLengthRef.current;
-      lastTranscriptLengthRef.current = transcript.length;
+    // Count only text messages since that's what we display
+    const textMessages = transcript.filter(msg => msg.source === 'text');
+    const textMessageCount = textMessages.length;
+
+    // Only scroll when a new text message is actually added
+    if (textMessageCount > lastTextMessageCountRef.current) {
+      const previousCount = lastTextMessageCountRef.current;
+      lastTextMessageCountRef.current = textMessageCount;
 
       // Use requestAnimationFrame to wait for DOM update
       requestAnimationFrame(() => {
@@ -395,8 +399,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           const messages = container.querySelectorAll('[data-message]');
 
           // Find the first new message and scroll to show it at the top
-          if (messages.length > previousLength) {
-            const newMessage = messages[previousLength] as HTMLElement;
+          if (messages.length > previousCount) {
+            const newMessage = messages[previousCount] as HTMLElement;
             if (newMessage) {
               // Scroll to position the new message at the top of the container
               container.scrollTop = newMessage.offsetTop - 8; // 8px padding
@@ -409,7 +413,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         }
       });
     }
-  }, [transcript.length, showLiveTranscript]);
+  }, [transcript, showLiveTranscript]);
 
   // Typewriter effect for assistant messages
   useEffect(() => {
