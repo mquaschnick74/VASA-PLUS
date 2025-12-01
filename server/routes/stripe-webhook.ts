@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import crypto from 'crypto';
+import Stripe from 'stripe';
 import { supabase } from '../services/supabase-service';
 
 const router = Router();
+
+// Initialize Stripe for signature verification
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 // Stripe webhook endpoint - processes payment events
 router.post('/webhook', async (req, res) => {
@@ -10,31 +13,33 @@ router.post('/webhook', async (req, res) => {
 
   try {
     const signature = req.headers['stripe-signature'] as string;
+    let event: Stripe.Event;
 
-    // Verify webhook signature if secret is configured
+    // Get raw body for signature verification
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(JSON.stringify(req.body));
+
+    // Verify webhook signature using Stripe's official method
     if (process.env.STRIPE_WEBHOOK_SECRET && signature) {
-      const payload = Buffer.isBuffer(req.body)
-        ? req.body.toString('utf8')
-        : JSON.stringify(req.body);
-
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.STRIPE_WEBHOOK_SECRET)
-        .update(payload)
-        .digest('hex');
-
-      // Stripe sends signature as: t=timestamp,v1=signature
-      const signatureParts = signature.split(',');
-      const receivedSignature = signatureParts.find(part => part.startsWith('v1='))?.split('=')[1];
-
-      if (receivedSignature !== expectedSignature) {
-        console.warn('⚠️ Stripe webhook signature verification failed');
-        return res.status(400).json({ error: 'Invalid signature' });
+      try {
+        event = stripe.webhooks.constructEvent(
+          rawBody,
+          signature,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+        console.log('✅ Webhook signature verified successfully');
+      } catch (signatureError: any) {
+        console.error('❌ Webhook signature verification failed:', signatureError.message);
+        return res.status(400).json({ error: 'Invalid signature: ' + signatureError.message });
       }
+    } else {
+      // No secret configured - parse body directly (for development/testing)
+      console.warn('⚠️ STRIPE_WEBHOOK_SECRET not configured - skipping signature verification');
+      event = Buffer.isBuffer(req.body)
+        ? JSON.parse(req.body.toString('utf8'))
+        : req.body;
     }
-
-    const event = Buffer.isBuffer(req.body)
-      ? JSON.parse(req.body.toString('utf8'))
-      : req.body;
 
     console.log('💳 Stripe webhook received:', event.type);
 

@@ -11,14 +11,14 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Create checkout session for therapist upgrades
+// Create checkout session for plan upgrades
 router.post('/create-checkout-session', async (req, res) => {
   try {
-    const { priceId, userId, userEmail, tier, planType } = req.body;
+    const { priceId, userId, userEmail, tier, planType, userType } = req.body;
 
     if (!priceId || !userId || !userEmail) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: priceId, userId, userEmail' 
+      return res.status(400).json({
+        error: 'Missing required fields: priceId, userId, userEmail'
       });
     }
 
@@ -27,7 +27,8 @@ router.post('/create-checkout-session', async (req, res) => {
       userId,
       userEmail,
       tier,
-      planType
+      planType,
+      userType
     });
 
     // Create Stripe checkout session
@@ -48,7 +49,7 @@ router.post('/create-checkout-session', async (req, res) => {
         userId,
         tier,
         planType,
-        userType: 'therapist'
+        userType: userType || 'individual'
       },
       allow_promotion_codes: true,
     });
@@ -183,31 +184,57 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
       .eq('user_id', internal_user_id)
       .single();
 
-    if (subError || !currentSub) {
-      console.error('❌ No subscription found for user:', internal_user_id);
-      return res.status(404).json({
-        error: 'No subscription record found'
-      });
+    let stripeCustomerId = currentSub?.stripe_customer_id;
+
+    // Step 3b: If no customer ID in database, look up by email in Stripe
+    if (!stripeCustomerId) {
+      console.log('🔍 No Stripe customer ID in database, searching Stripe by email:', auth_email);
+
+      try {
+        const customers = await stripe.customers.list({
+          email: auth_email,
+          limit: 1
+        });
+
+        if (customers.data.length > 0) {
+          stripeCustomerId = customers.data[0].id;
+          console.log('✅ Found Stripe customer by email:', stripeCustomerId);
+
+          // Update the subscription record with the found customer ID
+          if (currentSub) {
+            await supabase
+              .from('subscriptions')
+              .update({
+                stripe_customer_id: stripeCustomerId,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', internal_user_id);
+          }
+        } else {
+          console.error('❌ No Stripe customer found for email:', auth_email);
+          return res.status(404).json({
+            error: 'No Stripe customer found for this email. Please contact support if you believe you have been charged.'
+          });
+        }
+      } catch (stripeError: any) {
+        console.error('❌ Error searching Stripe customers:', stripeError);
+        return res.status(500).json({
+          error: 'Failed to search Stripe for customer: ' + stripeError.message
+        });
+      }
     }
 
-    if (!currentSub.stripe_customer_id) {
-      console.error('❌ No Stripe customer ID found for user:', internal_user_id);
-      return res.status(404).json({
-        error: 'No Stripe customer ID found. User may not have upgraded yet.'
-      });
-    }
-
-    console.log('✅ Found Stripe customer:', currentSub.stripe_customer_id);
+    console.log('✅ Using Stripe customer:', stripeCustomerId);
 
     // Step 4: Fetch subscriptions from Stripe
     const subscriptions = await stripe.subscriptions.list({
-      customer: currentSub.stripe_customer_id,
+      customer: stripeCustomerId,
       status: 'all',
       limit: 10,
     });
 
     if (!subscriptions.data.length) {
-      console.error('❌ No subscriptions found in Stripe for customer:', currentSub.stripe_customer_id);
+      console.error('❌ No subscriptions found in Stripe for customer:', stripeCustomerId);
       return res.status(404).json({
         error: 'No subscriptions found in Stripe for this customer'
       });
@@ -275,16 +302,18 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
       planType,
     });
 
-    // Step 6: Update subscription in database
+    // Step 6: Update subscription in database (include stripe_customer_id in case we found it by email)
     const { error: updateError } = await supabase
       .from('subscriptions')
       .update({
+        stripe_customer_id: stripeCustomerId,
         stripe_subscription_id: activeSubscription.id,
         subscription_tier: tier,
         subscription_status: status,
         plan_type: planType,
         trial_ends_at: null,
         usage_minutes_limit: minutesLimit,
+        usage_minutes_used: 0, // Reset usage on sync
         client_limit: clientLimit,
         current_period_end: new Date(activeSubscription.current_period_end * 1000),
         updated_at: new Date().toISOString(),
@@ -307,7 +336,7 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
         tier,
         status,
         stripe_subscription_id: activeSubscription.id,
-        stripe_customer_id: currentSub.stripe_customer_id,
+        stripe_customer_id: stripeCustomerId,
         current_period_end: new Date(activeSubscription.current_period_end * 1000),
       }
     });
