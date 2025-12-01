@@ -191,6 +191,7 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
       console.log('🔍 No Stripe customer ID in database, searching Stripe by email:', auth_email);
 
       try {
+        // First try regular customers
         const customers = await stripe.customers.list({
           email: auth_email,
           limit: 1
@@ -199,7 +200,31 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
         if (customers.data.length > 0) {
           stripeCustomerId = customers.data[0].id;
           console.log('✅ Found Stripe customer by email:', stripeCustomerId);
+        } else {
+          // No regular customer found - search checkout sessions for guest customers (gcus_)
+          console.log('🔍 No regular customer found, searching checkout sessions...');
 
+          const checkoutSessions = await stripe.checkout.sessions.list({
+            customer_details: { email: auth_email },
+            limit: 10,
+            expand: ['data.customer']
+          });
+
+          // Find a completed session with a customer
+          const completedSession = checkoutSessions.data.find(
+            session => session.status === 'complete' && session.customer
+          );
+
+          if (completedSession?.customer) {
+            // Handle both string ID and expanded Customer object
+            stripeCustomerId = typeof completedSession.customer === 'string'
+              ? completedSession.customer
+              : completedSession.customer.id;
+            console.log('✅ Found customer from checkout session:', stripeCustomerId);
+          }
+        }
+
+        if (stripeCustomerId) {
           // Update the subscription record with the found customer ID
           if (currentSub) {
             await supabase
