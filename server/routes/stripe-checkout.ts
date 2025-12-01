@@ -258,45 +258,175 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
       limit: 10,
     });
 
-    if (!subscriptions.data.length) {
-      console.error('❌ No subscriptions found in Stripe for customer:', stripeCustomerId);
-      return res.status(404).json({
-        error: 'No subscriptions found in Stripe for this customer'
-      });
-    }
+    // Find an active subscription first
+    const activeSubscription = subscriptions.data.find(sub => sub.status === 'active');
 
-    // Find the active or most recent subscription
-    const activeSubscription = subscriptions.data.find(sub => sub.status === 'active')
-      || subscriptions.data[0];
-
-    console.log('📊 Found Stripe subscription:', {
-      id: activeSubscription.id,
-      status: activeSubscription.status,
-      current_period_end: activeSubscription.current_period_end,
-    });
-
-    // Step 5: Get product metadata from the subscription
+    // Variables for subscription/purchase info
     let tier = 'intro';
     let minutesLimit = 45;
     let planType = 'recurring';
+    let status = 'active';
+    let stripeSubscriptionId: string | null = null;
+    let currentPeriodEnd: Date;
 
-    try {
-      const priceId = activeSubscription.items.data[0]?.price?.id;
-      if (priceId) {
-        const price = await stripe.prices.retrieve(priceId);
-        if (price.product) {
-          const product = await stripe.products.retrieve(price.product as string);
-          const metadata = product.metadata || {};
+    if (activeSubscription) {
+      // We have an active subscription
+      console.log('📊 Found active Stripe subscription:', {
+        id: activeSubscription.id,
+        status: activeSubscription.status,
+        current_period_end: activeSubscription.current_period_end,
+      });
 
-          console.log('📦 Product metadata:', metadata);
+      stripeSubscriptionId = activeSubscription.id;
+      currentPeriodEnd = new Date(activeSubscription.current_period_end * 1000);
 
-          tier = metadata.tier || 'intro';
-          minutesLimit = parseInt(metadata.minutes_limit) || 45;
-          planType = metadata.plan_type || 'recurring';
+      // Get product metadata from the subscription
+      try {
+        const priceId = activeSubscription.items.data[0]?.price?.id;
+        if (priceId) {
+          const price = await stripe.prices.retrieve(priceId);
+          if (price.product) {
+            const product = await stripe.products.retrieve(price.product as string);
+            const metadata = product.metadata || {};
+
+            console.log('📦 Product metadata:', metadata);
+
+            tier = metadata.tier || 'intro';
+            minutesLimit = parseInt(metadata.minutes_limit) || 45;
+            planType = metadata.plan_type || 'recurring';
+          }
+        }
+      } catch (fetchError) {
+        console.error('⚠️ Failed to fetch product metadata, using defaults:', fetchError);
+      }
+    } else {
+      // No active subscription - check for one-time purchases via checkout sessions
+      console.log('🔍 No active subscription found, checking for one-time purchases...');
+
+      try {
+        // Search for completed checkout sessions for this customer
+        const checkoutSessions = await stripe.checkout.sessions.list({
+          customer: stripeCustomerId,
+          limit: 20,
+          expand: ['data.line_items', 'data.line_items.data.price.product']
+        });
+
+        // Also search by email for guest customers
+        const emailSessions = await stripe.checkout.sessions.list({
+          customer_details: { email: auth_email },
+          limit: 20,
+          expand: ['data.line_items', 'data.line_items.data.price.product']
+        });
+
+        // Combine and dedupe sessions
+        const allSessions = [...checkoutSessions.data, ...emailSessions.data];
+        const uniqueSessions = allSessions.filter((session, index, self) =>
+          index === self.findIndex(s => s.id === session.id)
+        );
+
+        // Find the most recent completed payment session (mode: 'payment' for one-time)
+        const completedPaymentSessions = uniqueSessions
+          .filter(session =>
+            session.status === 'complete' &&
+            session.payment_status === 'paid' &&
+            session.mode === 'payment' // One-time payments use 'payment' mode
+          )
+          .sort((a, b) => (b.created || 0) - (a.created || 0));
+
+        if (completedPaymentSessions.length > 0) {
+          const latestSession = completedPaymentSessions[0];
+          console.log('📦 Found one-time purchase session:', {
+            id: latestSession.id,
+            created: new Date((latestSession.created || 0) * 1000),
+            amount_total: latestSession.amount_total,
+          });
+
+          // Get the line items to find the product
+          const lineItems = latestSession.line_items?.data || [];
+
+          if (lineItems.length > 0) {
+            const lineItem = lineItems[0];
+            const price = lineItem.price;
+
+            if (price?.product) {
+              // Product might be expanded or just an ID
+              let product: Stripe.Product;
+              if (typeof price.product === 'string') {
+                product = await stripe.products.retrieve(price.product);
+              } else {
+                product = price.product as Stripe.Product;
+              }
+
+              const metadata = product.metadata || {};
+              console.log('📦 One-time purchase product metadata:', metadata);
+
+              tier = metadata.tier || 'intro';
+              minutesLimit = parseInt(metadata.minutes_limit) || 45;
+              planType = 'one_time'; // Mark as one-time purchase
+            }
+          }
+
+          // For one-time purchases, calculate period end as purchase date + 30 days
+          const purchaseDate = new Date((latestSession.created || 0) * 1000);
+          currentPeriodEnd = new Date(purchaseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+          // Check if the one-time purchase is still valid (not expired)
+          if (currentPeriodEnd > new Date()) {
+            status = 'active';
+          } else {
+            status = 'expired';
+          }
+
+          stripeSubscriptionId = `otp_${latestSession.id}`; // Prefix with otp_ for one-time purchase
+
+          console.log('✅ One-time purchase synced:', {
+            tier,
+            status,
+            planType,
+            currentPeriodEnd,
+          });
+        } else {
+          // Check if there are any subscriptions at all (even canceled)
+          if (subscriptions.data.length > 0) {
+            const mostRecentSub = subscriptions.data[0];
+            console.log('📊 Found canceled/inactive subscription:', {
+              id: mostRecentSub.id,
+              status: mostRecentSub.status,
+            });
+
+            stripeSubscriptionId = mostRecentSub.id;
+            currentPeriodEnd = new Date(mostRecentSub.current_period_end * 1000);
+
+            // Map Stripe status
+            if (mostRecentSub.status === 'canceled') status = 'canceled';
+            else if (mostRecentSub.status === 'past_due') status = 'past_due';
+            else if (mostRecentSub.status === 'unpaid') status = 'expired';
+            else status = mostRecentSub.status;
+          } else {
+            console.error('❌ No subscriptions or one-time purchases found');
+            return res.status(404).json({
+              error: 'No subscriptions or purchases found in Stripe for this customer'
+            });
+          }
+        }
+      } catch (sessionError: any) {
+        console.error('⚠️ Error searching checkout sessions:', sessionError);
+
+        // Fall back to subscriptions if session search fails
+        if (subscriptions.data.length > 0) {
+          const mostRecentSub = subscriptions.data[0];
+          stripeSubscriptionId = mostRecentSub.id;
+          currentPeriodEnd = new Date(mostRecentSub.current_period_end * 1000);
+
+          if (mostRecentSub.status === 'canceled') status = 'canceled';
+          else if (mostRecentSub.status === 'past_due') status = 'past_due';
+          else status = mostRecentSub.status;
+        } else {
+          return res.status(404).json({
+            error: 'No subscriptions found and failed to search purchases'
+          });
         }
       }
-    } catch (fetchError) {
-      console.error('⚠️ Failed to fetch product metadata, using defaults:', fetchError);
     }
 
     // Apply therapist-specific limits if needed
@@ -314,12 +444,6 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
       clientLimit = tier === 'premium' ? 10 : 3;
     }
 
-    // Map Stripe status to our status
-    let status = 'active';
-    if (activeSubscription.status === 'canceled') status = 'canceled';
-    else if (activeSubscription.status === 'past_due') status = 'past_due';
-    else if (activeSubscription.status === 'unpaid') status = 'expired';
-
     console.log('💾 Updating subscription in database:', {
       tier,
       status,
@@ -327,12 +451,12 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
       planType,
     });
 
-    // Step 6: Update subscription in database (include stripe_customer_id in case we found it by email)
+    // Step 6: Update subscription in database
     const { error: updateError } = await supabase
       .from('subscriptions')
       .update({
         stripe_customer_id: stripeCustomerId,
-        stripe_subscription_id: activeSubscription.id,
+        stripe_subscription_id: stripeSubscriptionId,
         subscription_tier: tier,
         subscription_status: status,
         plan_type: planType,
@@ -340,7 +464,7 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
         usage_minutes_limit: minutesLimit,
         usage_minutes_used: 0, // Reset usage on sync
         client_limit: clientLimit,
-        current_period_end: new Date(activeSubscription.current_period_end * 1000),
+        current_period_end: currentPeriodEnd!,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', internal_user_id);
@@ -360,9 +484,10 @@ router.post('/sync-subscription', requireAuth, async (req: AuthRequest, res) => 
       subscription: {
         tier,
         status,
-        stripe_subscription_id: activeSubscription.id,
+        stripe_subscription_id: stripeSubscriptionId,
         stripe_customer_id: stripeCustomerId,
-        current_period_end: new Date(activeSubscription.current_period_end * 1000),
+        current_period_end: currentPeriodEnd!,
+        plan_type: planType,
       }
     });
   } catch (error: any) {

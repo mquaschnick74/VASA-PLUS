@@ -142,6 +142,12 @@ router.post('/webhook', async (req, res) => {
           }
         }
 
+        // Detect one-time purchases vs subscriptions
+        const isOneTimePurchase = session.mode === 'payment';
+        if (isOneTimePurchase) {
+          planType = 'one_time';
+        }
+
         console.log('📊 Activating subscription:', {
           userId,
           tier,
@@ -149,7 +155,9 @@ router.post('/webhook', async (req, res) => {
           userType,
           minutesLimit,
           customerId: session.customer,
-          subscriptionId: session.subscription
+          subscriptionId: session.subscription,
+          sessionMode: session.mode,
+          isOneTimePurchase
         });
 
         // Calculate client limit for therapists
@@ -157,6 +165,21 @@ router.post('/webhook', async (req, res) => {
         if (userType === 'therapist') {
           clientLimit = tier === 'premium' ? 10 : 3;
         }
+
+        // Calculate period end based on plan type
+        let currentPeriodEnd: Date;
+        if (isOneTimePurchase) {
+          // One-time purchase: valid for 30 days from now
+          currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        } else {
+          // Recurring subscription: 30 days from now (will be updated by subscription.updated webhook)
+          currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        }
+
+        // For one-time purchases, store the session ID as a reference
+        const stripeSubscriptionId = isOneTimePurchase
+          ? `otp_${session.id}` // Prefix with otp_ for one-time purchase
+          : (session.subscription as string || null);
 
         // Update or create subscription record
         // CRITICAL: Always reset usage_minutes_used to 0 on new subscription
@@ -173,10 +196,8 @@ router.post('/webhook', async (req, res) => {
             client_limit: clientLimit,
             clients_used: 0,
             stripe_customer_id: session.customer as string,
-            stripe_subscription_id: session.subscription as string || null,
-            current_period_end: planType === 'recurring' 
-              ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-              : null,
+            stripe_subscription_id: stripeSubscriptionId,
+            current_period_end: currentPeriodEnd,
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id'
@@ -198,7 +219,8 @@ router.post('/webhook', async (req, res) => {
           // Return 500 so Stripe retries the webhook
           return res.status(500).json({ error: 'Failed to activate subscription' });
         } else {
-          console.log(`✅ Activated ${tier} ${planType} subscription for user ${userId} with ${minutesLimit} minutes`);
+          const purchaseType = isOneTimePurchase ? 'one-time purchase' : 'subscription';
+          console.log(`✅ Activated ${tier} ${purchaseType} for user ${userId} with ${minutesLimit} minutes (expires: ${currentPeriodEnd.toISOString()})`);
           // Update webhook log as success
           if (webhookEventId) {
             await supabase
