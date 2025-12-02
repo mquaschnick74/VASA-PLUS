@@ -8,7 +8,8 @@ const router = Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 // Stripe webhook endpoint - processes payment events
-router.post('/webhook', async (req, res) => {
+// Route is mounted at /api/stripe/webhook, so this handles /api/stripe/webhook
+router.post('/', async (req, res) => {
   let webhookEventId: string | null = null;
 
   try {
