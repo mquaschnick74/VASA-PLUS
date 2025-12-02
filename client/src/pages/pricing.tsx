@@ -88,7 +88,7 @@ export default function Pricing() {
     };
   }, []);
 
-  // NEW: Server-side checkout handler for therapist plans
+  // Server-side checkout handler for plan upgrades
   const handleCheckout = async (tier: string, planType: string, priceId: string) => {
     if (!userId) {
       setLocation('/');
@@ -98,7 +98,7 @@ export default function Pricing() {
     setIsCheckoutLoading(true);
 
     try {
-      console.log('🛒 Starting checkout:', { tier, planType, userId, userEmail });
+      console.log('🛒 Starting checkout:', { tier, planType, userId, userEmail, userType });
 
       // Call backend to create checkout session
       const response = await fetch('/api/stripe/create-checkout-session', {
@@ -111,7 +111,8 @@ export default function Pricing() {
           userId,
           userEmail,
           tier,
-          planType
+          planType,
+          userType
         }),
       });
 

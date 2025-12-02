@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabaseClient';
-import { Clock, AlertTriangle, Sparkles } from 'lucide-react';
+import { Clock, AlertTriangle, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 interface SubscriptionLimits {
@@ -29,6 +29,8 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
   const [limits, setLimits] = useState<SubscriptionLimits | null>(null);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -121,7 +123,7 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
       }
 
       const { url } = await response.json();
-      
+
       // Open Stripe customer portal in new tab
       window.open(url, '_blank');
     } catch (error) {
@@ -129,6 +131,65 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
       alert('Failed to open subscription management. Please try again.');
     } finally {
       setPortalLoading(false);
+    }
+  };
+
+  const handleSyncSubscription = async () => {
+    try {
+      setSyncLoading(true);
+      setSyncResult(null);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        setSyncResult({ success: false, message: 'Please sign in again to sync.' });
+        return;
+      }
+
+      const response = await fetch('/api/stripe/sync-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSyncResult({
+          success: true,
+          message: `Synced: ${data.subscription.tier} plan (${data.subscription.status})`
+        });
+
+        // Refresh the subscription status after sync
+        const statusResponse = await fetch(`/api/subscription/status/${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          const enrichedLimits = {
+            ...statusData.limits,
+            client_limit: statusData.subscription?.client_limit || statusData.limits.client_limit || 0,
+            clients_used: statusData.subscription?.clients_used || statusData.limits.clients_used || 0
+          };
+          setLimits(enrichedLimits);
+        }
+      } else {
+        setSyncResult({
+          success: false,
+          message: data.error || 'Failed to sync subscription'
+        });
+      }
+    } catch (error) {
+      console.error('Error syncing subscription:', error);
+      setSyncResult({ success: false, message: 'Network error. Please try again.' });
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -193,24 +254,55 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
         )}
 
         {/* CTA Buttons */}
-        <div className="flex gap-2 pt-2">
-          {hasPaidSubscription ? (
-            <Button 
-              className="w-full" 
-              onClick={handleManageSubscription}
-              disabled={portalLoading}
-              data-testid="button-manage-subscription"
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="flex gap-2">
+            {hasPaidSubscription ? (
+              <Button
+                className="flex-1"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+                data-testid="button-manage-subscription"
+              >
+                {portalLoading ? 'Loading...' : 'Manage Subscription'}
+              </Button>
+            ) : (
+              <Button
+                className="flex-1"
+                onClick={() => setLocation('/pricing')}
+                data-testid="button-upgrade-plan"
+              >
+                Upgrade Plan
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={handleSyncSubscription}
+              disabled={syncLoading}
+              title="Sync subscription from Stripe"
+              data-testid="button-sync-subscription"
             >
-              {portalLoading ? 'Loading...' : 'Manage Subscription'}
+              {syncLoading ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
             </Button>
-          ) : (
-            <Button 
-              className="w-full" 
-              onClick={() => setLocation('/pricing')}
-              data-testid="button-upgrade-plan"
-            >
-              Upgrade Plan
-            </Button>
+          </div>
+
+          {/* Sync Result Message */}
+          {syncResult && (
+            <div className={`flex items-center gap-2 text-sm p-2 rounded ${
+              syncResult.success
+                ? 'bg-green-500/10 text-green-500'
+                : 'bg-yellow-500/10 text-yellow-500'
+            }`}>
+              {syncResult.success ? (
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              )}
+              <span>{syncResult.message}</span>
+            </div>
           )}
         </div>
 

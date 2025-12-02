@@ -44,6 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('✅ Assessment routes mounted at /api/assessment');
   apiRouter.use('/email-preferences', emailPreferencesRoutes);
   apiRouter.use('/stripe/webhook', stripeWebhookRoutes);
+  apiRouter.use('/stripe-webhook', stripeWebhookRoutes); // Backwards compatibility for existing Stripe config
   apiRouter.use('/stripe', stripeCheckoutRoutes);
   apiRouter.use('/blog', blogRoutes);
 

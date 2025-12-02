@@ -1,40 +1,46 @@
 import { Router } from 'express';
-import crypto from 'crypto';
+import Stripe from 'stripe';
 import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
+// Initialize Stripe for signature verification
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+
 // Stripe webhook endpoint - processes payment events
-router.post('/webhook', async (req, res) => {
+// Route is mounted at /api/stripe/webhook, so this handles /api/stripe/webhook
+router.post('/', async (req, res) => {
   let webhookEventId: string | null = null;
 
   try {
     const signature = req.headers['stripe-signature'] as string;
+    let event: Stripe.Event;
 
-    // Verify webhook signature if secret is configured
+    // Get raw body for signature verification
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(JSON.stringify(req.body));
+
+    // Verify webhook signature using Stripe's official method
     if (process.env.STRIPE_WEBHOOK_SECRET && signature) {
-      const payload = Buffer.isBuffer(req.body)
-        ? req.body.toString('utf8')
-        : JSON.stringify(req.body);
-
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.STRIPE_WEBHOOK_SECRET)
-        .update(payload)
-        .digest('hex');
-
-      // Stripe sends signature as: t=timestamp,v1=signature
-      const signatureParts = signature.split(',');
-      const receivedSignature = signatureParts.find(part => part.startsWith('v1='))?.split('=')[1];
-
-      if (receivedSignature !== expectedSignature) {
-        console.warn('⚠️ Stripe webhook signature verification failed');
-        return res.status(400).json({ error: 'Invalid signature' });
+      try {
+        event = stripe.webhooks.constructEvent(
+          rawBody,
+          signature,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+        console.log('✅ Webhook signature verified successfully');
+      } catch (signatureError: any) {
+        console.error('❌ Webhook signature verification failed:', signatureError.message);
+        return res.status(400).json({ error: 'Invalid signature: ' + signatureError.message });
       }
+    } else {
+      // No secret configured - parse body directly (for development/testing)
+      console.warn('⚠️ STRIPE_WEBHOOK_SECRET not configured - skipping signature verification');
+      event = Buffer.isBuffer(req.body)
+        ? JSON.parse(req.body.toString('utf8'))
+        : req.body;
     }
-
-    const event = Buffer.isBuffer(req.body)
-      ? JSON.parse(req.body.toString('utf8'))
-      : req.body;
 
     console.log('💳 Stripe webhook received:', event.type);
 
@@ -137,6 +143,12 @@ router.post('/webhook', async (req, res) => {
           }
         }
 
+        // Detect one-time purchases vs subscriptions
+        const isOneTimePurchase = session.mode === 'payment';
+        if (isOneTimePurchase) {
+          planType = 'one_time';
+        }
+
         console.log('📊 Activating subscription:', {
           userId,
           tier,
@@ -144,7 +156,9 @@ router.post('/webhook', async (req, res) => {
           userType,
           minutesLimit,
           customerId: session.customer,
-          subscriptionId: session.subscription
+          subscriptionId: session.subscription,
+          sessionMode: session.mode,
+          isOneTimePurchase
         });
 
         // Calculate client limit for therapists
@@ -152,6 +166,21 @@ router.post('/webhook', async (req, res) => {
         if (userType === 'therapist') {
           clientLimit = tier === 'premium' ? 10 : 3;
         }
+
+        // Calculate period end based on plan type
+        let currentPeriodEnd: Date;
+        if (isOneTimePurchase) {
+          // One-time purchase: valid for 30 days from now
+          currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        } else {
+          // Recurring subscription: 30 days from now (will be updated by subscription.updated webhook)
+          currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        }
+
+        // For one-time purchases, store the session ID as a reference
+        const stripeSubscriptionId = isOneTimePurchase
+          ? `otp_${session.id}` // Prefix with otp_ for one-time purchase
+          : (session.subscription as string || null);
 
         // Update or create subscription record
         // CRITICAL: Always reset usage_minutes_used to 0 on new subscription
@@ -168,10 +197,8 @@ router.post('/webhook', async (req, res) => {
             client_limit: clientLimit,
             clients_used: 0,
             stripe_customer_id: session.customer as string,
-            stripe_subscription_id: session.subscription as string || null,
-            current_period_end: planType === 'recurring' 
-              ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-              : null,
+            stripe_subscription_id: stripeSubscriptionId,
+            current_period_end: currentPeriodEnd,
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id'
@@ -193,7 +220,8 @@ router.post('/webhook', async (req, res) => {
           // Return 500 so Stripe retries the webhook
           return res.status(500).json({ error: 'Failed to activate subscription' });
         } else {
-          console.log(`✅ Activated ${tier} ${planType} subscription for user ${userId} with ${minutesLimit} minutes`);
+          const purchaseType = isOneTimePurchase ? 'one-time purchase' : 'subscription';
+          console.log(`✅ Activated ${tier} ${purchaseType} for user ${userId} with ${minutesLimit} minutes (expires: ${currentPeriodEnd.toISOString()})`);
           // Update webhook log as success
           if (webhookEventId) {
             await supabase

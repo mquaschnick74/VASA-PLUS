@@ -40,7 +40,12 @@ app.use('/api/vapi/webhook', express.raw({
 }));
 
 // Special handling for Stripe webhook endpoint with raw body for signature validation
+// Support both /api/stripe/webhook and /api/stripe-webhook (for backwards compatibility)
 app.use('/api/stripe/webhook', express.raw({
+  type: 'application/json',
+  limit: '10mb'
+}));
+app.use('/api/stripe-webhook', express.raw({
   type: 'application/json',
   limit: '10mb'
 }));
@@ -116,7 +121,7 @@ app.use((req, res, next) => {
 // Webhooks need to bypass auth as they come from external services with their own signature validation
 app.use('/api', (req, res, next) => {
   // Skip auth for webhook endpoints - they have their own signature validation
-  if (req.path.startsWith('/vapi/webhook') || req.path.startsWith('/stripe/webhook')) {
+  if (req.path.startsWith('/vapi/webhook') || req.path.startsWith('/stripe/webhook') || req.path.startsWith('/stripe-webhook')) {
     console.log(`🔓 Webhook endpoint accessed: ${req.path} - Skipping JWT auth`);
     return next();
   }
