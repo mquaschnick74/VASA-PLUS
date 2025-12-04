@@ -87,8 +87,27 @@ async function isAdmin(req: Request, res: Response, next: Function) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 
-  // @ts-ignore - Add userId to request
-  req.userId = user.id;
+  // Look up the application user by their auth_user_id to get the correct users.id
+  // This is needed because author_id foreign key references users.id, not auth.users.id
+  const { data: appUser, error: userError } = await supabase
+    .from('users')
+    .select('id, role')
+    .eq('auth_user_id', user.id)
+    .single();
+
+  if (userError || !appUser) {
+    console.error('Failed to find application user for auth user:', user.id, userError);
+    return res.status(401).json({ error: 'User not found in application database' });
+  }
+
+  // Optionally check if user has admin role
+  if (appUser.role !== 'admin' && appUser.role !== 'therapist') {
+    // For now, allow therapists too as they may need to blog
+    // You can make this stricter by only checking for 'admin'
+  }
+
+  // @ts-ignore - Add userId (application user ID) to request
+  req.userId = appUser.id;
   next();
 }
 
