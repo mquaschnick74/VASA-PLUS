@@ -779,7 +779,7 @@ export const blogPosts = pgTable("blog_posts", {
   // SEO
   meta_title: varchar("meta_title", { length: 255 }),
   meta_description: varchar("meta_description", { length: 500 }),
-  meta_keywords: varchar("meta_keywords", { length: 500 }),
+  meta_keywords: text("meta_keywords"), // Changed from varchar(500) to text for long keyword lists
 
   // Featured image (optional for now)
   featured_image_url: varchar("featured_image_url", { length: 500 }),
