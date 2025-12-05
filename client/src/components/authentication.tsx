@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
-import AssessmentModal from './AssessmentModal';
+import AssessmentIframe from './AssessmentIframe';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import autumnRoadImage from '@assets/autumn-road.jpg';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -41,7 +41,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     influencerName?: string;
   } | null>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
-  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [showAssessment, setShowAssessment] = useState(false);
 
   // ============= NEW: Invitation handling state =============
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
@@ -342,12 +342,30 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
   return (
     <>
-      {/* Assessment Modal */}
-      <AssessmentModal
-        isOpen={showAssessmentModal}
-        onClose={() => setShowAssessmentModal(false)}
-        userEmail={email}
-      />
+      {/* Assessment Iframe */}
+      {showAssessment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowAssessment(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="relative w-full max-w-4xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-hidden border border-emerald-400/30">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowAssessment(false)}
+              className="absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-emerald-400/30 hover:bg-emerald-400/10 hover:border-emerald-400/60 transition-all duration-200"
+            >
+              <i className="fas fa-times text-muted-foreground"></i>
+            </button>
+
+            {/* Assessment Iframe */}
+            <AssessmentIframe className="w-full h-full" />
+          </div>
+        </div>
+      )}
 
       <div className="min-h-screen gradient-bg">
         <Header hideSignInButton={true} />
@@ -630,7 +648,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     Complete 5 questions to better understand how an iVASA guide can assist you.
                   </p>
                   <Button
-                    onClick={() => setShowAssessmentModal(true)}
+                    onClick={() => setShowAssessment(true)}
                     className="bg-gradient-to-r from-primary to-accent py-3 px-8 rounded-xl"
                   >
                     Begin.
