@@ -75,12 +75,17 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
     // Check if v2 data is directly on object or needs to be parsed from encoded
     let v2Data = data;
 
+    console.log('📋 normalizeAssessmentData input:', JSON.stringify(data, null, 2));
+    console.log('📋 data.cvdc_score:', data.cvdc_score);
+    console.log('📋 data.encoded:', data.encoded ? 'exists' : 'missing');
+
     if (data.cvdc_score === undefined && data.encoded) {
       // V2 data might be in encoded field as JSON string
       try {
         const parsed = typeof data.encoded === 'string' ? JSON.parse(data.encoded) : data.encoded;
+        console.log('📋 Parsed encoded field:', JSON.stringify(parsed, null, 2));
         if (parsed.cvdc_score !== undefined) {
-          console.log('📋 Parsing v2 data from encoded field');
+          console.log('📋 Merging parsed data with original data');
           v2Data = { ...data, ...parsed };
         }
       } catch (e) {
@@ -88,8 +93,12 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       }
     }
 
+    console.log('📋 Final v2Data.cvdc_score:', v2Data.cvdc_score);
+    console.log('📋 Final v2Data.ibm_score:', v2Data.ibm_score);
+    console.log('📋 Final v2Data.thend_detected:', v2Data.thend_detected);
+
     // New format - direct mapping
-    return {
+    const result = {
       cvdc_score: v2Data.cvdc_score ?? null,
       ibm_score: v2Data.ibm_score ?? null,
       thend_detected: v2Data.thend_detected ?? null,
@@ -111,6 +120,9 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       assessment_version: 'v2',
       encoded: data.encoded || null,
     };
+
+    console.log('📋 Normalized result:', JSON.stringify(result, null, 2));
+    return result;
   } else {
     // Old format - existing mapping
     return {
