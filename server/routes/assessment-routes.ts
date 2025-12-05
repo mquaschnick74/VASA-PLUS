@@ -156,6 +156,17 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       gender = 'not_provided';
     }
 
+    // Extract register - could be direct field or from answers.q9
+    let registerType = v2Data.register ?? v2Data.register_type ?? v2Data.registerType ?? null;
+    if (!registerType && v2Data.answers?.q9) {
+      registerType = v2Data.answers.q9;
+      console.log('📋 Extracted register from answers.q9:', registerType);
+    }
+    if (!registerType && v2Data.q9) {
+      registerType = v2Data.q9;
+      console.log('📋 Extracted register from q9:', registerType);
+    }
+
     console.log('📋 Extracted values:');
     console.log('   cvdcScore:', cvdcScore);
     console.log('   ibmScore:', ibmScore);
@@ -165,6 +176,7 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
     console.log('   synthesis:', synthesis);
     console.log('   ageRange:', ageRange);
     console.log('   gender:', gender);
+    console.log('   registerType:', registerType);
 
     // New format - direct mapping
     const result = {
@@ -174,9 +186,10 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       synthesis_text: synthesis,
       age_range: ageRange,
       gender: gender,
+      register_type: registerType,
       pattern_name: cvdcPattern,  // Map to existing field
       metaphor: ibmPattern,       // Map to existing field
-      register: null,                              // Not used in v2
+      register: null,                              // Old v1 register field (keep for compatibility)
       profile_data: {
         cvdc_score: cvdcScore,
         ibm_score: ibmScore,
@@ -186,6 +199,7 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
         synthesis: synthesis,
         age_range: ageRange,
         gender: gender,
+        register: registerType,
       },
       answers: v2Data.answers || data.answers || {},
       assessment_version: 'v2',
@@ -206,9 +220,10 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       synthesis_text: null,
       age_range: null,
       gender: 'not_provided',  // v1 format didn't have gender
+      register_type: null,  // v1 uses the old 'register' field instead
       pattern_name: data.profile.pattern,
       metaphor: data.profile.metaphor,
-      register: data.profile.register,
+      register: data.profile.register,  // Old v1 register field
       profile_data: data.profile,
       answers: data.answers || {},
       assessment_version: 'v1',
@@ -265,6 +280,7 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
         synthesis_text: normalized.synthesis_text,
         age_range: normalized.age_range,
         gender: normalized.gender,
+        register_type: normalized.register_type,
         assessment_version: normalized.assessment_version,
         status: 'pending_email',
         source: 'iframe',
@@ -362,6 +378,7 @@ router.post('/save', async (req: Request, res: Response) => {
         synthesis_text: normalized.synthesis_text,
         age_range: normalized.age_range,
         gender: normalized.gender,
+        register_type: normalized.register_type,
         assessment_version: normalized.assessment_version,
         status: 'completed',
         source: 'dashboard_iframe',
@@ -385,6 +402,7 @@ router.post('/save', async (req: Request, res: Response) => {
       assessment_responses: normalized.answers,
       assessment_version: normalized.assessment_version,
       gender: normalized.gender,
+      register_type: normalized.register_type,
     };
 
     if (version === 'v2') {

@@ -312,7 +312,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     // Fetch assessment data from user_profiles (supports both v1 and v2 formats)
     const { data: assessmentData } = await supabase
       .from('user_profiles')
-      .select('assessment_completed_at, assessment_responses, inner_landscape_type, assessment_insights, cvdc_score, ibm_score, thend_detected, assessment_version')
+      .select('assessment_completed_at, assessment_responses, inner_landscape_type, assessment_insights, cvdc_score, ibm_score, thend_detected, assessment_version, register_type')
       .eq('id', userId)
       .single();
 
@@ -374,6 +374,9 @@ export async function buildMemoryContext(userId: string): Promise<string> {
             if (assessmentData.thend_detected) {
               memoryContext += `  - Thend Pattern: Detected (therapeutic shift potential identified)\n`;
             }
+            if (assessmentData.register_type) {
+              memoryContext += `  - Register: ${assessmentData.register_type} (primary experiential mode)\n`;
+            }
             memoryContext += `\n`;
           }
 
@@ -409,7 +412,11 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       } else {
         // SUBSEQUENT SESSIONS: Include lighter version
         if (isV2Assessment && assessmentData.cvdc_score !== null) {
-          memoryContext += `\n📋 Note: ${userName} completed an assessment (CVDC: ${assessmentData.cvdc_score}/7, IBM: ${assessmentData.ibm_score}/7). `;
+          memoryContext += `\n📋 Note: ${userName} completed an assessment (CVDC: ${assessmentData.cvdc_score}/7, IBM: ${assessmentData.ibm_score}/7`;
+          if (assessmentData.register_type) {
+            memoryContext += `, Register: ${assessmentData.register_type}`;
+          }
+          memoryContext += `). `;
           memoryContext += `Pattern: "${assessmentData.inner_landscape_type || 'exploring their inner landscape'}". `;
         } else {
           memoryContext += `\n📋 Note: ${userName} completed a pre-session assessment identifying their pattern as "${assessmentData.inner_landscape_type || 'exploring their inner landscape'}". `;

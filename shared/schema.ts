@@ -46,6 +46,7 @@ export const userProfiles = pgTable("user_profiles", {
   thend_detected: boolean("thend_detected"),
   assessment_version: varchar("assessment_version", { length: 10 }), // 'v1' = old, 'v2' = new
   gender: varchar("gender", { length: 20 }), // 'male', 'female', 'non-binary', 'not_provided'
+  register_type: varchar("register_type", { length: 20 }), // 'symbolic', 'imaginary', 'real'
 });
 
 // User onboarding responses table
@@ -85,6 +86,7 @@ export const assessmentResults = pgTable("assessment_results", {
   synthesis_text: text("synthesis_text"),
   age_range: varchar("age_range", { length: 20 }),
   gender: varchar("gender", { length: 20 }), // 'male', 'female', 'non-binary', 'not_provided'
+  register_type: varchar("register_type", { length: 20 }), // 'symbolic', 'imaginary', 'real'
   assessment_version: varchar("assessment_version", { length: 10 }).default('v1'), // 'v1' = old, 'v2' = new
 });
 
