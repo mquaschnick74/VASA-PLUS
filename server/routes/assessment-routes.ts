@@ -141,6 +141,21 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       console.log('📋 Extracted age_range from q7:', ageRange);
     }
 
+    // Extract gender - could be direct field, camelCase, or from answers.q1
+    let gender = v2Data.gender ?? null;
+    if (!gender && v2Data.answers?.q1) {
+      gender = v2Data.answers.q1;
+      console.log('📋 Extracted gender from answers.q1:', gender);
+    }
+    if (!gender && v2Data.q1) {
+      gender = v2Data.q1;
+      console.log('📋 Extracted gender from q1:', gender);
+    }
+    // Default to 'not_provided' if still missing
+    if (!gender) {
+      gender = 'not_provided';
+    }
+
     console.log('📋 Extracted values:');
     console.log('   cvdcScore:', cvdcScore);
     console.log('   ibmScore:', ibmScore);
@@ -149,6 +164,7 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
     console.log('   ibmPattern:', ibmPattern);
     console.log('   synthesis:', synthesis);
     console.log('   ageRange:', ageRange);
+    console.log('   gender:', gender);
 
     // New format - direct mapping
     const result = {
@@ -157,6 +173,7 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       thend_detected: thendDetected,
       synthesis_text: synthesis,
       age_range: ageRange,
+      gender: gender,
       pattern_name: cvdcPattern,  // Map to existing field
       metaphor: ibmPattern,       // Map to existing field
       register: null,                              // Not used in v2
@@ -168,6 +185,7 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
         ibm_pattern: ibmPattern,
         synthesis: synthesis,
         age_range: ageRange,
+        gender: gender,
       },
       answers: v2Data.answers || data.answers || {},
       assessment_version: 'v2',
@@ -187,6 +205,7 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       thend_detected: null,
       synthesis_text: null,
       age_range: null,
+      gender: 'not_provided',  // v1 format didn't have gender
       pattern_name: data.profile.pattern,
       metaphor: data.profile.metaphor,
       register: data.profile.register,
@@ -245,6 +264,7 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
         thend_detected: normalized.thend_detected,
         synthesis_text: normalized.synthesis_text,
         age_range: normalized.age_range,
+        gender: normalized.gender,
         assessment_version: normalized.assessment_version,
         status: 'pending_email',
         source: 'iframe',
@@ -341,6 +361,7 @@ router.post('/save', async (req: Request, res: Response) => {
         thend_detected: normalized.thend_detected,
         synthesis_text: normalized.synthesis_text,
         age_range: normalized.age_range,
+        gender: normalized.gender,
         assessment_version: normalized.assessment_version,
         status: 'completed',
         source: 'dashboard_iframe',
@@ -363,6 +384,7 @@ router.post('/save', async (req: Request, res: Response) => {
       assessment_completed_at: new Date().toISOString(),
       assessment_responses: normalized.answers,
       assessment_version: normalized.assessment_version,
+      gender: normalized.gender,
     };
 
     if (version === 'v2') {
