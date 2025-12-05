@@ -87,7 +87,9 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
 
       // Call parent callback if provided
       if (onComplete) {
+        console.log('[AssessmentIframe] Calling onComplete callback, skipping built-in navigation');
         onComplete(data);
+        return; // Let parent handle navigation
       }
 
       // Skip built-in navigation if in dashboard mode (parent handles it)

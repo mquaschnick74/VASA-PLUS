@@ -13,7 +13,7 @@ import AssessmentIframe from './AssessmentIframe';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import autumnRoadImage from '@assets/autumn-road.jpg';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { HelpCircle } from 'lucide-react';
 import Header from '@/components/shared/Header';
 import AgentCarousel from '@/components/AgentCarousel';
@@ -23,6 +23,7 @@ interface AuthenticationProps {
 }
 
 export default function Authentication({ setUserId }: AuthenticationProps) {
+  const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -54,6 +55,19 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       document.body.style.overflow = '';
     };
   }, [showAssessment]);
+
+  // Handle assessment completion - close modal and navigate to signup
+  const handleAssessmentComplete = (data: any) => {
+    console.log('[Auth] Assessment complete, closing modal and navigating');
+    // Close the modal first
+    setShowAssessment(false);
+    // Store assessment data
+    sessionStorage.setItem('assessmentData', JSON.stringify(data));
+    // Navigate to signup with encoded profile
+    setTimeout(() => {
+      setLocation(`/signup?source=assessment&profile=${data.encoded}`);
+    }, 100);
+  };
 
   // ============= NEW: Invitation handling state =============
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
@@ -375,7 +389,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
             {/* Assessment Iframe - full height with scrolling enabled */}
             <div className="w-full h-full overflow-y-auto">
-              <AssessmentIframe className="w-full min-h-full" />
+              <AssessmentIframe
+                className="w-full min-h-full"
+                onComplete={handleAssessmentComplete}
+              />
             </div>
           </div>
         </div>
