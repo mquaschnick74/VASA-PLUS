@@ -130,15 +130,15 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
     const ibmPattern = v2Data.ibm_pattern ?? v2Data.ibmPattern ?? null;
     const synthesis = v2Data.synthesis ?? v2Data.synthesisText ?? v2Data.synthesis_text ?? null;
 
-    // Extract age_range - could be direct field, camelCase, or from answers
+    // Extract age_range - could be direct field, camelCase, or from answers.q2 (since q1 is now gender)
     let ageRange = v2Data.age_range ?? v2Data.ageRange ?? null;
-    if (!ageRange && v2Data.answers?.q7) {
-      ageRange = v2Data.answers.q7;
-      console.log('📋 Extracted age_range from answers.q7:', ageRange);
+    if (!ageRange && v2Data.answers?.q2) {
+      ageRange = v2Data.answers.q2;
+      console.log('📋 Extracted age_range from answers.q2:', ageRange);
     }
-    if (!ageRange && v2Data.q7) {
-      ageRange = v2Data.q7;
-      console.log('📋 Extracted age_range from q7:', ageRange);
+    if (!ageRange && v2Data.q2) {
+      ageRange = v2Data.q2;
+      console.log('📋 Extracted age_range from q2:', ageRange);
     }
 
     // Extract gender - could be direct field, camelCase, or from answers.q1
