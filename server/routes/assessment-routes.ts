@@ -99,11 +99,13 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
         if (typeof data.encoded === 'string' && data.encoded.startsWith('eyJ')) {
           console.log('📋 Detected Base64-encoded data, decoding...');
           jsonString = Buffer.from(data.encoded, 'base64').toString('utf-8');
-          console.log('📋 Decoded string:', jsonString.substring(0, 100) + '...');
+          console.log('📋 Decoded string:', jsonString.substring(0, 200) + '...');
         }
 
         const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+        console.log('📋 Parsed encoded field keys:', Object.keys(parsed));
         console.log('📋 Parsed encoded field:', JSON.stringify(parsed, null, 2));
+
         if (parsed.cvdc_score !== undefined) {
           console.log('📋 Merging parsed data with original data');
           v2Data = { ...data, ...parsed };
@@ -113,35 +115,69 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
       }
     }
 
-    console.log('📋 Final v2Data.cvdc_score:', v2Data.cvdc_score);
-    console.log('📋 Final v2Data.ibm_score:', v2Data.ibm_score);
-    console.log('📋 Final v2Data.thend_detected:', v2Data.thend_detected);
+    // Log all available fields for debugging
+    console.log('📋 v2Data keys:', Object.keys(v2Data));
+    console.log('📋 Full v2Data:', JSON.stringify(v2Data, null, 2));
+
+    // Handle both snake_case and camelCase field names from quiz
+    // Scores - try snake_case first, then camelCase
+    const cvdcScore = v2Data.cvdc_score ?? v2Data.cvdcScore ?? null;
+    const ibmScore = v2Data.ibm_score ?? v2Data.ibmScore ?? null;
+    const thendDetected = v2Data.thend_detected ?? v2Data.thendDetected ?? null;
+
+    // Text fields - try snake_case first, then camelCase
+    const cvdcPattern = v2Data.cvdc_pattern ?? v2Data.cvdcPattern ?? null;
+    const ibmPattern = v2Data.ibm_pattern ?? v2Data.ibmPattern ?? null;
+    const synthesis = v2Data.synthesis ?? v2Data.synthesisText ?? v2Data.synthesis_text ?? null;
+
+    // Extract age_range - could be direct field, camelCase, or from answers
+    let ageRange = v2Data.age_range ?? v2Data.ageRange ?? null;
+    if (!ageRange && v2Data.answers?.q7) {
+      ageRange = v2Data.answers.q7;
+      console.log('📋 Extracted age_range from answers.q7:', ageRange);
+    }
+    if (!ageRange && v2Data.q7) {
+      ageRange = v2Data.q7;
+      console.log('📋 Extracted age_range from q7:', ageRange);
+    }
+
+    console.log('📋 Extracted values:');
+    console.log('   cvdcScore:', cvdcScore);
+    console.log('   ibmScore:', ibmScore);
+    console.log('   thendDetected:', thendDetected);
+    console.log('   cvdcPattern:', cvdcPattern);
+    console.log('   ibmPattern:', ibmPattern);
+    console.log('   synthesis:', synthesis);
+    console.log('   ageRange:', ageRange);
 
     // New format - direct mapping
     const result = {
-      cvdc_score: v2Data.cvdc_score ?? null,
-      ibm_score: v2Data.ibm_score ?? null,
-      thend_detected: v2Data.thend_detected ?? null,
-      synthesis_text: v2Data.synthesis ?? null,
-      age_range: v2Data.age_range ?? null,
-      pattern_name: v2Data.cvdc_pattern ?? null,  // Map to existing field
-      metaphor: v2Data.ibm_pattern ?? null,       // Map to existing field
+      cvdc_score: cvdcScore,
+      ibm_score: ibmScore,
+      thend_detected: thendDetected,
+      synthesis_text: synthesis,
+      age_range: ageRange,
+      pattern_name: cvdcPattern,  // Map to existing field
+      metaphor: ibmPattern,       // Map to existing field
       register: null,                              // Not used in v2
       profile_data: {
-        cvdc_score: v2Data.cvdc_score,
-        ibm_score: v2Data.ibm_score,
-        thend_detected: v2Data.thend_detected,
-        cvdc_pattern: v2Data.cvdc_pattern,
-        ibm_pattern: v2Data.ibm_pattern,
-        synthesis: v2Data.synthesis,
-        age_range: v2Data.age_range,
+        cvdc_score: cvdcScore,
+        ibm_score: ibmScore,
+        thend_detected: thendDetected,
+        cvdc_pattern: cvdcPattern,
+        ibm_pattern: ibmPattern,
+        synthesis: synthesis,
+        age_range: ageRange,
       },
       answers: v2Data.answers || data.answers || {},
       assessment_version: 'v2',
       encoded: data.encoded || null,
     };
 
-    console.log('📋 Normalized result:', JSON.stringify(result, null, 2));
+    console.log('📋 Normalized result - pattern_name:', result.pattern_name);
+    console.log('📋 Normalized result - metaphor:', result.metaphor);
+    console.log('📋 Normalized result - synthesis_text:', result.synthesis_text);
+    console.log('📋 Normalized result - age_range:', result.age_range);
     return result;
   } else {
     // Old format - existing mapping
@@ -553,27 +589,47 @@ function generateAssessmentEmail(assessmentData: any, version: 'v1' | 'v2'): str
 
   if (version === 'v2') {
     // V2 format - CVDC/IBM/Thend based assessment
+    // Handle both snake_case and camelCase field names
+    let v2Data = assessmentData;
+    if (assessmentData.encoded) {
+      try {
+        let jsonString = assessmentData.encoded;
+        if (typeof jsonString === 'string' && jsonString.startsWith('eyJ')) {
+          jsonString = Buffer.from(jsonString, 'base64').toString('utf-8');
+        }
+        const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+        v2Data = { ...assessmentData, ...parsed };
+      } catch (e) {
+        // Use raw data if parsing fails
+      }
+    }
+    const synthesis = v2Data.synthesis ?? v2Data.synthesisText ?? v2Data.synthesis_text ?? '';
+    const cvdcScore = v2Data.cvdc_score ?? v2Data.cvdcScore ?? 0;
+    const ibmScore = v2Data.ibm_score ?? v2Data.ibmScore ?? 0;
+    const cvdcPattern = v2Data.cvdc_pattern ?? v2Data.cvdcPattern ?? '';
+    const ibmPattern = v2Data.ibm_pattern ?? v2Data.ibmPattern ?? '';
+
     return `${baseStyles}
         <div class="content">
           <h2>Your Inner Landscape Assessment Results</h2>
 
-          <p>${assessmentData.synthesis}</p>
+          <p>${synthesis}</p>
 
           <div class="score-box">
             <div style="display: flex; justify-content: space-around; text-align: center;">
               <div>
                 <div class="score-label">CVDC Score</div>
-                <div class="score-value">${assessmentData.cvdc_score}/7</div>
+                <div class="score-value">${cvdcScore}/7</div>
               </div>
               <div>
                 <div class="score-label">IBM Score</div>
-                <div class="score-value">${assessmentData.ibm_score}/7</div>
+                <div class="score-value">${ibmScore}/7</div>
               </div>
             </div>
           </div>
 
-          ${assessmentData.cvdc_pattern ? `<p><strong>Pattern Observed:</strong> ${assessmentData.cvdc_pattern}</p>` : ''}
-          ${assessmentData.ibm_pattern ? `<p><strong>Behavioral Insight:</strong> ${assessmentData.ibm_pattern}</p>` : ''}
+          ${cvdcPattern ? `<p><strong>Pattern Observed:</strong> ${cvdcPattern}</p>` : ''}
+          ${ibmPattern ? `<p><strong>Behavioral Insight:</strong> ${ibmPattern}</p>` : ''}
 
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
 
