@@ -5,7 +5,8 @@ import { Resend } from 'resend';
 const router = Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-interface AssessmentData {
+// V1 format (old metaphor-based assessment)
+interface AssessmentDataV1 {
   encoded: string;
   profile: {
     pattern: string;
@@ -22,21 +23,101 @@ interface AssessmentData {
   action: string;
 }
 
+// V2 format (new CVDC/IBM/Thend pattern assessment)
+interface AssessmentDataV2 {
+  cvdc_score: number;
+  ibm_score: number;
+  thend_detected: boolean;
+  cvdc_pattern: string;
+  ibm_pattern: string;
+  synthesis: string;
+  age_range: string;
+  answers: Record<string, string>;
+  encoded?: string;
+}
+
+// Union type for both formats
+type AssessmentData = AssessmentDataV1 | AssessmentDataV2;
+
+/**
+ * Detect assessment format version
+ */
+function detectAssessmentFormat(data: any): 'v1' | 'v2' {
+  // V2 format has cvdc_score, ibm_score, synthesis
+  if (data.cvdc_score !== undefined && data.synthesis !== undefined) {
+    return 'v2';
+  }
+  // V1 format has profile object with pattern/metaphor
+  if (data.profile?.pattern !== undefined) {
+    return 'v1';
+  }
+  // Default to v2 if ambiguous
+  return 'v2';
+}
+
+/**
+ * Normalize assessment data to database format
+ */
+function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
+  if (version === 'v2') {
+    // New format - direct mapping
+    return {
+      cvdc_score: data.cvdc_score,
+      ibm_score: data.ibm_score,
+      thend_detected: data.thend_detected,
+      synthesis_text: data.synthesis,
+      age_range: data.age_range,
+      pattern_name: data.cvdc_pattern,  // Map to existing field
+      metaphor: data.ibm_pattern,       // Map to existing field
+      register: null,                   // Not used in v2
+      profile_data: {
+        cvdc_score: data.cvdc_score,
+        ibm_score: data.ibm_score,
+        thend_detected: data.thend_detected,
+        cvdc_pattern: data.cvdc_pattern,
+        ibm_pattern: data.ibm_pattern,
+        synthesis: data.synthesis,
+        age_range: data.age_range,
+      },
+      answers: data.answers || {},
+      assessment_version: 'v2',
+      encoded: data.encoded || null,
+    };
+  } else {
+    // Old format - existing mapping
+    return {
+      cvdc_score: null,
+      ibm_score: null,
+      thend_detected: null,
+      synthesis_text: null,
+      age_range: null,
+      pattern_name: data.profile.pattern,
+      metaphor: data.profile.metaphor,
+      register: data.profile.register,
+      profile_data: data.profile,
+      answers: data.answers || {},
+      assessment_version: 'v1',
+      encoded: data.encoded || null,
+    };
+  }
+}
+
 /**
  * POST /api/assessment/save-for-later
  * Save assessment results for users who want to receive them via email
  * Note: This is a public endpoint (no auth required for initial capture)
+ * Supports both v1 (metaphor-based) and v2 (CVDC/IBM/Thend) formats
  */
 router.post('/save-for-later', async (req: Request, res: Response) => {
   try {
-    const { email, assessmentData } = req.body as { 
-      email: string; 
-      assessmentData: AssessmentData 
+    const { email, assessmentData } = req.body as {
+      email: string;
+      assessmentData: any
     };
 
     if (!email || !assessmentData) {
-      return res.status(400).json({ 
-        error: 'Email and assessment data are required' 
+      return res.status(400).json({
+        error: 'Email and assessment data are required'
       });
     }
 
@@ -45,101 +126,33 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
     // Import supabase from your app context
     const { supabase } = req.app.locals;
 
+    // DETECT FORMAT VERSION
+    const version = detectAssessmentFormat(assessmentData);
+    console.log(`📋 Detected assessment version: ${version}`);
+
+    // NORMALIZE DATA
+    const normalized = normalizeAssessmentData(assessmentData, version);
+
     // Store assessment in database
     const { data, error } = await supabase
       .from('assessment_results')
       .insert({
         email,
-        profile_data: assessmentData.profile,
-        answers: assessmentData.answers,
-        encoded_profile: assessmentData.encoded,
-        pattern_name: assessmentData.profile.pattern,
-        metaphor: assessmentData.profile.metaphor,
-        register: assessmentData.profile.register,
+        profile_data: normalized.profile_data,
+        answers: normalized.answers,
+        encoded_profile: normalized.encoded,
+        pattern_name: normalized.pattern_name,
+        metaphor: normalized.metaphor,
+        register: normalized.register,
+        cvdc_score: normalized.cvdc_score,
+        ibm_score: normalized.ibm_score,
+        thend_detected: normalized.thend_detected,
+        synthesis_text: normalized.synthesis_text,
+        age_range: normalized.age_range,
+        assessment_version: normalized.assessment_version,
         status: 'pending_email',
         source: 'iframe',
-        questions_answered: Object.keys(assessmentData.answers).length,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('❌ Error saving assessment:', error);
-      return res.status(500).json({ 
-        error: 'Failed to save assessment results',
-        details: error.message 
-      });
-    }
-
-    // Send assessment results via email
-    if (process.env.RESEND_API_KEY) {
-      try {
-        await resend.emails.send({
-          from: 'iVASA Assessment <noreply@ivasa.ai>',
-          to: email,
-          subject: 'Your iVASA Inner Landscape Assessment Results',
-          html: generateAssessmentEmail(assessmentData)
-        });
-        console.log('✅ Assessment email sent to:', email);
-      } catch (emailError) {
-        console.error('⚠️ Email failed but assessment saved:', emailError);
-      }
-    }
-
-    res.json({ 
-      success: true, 
-      message: 'Assessment saved successfully',
-      assessmentId: data?.id 
-    });
-
-  } catch (error: any) {
-    console.error('❌ Error in save-for-later:', error);
-    res.status(500).json({ 
-      error: 'An unexpected error occurred',
-      message: error.message 
-    });
-  }
-});
-
-/**
- * POST /api/assessment/save
- * Save assessment results for authenticated users
- * This endpoint is for users completing the assessment while logged in
- */
-router.post('/save', async (req: Request, res: Response) => {
-  try {
-    const { userId, email, assessmentData } = req.body as {
-      userId: string;
-      email: string;
-      assessmentData: AssessmentData;
-    };
-
-    if (!userId || !assessmentData) {
-      return res.status(400).json({
-        error: 'User ID and assessment data are required'
-      });
-    }
-
-    console.log('📋 Saving assessment for user:', userId);
-
-    const { supabase } = req.app.locals;
-
-    // Store assessment in database
-    const { data, error } = await supabase
-      .from('assessment_results')
-      .insert({
-        user_id: userId,
-        email: email || null,
-        profile_data: assessmentData.profile,
-        answers: assessmentData.answers,
-        encoded_profile: assessmentData.encoded,
-        pattern_name: assessmentData.profile.pattern,
-        metaphor: assessmentData.profile.metaphor,
-        register: assessmentData.profile.register,
-        status: 'completed',
-        source: 'dashboard_iframe',
-        questions_answered: Object.keys(assessmentData.answers).length,
+        questions_answered: Object.keys(normalized.answers).length,
         created_at: new Date().toISOString()
       })
       .select()
@@ -153,12 +166,138 @@ router.post('/save', async (req: Request, res: Response) => {
       });
     }
 
+    // Send assessment results via email
+    if (process.env.RESEND_API_KEY) {
+      try {
+        await resend.emails.send({
+          from: 'iVASA Assessment <noreply@ivasa.ai>',
+          to: email,
+          subject: 'Your iVASA Inner Landscape Assessment Results',
+          html: generateAssessmentEmail(assessmentData, version)
+        });
+        console.log('✅ Assessment email sent to:', email);
+      } catch (emailError) {
+        console.error('⚠️ Email failed but assessment saved:', emailError);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Assessment saved successfully',
+      assessmentId: data?.id,
+      version: version
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error in save-for-later:', error);
+    res.status(500).json({
+      error: 'An unexpected error occurred',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/assessment/save
+ * Save assessment results for authenticated users
+ * This endpoint is for users completing the assessment while logged in
+ * Supports both v1 (metaphor-based) and v2 (CVDC/IBM/Thend) formats
+ */
+router.post('/save', async (req: Request, res: Response) => {
+  try {
+    const { userId, email, assessmentData } = req.body as {
+      userId: string;
+      email: string;
+      assessmentData: any;
+    };
+
+    if (!userId || !assessmentData) {
+      return res.status(400).json({
+        error: 'User ID and assessment data are required'
+      });
+    }
+
+    console.log('📋 Saving assessment for user:', userId);
+
+    const { supabase } = req.app.locals;
+
+    // DETECT FORMAT VERSION
+    const version = detectAssessmentFormat(assessmentData);
+    console.log(`📋 Detected assessment version: ${version}`);
+
+    // NORMALIZE DATA
+    const normalized = normalizeAssessmentData(assessmentData, version);
+
+    // Store assessment in database
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .insert({
+        user_id: userId,
+        email: email || null,
+        profile_data: normalized.profile_data,
+        answers: normalized.answers,
+        encoded_profile: normalized.encoded,
+        pattern_name: normalized.pattern_name,
+        metaphor: normalized.metaphor,
+        register: normalized.register,
+        cvdc_score: normalized.cvdc_score,
+        ibm_score: normalized.ibm_score,
+        thend_detected: normalized.thend_detected,
+        synthesis_text: normalized.synthesis_text,
+        age_range: normalized.age_range,
+        assessment_version: normalized.assessment_version,
+        status: 'completed',
+        source: 'dashboard_iframe',
+        questions_answered: Object.keys(normalized.answers).length,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error saving assessment:', error);
+      return res.status(500).json({
+        error: 'Failed to save assessment',
+        details: error.message
+      });
+    }
+
+    // Update user_profiles with assessment data
+    const profileUpdate: any = {
+      assessment_completed_at: new Date().toISOString(),
+      assessment_responses: normalized.answers,
+      assessment_version: normalized.assessment_version,
+    };
+
+    if (version === 'v2') {
+      profileUpdate.inner_landscape_type = normalized.pattern_name;
+      profileUpdate.assessment_insights = normalized.synthesis_text;
+      profileUpdate.cvdc_score = normalized.cvdc_score;
+      profileUpdate.ibm_score = normalized.ibm_score;
+      profileUpdate.thend_detected = normalized.thend_detected;
+    } else {
+      profileUpdate.inner_landscape_type = normalized.pattern_name;
+      profileUpdate.assessment_insights = normalized.profile_data?.description || null;
+    }
+
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .update(profileUpdate)
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error('⚠️ Failed to update user profile:', profileError);
+    } else {
+      console.log('✅ User profile updated with assessment data');
+    }
+
     console.log('✅ Assessment saved successfully for user:', userId);
 
     res.json({
       success: true,
       message: 'Assessment saved successfully',
-      assessmentId: data?.id
+      assessmentId: data?.id,
+      version: version
     });
 
   } catch (error: any) {
@@ -317,8 +456,9 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
 });
 
 // Helper function to generate assessment email HTML
-function generateAssessmentEmail(assessmentData: AssessmentData): string {
-  return `
+// Supports both v1 (metaphor-based) and v2 (CVDC/IBM/Thend) formats
+function generateAssessmentEmail(assessmentData: any, version: 'v1' | 'v2'): string {
+  const baseStyles = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -328,6 +468,9 @@ function generateAssessmentEmail(assessmentData: AssessmentData): string {
         .header { background: #0f0f1a; color: #10b981; padding: 20px; text-align: center; }
         .content { padding: 20px; background: #f5f5f5; }
         .pattern { font-size: 24px; font-weight: bold; color: #10b981; margin: 20px 0; }
+        .score-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .score-label { font-weight: bold; color: #666; }
+        .score-value { font-size: 24px; color: #10b981; }
         .button { display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; }
         .footer { text-align: center; color: #666; font-size: 14px; margin-top: 30px; }
       </style>
@@ -336,15 +479,62 @@ function generateAssessmentEmail(assessmentData: AssessmentData): string {
       <div class="container">
         <div class="header">
           <h1>Your iVASA Assessment Results</h1>
-        </div>
+        </div>`;
 
+  const footer = `
+        <div class="footer">
+          <p>This assessment is based on Pure Contextual Perception (PCP) therapy methodology
+          developed by licensed therapist Mathew Quaschnick.</p>
+          <p>© ${new Date().getFullYear()} iVASA. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>`;
+
+  if (version === 'v2') {
+    // V2 format - CVDC/IBM/Thend based assessment
+    return `${baseStyles}
+        <div class="content">
+          <h2>Your Inner Landscape Assessment Results</h2>
+
+          <p>${assessmentData.synthesis}</p>
+
+          <div class="score-box">
+            <div style="display: flex; justify-content: space-around; text-align: center;">
+              <div>
+                <div class="score-label">CVDC Score</div>
+                <div class="score-value">${assessmentData.cvdc_score}/7</div>
+              </div>
+              <div>
+                <div class="score-label">IBM Score</div>
+                <div class="score-value">${assessmentData.ibm_score}/7</div>
+              </div>
+            </div>
+          </div>
+
+          ${assessmentData.cvdc_pattern ? `<p><strong>Pattern Observed:</strong> ${assessmentData.cvdc_pattern}</p>` : ''}
+          ${assessmentData.ibm_pattern ? `<p><strong>Behavioral Insight:</strong> ${assessmentData.ibm_pattern}</p>` : ''}
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+
+          <h3>Ready to continue?</h3>
+          <p>Sign in to iVASA to explore your complete therapeutic profile and begin AI-powered therapy sessions.</p>
+
+          <a href="https://beta.ivasa.ai/signup?source=email${assessmentData.encoded ? `&profile=${assessmentData.encoded}` : ''}" class="button">
+            Sign in to iVASA
+          </a>
+        </div>
+    ${footer}`;
+  } else {
+    // V1 format - Original metaphor-based assessment
+    return `${baseStyles}
         <div class="content">
           <div class="pattern">Your Pattern: ${assessmentData.profile.pattern}</div>
 
           <h3>About Your Pattern:</h3>
           <p>You experience anxiety as ${assessmentData.profile.description}.</p>
 
-          <p>When facing difficult choices, ${assessmentData.profile.cvdcPattern}. 
+          <p>When facing difficult choices, ${assessmentData.profile.cvdcPattern}.
           This creates a particular kind of exhaustion - the paralysis of contradictions.</p>
 
           <p>${assessmentData.profile.chronicity}</p>
@@ -362,16 +552,8 @@ function generateAssessmentEmail(assessmentData: AssessmentData): string {
             Create Your Free Account
           </a>
         </div>
-
-        <div class="footer">
-          <p>This assessment is based on Pure Contextual Perception (PCP) therapy methodology 
-          developed by licensed therapist Mathew Quaschnick.</p>
-          <p>© ${new Date().getFullYear()} iVASA. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+    ${footer}`;
+  }
 }
 
 export default router;
