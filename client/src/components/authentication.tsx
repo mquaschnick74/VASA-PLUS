@@ -43,6 +43,18 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [validatingPromo, setValidatingPromo] = useState(false);
   const [showAssessment, setShowAssessment] = useState(false);
 
+  // Lock body scroll when assessment modal is open
+  useEffect(() => {
+    if (showAssessment) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showAssessment]);
+
   // ============= NEW: Invitation handling state =============
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
   const [therapistId, setTherapistId] = useState<string | null>(null);
@@ -361,8 +373,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               <i className="fas fa-times text-muted-foreground"></i>
             </button>
 
-            {/* Assessment Iframe */}
-            <AssessmentIframe className="w-full h-full" />
+            {/* Assessment Iframe - full height with scrolling enabled */}
+            <div className="w-full h-full overflow-y-auto">
+              <AssessmentIframe className="w-full min-h-full" />
+            </div>
           </div>
         </div>
       )}

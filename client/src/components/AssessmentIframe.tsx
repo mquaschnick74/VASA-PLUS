@@ -222,13 +222,14 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
         src={dashboardMode ? "https://start.ivasa.ai?mode=dashboard" : "https://start.ivasa.ai"}
         style={{
           width: '100%',
-          height: `${iframeHeight}px`,
+          height: '100%',
+          minHeight: `${iframeHeight}px`,
           border: 'none',
-          minHeight: '600px',
           display: loadError ? 'none' : 'block',
           opacity: isLoading ? 0.3 : 1,
-          transition: 'opacity 0.5s ease-in-out, height 0.3s ease',
+          transition: 'opacity 0.5s ease-in-out',
         }}
+        scrolling="auto"
         sandbox="allow-scripts allow-same-origin allow-forms"
         title="iVASA Inner Landscape Assessment"
         onLoad={() => console.log('[AssessmentIframe] onLoad event fired')}
