@@ -51,15 +51,26 @@ function detectAssessmentFormat(data: any): 'v1' | 'v2' {
   if (data.profile?.pattern !== undefined) {
     return 'v1';
   }
-  // Check if v2 data is in encoded field as JSON string
+  // Check if v2 data is in encoded field (could be JSON or Base64-encoded JSON)
   if (data.encoded) {
     try {
-      const parsed = typeof data.encoded === 'string' ? JSON.parse(data.encoded) : data.encoded;
+      let jsonString = data.encoded;
+
+      // Check if it's Base64 encoded (starts with eyJ which is base64 for '{"')
+      if (typeof data.encoded === 'string' && data.encoded.startsWith('eyJ')) {
+        jsonString = Buffer.from(data.encoded, 'base64').toString('utf-8');
+      }
+
+      const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
       if (parsed.cvdc_score !== undefined) {
         return 'v2';
       }
+      // Check for v1 data in encoded field
+      if (parsed.profile?.pattern !== undefined) {
+        return 'v1';
+      }
     } catch (e) {
-      // Not valid JSON, continue
+      // Not valid JSON/Base64, continue
     }
   }
   // Default to v2 if ambiguous
@@ -68,7 +79,7 @@ function detectAssessmentFormat(data: any): 'v1' | 'v2' {
 
 /**
  * Normalize assessment data to database format
- * Handles both direct properties and encoded JSON string
+ * Handles both direct properties and encoded JSON string (may be Base64 encoded)
  */
 function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
   if (version === 'v2') {
@@ -80,9 +91,18 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
     console.log('📋 data.encoded:', data.encoded ? 'exists' : 'missing');
 
     if (data.cvdc_score === undefined && data.encoded) {
-      // V2 data might be in encoded field as JSON string
+      // V2 data might be in encoded field - could be JSON or Base64-encoded JSON
       try {
-        const parsed = typeof data.encoded === 'string' ? JSON.parse(data.encoded) : data.encoded;
+        let jsonString = data.encoded;
+
+        // Check if it's Base64 encoded (starts with eyJ which is base64 for '{"')
+        if (typeof data.encoded === 'string' && data.encoded.startsWith('eyJ')) {
+          console.log('📋 Detected Base64-encoded data, decoding...');
+          jsonString = Buffer.from(data.encoded, 'base64').toString('utf-8');
+          console.log('📋 Decoded string:', jsonString.substring(0, 100) + '...');
+        }
+
+        const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
         console.log('📋 Parsed encoded field:', JSON.stringify(parsed, null, 2));
         if (parsed.cvdc_score !== undefined) {
           console.log('📋 Merging parsed data with original data');
