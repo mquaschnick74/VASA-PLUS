@@ -18,6 +18,7 @@ interface ResourceCard {
 
 export default function LearnMore() {
   const [, setLocation] = useLocation();
+  const isLoggedIn = !!localStorage.getItem('userId');
 
   useEffect(() => {
     document.title = 'Learn More - iVASA';
@@ -55,11 +56,11 @@ export default function LearnMore() {
         {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => setLocation('/dashboard')}
+          onClick={() => setLocation(isLoggedIn ? '/dashboard' : '/')}
           className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
+          {isLoggedIn ? 'Back to Dashboard' : 'Back to Main Page'}
         </Button>
 
         {/* Header Section */}
