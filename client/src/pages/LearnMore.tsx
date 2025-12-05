@@ -18,6 +18,7 @@ interface ResourceCard {
 
 export default function LearnMore() {
   const [, setLocation] = useLocation();
+  const isLoggedIn = !!localStorage.getItem('userId');
 
   useEffect(() => {
     document.title = 'Learn More - iVASA';
@@ -55,11 +56,11 @@ export default function LearnMore() {
         {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => setLocation('/dashboard')}
+          onClick={() => setLocation(isLoggedIn ? '/dashboard' : '/')}
           className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
+          {isLoggedIn ? 'Back to Dashboard' : 'Back to Main Page'}
         </Button>
 
         {/* Header Section */}
@@ -67,6 +68,15 @@ export default function LearnMore() {
           <h1 className="text-5xl font-bold text-white mb-4">Learn More</h1>
           <p className="text-xl text-purple-200">
             Explore our resources to deepen your understanding and practice
+          </p>
+          <p className="text-purple-300 text-sm mt-3">
+            Need help? Check out our{" "}
+            <span
+              onClick={() => setLocation('/faq')}
+              className="text-emerald-400 hover:text-emerald-300 cursor-pointer underline"
+            >
+              FAQ page
+            </span>
           </p>
         </div>
 
@@ -101,19 +111,6 @@ export default function LearnMore() {
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        {/* Footer Section */}
-        <div className="mt-12 text-center">
-          <p className="text-purple-300 text-sm">
-            Need help? Check out our{" "}
-            <span
-              onClick={() => setLocation('/faq')}
-              className="text-emerald-400 hover:text-emerald-300 cursor-pointer underline"
-            >
-              FAQ page
-            </span>
-          </p>
         </div>
       </div>
     </div>
