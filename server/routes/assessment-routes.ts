@@ -43,7 +43,7 @@ type AssessmentData = AssessmentDataV1 | AssessmentDataV2;
  * Detect assessment format version
  */
 function detectAssessmentFormat(data: any): 'v1' | 'v2' {
-  // V2 format has cvdc_score, ibm_score, synthesis
+  // V2 format has cvdc_score, ibm_score, synthesis directly on data
   if (data.cvdc_score !== undefined && data.synthesis !== undefined) {
     return 'v2';
   }
@@ -51,35 +51,63 @@ function detectAssessmentFormat(data: any): 'v1' | 'v2' {
   if (data.profile?.pattern !== undefined) {
     return 'v1';
   }
+  // Check if v2 data is in encoded field as JSON string
+  if (data.encoded) {
+    try {
+      const parsed = typeof data.encoded === 'string' ? JSON.parse(data.encoded) : data.encoded;
+      if (parsed.cvdc_score !== undefined) {
+        return 'v2';
+      }
+    } catch (e) {
+      // Not valid JSON, continue
+    }
+  }
   // Default to v2 if ambiguous
   return 'v2';
 }
 
 /**
  * Normalize assessment data to database format
+ * Handles both direct properties and encoded JSON string
  */
 function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
   if (version === 'v2') {
+    // Check if v2 data is directly on object or needs to be parsed from encoded
+    let v2Data = data;
+
+    if (data.cvdc_score === undefined && data.encoded) {
+      // V2 data might be in encoded field as JSON string
+      try {
+        const parsed = typeof data.encoded === 'string' ? JSON.parse(data.encoded) : data.encoded;
+        if (parsed.cvdc_score !== undefined) {
+          console.log('📋 Parsing v2 data from encoded field');
+          v2Data = { ...data, ...parsed };
+        }
+      } catch (e) {
+        console.error('⚠️ Failed to parse encoded field:', e);
+      }
+    }
+
     // New format - direct mapping
     return {
-      cvdc_score: data.cvdc_score,
-      ibm_score: data.ibm_score,
-      thend_detected: data.thend_detected,
-      synthesis_text: data.synthesis,
-      age_range: data.age_range,
-      pattern_name: data.cvdc_pattern,  // Map to existing field
-      metaphor: data.ibm_pattern,       // Map to existing field
-      register: null,                   // Not used in v2
+      cvdc_score: v2Data.cvdc_score ?? null,
+      ibm_score: v2Data.ibm_score ?? null,
+      thend_detected: v2Data.thend_detected ?? null,
+      synthesis_text: v2Data.synthesis ?? null,
+      age_range: v2Data.age_range ?? null,
+      pattern_name: v2Data.cvdc_pattern ?? null,  // Map to existing field
+      metaphor: v2Data.ibm_pattern ?? null,       // Map to existing field
+      register: null,                              // Not used in v2
       profile_data: {
-        cvdc_score: data.cvdc_score,
-        ibm_score: data.ibm_score,
-        thend_detected: data.thend_detected,
-        cvdc_pattern: data.cvdc_pattern,
-        ibm_pattern: data.ibm_pattern,
-        synthesis: data.synthesis,
-        age_range: data.age_range,
+        cvdc_score: v2Data.cvdc_score,
+        ibm_score: v2Data.ibm_score,
+        thend_detected: v2Data.thend_detected,
+        cvdc_pattern: v2Data.cvdc_pattern,
+        ibm_pattern: v2Data.ibm_pattern,
+        synthesis: v2Data.synthesis,
+        age_range: v2Data.age_range,
       },
-      answers: data.answers || {},
+      answers: v2Data.answers || data.answers || {},
       assessment_version: 'v2',
       encoded: data.encoded || null,
     };
