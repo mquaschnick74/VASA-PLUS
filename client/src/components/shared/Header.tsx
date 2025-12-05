@@ -145,7 +145,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
                   <span className="flex flex-col items-center leading-tight">
-                    <span>Videos</span>
+                    <span>Videos+</span>
                     <span className="text-[10px] opacity-70">Meditations, Blog...</span>
                   </span>
                 </Button>
