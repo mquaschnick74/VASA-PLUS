@@ -69,6 +69,15 @@ export default function LearnMore() {
           <p className="text-xl text-purple-200">
             Explore our resources to deepen your understanding and practice
           </p>
+          <p className="text-purple-300 text-sm mt-3">
+            Need help? Check out our{" "}
+            <span
+              onClick={() => setLocation('/faq')}
+              className="text-emerald-400 hover:text-emerald-300 cursor-pointer underline"
+            >
+              FAQ page
+            </span>
+          </p>
         </div>
 
         {/* Resource Cards Grid */}
@@ -102,19 +111,6 @@ export default function LearnMore() {
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        {/* Footer Section */}
-        <div className="mt-12 text-center">
-          <p className="text-purple-300 text-sm">
-            Need help? Check out our{" "}
-            <span
-              onClick={() => setLocation('/faq')}
-              className="text-emerald-400 hover:text-emerald-300 cursor-pointer underline"
-            >
-              FAQ page
-            </span>
-          </p>
         </div>
       </div>
     </div>
