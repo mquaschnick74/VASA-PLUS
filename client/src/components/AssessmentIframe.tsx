@@ -35,8 +35,14 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  // Use a ref to always have access to the latest onComplete callback
+  const onCompleteRef = useRef(onComplete);
   useEffect(() => {
-    console.log('[AssessmentIframe] Component mounted, dashboardMode:', dashboardMode);
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    console.log('[AssessmentIframe] Component mounted, dashboardMode:', dashboardMode, 'onComplete:', !!onComplete);
 
     // Show iframe quickly after a brief delay (perceived as instant but allows for smooth render)
     const quickShowTimeout = setTimeout(() => {
@@ -84,11 +90,12 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
 
     const handleAssessmentComplete = async (data: AssessmentData) => {
       console.log('[AssessmentIframe] Assessment completed:', data);
+      console.log('[AssessmentIframe] onCompleteRef.current:', !!onCompleteRef.current, 'dashboardMode:', dashboardMode);
 
-      // Call parent callback if provided
-      if (onComplete) {
+      // Call parent callback if provided (using ref to get latest value)
+      if (onCompleteRef.current) {
         console.log('[AssessmentIframe] Calling onComplete callback, skipping built-in navigation');
-        onComplete(data);
+        onCompleteRef.current(data);
         return; // Let parent handle navigation
       }
 
