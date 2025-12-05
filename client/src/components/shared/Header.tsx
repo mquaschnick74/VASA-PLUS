@@ -26,7 +26,8 @@ interface HeaderProps {
 export default function Header({ userId, setUserId, userType, showDashboardLink = false, hideSignInButton = false }: HeaderProps) {
   const [location, setLocation] = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
-  const isLoggedIn = !!userId;
+  // Check userId prop first, fallback to localStorage for pages that don't pass the prop
+  const isLoggedIn = !!userId || !!localStorage.getItem('userId');
 
   // Check if we're on a "learn more" related page
   const isOnLearnMorePages = location === '/learn-more' || location === '/meditations' || location === '/videos';
