@@ -1251,8 +1251,8 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     voice: { 
       provider: '11labs', 
       voiceId: 'EXAVITQu4vr4xnSDxMaL', 
-      model: 'eleven_flash_v2_5', 
-      stability: 0.7, 
+      model: 'eleven_turbo_v2_5', 
+      stability: 0.5, 
       similarityBoost: 0.75, 
       speed: 1.0, 
       useSpeakerBoost: false 
@@ -1278,8 +1278,8 @@ ${VASA_MASTER_SYSTEM_PROMPT}`,
     voice: { 
       provider: '11labs', 
       voiceId: 'ErXwobaYiN019PkySvjV', 
-      model: 'eleven_flash_v2_5', 
-      stability: 0.7, 
+      model: 'eleven_turbo_v2_5', 
+      stability: 0.5, 
       similarityBoost: 0.75, 
       speed: 1.0, 
       useSpeakerBoost: false 
@@ -1305,8 +1305,8 @@ ${VASA_MASTER_SYSTEM_PROMPT}`,
     voice: { 
       provider: '11labs', 
       voiceId: '2hsbsDeRu57rsKFAC7uE', 
-      model: 'eleven_flash_v2_5', 
-      stability: 0.7, 
+      model: 'eleven_turbo_v2_5', 
+      stability: 0.5, 
       similarityBoost: 0.75, 
       speed: 1.0, 
       useSpeakerBoost: false 
@@ -1332,8 +1332,8 @@ ${VASA_MASTER_SYSTEM_PROMPT}`,
     voice: { 
       provider: '11labs', 
       voiceId: 'Qggl4b0xRMiqOwhPtVWT', 
-      model: 'eleven_flash_v2_5', 
-      stability: 0.7, 
+      model: 'eleven_turbo_v2_5', 
+      stability: 0.5, 
       similarityBoost: 0.75, 
       speed: 1.0, 
       useSpeakerBoost: false 
