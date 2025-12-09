@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
-import useVapi, { TranscriptMessage, SpeechUpdateMessage } from '@/hooks/use-vapi';
+import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
 import { getAgentById } from '../config/agent-configs';
@@ -79,16 +79,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Voice message buffering state (to pool complete thoughts)
-  const [voiceMessageBuffer, setVoiceMessageBuffer] = useState<string>('');
-  const bufferedMessageIdRef = useRef<string | null>(null);
-  const bufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // User message buffering state (to consolidate fragmented user speech)
-  const [userMessageBuffer, setUserMessageBuffer] = useState<string>('');
-  const userBufferedMessageIdRef = useRef<string | null>(null);
-  const userBufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   // Persist text session state to localStorage
   useEffect(() => {
     if (activeTextSessionId) {
@@ -119,8 +109,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     startSession,
     endSession,
     connectionStatus,
-    onTranscript,
-    onSpeechUpdate,
     error: vapiError,
     clearError
   } = useVapi({
@@ -142,238 +130,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
   // Debug logging for subscription
   console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
-
-  // NEW: Wire up transcript events from VAPI with buffering for complete thoughts
-  useEffect(() => {
-    onTranscript((message: TranscriptMessage) => {
-      console.log('📝 [VOICE] Transcript message received:', {
-        role: message.role,
-        content: message.content.substring(0, 50) + '...',
-        length: message.content.length
-      });
-
-      // Buffer user messages to consolidate fragmented speech into complete thoughts
-      if (message.role === 'user') {
-        console.log('📝 [VOICE] User message - adding to buffer');
-
-        // Create message ID on first chunk
-        if (!userBufferedMessageIdRef.current) {
-          userBufferedMessageIdRef.current = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          console.log('📝 [VOICE] Created new user message ID:', userBufferedMessageIdRef.current);
-        }
-
-        // Accumulate content with proper spacing
-        setUserMessageBuffer(prev => {
-          const newContent = prev + (prev ? ' ' : '') + message.content;
-          console.log('📝 [VOICE] User buffer updated, total length:', newContent.length);
-          return newContent;
-        });
-        return;
-      }
-
-      // Buffer assistant messages to pool complete thoughts
-      if (message.role === 'assistant') {
-        console.log('📝 [VOICE] Assistant message - adding to buffer');
-
-        // Create message ID on first chunk
-        if (!bufferedMessageIdRef.current) {
-          bufferedMessageIdRef.current = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          console.log('📝 [VOICE] Created new message ID:', bufferedMessageIdRef.current);
-        }
-
-        // Accumulate content
-        setVoiceMessageBuffer(prev => {
-          const newContent = prev + (prev ? ' ' : '') + message.content;
-          console.log('📝 [VOICE] Buffer updated, total length:', newContent.length);
-          return newContent;
-        });
-      }
-    });
-  }, [onTranscript, selectedAgentId]);
-
-  // Helper function to finalize buffered voice message
-  const finalizeVoiceBuffer = useCallback(() => {
-    // Clear any existing timeout
-    if (bufferTimeoutRef.current) {
-      clearTimeout(bufferTimeoutRef.current);
-      bufferTimeoutRef.current = null;
-    }
-
-    setVoiceMessageBuffer(currentBuffer => {
-      if (currentBuffer && bufferedMessageIdRef.current) {
-        const finalMessageId = bufferedMessageIdRef.current;
-        console.log('📝 [VOICE] ✅ Complete message ready:', {
-          id: finalMessageId,
-          length: currentBuffer.length,
-          preview: currentBuffer.substring(0, 80) + '...'
-        });
-
-        // Add complete message to transcript
-        const extendedMessage: ExtendedTranscriptMessage = {
-          id: finalMessageId,
-          role: 'assistant',
-          content: currentBuffer,
-          timestamp: new Date(),
-          source: 'voice',
-          agentId: selectedAgentId
-        };
-
-        setTranscript(prev => [...prev, extendedMessage]);
-        console.log('📝 [VOICE] Message added to transcript');
-
-        // Trigger typewriter effect for complete message
-        setDisplayedContent(prev => {
-          console.log('📝 [VOICE] Setting displayedContent to empty for:', finalMessageId);
-          return {
-            ...prev,
-            [finalMessageId]: ''
-          };
-        });
-
-        setTypewriterMessageId(finalMessageId);
-        console.log('📝 [VOICE] 🎨 Typewriter effect triggered for:', finalMessageId);
-      } else {
-        console.log('📝 [VOICE] ⚠️ No buffer content or ID, skipping finalization');
-      }
-
-      // Clear buffer
-      bufferedMessageIdRef.current = null;
-      return '';
-    });
-  }, [selectedAgentId]);
-
-  // Helper function to finalize buffered user message
-  const finalizeUserBuffer = useCallback(() => {
-    // Clear any existing timeout
-    if (userBufferTimeoutRef.current) {
-      clearTimeout(userBufferTimeoutRef.current);
-      userBufferTimeoutRef.current = null;
-    }
-
-    setUserMessageBuffer(currentBuffer => {
-      if (currentBuffer && userBufferedMessageIdRef.current) {
-        const finalMessageId = userBufferedMessageIdRef.current;
-        console.log('📝 [VOICE] ✅ Complete user message ready:', {
-          id: finalMessageId,
-          length: currentBuffer.length,
-          preview: currentBuffer.substring(0, 80) + '...'
-        });
-
-        // Add complete user message to transcript
-        const extendedMessage: ExtendedTranscriptMessage = {
-          id: finalMessageId,
-          role: 'user',
-          content: currentBuffer.trim(),
-          timestamp: new Date(),
-          source: 'voice',
-          agentId: selectedAgentId
-        };
-
-        setTranscript(prev => [...prev, extendedMessage]);
-        console.log('📝 [VOICE] User message added to transcript');
-      } else {
-        console.log('📝 [VOICE] ⚠️ No user buffer content or ID, skipping finalization');
-      }
-
-      // Clear buffer
-      userBufferedMessageIdRef.current = null;
-      return '';
-    });
-  }, [selectedAgentId]);
-
-  // Listen for speech-update events to finalize buffered messages
-  useEffect(() => {
-    onSpeechUpdate((message: SpeechUpdateMessage) => {
-      console.log('🎤 [VOICE] Speech update:', {
-        status: message.status,
-        role: message.role
-      });
-
-      // When user stops speaking, finalize the user buffer
-      if (message.role === 'user' && message.status === 'stopped') {
-        console.log('🎤 [VOICE] User stopped speaking - finalizing user buffer');
-        finalizeUserBuffer();
-      }
-
-      // When assistant stops speaking, finalize the assistant buffer
-      if (message.role === 'assistant' && message.status === 'stopped') {
-        console.log('🎤 [VOICE] Assistant stopped speaking - finalizing buffer');
-        finalizeVoiceBuffer();
-      }
-
-      // When assistant starts speaking, flush any remaining user buffer (interruption fallback)
-      if (message.role === 'assistant' && message.status === 'started') {
-        if (userMessageBuffer && userBufferedMessageIdRef.current) {
-          console.log('🎤 [VOICE] Assistant started - flushing user buffer (interruption)');
-          finalizeUserBuffer();
-        }
-      }
-    });
-  }, [onSpeechUpdate, finalizeVoiceBuffer, finalizeUserBuffer, userMessageBuffer]);
-
-  // CRITICAL FIX: Force-finalize buffered messages after timeout to prevent stuck state
-  useEffect(() => {
-    // If there's a buffered message, set a timeout to force-finalize it
-    if (voiceMessageBuffer && bufferedMessageIdRef.current) {
-      console.log('⏰ [VOICE] Setting 10s timeout for buffer:', bufferedMessageIdRef.current);
-
-      // Clear any existing timeout
-      if (bufferTimeoutRef.current) {
-        clearTimeout(bufferTimeoutRef.current);
-      }
-
-      // Set new timeout (10 seconds)
-      bufferTimeoutRef.current = setTimeout(() => {
-        console.warn('⚠️ [VOICE] Buffer timeout reached - force-finalizing message');
-        console.warn('   This may indicate a missing speech-update event from VAPI');
-        finalizeVoiceBuffer();
-      }, 10000); // 10 second timeout
-    }
-
-    // Cleanup timeout on unmount or when buffer clears
-    return () => {
-      if (bufferTimeoutRef.current) {
-        clearTimeout(bufferTimeoutRef.current);
-        bufferTimeoutRef.current = null;
-      }
-    };
-  }, [voiceMessageBuffer, finalizeVoiceBuffer]);
-
-  // User buffer timeout - shorter timeout with punctuation-aware debouncing
-  useEffect(() => {
-    // If there's a buffered user message, set a timeout to finalize it
-    if (userMessageBuffer && userBufferedMessageIdRef.current) {
-      // Check if last chunk ends with strong punctuation (natural sentence end)
-      const endsWithPunctuation = /[.!?;]$/.test(userMessageBuffer.trim());
-      // Use shorter timeout (1.5s) for punctuated sentences, longer (2.5s) for trailing off
-      const timeoutDuration = endsWithPunctuation ? 1500 : 2500;
-      
-      console.log('⏰ [VOICE] Setting user buffer timeout:', {
-        id: userBufferedMessageIdRef.current,
-        duration: `${timeoutDuration}ms`,
-        hasPunctuation: endsWithPunctuation
-      });
-
-      // Clear any existing timeout
-      if (userBufferTimeoutRef.current) {
-        clearTimeout(userBufferTimeoutRef.current);
-      }
-
-      // Set debounce timeout
-      userBufferTimeoutRef.current = setTimeout(() => {
-        console.log('⏰ [VOICE] User buffer timeout reached - finalizing message');
-        finalizeUserBuffer();
-      }, timeoutDuration);
-    }
-
-    // Cleanup timeout on unmount or when buffer clears
-    return () => {
-      if (userBufferTimeoutRef.current) {
-        clearTimeout(userBufferTimeoutRef.current);
-        userBufferTimeoutRef.current = null;
-      }
-    };
-  }, [userMessageBuffer, finalizeUserBuffer]);
 
   // Auto-scroll to bottom when transcript updates (debounced to prevent jumping)
   const lastTranscriptLengthRef = useRef(0);
@@ -492,28 +248,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     };
   }, [typewriterMessageId, transcript, displayedContent]);
 
-  // Clear transcript and buffer when voice session ends
-  useEffect(() => {
-    if (!isSessionActive) {
-      // Clear voice buffer when session ends
-      setVoiceMessageBuffer('');
-      bufferedMessageIdRef.current = null;
-      if (bufferTimeoutRef.current) {
-        clearTimeout(bufferTimeoutRef.current);
-        bufferTimeoutRef.current = null;
-      }
-      
-      // Clear user buffer when session ends
-      setUserMessageBuffer('');
-      userBufferedMessageIdRef.current = null;
-      if (userBufferTimeoutRef.current) {
-        clearTimeout(userBufferTimeoutRef.current);
-        userBufferTimeoutRef.current = null;
-      }
-      // Option: Clear transcript when session ends, or keep it for review
-      // setTranscript([]);
-    }
-  }, [isSessionActive]);
 
   // Warn user before leaving with unsaved text session (browser close/refresh only)
   useEffect(() => {
@@ -789,12 +523,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   };
 
   const handleEndCall = async () => {
-    // Flush any remaining user buffer before ending the call
-    if (userMessageBuffer && userBufferedMessageIdRef.current) {
-      console.log('📴 [VOICE] Call ending - flushing remaining user buffer');
-      finalizeUserBuffer();
-    }
-
     if (!currentCallId) {
       // If no call ID, just use regular endSession
       endSession();
@@ -1353,11 +1081,13 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                   )}
                 </div>
 
-                {/* Live Conversation Transcript */}
+                {/* Conversation Area */}
                 <div className="border-t border-border pt-4">
                   <div className="flex items-center space-x-2 mb-3">
                     <i className="fas fa-comments text-accent text-sm"></i>
-                    <h3 className="text-base sm:text-lg font-semibold">Live Conversation</h3>
+                    <h3 className="text-base sm:text-lg font-semibold">
+                      {isSessionActive ? 'Voice Session Active' : 'Text Conversation'}
+                    </h3>
                   </div>
 
                   <div className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="transcript-container">
@@ -1382,7 +1112,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                         </div>
                         <p className="text-sm text-muted-foreground italic">
                           {isSessionActive
-                            ? "Listening... start speaking to see live transcription"
+                            ? "Voice session active - speak naturally with your assistant"
                             : "Start a voice session or send a text message to begin"}
                         </p>
                       </div>
@@ -1512,9 +1242,15 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                   {/* Voice Mode Indicator */}
                   {isSessionActive && (
                     <div className="mt-4 pt-3 border-t border-border">
-                      <p className="text-xs text-center text-muted-foreground">
-                        🎤 Voice mode active - End voice session to use text chat
-                      </p>
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-center">
+                        <div className="flex items-center justify-center space-x-2 mb-2">
+                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                          <span className="text-sm font-medium text-red-400">Voice Session In Progress</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Speak naturally with {selectedAgent?.name || 'your assistant'}. End the voice session to use text chat.
+                        </p>
+                      </div>
                     </div>
                   )}
 
