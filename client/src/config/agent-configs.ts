@@ -1252,10 +1252,10 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
       provider: '11labs', 
       voiceId: 'EXAVITQu4vr4xnSDxMaL', 
       model: 'eleven_flash_v2_5', 
-      stability: 0.9, 
-      similarityBoost: 0.85, 
+      stability: 0.7, 
+      similarityBoost: 0.75, 
       speed: 1.0, 
-      useSpeakerBoost: true 
+      useSpeakerBoost: false 
     },
     systemPrompt: `Your proper name is **Sarah**.
 
@@ -1279,10 +1279,10 @@ ${VASA_MASTER_SYSTEM_PROMPT}`,
       provider: '11labs', 
       voiceId: 'ErXwobaYiN019PkySvjV', 
       model: 'eleven_flash_v2_5', 
-      stability: 0.9, 
-      similarityBoost: 0.85, 
+      stability: 0.7, 
+      similarityBoost: 0.75, 
       speed: 1.0, 
-      useSpeakerBoost: true 
+      useSpeakerBoost: false 
     },
     systemPrompt: `Your proper name is **Marcus**.
 
@@ -1306,10 +1306,10 @@ ${VASA_MASTER_SYSTEM_PROMPT}`,
       provider: '11labs', 
       voiceId: '2hsbsDeRu57rsKFAC7uE', 
       model: 'eleven_flash_v2_5', 
-      stability: 0.9, 
-      similarityBoost: 0.85, 
+      stability: 0.7, 
+      similarityBoost: 0.75, 
       speed: 1.0, 
-      useSpeakerBoost: true 
+      useSpeakerBoost: false 
     },
     systemPrompt: `Your proper name is **Mathew**.
 
@@ -1333,10 +1333,10 @@ ${VASA_MASTER_SYSTEM_PROMPT}`,
       provider: '11labs', 
       voiceId: 'Qggl4b0xRMiqOwhPtVWT', 
       model: 'eleven_flash_v2_5', 
-      stability: 0.9, 
-      similarityBoost: 0.85, 
+      stability: 0.7, 
+      similarityBoost: 0.75, 
       speed: 1.0, 
-      useSpeakerBoost: true 
+      useSpeakerBoost: false 
     },
     systemPrompt: `Your proper name is **Zhanna**.
 
