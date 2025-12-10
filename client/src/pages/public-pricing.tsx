@@ -144,31 +144,20 @@ export default function PublicPricing() {
 
         {/* Featured Free Account Card */}
         <div className="max-w-4xl mx-auto mb-12 pt-6">
-          <div
-            className="relative rounded-lg"
-            style={{
-              padding: '2px',
-              background: `
-                linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 45%, rgb(16 185 129 / 0.5) 55%, rgb(16 185 129 / 0.5) 100%) 0 0 / 2px 100% no-repeat,
-                linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 45%, rgb(16 185 129 / 0.5) 55%, rgb(16 185 129 / 0.5) 100%) calc(100% - 2px) 0 / 2px 100% no-repeat,
-                linear-gradient(to right, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 100%) 0 0 / 100% 2px no-repeat,
-                linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 100%) 0 calc(100% - 2px) / 100% 2px no-repeat
-              `,
-              borderRadius: '0.5rem'
-            }}
-          >
-            <Card className="glass relative bg-[hsl(240,15%,6%)] border-0" style={{ borderRadius: 'calc(0.5rem - 2px)' }}>
-              <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
-                {/* Background cover to hide border behind badge */}
-                <div className="absolute -inset-0 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
-                <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-                  <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
-                    <Gift className="w-4 h-4" />
-                    Start Free
-                  </p>
-                </div>
+          <Card className="glass border-2 border-emerald-500/50 relative" style={{
+            borderImage: 'linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 35%, rgb(245 158 11 / 0.7) 45%, rgb(245 158 11 / 0.7) 55%, rgb(16 185 129 / 0.5) 65%, rgb(16 185 129 / 0.5) 100%) 1'
+          }}>
+            <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
+              {/* Background cover to hide border line and glow behind badge */}
+              <div className="absolute -inset-1 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
+              <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
+                  <Gift className="w-4 h-4" />
+                  Start Free
+                </p>
               </div>
-              <CardHeader className="text-center pt-8">
+            </div>
+            <CardHeader className="text-center pt-8">
               <CardTitle className="text-3xl">Free Account</CardTitle>
               <CardDescription className="text-lg">Try iVASA risk-free - no credit card required</CardDescription>
               <div className="mt-4">
@@ -214,8 +203,7 @@ export default function PublicPricing() {
                 </Button>
               </div>
             </CardContent>
-            </Card>
-          </div>
+          </Card>
         </div>
 
         {/* Individual Plans */}
