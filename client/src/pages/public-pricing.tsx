@@ -145,14 +145,15 @@ export default function PublicPricing() {
         {/* Featured Free Account Card */}
         <div className="max-w-4xl mx-auto mb-12 pt-6">
           <div
-            className="relative rounded-lg overflow-hidden"
+            className="relative rounded-lg"
             style={{
               padding: '2px',
               background: `
-                linear-gradient(90deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 100%) 0 0 / 100% 2px no-repeat,
+                linear-gradient(90deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 100%) 0 0 / 40% 2px no-repeat,
+                linear-gradient(90deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 100%) 60% 0 / 40% 2px no-repeat,
+                linear-gradient(180deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) 0 0 / 2px 100% no-repeat,
                 linear-gradient(180deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) calc(100% - 2px) 0 / 2px 100% no-repeat,
-                linear-gradient(90deg, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 100%) 0 calc(100% - 2px) / 100% 2px no-repeat,
-                linear-gradient(180deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) 0 0 / 2px 100% no-repeat
+                linear-gradient(90deg, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 100%) 0 calc(100% - 2px) / 100% 2px no-repeat
               `,
               borderRadius: '0.5rem'
             }}
