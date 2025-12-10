@@ -144,9 +144,9 @@ export default function PublicPricing() {
 
         {/* Featured Free Account Card */}
         <div className="max-w-4xl mx-auto mb-12 pt-4">
-          <Card className="glass border-emerald-500 border-2 relative">
+          <Card className="glass border-amber-500 border-2 relative">
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-              <Badge className="bg-emerald-500 text-white px-4 py-1">
+              <Badge className="bg-amber-500 text-white px-4 py-1">
                 <Gift className="w-3 h-3 mr-1" />
                 Start Free
               </Badge>
