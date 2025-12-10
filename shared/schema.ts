@@ -39,6 +39,14 @@ export const userProfiles = pgTable("user_profiles", {
   assessment_responses: jsonb("assessment_responses"), // Store all 5 question responses
   inner_landscape_type: varchar("inner_landscape_type", { length: 100 }), // Result/pattern identified
   assessment_insights: text("assessment_insights"), // Summary insights from assessment
+
+  // NEW assessment fields (v2 format support)
+  cvdc_score: integer("cvdc_score"),
+  ibm_score: integer("ibm_score"),
+  thend_detected: boolean("thend_detected"),
+  assessment_version: varchar("assessment_version", { length: 10 }), // 'v1' = old, 'v2' = new
+  gender: varchar("gender", { length: 20 }), // 'male', 'female', 'non-binary', 'not_provided'
+  register_type: varchar("register_type", { length: 20 }), // 'symbolic', 'imaginary', 'real'
 });
 
 // User onboarding responses table
@@ -60,9 +68,9 @@ export const assessmentResults = pgTable("assessment_results", {
   profile_data: jsonb("profile_data"), // Complete profile object
   answers: jsonb("answers"), // User's question answers
   encoded_profile: text("encoded_profile"), // Encoded profile string
-  pattern_name: varchar("pattern_name"), // E.g., "The Trapped Rebel"
-  metaphor: text("metaphor"), // E.g., "caught between the wall and the door"
-  register: varchar("register"), // Symbolic/Imaginary/Real
+  pattern_name: varchar("pattern_name"), // E.g., "The Trapped Rebel" (v1) or cvdc_pattern (v2)
+  metaphor: text("metaphor"), // E.g., "caught between the wall and the door" (v1) or ibm_pattern (v2)
+  register: varchar("register"), // Symbolic/Imaginary/Real (v1 only)
   status: varchar("status").default('completed'), // 'pending_email', 'completed', 'linked'
   source: varchar("source"), // 'iframe', 'dashboard_iframe'
   questions_answered: integer("questions_answered"), // Count of answered questions
@@ -70,6 +78,16 @@ export const assessmentResults = pgTable("assessment_results", {
   completion_time_seconds: integer("completion_time_seconds"), // Time taken to complete
   linked_at: timestamp("linked_at", { withTimezone: true }), // When linked to user account
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+
+  // NEW FIELDS (v2 format support)
+  cvdc_score: integer("cvdc_score"),
+  ibm_score: integer("ibm_score"),
+  thend_detected: boolean("thend_detected"),
+  synthesis_text: text("synthesis_text"),
+  age_range: varchar("age_range", { length: 20 }),
+  gender: varchar("gender", { length: 20 }), // 'male', 'female', 'non-binary', 'not_provided'
+  register_type: varchar("register_type", { length: 20 }), // 'symbolic', 'imaginary', 'real'
+  assessment_version: varchar("assessment_version", { length: 10 }).default('v1'), // 'v1' = old, 'v2' = new
 });
 
 // Subscriptions table - FIXED to reference users.id

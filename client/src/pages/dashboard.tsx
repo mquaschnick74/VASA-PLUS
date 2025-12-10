@@ -411,10 +411,10 @@ export default function Dashboard() {
         setInvitationChecked(true);
       }
 
-      // STEP 2: After invitation is processed, check consent
+      // STEP 2: After invitation is processed, check consent and assessment status
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('consent_accepted_at')
+        .select('consent_accepted_at, assessment_completed_at')
         .eq('id', userId)
         .single();
 
@@ -427,18 +427,14 @@ export default function Dashboard() {
       // If consent already accepted, mark it as checked
       setConsentChecked(true);
 
-      // STEP 3: After consent check, check assessment
-      const { data: assessmentData } = await supabase
-        .from('assessment_results')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!assessmentData) {
+      // STEP 3: After consent check, check assessment using user_profiles.assessment_completed_at
+      // Note: We check user_profiles instead of assessment_results to avoid RLS issues
+      // The assessment_completed_at field is set when assessment is saved successfully
+      if (!profile?.assessment_completed_at) {
         console.log('📋 [DASHBOARD] No assessment found, showing assessment modal');
         setShowAssessmentModal(true);
       } else {
-        console.log('✅ [DASHBOARD] Assessment already completed');
+        console.log('✅ [DASHBOARD] Assessment already completed at:', profile.assessment_completed_at);
         setAssessmentChecked(true);
       }
     };
@@ -455,20 +451,21 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // Check if user has completed assessment by querying assessment_results table
-    const { data: assessmentData } = await supabase
-      .from('assessment_results')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
+    // Check if user has completed assessment using user_profiles.assessment_completed_at
+    // Note: We check user_profiles instead of assessment_results to avoid RLS issues
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('assessment_completed_at')
+      .eq('id', userId)
+      .single();
 
     // If assessment not completed, show modal
-    if (!assessmentData) {
+    if (!profile?.assessment_completed_at) {
       console.log('📋 [DASHBOARD] Showing assessment iframe');
       setShowAssessmentModal(true);
     } else {
       // If assessment already completed, proceed to dashboard
-      console.log('✅ [DASHBOARD] Assessment completed, proceeding to dashboard');
+      console.log('✅ [DASHBOARD] Assessment completed at:', profile.assessment_completed_at);
       setAssessmentChecked(true);
     }
   };

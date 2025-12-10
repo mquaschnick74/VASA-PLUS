@@ -35,8 +35,14 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  // Use a ref to always have access to the latest onComplete callback
+  const onCompleteRef = useRef(onComplete);
   useEffect(() => {
-    console.log('[AssessmentIframe] Component mounted, dashboardMode:', dashboardMode);
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    console.log('[AssessmentIframe] Component mounted, dashboardMode:', dashboardMode, 'onComplete:', !!onComplete);
 
     // Show iframe quickly after a brief delay (perceived as instant but allows for smooth render)
     const quickShowTimeout = setTimeout(() => {
@@ -84,10 +90,13 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
 
     const handleAssessmentComplete = async (data: AssessmentData) => {
       console.log('[AssessmentIframe] Assessment completed:', data);
+      console.log('[AssessmentIframe] onCompleteRef.current:', !!onCompleteRef.current, 'dashboardMode:', dashboardMode);
 
-      // Call parent callback if provided
-      if (onComplete) {
-        onComplete(data);
+      // Call parent callback if provided (using ref to get latest value)
+      if (onCompleteRef.current) {
+        console.log('[AssessmentIframe] Calling onComplete callback, skipping built-in navigation');
+        onCompleteRef.current(data);
+        return; // Let parent handle navigation
       }
 
       // Skip built-in navigation if in dashboard mode (parent handles it)
@@ -222,13 +231,14 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
         src={dashboardMode ? "https://start.ivasa.ai?mode=dashboard" : "https://start.ivasa.ai"}
         style={{
           width: '100%',
-          height: `${iframeHeight}px`,
+          height: '100%',
+          minHeight: `${iframeHeight}px`,
           border: 'none',
-          minHeight: '600px',
           display: loadError ? 'none' : 'block',
           opacity: isLoading ? 0.3 : 1,
-          transition: 'opacity 0.5s ease-in-out, height 0.3s ease',
+          transition: 'opacity 0.5s ease-in-out',
         }}
+        scrolling="auto"
         sandbox="allow-scripts allow-same-origin allow-forms"
         title="iVASA Inner Landscape Assessment"
         onLoad={() => console.log('[AssessmentIframe] onLoad event fired')}
