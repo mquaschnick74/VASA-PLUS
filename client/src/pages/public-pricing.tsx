@@ -144,72 +144,77 @@ export default function PublicPricing() {
 
         {/* Featured Free Account Card */}
         <div className="max-w-4xl mx-auto mb-12 pt-6">
-          <div className="relative p-[2px] rounded-lg" style={{
-            background: `
-              linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) 0 0 / 2px 100% no-repeat,
-              linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) 100% 0 / 2px 100% no-repeat,
-              linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(245 158 11 / 0.7) 35%, rgb(245 158 11 / 0.7) 65%, rgb(16 185 129 / 0.5) 100%) 0 0 / 100% 2px no-repeat,
-              linear-gradient(rgb(16 185 129 / 0.5), rgb(16 185 129 / 0.5)) 0 100% / 100% 2px no-repeat
-            `
-          }}>
-          <Card className="glass relative border-0 rounded-lg">
-            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-10">
-              {/* Background cover to hide border line and glow behind badge */}
-              <div className="absolute -inset-0 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
-              <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-                <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
-                  <Gift className="w-4 h-4" />
-                  Start Free
-                </p>
-              </div>
-            </div>
-            <CardHeader className="text-center pt-8">
-              <CardTitle className="text-3xl">Free Account</CardTitle>
-              <CardDescription className="text-lg">Try iVASA risk-free - no credit card required</CardDescription>
-              <div className="mt-4">
-                <span className="text-5xl font-bold text-emerald-400">$0</span>
-                <span className="text-muted-foreground ml-2">for 30 days</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  <span>180 Minutes Voice Time</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  <span>Access to All 4 AI Agents</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  <span>30-Day Trial Period</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  <span>CSS Pattern Tracking</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  <span>Session History & Insights</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  <span>No Credit Card Required</span>
+          <div
+            className="relative rounded-lg overflow-hidden"
+            style={{
+              padding: '2px',
+              background: `
+                linear-gradient(90deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 100%) 0 0 / 100% 2px no-repeat,
+                linear-gradient(180deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) calc(100% - 2px) 0 / 2px 100% no-repeat,
+                linear-gradient(90deg, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 100%) 0 calc(100% - 2px) / 100% 2px no-repeat,
+                linear-gradient(180deg, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) 0 0 / 2px 100% no-repeat
+              `,
+              borderRadius: '0.5rem'
+            }}
+          >
+            <Card className="glass relative bg-[hsl(240,15%,6%)] border-0" style={{ borderRadius: 'calc(0.5rem - 2px)' }}>
+              <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
+                {/* Background cover to hide border line and glow behind badge */}
+                <div className="absolute -inset-0 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
+                <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                  <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
+                    <Gift className="w-4 h-4" />
+                    Start Free
+                  </p>
                 </div>
               </div>
-              <div className="text-center pt-4">
-                <Button
-                  size="lg"
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-6 text-lg"
-                  onClick={() => setLocation('/?mode=signup')}
-                >
-                  <Gift className="w-5 h-5 mr-2" />
-                  Create Free Account
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <CardHeader className="text-center pt-8">
+                <CardTitle className="text-3xl">Free Account</CardTitle>
+                <CardDescription className="text-lg">Try iVASA risk-free - no credit card required</CardDescription>
+                <div className="mt-4">
+                  <span className="text-5xl font-bold text-emerald-400">$0</span>
+                  <span className="text-muted-foreground ml-2">for 30 days</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                  <div className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span>180 Minutes Voice Time</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span>Access to All 4 AI Agents</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span>30-Day Trial Period</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span>CSS Pattern Tracking</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span>Session History & Insights</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span>No Credit Card Required</span>
+                  </div>
+                </div>
+                <div className="text-center pt-4">
+                  <Button
+                    size="lg"
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-6 text-lg"
+                    onClick={() => setLocation('/?mode=signup')}
+                  >
+                    <Gift className="w-5 h-5 mr-2" />
+                    Create Free Account
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
