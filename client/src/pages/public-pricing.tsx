@@ -143,13 +143,15 @@ export default function PublicPricing() {
         </div>
 
         {/* Featured Free Account Card */}
-        <div className="max-w-4xl mx-auto mb-12 pt-4">
-          <Card className="glass border-amber-500 border-2 relative">
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-              <Badge className="bg-amber-500 text-white px-4 py-1">
-                <Gift className="w-3 h-3 mr-1" />
-                Start Free
-              </Badge>
+        <div className="max-w-4xl mx-auto mb-12 pt-6">
+          <Card className="glass border-amber-500/50 border-2 relative">
+            <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
+              <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4">
+                <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
+                  <Gift className="w-4 h-4" />
+                  Start Free
+                </p>
+              </div>
             </div>
             <CardHeader className="text-center pt-8">
               <CardTitle className="text-3xl">Free Account</CardTitle>
