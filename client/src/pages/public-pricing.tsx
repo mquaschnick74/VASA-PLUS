@@ -144,12 +144,18 @@ export default function PublicPricing() {
 
         {/* Featured Free Account Card */}
         <div className="max-w-4xl mx-auto mb-12 pt-6">
-          <Card className="glass border-2 border-emerald-500/50 relative" style={{
-            borderImage: 'conic-gradient(from 0deg at 50% 50%, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 15%, rgb(16 185 129 / 0.5) 15%, rgb(16 185 129 / 0.5) 85%, rgb(245 158 11 / 0.7) 85%, rgb(245 158 11 / 0.7) 100%) 1'
+          <div className="relative p-[2px] rounded-lg" style={{
+            background: `
+              linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) 0 0 / 2px 100% no-repeat,
+              linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 100%) 100% 0 / 2px 100% no-repeat,
+              linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(245 158 11 / 0.7) 35%, rgb(245 158 11 / 0.7) 65%, rgb(16 185 129 / 0.5) 100%) 0 0 / 100% 2px no-repeat,
+              linear-gradient(rgb(16 185 129 / 0.5), rgb(16 185 129 / 0.5)) 0 100% / 100% 2px no-repeat
+            `
           }}>
-            <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
+          <Card className="glass relative border-0 rounded-lg">
+            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-10">
               {/* Background cover to hide border line and glow behind badge */}
-              <div className="absolute -inset-0 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
+              <div className="absolute -inset-1 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
               <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
                 <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
                   <Gift className="w-4 h-4" />
@@ -204,6 +210,7 @@ export default function PublicPricing() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
 
         {/* Individual Plans */}
