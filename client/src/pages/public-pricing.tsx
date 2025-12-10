@@ -145,7 +145,7 @@ export default function PublicPricing() {
         {/* Featured Free Account Card */}
         <div className="max-w-4xl mx-auto mb-12 pt-6">
           <Card className="glass border-2 border-emerald-500/50 relative" style={{
-            borderImage: 'linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 35%, rgb(245 158 11 / 0.7) 45%, rgb(245 158 11 / 0.7) 55%, rgb(16 185 129 / 0.5) 65%, rgb(16 185 129 / 0.5) 100%) 1'
+            borderImage: 'conic-gradient(from 180deg at 50% 0%, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 12%, rgb(16 185 129 / 0.5) 25%, rgb(16 185 129 / 0.5) 75%, rgb(245 158 11 / 0.7) 88%, rgb(245 158 11 / 0.7) 100%) 1'
           }}>
             <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
               {/* Background cover to hide border line and glow behind badge */}
