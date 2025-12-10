@@ -149,10 +149,10 @@ export default function PublicPricing() {
             style={{
               padding: '2px',
               background: `
-                linear-gradient(to right, rgb(245 158 11 / 0.7), rgb(245 158 11 / 0.7)) 0 0 / 100% 2px no-repeat,
-                linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 50%, rgb(16 185 129 / 0.5) 100%) 0 0 / 2px 100% no-repeat,
-                linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 50%, rgb(16 185 129 / 0.5) 50%, rgb(16 185 129 / 0.5) 100%) 100% 0 / 2px 100% no-repeat,
-                linear-gradient(to right, rgb(16 185 129 / 0.5), rgb(16 185 129 / 0.5)) 0 100% / 100% 2px no-repeat
+                linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 45%, rgb(16 185 129 / 0.5) 55%, rgb(16 185 129 / 0.5) 100%) 0 0 / 2px 100% no-repeat,
+                linear-gradient(to bottom, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 45%, rgb(16 185 129 / 0.5) 55%, rgb(16 185 129 / 0.5) 100%) calc(100% - 2px) 0 / 2px 100% no-repeat,
+                linear-gradient(to right, rgb(245 158 11 / 0.7) 0%, rgb(245 158 11 / 0.7) 100%) 0 0 / 100% 2px no-repeat,
+                linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 100%) 0 calc(100% - 2px) / 100% 2px no-repeat
               `,
               borderRadius: '0.5rem'
             }}
