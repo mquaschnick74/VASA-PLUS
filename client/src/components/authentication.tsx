@@ -107,6 +107,12 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
+    // Check URL parameters for mode (signup/signin)
+    const urlMode = urlParams.get('mode');
+    if (urlMode === 'signup') {
+      setMode('signup');
+    }
+
     // Check URL parameters for promo code
     const urlPromoCode = urlParams.get('promo');
     if (urlPromoCode) {
