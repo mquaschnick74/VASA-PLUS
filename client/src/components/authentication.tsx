@@ -107,6 +107,12 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
+    // Check URL parameters for mode (signup/signin)
+    const urlMode = urlParams.get('mode');
+    if (urlMode === 'signup') {
+      setMode('signup');
+    }
+
     // Check URL parameters for promo code
     const urlPromoCode = urlParams.get('promo');
     if (urlPromoCode) {
@@ -432,6 +438,13 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
             <Card className="glass rounded-2xl border-0">
           <CardContent className="p-5 md:p-7">
             <div className="space-y-5">
+              {/* Free Trial Banner */}
+              <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-lg py-2 px-3">
+                <p className="text-sm font-semibold text-amber-400">
+                  30-Day Free Trial with 180 Minutes — No Credit Card Required
+                </p>
+              </div>
+
               {/* ============= NEW: Invitation banner ============= */}
               {invitationMode && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
@@ -645,13 +658,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     }}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {mode === 'signin' 
-                      ? "Don't have an account? Sign up" 
+                    {mode === 'signin'
+                      ? "Don't have an account? Sign up"
                       : 'Already have an account? Sign in'}
                   </button>
-                  <p className="text-xs text-emerald-500 font-medium">
-                    7 day free trial, No credit card required.
-                  </p>
                 </div>
               )}
               {/* ==================================================================== */}

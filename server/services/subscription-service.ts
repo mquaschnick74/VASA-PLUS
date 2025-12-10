@@ -259,7 +259,7 @@ export class SubscriptionService {
 
   async createTrialSubscription(userId: string): Promise<boolean> {
     const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + 7);
+    trialEndDate.setDate(trialEndDate.getDate() + 30);
 
     console.log(`🆕 Creating trial subscription for user: ${userId}`);
 
@@ -271,8 +271,8 @@ export class SubscriptionService {
         subscription_status: 'trialing',
         plan_type: 'recurring',
         trial_ends_at: trialEndDate.toISOString(),
-        trial_minutes_limit: 45,
-        usage_minutes_limit: 45,
+        trial_minutes_limit: 180,
+        usage_minutes_limit: 180,
         usage_minutes_used: 0
       });
 

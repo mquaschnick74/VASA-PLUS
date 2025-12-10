@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Sparkles, Users, Clock, TrendingUp, Shield, Info } from 'lucide-react';
+import { Check, Sparkles, Users, Clock, TrendingUp, Shield, Info, Gift } from 'lucide-react';
 import { useLocation } from 'wouter';
 import Header from '@/components/shared/Header';
 
@@ -23,7 +23,7 @@ export default function PublicPricing() {
         'Basic Analytics',
         'Email Support',
         'CSS Pattern Tracking',
-        '7-Day Free Trial'
+        '30-Day Free Trial'
       ],
       popular: false
     },
@@ -41,7 +41,7 @@ export default function PublicPricing() {
         'Priority Support',
         'CSS Pattern Tracking',
         'Session History & Insights',
-        '7-Day Free Trial'
+        '30-Day Free Trial'
       ],
       popular: true
     },
@@ -60,7 +60,7 @@ export default function PublicPricing() {
         'Advanced CSS Tracking',
         'Custom Agent Configuration',
         'Detailed Progress Reports',
-        '7-Day Free Trial'
+        '30-Day Free Trial'
       ],
       popular: false
     }
@@ -80,7 +80,7 @@ export default function PublicPricing() {
         'Basic Analytics',
         'Email Support',
         'CSS Pattern Tracking',
-        '7-Day Free Trial'
+        '30-Day Free Trial'
       ],
       popular: false
     },
@@ -97,7 +97,7 @@ export default function PublicPricing() {
         'Priority Support',
         'Advanced CSS Tracking',
         'Custom Agent Configuration',
-        '7-Day Free Trial'
+        '30-Day Free Trial'
       ],
       popular: true
     }
@@ -118,7 +118,7 @@ export default function PublicPricing() {
             Choose Your Plan
           </h1>
           <p className="text-lg max-w-2xl mx-auto text-emerald-400 font-medium">
-            AI-powered therapeutic conversations tailored to your needs. Start with a 7-day free trial.
+            AI-powered therapeutic conversations tailored to your needs. Start with a 30-day free trial.
           </p>
         </div>
 
@@ -137,6 +137,70 @@ export default function PublicPricing() {
                     You'll automatically get access to iVASA through your therapist's account at no additional cost.
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Featured Free Account Card */}
+        <div className="max-w-4xl mx-auto mb-12 pt-6">
+          <Card className="glass border-2 border-emerald-500/50 relative" style={{
+            borderImage: 'linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 35%, rgb(245 158 11 / 0.7) 45%, rgb(245 158 11 / 0.7) 55%, rgb(16 185 129 / 0.5) 65%, rgb(16 185 129 / 0.5) 100%) 1'
+          }}>
+            <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
+              {/* Background cover to hide border line and glow behind badge */}
+              <div className="absolute -inset-1 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
+              <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
+                  <Gift className="w-4 h-4" />
+                  Start Free
+                </p>
+              </div>
+            </div>
+            <CardHeader className="text-center pt-8">
+              <CardTitle className="text-3xl">Free Account</CardTitle>
+              <CardDescription className="text-lg">Try iVASA risk-free - no credit card required</CardDescription>
+              <div className="mt-4">
+                <span className="text-5xl font-bold text-emerald-400">$0</span>
+                <span className="text-muted-foreground ml-2">for 30 days</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span>180 Minutes Voice Time</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span>Access to All 4 AI Agents</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span>30-Day Trial Period</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span>CSS Pattern Tracking</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span>Session History & Insights</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span>No Credit Card Required</span>
+                </div>
+              </div>
+              <div className="text-center pt-4">
+                <Button
+                  size="lg"
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-6 text-lg"
+                  onClick={() => setLocation('/?mode=signup')}
+                >
+                  <Gift className="w-5 h-5 mr-2" />
+                  Create Free Account
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -189,7 +253,7 @@ export default function PublicPricing() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() => setLocation('/')}
+                    onClick={() => setLocation('/?mode=signup')}
                     variant={plan.popular ? 'default' : 'outline'}
                   >
                     Get Started
@@ -242,7 +306,7 @@ export default function PublicPricing() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() => setLocation('/')}
+                    onClick={() => setLocation('/?mode=signup')}
                     variant={plan.popular ? 'default' : 'outline'}
                   >
                     Get Started
@@ -306,7 +370,7 @@ export default function PublicPricing() {
                 Start with a Free Trial
               </h3>
               <p className="text-muted-foreground">
-                All new users get 7 days free with 45 minutes of voice time to try iVASA.
+                All new users get 30 days free with 180 minutes of voice time to try iVASA.
                 No credit card required to start.
               </p>
             </CardContent>

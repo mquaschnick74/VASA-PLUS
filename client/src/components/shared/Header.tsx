@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { Settings, BookOpen, HelpCircle, LogOut, User } from 'lucide-react';
+import { Settings, BookOpen, HelpCircle, LogOut, User, CreditCard } from 'lucide-react';
 
 interface HeaderProps {
   userId?: string | null;
@@ -115,6 +115,14 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   </DropdownMenuItem>
 
                   <DropdownMenuItem
+                    onClick={() => setLocation('/pricing')}
+                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Pricing
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
                     onClick={() => setLocation('/faq')}
                     className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
                     data-testid="menu-item-faq"
@@ -139,6 +147,14 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
             ) : !isOnLearnMorePages ? (
               /* Buttons shown when not logged in (except on learn-more pages) */
               <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                  onClick={() => setLocation('/public-pricing')}
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Pricing
+                </Button>
                 <Button
                   variant="ghost"
                   className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"

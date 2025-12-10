@@ -98,7 +98,7 @@ export const subscriptions = pgTable("subscriptions", {
   subscription_status: varchar("subscription_status").notNull(),
   plan_type: varchar("plan_type").notNull(),
   trial_ends_at: timestamp("trial_ends_at", { withTimezone: true }),
-  trial_minutes_limit: integer("trial_minutes_limit").default(45),
+  trial_minutes_limit: integer("trial_minutes_limit").default(180),
   usage_minutes_limit: integer("usage_minutes_limit"),
   usage_minutes_used: integer("usage_minutes_used").default(0),
   client_limit: integer("client_limit").default(0),
