@@ -20,6 +20,13 @@ interface VoiceInterfaceProps {
   hideLogoutButton?: boolean;
 }
 
+// Local type definition for transcript messages (no longer using VAPI callbacks)
+interface TranscriptMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
 interface ExtendedTranscriptMessage extends TranscriptMessage {
   id: string;
   source: 'voice' | 'text';
