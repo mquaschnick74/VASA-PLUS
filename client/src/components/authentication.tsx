@@ -676,13 +676,13 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     Complementary Assessment
                   </h3>
                   <p className="text-muted-foreground text-sm md:text-base max-w-lg mx-auto">
-                    Complete 5 questions to better understand how an iVASA guide can assist you.
+                    Complete 8 questions to better understand how an iVASA guide can assist you.
                   </p>
                   <Button
                     onClick={() => setShowAssessment(true)}
                     className="bg-gradient-to-r from-primary to-accent py-3 px-8 rounded-xl"
                   >
-                    Begin.
+                    Begin...
                   </Button>
                 </div>
               </CardContent>
