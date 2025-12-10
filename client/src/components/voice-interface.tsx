@@ -131,6 +131,24 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   // Debug logging for subscription
   console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
 
+  // Clean up state when voice session ends to ensure text sessions work properly
+  const prevSessionActive = useRef(isSessionActive);
+  useEffect(() => {
+    // Detect when voice session transitions from active to inactive
+    if (prevSessionActive.current && !isSessionActive) {
+      console.log('📴 [VOICE] Voice session ended - cleaning up state for text session');
+      // Clear any stale transcript and text session state
+      setTranscript([]);
+      setActiveTextSessionId(null);
+      setTypewriterMessageId(null);
+      setDisplayedContent({});
+      // Clear localStorage to prevent stale data on refresh
+      localStorage.removeItem('vasa_text_session_id');
+      localStorage.removeItem('vasa_text_transcript');
+    }
+    prevSessionActive.current = isSessionActive;
+  }, [isSessionActive]);
+
   // Auto-scroll to bottom when transcript updates (debounced to prevent jumping)
   const lastTranscriptLengthRef = useRef(0);
   useEffect(() => {
@@ -274,8 +292,18 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   };
 
   const stopTextSession = async () => {
-    if (!activeTextSessionId || transcript.length === 0) {
-      console.log('⚠️ [TEXT] Cannot stop session - no active session or empty transcript');
+    if (!activeTextSessionId) {
+      console.log('⚠️ [TEXT] Cannot stop session - no active session');
+      return;
+    }
+
+    // Get only text messages
+    const textMessages = transcript.filter(msg => msg.source === 'text');
+
+    if (textMessages.length === 0) {
+      console.log('⚠️ [TEXT] No text messages to save, just clearing session');
+      setActiveTextSessionId(null);
+      setTranscript([]);
       return;
     }
 
@@ -286,29 +314,25 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
     setIsStoppingSession(true);
     console.log('📝 [TEXT] Stopping text session:', activeTextSessionId);
-    console.log('📝 [TEXT] Saving', transcript.length, 'messages to database...');
+    console.log('📝 [TEXT] Saving', textMessages.length, 'messages to database...');
 
     try {
       // Get authentication token
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-      if (sessionError) {
+      if (sessionError || !sessionData?.session?.access_token) {
         console.error('❌ [TEXT] Failed to get session:', sessionError);
-        console.error('Failed to save session: Authentication error. Please refresh the page.');
-        return;
+        throw new Error('Authentication error. Please refresh the page.');
       }
 
-      const token = sessionData?.session?.access_token;
+      const token = sessionData.session.access_token;
 
-      if (!token) {
-        console.error('❌ [TEXT] No authentication token available');
-        console.error('Failed to save session: Not authenticated. Please refresh the page.');
-        return;
-      }
-
-      // Send transcript to backend for processing and storage
+      // Send transcript to backend for processing and storage with timeout
       console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
       console.log('📤 [TEXT] Sending request to /api/chat/end-session');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const response = await fetch('/api/chat/end-session', {
         method: 'POST',
@@ -319,21 +343,30 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         body: JSON.stringify({
           sessionId: activeTextSessionId,
           agentName: selectedAgent?.name,
-          transcript: transcript.filter(msg => msg.source === 'text').map(msg => ({
+          transcript: textMessages.map(msg => ({
             role: msg.role,
             content: msg.content,
             timestamp: msg.timestamp
           })),
         }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       console.log('📥 [TEXT] Response status:', response.status, response.statusText);
 
       if (response.ok) {
-        const result = await response.json();
-        console.log('✅ [TEXT] Session processing completed:', result);
-        console.log(`📊 CSS Stage: ${result.cssStage}, Patterns: ${result.patternsDetected}`);
-        // Session saved successfully - no alert needed, just console logging
+        // Try to parse as JSON, but handle text responses gracefully
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const result = await response.json();
+          console.log('✅ [TEXT] Session processing completed:', result);
+          console.log(`📊 CSS Stage: ${result.cssStage}, Patterns: ${result.patternsDetected}`);
+        } else {
+          const text = await response.text();
+          console.log('✅ [TEXT] Session ended:', text);
+        }
       } else {
         const errorText = await response.text();
         console.error('❌ [TEXT] Failed to process session end:', {
@@ -341,20 +374,23 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           statusText: response.statusText,
           error: errorText
         });
-        console.error(`Failed to save session: ${response.status} - ${errorText}`);
       }
     } catch (error: any) {
-      console.error('❌ [TEXT] Error stopping session:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-      console.error(`Failed to save session: ${error.message}`);
+      if (error.name === 'AbortError') {
+        console.error('❌ [TEXT] Request timed out after 30 seconds');
+      } else {
+        console.error('❌ [TEXT] Error stopping session:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
     } finally {
       setIsStoppingSession(false);
       // Always clear the session state
       setActiveTextSessionId(null);
-      // Keep transcript visible for review
+      // Clear transcript after saving
+      setTranscript([]);
     }
   };
 
