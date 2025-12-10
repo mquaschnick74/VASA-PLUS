@@ -36,7 +36,7 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
   // Determine trial duration based on promo code
   const cleanPromoCode = promoCode?.trim().toUpperCase() || '';
   const specialPromo = cleanPromoCode ? getSpecialPromoConfig(cleanPromoCode) : null;
-  const trialDays = specialPromo ? specialPromo.trialDays : 7; // 30 days for special promos, 7 for regular
+  const trialDays = specialPromo ? specialPromo.trialDays : 30; // 30 days for special promos, 30 for regular
 
   if (!profile) {
     // Create user profile
@@ -115,8 +115,8 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
         subscription_status: 'trialing',
         plan_type: 'recurring',
         trial_ends_at: trialEndDate.toISOString(),
-        trial_minutes_limit: 240,
-        usage_minutes_limit: 240,
+        trial_minutes_limit: 180,
+        usage_minutes_limit: 180,
         usage_minutes_used: 0
       });
 
