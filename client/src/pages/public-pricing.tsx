@@ -160,7 +160,7 @@ export default function PublicPricing() {
             <Card className="glass relative bg-[hsl(240,15%,6%)] border-0" style={{ borderRadius: 'calc(0.5rem - 2px)' }}>
               <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
                 {/* Background cover to hide border behind badge */}
-                <div className="absolute -inset-1 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
+                <div className="absolute -inset-0 bg-[hsl(240,15%,6%)] rounded-lg -z-10"></div>
                 <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
                   <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
                     <Gift className="w-4 h-4" />
