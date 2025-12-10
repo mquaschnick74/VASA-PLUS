@@ -7,6 +7,23 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+// Special promo codes that give extended trials + discounts
+// These are NOT influencer codes - they're special promotional offers
+const SPECIAL_PROMO_CODES: Record<string, { trialDays: number; discountMonths: number; description: string }> = {
+  'TESTA2025': { trialDays: 30, discountMonths: 1, description: '30 days free + 50% off for 1 month' },
+  'TESTB2025': { trialDays: 30, discountMonths: 2, description: '30 days free + 50% off for 2 months' },
+};
+
+// Helper function to check if a promo code is a special promo code
+function isSpecialPromoCode(code: string): boolean {
+  return code.toUpperCase() in SPECIAL_PROMO_CODES;
+}
+
+// Helper function to get special promo code config
+function getSpecialPromoConfig(code: string) {
+  return SPECIAL_PROMO_CODES[code.toUpperCase()];
+}
+
 // Helper function to ensure user has profile and subscription
 async function ensureUserSetup(userId: string, email: string, firstName?: string, userType: string = 'individual', promoCode?: string) {
   // Check for user profile
@@ -16,17 +33,26 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
     .eq('id', userId)
     .maybeSingle(); // Use maybeSingle to avoid errors
 
+  // Determine trial duration based on promo code
+  const cleanPromoCode = promoCode?.trim().toUpperCase() || '';
+  const specialPromo = cleanPromoCode ? getSpecialPromoConfig(cleanPromoCode) : null;
+  const trialDays = specialPromo ? specialPromo.trialDays : 7; // 30 days for special promos, 7 for regular
+
   if (!profile) {
     // Create user profile
-    // Calculate promo expiry (7 days from signup)
+    // Calculate promo expiry based on promo code type
     let promoData = {};
     if (promoCode) {
       const trialEndDate = new Date();
-      trialEndDate.setDate(trialEndDate.getDate() + 7);
+      trialEndDate.setDate(trialEndDate.getDate() + trialDays);
       promoData = {
-        promo_code: promoCode,
+        promo_code: cleanPromoCode,
         promo_discount_expires_at: trialEndDate.toISOString()
       };
+
+      if (specialPromo) {
+        console.log(`🎁 Special promo code ${cleanPromoCode} applied: ${specialPromo.description}`);
+      }
     }
 
     await supabase
@@ -51,6 +77,25 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
       .eq('id', userId);
   }
 
+  // If promo code provided but profile already exists, update promo fields if not already set
+  if (promoCode && profile && !profile.promo_code) {
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+
+    await supabase
+      .from('user_profiles')
+      .update({
+        promo_code: cleanPromoCode,
+        promo_discount_expires_at: trialEndDate.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (specialPromo) {
+      console.log(`🎁 Special promo code ${cleanPromoCode} applied to existing profile: ${specialPromo.description}`);
+    }
+  }
+
   // Check subscriptions
   const { data: existingSubscriptions } = await supabase
     .from('subscriptions')
@@ -60,7 +105,7 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
   if (!existingSubscriptions || existingSubscriptions.length === 0) {
     // Create trial subscription only if none exists
     const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + 7);
+    trialEndDate.setDate(trialEndDate.getDate() + trialDays);
 
     await supabase
       .from('subscriptions')
@@ -74,6 +119,27 @@ async function ensureUserSetup(userId: string, email: string, firstName?: string
         usage_minutes_limit: 240,
         usage_minutes_used: 0
       });
+
+    if (specialPromo) {
+      console.log(`✅ Created ${trialDays}-day trial subscription for special promo ${cleanPromoCode}`);
+    }
+  } else if (specialPromo && existingSubscriptions.length > 0) {
+    // Update existing subscription to extend trial if special promo code applied
+    const existingSub = existingSubscriptions[0];
+    if (existingSub.subscription_status === 'trialing') {
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+
+      await supabase
+        .from('subscriptions')
+        .update({
+          trial_ends_at: trialEndDate.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingSub.id);
+
+      console.log(`✅ Extended trial to ${trialDays} days for special promo ${cleanPromoCode}`);
+    }
   }
 
   // Check email preferences and create with Active defaults if not exists
@@ -769,16 +835,33 @@ router.post('/validate-promo', async (req, res) => {
     const { promoCode } = req.body;
 
     if (!promoCode || promoCode.trim().length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         valid: false,
-        error: 'Promo code is required' 
+        error: 'Promo code is required'
       });
     }
 
     // Clean and uppercase the promo code
     const cleanCode = promoCode.trim().toUpperCase();
 
-    // Look up influencer by promo code
+    // FIRST: Check if it's a special promo code (TESTA2025, TESTB2025, etc.)
+    const specialPromo = getSpecialPromoConfig(cleanCode);
+    if (specialPromo) {
+      console.log(`✅ Special promo code validated: ${cleanCode} - ${specialPromo.description}`);
+      return res.json({
+        valid: true,
+        isSpecialPromo: true,
+        promoDetails: {
+          code: cleanCode,
+          trialDays: specialPromo.trialDays,
+          discountMonths: specialPromo.discountMonths,
+          description: specialPromo.description
+        },
+        message: `${specialPromo.description} - Code applied!`
+      });
+    }
+
+    // SECOND: Look up influencer by promo code
     const { data: influencer, error } = await supabase
       .from('influencer_profiles')
       .select(`
@@ -794,7 +877,7 @@ router.post('/validate-promo', async (req, res) => {
       .single();
 
     if (error || !influencer) {
-      return res.json({ 
+      return res.json({
         valid: false,
         error: 'Invalid promo code'
       });
@@ -802,14 +885,14 @@ router.post('/validate-promo', async (req, res) => {
 
     // Check if influencer is active
     if (influencer.influencer_status !== 'active') {
-      return res.json({ 
+      return res.json({
         valid: false,
         error: 'This promo code is no longer active'
       });
     }
 
-    // Valid promo code
-    return res.json({ 
+    // Valid influencer promo code
+    return res.json({
       valid: true,
       influencer: {
         name: influencer.influencer_name,
@@ -822,9 +905,9 @@ router.post('/validate-promo', async (req, res) => {
 
   } catch (error) {
     console.error('Promo code validation error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       valid: false,
-      error: 'Failed to validate promo code' 
+      error: 'Failed to validate promo code'
     });
   }
 });
