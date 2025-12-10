@@ -144,9 +144,11 @@ export default function PublicPricing() {
 
         {/* Featured Free Account Card */}
         <div className="max-w-4xl mx-auto mb-12 pt-6">
-          <Card className="glass border-amber-500/50 border-2 relative">
+          <Card className="glass border-2 border-emerald-500/50 relative" style={{
+            borderImage: 'linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 35%, rgb(245 158 11 / 0.7) 45%, rgb(245 158 11 / 0.7) 55%, rgb(16 185 129 / 0.5) 65%, rgb(16 185 129 / 0.5) 100%) 1'
+          }}>
             <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
-              <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4">
+              <div className="bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-lg py-2 px-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
                 <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
                   <Gift className="w-4 h-4" />
                   Start Free
