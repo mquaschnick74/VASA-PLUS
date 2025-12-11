@@ -414,15 +414,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-6">
-              {/* iVASA Logo */}
-              <div className="flex justify-center mb-4">
-                <img
-                  src="/iVASA_Heiti.png"
-                  alt="iVASA"
-                  className="h-16 md:h-20 lg:h-24 w-auto object-contain"
-                />
-              </div>
-              
               <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
               <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
               <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Guide.</p>
@@ -656,11 +647,19 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       setError(null);
                       setShowPassword(false);
                     }}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm hover:opacity-80 transition-opacity"
                   >
-                    {mode === 'signin'
-                      ? "Don't have an account? Sign up"
-                      : 'Already have an account? Sign in'}
+                    {mode === 'signin' ? (
+                      <>
+                        <span className="text-emerald-500">Don't have an account? </span>
+                        <span className="text-amber-500 font-semibold">Sign up</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-emerald-500">Already have an account? </span>
+                        <span className="text-amber-500 font-semibold">Sign in</span>
+                      </>
+                    )}
                   </button>
                 </div>
               )}
