@@ -102,8 +102,10 @@
   }
 
   .gradient-bg {
-    background: radial-gradient(ellipse at top, rgba(139, 92, 246, 0.15) 0%, transparent 70%),
-                radial-gradient(ellipse at bottom, rgba(107, 70, 193, 0.1) 0%, transparent 70%);
+    background:
+      url('/iVASA_Heiti.png') center center / contain no-repeat fixed,
+      radial-gradient(ellipse at top, rgba(139, 92, 246, 0.15) 0%, transparent 70%),
+      radial-gradient(ellipse at bottom, rgba(107, 70, 193, 0.1) 0%, transparent 70%);
     background-color: var(--background);
   }
 
