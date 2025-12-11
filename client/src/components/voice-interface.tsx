@@ -1099,6 +1099,29 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                     </div>
                   )}
 
+                  {/* Stop Text Session Button - Prominent placement */}
+                  {activeTextSessionId && (
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={stopTextSession}
+                        disabled={isStoppingSession}
+                        className="group relative px-6 py-2 sm:px-8 sm:py-3 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25"
+                        data-testid="button-stop-text"
+                      >
+                        <span className="text-xs sm:text-sm group-hover:scale-105 transition-transform duration-200">
+                          {isStoppingSession ? (
+                            <span className="flex items-center space-x-2">
+                              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Saving...</span>
+                            </span>
+                          ) : (
+                            '⏹️ Stop Text Session'
+                          )}
+                        </span>
+                      </Button>
+                    </div>
+                  )}
+
                   {/* Call Duration Display */}
                   {isSessionActive && (
                     <div className={`flex justify-center`}>
@@ -1247,29 +1270,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                             )}
                           </Button>
                         </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Press Enter to send, Shift+Enter for new line</span>
-                            <Button
-                              onClick={stopTextSession}
-                              variant="ghost"
-                              size="sm"
-                              disabled={isStoppingSession}
-                              className="h-auto py-1 px-2"
-                            >
-                              {isStoppingSession ? (
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                  <span className="text-xs">Saving...</span>
-                                </div>
-                              ) : (
-                                <span className="text-xs">⏹️ Stop Session</span>
-                              )}
-                            </Button>
-                          </div>
-                          <p className="text-xs text-emerald-500/80 text-center">
-                            ✨ Text conversations are unlimited and free
-                          </p>
+                        <div className="text-xs text-muted-foreground text-center">
+                          Press Enter to send, Shift+Enter for new line
                         </div>
                       </form>
                     </div>
