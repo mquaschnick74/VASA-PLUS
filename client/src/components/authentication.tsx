@@ -647,11 +647,19 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       setError(null);
                       setShowPassword(false);
                     }}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm hover:opacity-80 transition-opacity"
                   >
-                    {mode === 'signin'
-                      ? "Don't have an account? Sign up"
-                      : 'Already have an account? Sign in'}
+                    {mode === 'signin' ? (
+                      <>
+                        <span className="text-emerald-500">Don't have an account? </span>
+                        <span className="text-amber-500 font-semibold">Sign up</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-emerald-500">Already have an account? </span>
+                        <span className="text-amber-500 font-semibold">Sign in</span>
+                      </>
+                    )}
                   </button>
                 </div>
               )}
