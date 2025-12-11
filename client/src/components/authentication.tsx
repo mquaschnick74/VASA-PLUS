@@ -420,6 +420,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
+              <p className="text-amber-400 text-sm md:text-base font-medium max-w-xl mx-auto">
+                "In no time you'll know iVASA is different!" — Dan
+              </p>
             </div>
           </div>
 
