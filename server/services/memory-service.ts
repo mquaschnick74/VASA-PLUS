@@ -1,4 +1,5 @@
 import { supabase } from './supabase-service';
+import { buildUNAMemoryContext } from './una-tracking-service';
 
 /**
  * PHASE 1B AUDIT: Query PCA master analysis context size
@@ -294,9 +295,24 @@ export async function auditRedundancy(userId: string): Promise<void> {
 /**
  * Builds memory context for display to users AND AI agents
  * Now filters insights to only show user-friendly content
+ * @param userId - The user ID to build context for
+ * @param agentName - Optional agent name for agent-specific context (e.g., 'una' for UNA-specific memory)
  */
-export async function buildMemoryContext(userId: string): Promise<string> {
+export async function buildMemoryContext(userId: string, agentName?: string): Promise<string> {
   try {
+    // UNA AGENT: Use UNA-specific memory context
+    if (agentName?.toLowerCase() === 'una') {
+      console.log(`🔮 [UNA] Building UNA-specific memory context for user: ${userId}`);
+      const unaContext = await buildUNAMemoryContext(userId);
+
+      // If UNA context exists, return it; otherwise fall through to standard context
+      if (unaContext && unaContext.length > 0) {
+        return unaContext;
+      }
+      // New UNA user - no UNA history yet, return minimal context
+      return 'This is your first session with UNA.';
+    }
+
     // === PHASE 1A AUDIT LOGGING ===
     const auditSizes: Record<string, number> = {};
 
@@ -627,14 +643,16 @@ function formatStageName(stage: string): string {
 /**
  * Enhanced memory context builder that includes last session summary
  * for natural conversation continuity
+ * @param userId - The user ID to build context for
+ * @param agentName - Optional agent name for agent-specific context
  */
-export async function buildMemoryContextWithSummary(userId: string): Promise<{
+export async function buildMemoryContextWithSummary(userId: string, agentName?: string): Promise<{
   memoryContext: string;
   lastSessionSummary: string | null;
   shouldReferenceLastSession: boolean;
 }> {
   try {
-    console.log(`📚 Building enhanced memory context for user: ${userId}`);
+    console.log(`📚 Building enhanced memory context for user: ${userId}${agentName ? ` (agent: ${agentName})` : ''}`);
 
     // Fetch the most recent conversational summary
     const { data: lastSummary, error: summaryError } = await supabase
@@ -668,8 +686,8 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
       }
     }
 
-    // Get the existing base memory context
-    const baseContext = await buildMemoryContext(userId);
+    // Get the existing base memory context (pass agentName for agent-specific context)
+    const baseContext = await buildMemoryContext(userId, agentName);
 
     // Use either conversational_summary or call_summary
     const summaryToUse = lastSummary || fallbackSummary;
@@ -728,7 +746,7 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
     console.error('Error building enhanced memory context:', error);
 
     // Fallback to basic context if enhanced version fails
-    const basicContext = await buildMemoryContext(userId);
+    const basicContext = await buildMemoryContext(userId, agentName);
     return {
       memoryContext: basicContext,
       lastSessionSummary: null,

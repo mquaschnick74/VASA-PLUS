@@ -16,7 +16,7 @@ const AGENT_BIOS: Record<string, string> = {
 
   mathew: "Mathew specializes in deep therapeutic work, guiding clients through complex emotional patterns and unconscious blocks. His analytical approach uncovers root causes while maintaining emotional safety. Mathew helps clients understand the 'why' behind their struggles, facilitating profound insights that lead to lasting transformation and self-awareness.",
 
-  zhanna: "Zhanna offers gentle, empathetic support for those navigating difficult emotions. Her calming presence creates safety for vulnerability and healing. With deep sensitivity to trauma and grief, Zhanna excels at helping clients process pain, rebuild self-compassion, and rediscover hope through patient, nurturing guidance."
+  una: "UNA offers a unique approach focused on narrative coherence and meaning-making. Through careful attention to the structure of your story, UNA helps you recognize patterns in how you make sense of your experience. Rather than interpreting or diagnosing, UNA reflects what's present—helping your narrative find its own coherence and guiding you toward deeper understanding of the 'why' behind your patterns."
 };
 
 export default function AgentCarousel() {

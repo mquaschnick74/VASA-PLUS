@@ -2,9 +2,9 @@
 // MERGED VERSION - Preserves all existing functionality + adds enhanced tracking
 import { Router } from 'express';
 import crypto from 'crypto';
-import { 
-  initializeSession, 
-  processTranscript, 
+import {
+  initializeSession,
+  processTranscript,
   processEndOfCall,
   ensureSession
 } from '../services/orchestration-service';
@@ -16,6 +16,15 @@ import { subscriptionService } from '../services/subscription-service';
 // NEW IMPORTS - User profile & therapist-client relationship
 // ⬇️ Using existing supabase service instead of non-existent services
 import { supabase } from '../services/supabase-service';
+
+// UNA TRACKING IMPORTS
+import {
+  parseUNAMetadata,
+  storeUNATracking,
+  checkUNACrisis,
+  generateUNASessionSummary,
+  getTherapeuticSessionId
+} from '../services/una-tracking-service';
 
 const router = Router();
 
@@ -291,7 +300,69 @@ router.post('/webhook', async (req, res) => {
           break;
         }
 
-        // NEW: Process therapeutic movement using either conversation or transcript format
+        // UNA AGENT HANDLING - Use UNA tracking instead of CSS
+        if (agentName.toLowerCase() === 'una') {
+          console.log(`🔮 [UNA] Processing conversation update for ${callId}`);
+
+          // Get the latest assistant message for UNA metadata parsing
+          const conversationMessages = message.conversation || message.transcript || [];
+          const lastAssistantMessage = [...conversationMessages]
+            .reverse()
+            .find((m: any) => m.role === 'assistant');
+
+          if (lastAssistantMessage?.content || lastAssistantMessage?.text) {
+            const assistantContent = lastAssistantMessage.content || lastAssistantMessage.text;
+            const { speak, meta } = parseUNAMetadata(assistantContent);
+
+            if (meta) {
+              // Check for crisis
+              const crisisCheck = checkUNACrisis(meta);
+              if (crisisCheck.isCrisis) {
+                console.log(`🚨 [UNA] CRISIS DETECTED - Action: ${crisisCheck.action}`);
+              }
+
+              // Get therapeutic session ID for linking
+              const therapeuticSessionId = await getTherapeuticSessionId(callId);
+              if (therapeuticSessionId) {
+                // Calculate exchange count
+                const exchangeCount = conversationMessages.filter((m: any) => m.role === 'user').length;
+
+                // Get last user message for summary
+                const lastUserMessage = [...conversationMessages]
+                  .reverse()
+                  .find((m: any) => m.role === 'user');
+
+                // Store UNA tracking
+                await storeUNATracking({
+                  user_id: userId,
+                  session_id: therapeuticSessionId,
+                  exchange_number: exchangeCount,
+                  metadata: meta,
+                  user_message_summary: (lastUserMessage?.content || lastUserMessage?.text || '').substring(0, 200),
+                  agent_response_summary: speak.substring(0, 200)
+                });
+              }
+            }
+          }
+
+          // Still process transcript for storage (but skip CSS tracking)
+          if (message.transcript?.length > 0) {
+            for (const item of message.transcript) {
+              if (item.text && item.text.trim()) {
+                await processTranscript(
+                  callId,
+                  item.text,
+                  item.role || 'user',
+                  userId,
+                  agentName
+                );
+              }
+            }
+          }
+          break;
+        }
+
+        // NON-UNA AGENTS: Process therapeutic movement using either conversation or transcript format
         // Check both possible formats from VAPI
         const conversationData = message.conversation || message.transcript;
 
@@ -426,7 +497,24 @@ router.post('/webhook', async (req, res) => {
           console.log(`📝 Raw transcript length: ${transcript.length}`);
           console.log(`📝 First 200 chars: ${transcript.substring(0, 200)}`);
 
-          // NEW: Process-based therapeutic assessment
+          // UNA AGENT: Generate UNA-specific session summary
+          if (agentName.toLowerCase() === 'una') {
+            console.log(`🔮 [UNA] Generating session summary for ${callId}...`);
+            const therapeuticSessionId = await getTherapeuticSessionId(callId);
+            if (therapeuticSessionId) {
+              await generateUNASessionSummary(userId, therapeuticSessionId);
+            }
+            // Still do basic end-of-call processing for transcript storage
+            await processEndOfCall(
+              callId,
+              transcript,
+              summary,
+              message.call
+            );
+            break;
+          }
+
+          // NON-UNA AGENTS: Process-based therapeutic assessment
           console.log(`📊 Creating process-based assessment for ${callId}...`);
           await enhancedTherapeuticTracker.processEndOfCall(
             callId,

@@ -925,3 +925,98 @@ export const userEmailPreferences = pgTable("user_email_preferences", {
 
 export type UserEmailPreferences = typeof userEmailPreferences.$inferSelect;
 export type InsertUserEmailPreferences = typeof userEmailPreferences.$inferInsert;
+
+// ============================================================================
+// UNA (UNARY NARRATIVE ARCHITECTURE) TRACKING TABLES
+// Tracks narrative coherence for the UNA agent (separate from CSS/PCA system)
+// ============================================================================
+
+// UNA Narrative Tracking table - stores per-exchange tracking data
+export const unaNarrativeTracking = pgTable("una_narrative_tracking", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  session_id: uuid("session_id").references(() => therapeuticSessions.id, { onDelete: "cascade" }),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+
+  // Coherence tracking
+  secondary_matches_real: boolean("secondary_matches_real"), // true = matching, false = mismatching, null = undetermined
+  output_status: varchar("output_status", { length: 20 }), // 'symbolic', 'imaginary', 'transitional'
+
+  // Relational mode used in this exchange
+  relational_mode: varchar("relational_mode", { length: 10 }), // 'analog', 'digital', 'mixed'
+
+  // Orientation quality (Pre-Retrieval Orientation)
+  subject_sensed: boolean("subject_sensed").default(false),
+  gap_detected: boolean("gap_detected").default(false),
+  form_attended: boolean("form_attended").default(false),
+  absence_noted: boolean("absence_noted").default(false),
+
+  // Pattern notes (agent's observations)
+  coherence_notes: text("coherence_notes"),
+  why_discussion_triggered: boolean("why_discussion_triggered").default(false),
+
+  // Safety (required for all agents)
+  safety_flag: boolean("safety_flag").default(false),
+  crisis_detected: boolean("crisis_detected").default(false),
+  crisis_action_taken: text("crisis_action_taken"),
+
+  // Exchange context
+  exchange_number: integer("exchange_number"),
+  user_message_summary: text("user_message_summary"),
+  agent_response_summary: text("agent_response_summary"),
+});
+
+// UNA Session Summaries table - stores per-session summary data
+export const unaSessionSummaries = pgTable("una_session_summaries", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  session_id: uuid("session_id").references(() => therapeuticSessions.id, { onDelete: "cascade" }),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+
+  // Overall session coherence pattern
+  dominant_pattern: varchar("dominant_pattern", { length: 20 }), // 'matching', 'mismatching', 'transitional', 'mixed'
+  symbolic_percentage: real("symbolic_percentage"), // What % of exchanges achieved symbolic status
+
+  // Key narrative themes
+  narrative_themes: jsonb("narrative_themes"), // TEXT[] stored as JSON array
+
+  // WHY discussions that occurred
+  why_discussions: jsonb("why_discussions"), // TEXT[] stored as JSON array
+
+  // Recommendations for next session
+  continuation_notes: text("continuation_notes"),
+
+  // Crisis history
+  crisis_occurred: boolean("crisis_occurred").default(false),
+  crisis_resolution: text("crisis_resolution"),
+});
+
+// UNA types
+export type UNANarrativeTracking = typeof unaNarrativeTracking.$inferSelect;
+export type InsertUNANarrativeTracking = typeof unaNarrativeTracking.$inferInsert;
+export type UNASessionSummary = typeof unaSessionSummaries.$inferSelect;
+export type InsertUNASessionSummary = typeof unaSessionSummaries.$inferInsert;
+
+// UNA-specific constants
+export const UNA_OUTPUT_STATUS = {
+  SYMBOLIC: 'symbolic',
+  IMAGINARY: 'imaginary',
+  TRANSITIONAL: 'transitional'
+} as const;
+
+export const UNA_RELATIONAL_MODE = {
+  ANALOG: 'analog',
+  DIGITAL: 'digital',
+  MIXED: 'mixed'
+} as const;
+
+export const UNA_DOMINANT_PATTERN = {
+  MATCHING: 'matching',
+  MISMATCHING: 'mismatching',
+  TRANSITIONAL: 'transitional',
+  MIXED: 'mixed'
+} as const;
+
+export type UNAOutputStatus = typeof UNA_OUTPUT_STATUS[keyof typeof UNA_OUTPUT_STATUS];
+export type UNARelationalMode = typeof UNA_RELATIONAL_MODE[keyof typeof UNA_RELATIONAL_MODE];
+export type UNADominantPattern = typeof UNA_DOMINANT_PATTERN[keyof typeof UNA_DOMINANT_PATTERN];
