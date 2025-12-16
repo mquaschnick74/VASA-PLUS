@@ -38,12 +38,12 @@ export const UNA_AGENT: TherapeuticAgent = {
   image: '/agents/una.jpg',
   color: 'indigo',
   model: {
-    temperature: 0.78,  // Increased for more creative, varied responses
+    temperature: 0.9,  // Increased for more creative, varied responses
     model: 'gpt-4o'
   },
   voice: {
     provider: '11labs',
-    voiceId: 'aAsWcN5jdLdiYG7Hq0YL',
+    voiceId: 'Xb7hH8MSUJpSbSDYk0k2',
     model: 'eleven_flash_v2_5',
     stability: 0.9,
     similarityBoost: 0.85,
