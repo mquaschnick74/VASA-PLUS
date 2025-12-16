@@ -38,7 +38,7 @@ export const UNA_AGENT: TherapeuticAgent = {
   image: '/agents/una.jpg',
   color: 'indigo',
   model: {
-    temperature: 0.65,
+    temperature: 0.78,  // Increased for more creative, varied responses
     model: 'gpt-4o'
   },
   voice: {
