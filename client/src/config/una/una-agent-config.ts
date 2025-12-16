@@ -5,11 +5,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { TherapeuticAgent } from '../agent-configs';
-import { UNA_SYSTEM_PROMPT } from './una-system-prompt';
+import { UNA_STRATEGIC_ADDITIONS } from './una-system-prompt';
 import {
-  UNA_SESSION_CONTINUITY,
-  UNA_MEMORY_CONTEXT,
-  UNA_THERAPEUTIC_PRESENCE
+  UNA_STRATEGIC_ASSESSMENT,
+  UNA_MOVEMENT_TRACKING,
+  UNA_THERAPEUTIC_PRESENCE_ENHANCED
 } from './una-operational';
 
 /**
@@ -17,13 +17,13 @@ import {
  */
 const UNA_FULL_PROMPT = `Your proper name is **UNA**.
 
-${UNA_SYSTEM_PROMPT}
+${UNA_STRATEGIC_ADDITIONS}
 
-${UNA_SESSION_CONTINUITY}
+${UNA_STRATEGIC_ASSESSMENT}
 
-${UNA_MEMORY_CONTEXT}
+${UNA_MOVEMENT_TRACKING}
 
-${UNA_THERAPEUTIC_PRESENCE}
+${UNA_THERAPEUTIC_PRESENCE_ENHANCED}
 `;
 
 /**
