@@ -7,7 +7,7 @@ import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-r
 import useVapi from '@/hooks/use-vapi';
 import AgentSelector from './AgentSelector';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
-import { getAgentById } from '../config/agent-configs';
+import { getAgentById } from '../config';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { useSubscription } from '@/hooks/use-subscription';

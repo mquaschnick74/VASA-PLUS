@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { TherapeuticAgent } from '../config/agent-configs';
+import { TherapeuticAgent } from '../config';
 
 interface OnboardingData {
   voice: string;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { THERAPEUTIC_AGENTS } from '../config/agent-configs';
+import { ALL_AGENTS as THERAPEUTIC_AGENTS } from '../config';
 import {
   Dialog,
   DialogContent,

@@ -10,14 +10,28 @@ export interface UNAMetadata {
     output_status: 'symbolic' | 'imaginary' | 'transitional';
   };
   relational_mode: 'analog' | 'digital' | 'mixed';
+  // v1.2: PCP Axis orientation tracking
+  pcp_orientation?: {
+    toward_digital_pole: boolean;
+    toward_analog_pole: boolean;
+    balanced: boolean;
+  };
   orientation: {
     subject_sensed: boolean;
     gap_detected: boolean;
     form_attended: boolean;
     absence_noted: boolean;
   };
+  // v1.2: Wound presentation tracking
+  wound_presentation?: {
+    defended_against: boolean;
+    being_worked_with: boolean;
+    reaching_beyond: boolean;
+  };
   coherence_notes?: string;
   why_discussion_triggered?: boolean;
+  // v1.2: Thend proximity tracking
+  thend_proximity?: 'distant' | 'approaching' | 'near' | 'achieved';
   safety: {
     flag: boolean;
     crisis: boolean;

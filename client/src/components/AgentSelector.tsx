@@ -1,5 +1,5 @@
 import React from 'react';
-import { THERAPEUTIC_AGENTS, TherapeuticAgent } from '../config/agent-configs';
+import { ALL_AGENTS as THERAPEUTIC_AGENTS, TherapeuticAgent } from '../config';
 import { AIDisclosureCard } from './AIDisclosureCard';
 
 interface AgentSelectorProps {

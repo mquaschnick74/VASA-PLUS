@@ -931,7 +931,7 @@ export type InsertUserEmailPreferences = typeof userEmailPreferences.$inferInser
 // Tracks narrative coherence for the UNA agent (separate from CSS/PCA system)
 // ============================================================================
 
-// UNA Narrative Tracking table - stores per-exchange tracking data
+// UNA Narrative Tracking table - stores per-exchange tracking data (v1.2)
 export const unaNarrativeTracking = pgTable("una_narrative_tracking", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -945,15 +945,28 @@ export const unaNarrativeTracking = pgTable("una_narrative_tracking", {
   // Relational mode used in this exchange
   relational_mode: varchar("relational_mode", { length: 10 }), // 'analog', 'digital', 'mixed'
 
+  // v1.2: PCP Axis Orientation
+  pcp_toward_digital: boolean("pcp_toward_digital").default(false),
+  pcp_toward_analog: boolean("pcp_toward_analog").default(false),
+  pcp_balanced: boolean("pcp_balanced").default(false),
+
   // Orientation quality (Pre-Retrieval Orientation)
   subject_sensed: boolean("subject_sensed").default(false),
   gap_detected: boolean("gap_detected").default(false),
   form_attended: boolean("form_attended").default(false),
   absence_noted: boolean("absence_noted").default(false),
 
+  // v1.2: Wound Presentation
+  wound_defended_against: boolean("wound_defended_against").default(false),
+  wound_being_worked_with: boolean("wound_being_worked_with").default(false),
+  wound_reaching_beyond: boolean("wound_reaching_beyond").default(false),
+
   // Pattern notes (agent's observations)
   coherence_notes: text("coherence_notes"),
   why_discussion_triggered: boolean("why_discussion_triggered").default(false),
+
+  // v1.2: Thend Proximity
+  thend_proximity: varchar("thend_proximity", { length: 20 }), // 'distant', 'approaching', 'near', 'achieved'
 
   // Safety (required for all agents)
   safety_flag: boolean("safety_flag").default(false),
@@ -1017,6 +1030,15 @@ export const UNA_DOMINANT_PATTERN = {
   MIXED: 'mixed'
 } as const;
 
+// v1.2: Thend Proximity constants
+export const UNA_THEND_PROXIMITY = {
+  DISTANT: 'distant',
+  APPROACHING: 'approaching',
+  NEAR: 'near',
+  ACHIEVED: 'achieved'
+} as const;
+
 export type UNAOutputStatus = typeof UNA_OUTPUT_STATUS[keyof typeof UNA_OUTPUT_STATUS];
 export type UNARelationalMode = typeof UNA_RELATIONAL_MODE[keyof typeof UNA_RELATIONAL_MODE];
 export type UNADominantPattern = typeof UNA_DOMINANT_PATTERN[keyof typeof UNA_DOMINANT_PATTERN];
+export type UNAThendProximity = typeof UNA_THEND_PROXIMITY[keyof typeof UNA_THEND_PROXIMITY];
