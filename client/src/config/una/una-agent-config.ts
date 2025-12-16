@@ -43,7 +43,7 @@ export const UNA_AGENT: TherapeuticAgent = {
   },
   voice: {
     provider: '11labs',
-    voiceId: '8WaMCGQzWsKvf7sGPqjE',
+    voiceId: 'aAsWcN5jdLdiYG7Hq0YL',
     model: 'eleven_flash_v2_5',
     stability: 0.9,
     similarityBoost: 0.85,
