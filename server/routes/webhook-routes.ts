@@ -2,9 +2,9 @@
 // MERGED VERSION - Preserves all existing functionality + adds enhanced tracking
 import { Router } from 'express';
 import crypto from 'crypto';
-import { 
-  initializeSession, 
-  processTranscript, 
+import {
+  initializeSession,
+  processTranscript,
   processEndOfCall,
   ensureSession
 } from '../services/orchestration-service';
@@ -16,6 +16,18 @@ import { subscriptionService } from '../services/subscription-service';
 // NEW IMPORTS - User profile & therapist-client relationship
 // ⬇️ Using existing supabase service instead of non-existent services
 import { supabase } from '../services/supabase-service';
+
+// SENSING LAYER IMPORTS - Real-time therapeutic guidance
+import { sensingLayer } from '../services/sensing-layer';
+import { injectGuidance } from '../services/sensing-layer/guidance-injector';
+import {
+  setControlUrl,
+  clearControlUrl,
+  addToConversationHistory,
+  getConversationHistory,
+  getExchangeCount,
+  updateCallState
+} from '../services/sensing-layer/call-state';
 
 const router = Router();
 
@@ -146,6 +158,58 @@ async function trackInfluencerConversion(userId: string, subscriptionAmount: num
 
 // Export for use in other routes
 export { trackInfluencerConversion };
+
+// ============================================================================
+// SENSING LAYER - Async Processing Helper
+// ============================================================================
+/**
+ * Process utterance through sensing layer asynchronously
+ * This runs in the background to not block webhook responses
+ */
+async function processSensingLayerAsync(
+  callId: string,
+  userId: string,
+  utterance: string,
+  conversationHistory: Array<{ role: string; content: string }>
+): Promise<void> {
+  try {
+    console.log(`🧠 [SENSING] Processing utterance for call ${callId}...`);
+    const startTime = Date.now();
+
+    // Get exchange count from call state
+    const exchangeCount = getExchangeCount(callId);
+
+    // Process through sensing layer
+    const guidance = await sensingLayer.processUtterance({
+      utterance,
+      sessionId: callId,
+      callId,
+      userId,
+      exchangeCount,
+      conversationHistory: conversationHistory.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        timestamp: new Date().toISOString()
+      }))
+    });
+
+    const processingTime = Date.now() - startTime;
+    console.log(`🧠 [SENSING] Processed in ${processingTime}ms - Posture: ${guidance.posture}, Urgency: ${guidance.urgency}`);
+
+    // Inject guidance into VAPI conversation
+    const injected = await injectGuidance(callId, guidance);
+
+    if (injected) {
+      console.log(`✅ [SENSING] Guidance injected successfully for call ${callId}`);
+    } else {
+      console.warn(`⚠️ [SENSING] Failed to inject guidance for call ${callId}`);
+    }
+
+  } catch (error) {
+    // Log but don't throw - we don't want to break the conversation
+    console.error(`❌ [SENSING] Error processing utterance for call ${callId}:`, error);
+  }
+}
 
 router.post('/webhook', async (req, res) => {
   // Enhanced logging for debugging
@@ -279,6 +343,23 @@ router.post('/webhook', async (req, res) => {
           console.log(`TEST_CONTROL_URL="${message.call.monitor.controlUrl}"`);
         }
 
+        // SENSING LAYER: Store controlUrl for real-time guidance injection
+        const controlUrl = message?.call?.monitor?.controlUrl;
+        if (controlUrl) {
+          setControlUrl(callId, controlUrl, userId);
+          console.log(`🧠 [SENSING] Stored controlUrl for call ${callId}`);
+        } else {
+          console.warn(`⚠️ [SENSING] No controlUrl in call-started for ${callId}`);
+        }
+
+        // Initialize call state for conversation tracking
+        updateCallState(callId, {
+          userId,
+          sessionId: callId,
+          exchangeCount: 0,
+          conversationHistory: []
+        });
+
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
         console.log(`✅ call-started event processed successfully`);
@@ -315,6 +396,24 @@ router.post('/webhook', async (req, res) => {
             userId,
             formattedConversation
           );
+
+          // SENSING LAYER: Process latest user utterance for real-time guidance
+          // Find the latest user message in the conversation
+          const latestUserMessage = [...formattedConversation]
+            .reverse()
+            .find((m: any) => m.role === 'user');
+
+          if (latestUserMessage?.content && latestUserMessage.content.trim().length > 0) {
+            // Update conversation history in call state
+            for (const msg of formattedConversation) {
+              if (msg.role && msg.content) {
+                addToConversationHistory(callId, msg.role, msg.content);
+              }
+            }
+
+            // Process through sensing layer asynchronously (don't block webhook response)
+            processSensingLayerAsync(callId, userId, latestUserMessage.content, formattedConversation);
+          }
         }
 
         // PRESERVED: Your original transcript processing
@@ -356,6 +455,10 @@ router.post('/webhook', async (req, res) => {
 
       case 'end-of-call-report':
       console.log('📊 Full end-of-call-report received for:', callId);
+
+      // SENSING LAYER: Clean up call state
+      clearControlUrl(callId);
+      console.log(`🧠 [SENSING] Cleared controlUrl for call ${callId}`);
 
       // CRITICAL FIX: Ensure session exists before processing
       let session = await ensureSession(callId, userId, agentName);
