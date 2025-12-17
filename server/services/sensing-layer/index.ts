@@ -432,4 +432,5 @@ export const sensingLayer = SensingLayerService.getInstance();
 export * from './types';
 
 // Export session state types and functions
-export { SessionSummary, getSessionState, clearSession } from './session-state';
+export type { SessionSummary } from './session-state';
+export { getSessionState, clearSession } from './session-state';
