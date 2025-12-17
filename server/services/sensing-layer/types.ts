@@ -191,6 +191,15 @@ export interface SymbolicMappingResult {
   activeMappings: ActiveSymbolicMapping[];
   potentialConnections: PotentialConnection[];
   awarenessShift: AwarenessShift | null;
+
+  // NEW: Generative symbolic insight for novel connections
+  generativeInsight: GenerativeSymbolicInsight;
+
+  // NEW: Ready to surface (when timing is right)
+  readyToSurface?: {
+    mapping: string;
+    guidanceApproach: string;
+  };
 }
 
 export interface ActiveSymbolicMapping {
@@ -227,6 +236,9 @@ export interface MovementAssessmentResult {
   cssStageConfidence: number;
   sessionPosition: SessionPosition;
   movementQuality: MovementQuality;
+
+  // NEW: Anticipation tracking
+  anticipation: AnticipationState;
 }
 
 export type TherapeuticTrajectory =
@@ -281,12 +293,13 @@ export interface TherapeuticGuidance {
 }
 
 export type TherapeuticPosture =
-  | 'probe'     // Ask deepening questions
-  | 'hold'      // Stay with what's present
-  | 'challenge' // Gently confront
-  | 'support'   // Validate and encourage
-  | 'reflect'   // Mirror back
-  | 'silent';   // Allow space
+  | 'probe'          // Ask deepening questions
+  | 'hold'           // Stay with what's present
+  | 'challenge'      // Gently confront
+  | 'support'        // Validate and encourage
+  | 'reflect'        // Mirror back
+  | 'silent'         // Allow space
+  | 'wait_and_track'; // Strategic patience - let user build material
 
 export interface RegisterDirection {
   from: Register;
@@ -295,6 +308,106 @@ export interface RegisterDirection {
 }
 
 export type GuidanceUrgency = 'low' | 'moderate' | 'high' | 'immediate';
+
+/**
+ * Generative Symbolic Insight - Novel connections generated in real-time
+ */
+export interface GenerativeSymbolicInsight {
+  // What the user is currently elaborating
+  currentElaboration: {
+    topic: string;              // "precision in photography/violin"
+    symbolicWeight: number;     // 0-1, how symbolically loaded this material is
+    connectedThemes: string[];  // ["control", "perfection", "mother's demands"]
+  };
+
+  // Novel connection the therapist might make
+  potentialConnection?: {
+    fromCurrent: string;              // "precision/rigidity pattern"
+    toPotential: string;              // "relationship approach"
+    connectionInsight: string;        // "User may be doing to partners what mother did with violin"
+    confidence: number;               // 0-1
+    suggestedIntervention?: string;   // "What if you replace the violin with a partner?"
+    interventionTiming: 'not_ready' | 'approaching' | 'ready' | 'passed';
+  };
+
+  // Teaching opportunity (naming symbolic structure explicitly)
+  teachingMoment?: {
+    available: boolean;
+    structure: string;         // "The broken hand connects physical Real to Imaginary consequences"
+    userReadiness: number;     // 0-1, can they receive this?
+  };
+}
+
+/**
+ * Anticipation State - Tracking where user is headed and when to intervene
+ */
+export interface AnticipationState {
+  // What user is building toward
+  trajectory: {
+    buildingToward: string;         // "connecting precision pattern to relationships"
+    trajectoryConfidence: number;   // 0-1
+    evidencePoints: string[];       // quotes/observations supporting this read
+  };
+
+  // Intervention timing
+  timing: {
+    phase: 'early_elaboration' | 'building' | 'approaching_readiness' | 'ready' | 'moment_passed';
+    waitReasons: string[];          // ["still elaborating", "not grounded in body yet"]
+    readyIndicators: string[];      // ["connected to outcomes", "named the pattern"]
+    estimatedTurnsToReady: number;  // rough estimate
+  };
+
+  // Strategic patience
+  patience: {
+    shouldWait: boolean;
+    waitingFor: string;                     // "user to connect precision to dead-ends"
+    riskOfPrematureIntervention: string;    // "would short-circuit their own discovery"
+  };
+}
+
+/**
+ * Enhanced Therapeutic Guidance with anticipation support
+ */
+export interface EnhancedTherapeuticGuidance extends TherapeuticGuidance {
+  // Strategic anticipation guidance
+  anticipationGuidance?: {
+    userBuildingToward: string;
+    currentPhase: string;
+    shouldWait: boolean;
+    waitingFor?: string;
+    potentialIntervention?: string;
+    interventionTiming: string;
+    riskIfPremature?: string;
+  };
+
+  // Symbolic context for therapist awareness
+  symbolicContext?: {
+    activeConnection: string;
+    userAwareness: string;
+    guidanceNote: string;
+  };
+
+  // Enhanced posture with wait_and_track option
+  enhancedPosture?: {
+    mode: TherapeuticPosture | 'wait_and_track';
+    intensity: 'gentle' | 'moderate' | 'firm';
+    description: string;
+  };
+
+  // Enhanced framing
+  enhancedFraming?: {
+    usePhrase?: string;
+    avoidPhrase?: string;
+    toneNote?: string;
+  };
+
+  // Enhanced strategic direction
+  enhancedStrategicDirection?: {
+    moveToward: string;
+    currentGoal: string;
+    longerArc: string;
+  };
+}
 
 /**
  * Sensing Layer Output - Complete record for storage

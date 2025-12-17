@@ -13,7 +13,8 @@ import {
   SymbolicConnectionType,
   AwarenessLevel,
   HistoricalMaterial,
-  SymbolicMapping
+  SymbolicMapping,
+  GenerativeSymbolicInsight
 } from './types';
 
 // Initialize Anthropic client
@@ -53,12 +54,24 @@ export async function mapSymbolic(
   // 4. Check for awareness shifts
   const awarenessShift = detectAwarenessShift(input, profile.symbolicMappings);
 
-  console.log(`🔗 [Symbolic Mapping] Found ${activeMappings.length} active, ${potentialConnections.length} potential (${Date.now() - startTime}ms)`);
+  // 5. NEW: Generate novel symbolic insights
+  const generativeInsight = await generateSymbolicInsight(input, profile);
+
+  // 6. NEW: Assess what's ready to surface
+  const readyToSurface = assessReadinessToSurface(
+    activeMappings.length > 0 ? activeMappings[0] : undefined,
+    generativeInsight,
+    profile
+  );
+
+  console.log(`🔗 [Symbolic Mapping] Found ${activeMappings.length} active, ${potentialConnections.length} potential, generative: ${generativeInsight.potentialConnection ? 'yes' : 'no'} (${Date.now() - startTime}ms)`);
 
   return {
     activeMappings,
     potentialConnections,
-    awarenessShift
+    awarenessShift,
+    generativeInsight,
+    readyToSurface
   };
 }
 
@@ -421,4 +434,187 @@ function getNextAwarenessLevel(current: AwarenessLevel): AwarenessLevel {
     return progression[currentIndex + 1];
   }
   return 'conscious';
+}
+
+/**
+ * Generate novel symbolic insights using Claude
+ * This is the key function for generating creative therapeutic connections
+ */
+async function generateSymbolicInsight(
+  input: TurnInput,
+  profile: UserTherapeuticProfile
+): Promise<GenerativeSymbolicInsight> {
+  // Don't call if no API key
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.log('🔗 [Symbolic Mapping] No ANTHROPIC_API_KEY, skipping generative insight');
+    return {
+      currentElaboration: {
+        topic: input.utterance.slice(0, 50),
+        symbolicWeight: 0.3,
+        connectedThemes: []
+      }
+    };
+  }
+
+  // Build rich context for Claude
+  const patternsContext = profile.patterns
+    .filter(p => p.active)
+    .map(p => `- ${p.description} (observed ${p.occurrences}x, type: ${p.patternType})`)
+    .join('\n');
+
+  const historicalContext = profile.historicalMaterial
+    .map(h => `- ${h.content} (figures: ${h.relatedFigures?.join(', ') || 'none'}, valence: ${h.emotionalValence || 'unknown'})`)
+    .join('\n');
+
+  const existingMappings = profile.symbolicMappings
+    .map(m => `- "${m.symbolicConnection}" (user awareness: ${m.userAwareness}, confidence: ${m.confidence})`)
+    .join('\n');
+
+  const recentConversation = input.conversationHistory
+    .slice(-10)
+    .map(m => `${m.role}: ${m.content}`)
+    .join('\n');
+
+  const prompt = `You are a depth psychology analyst supporting a therapeutic AI. Your task is to generate symbolic insights - novel connections between what the user is currently discussing and deeper patterns from their history.
+
+## User's Therapeutic Profile
+
+### Detected Patterns (recurring behaviors/cognitions):
+${patternsContext || 'None detected yet'}
+
+### Historical Material (disclosed trauma/significant events):
+${historicalContext || 'None disclosed yet'}
+
+### Known Symbolic Mappings (connections already identified):
+${existingMappings || 'None identified yet'}
+
+## Recent Conversation:
+${recentConversation}
+
+## Current Utterance:
+"${input.utterance}"
+
+## Your Task
+
+Analyze what the user is CURRENTLY elaborating and generate insights:
+
+1. **Current Elaboration**: What symbolic material is the user building? What themes are present? How symbolically loaded is this material (0-1)?
+
+2. **Potential Novel Connection**: Based on their patterns and history, is there a connection they haven't made yet that could illuminate their situation? This should be a CREATIVE insight, not just matching keywords. Think like an experienced depth psychologist.
+
+3. **Intervention Suggestion**: If there's a potential connection, what intervention might help the user discover it themselves? Frame it as a question or reflection, not an interpretation. Consider timing - are they ready?
+
+4. **Teaching Moment**: Is there an opportunity to help the user see the symbolic structure itself (how Real/Imaginary/Symbolic interact in their experience)?
+
+Respond in JSON format:
+{
+  "currentElaboration": {
+    "topic": "string - what they're discussing",
+    "symbolicWeight": 0.0-1.0,
+    "connectedThemes": ["theme1", "theme2"]
+  },
+  "potentialConnection": {
+    "fromCurrent": "what they're discussing now",
+    "toPotential": "what it might connect to",
+    "connectionInsight": "the symbolic link (for therapist awareness, not to tell user)",
+    "confidence": 0.0-1.0,
+    "suggestedIntervention": "question or reflection to help them discover it",
+    "interventionTiming": "not_ready|approaching|ready|passed"
+  },
+  "teachingMoment": {
+    "available": true/false,
+    "structure": "what symbolic structure could be named",
+    "userReadiness": 0.0-1.0
+  }
+}
+
+If there's insufficient history or the current material isn't symbolically significant, return minimal values. Don't force connections that aren't there.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const content = response.content[0];
+    if (content.type === 'text') {
+      // Parse JSON from response
+      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          currentElaboration: parsed.currentElaboration || {
+            topic: 'unclear',
+            symbolicWeight: 0,
+            connectedThemes: []
+          },
+          potentialConnection: parsed.potentialConnection ? {
+            fromCurrent: parsed.potentialConnection.fromCurrent || '',
+            toPotential: parsed.potentialConnection.toPotential || '',
+            connectionInsight: parsed.potentialConnection.connectionInsight || '',
+            confidence: Math.min(1, Math.max(0, parsed.potentialConnection.confidence || 0.5)),
+            suggestedIntervention: parsed.potentialConnection.suggestedIntervention,
+            interventionTiming: validateInterventionTiming(parsed.potentialConnection.interventionTiming)
+          } : undefined,
+          teachingMoment: parsed.teachingMoment ? {
+            available: !!parsed.teachingMoment.available,
+            structure: parsed.teachingMoment.structure || '',
+            userReadiness: Math.min(1, Math.max(0, parsed.teachingMoment.userReadiness || 0))
+          } : undefined
+        };
+      }
+    }
+  } catch (error) {
+    console.error('🔗 [Symbolic Mapping] Error generating insight:', error);
+  }
+
+  // Default return if Claude call fails
+  return {
+    currentElaboration: {
+      topic: input.utterance.slice(0, 50),
+      symbolicWeight: 0.3,
+      connectedThemes: []
+    }
+  };
+}
+
+/**
+ * Validate intervention timing value
+ */
+function validateInterventionTiming(timing: string): 'not_ready' | 'approaching' | 'ready' | 'passed' {
+  const valid = ['not_ready', 'approaching', 'ready', 'passed'];
+  if (valid.includes(timing)) {
+    return timing as 'not_ready' | 'approaching' | 'ready' | 'passed';
+  }
+  return 'not_ready';
+}
+
+/**
+ * Assess if any mapping is ready to surface to the user
+ */
+function assessReadinessToSurface(
+  storedMapping: ActiveSymbolicMapping | undefined,
+  generativeInsight: GenerativeSymbolicInsight,
+  profile: UserTherapeuticProfile
+): SymbolicMappingResult['readyToSurface'] | undefined {
+
+  // Check if generative insight suggests readiness
+  if (generativeInsight.potentialConnection?.interventionTiming === 'ready') {
+    return {
+      mapping: generativeInsight.potentialConnection.connectionInsight,
+      guidanceApproach: generativeInsight.potentialConnection.suggestedIntervention ||
+        'Guide toward recognition without naming it directly'
+    };
+  }
+
+  // Check if stored mapping is ready
+  if (storedMapping && storedMapping.userAwareness === 'emerging' && storedMapping.currentActivation > 0.7) {
+    return {
+      mapping: storedMapping.presentPattern,
+      guidanceApproach: 'User is approaching recognition. Create space for them to name it.'
+    };
+  }
+
+  return undefined;
 }

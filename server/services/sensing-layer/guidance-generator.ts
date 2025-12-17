@@ -10,7 +10,10 @@ import {
   TherapeuticPosture,
   RegisterDirection,
   GuidanceUrgency,
-  Register
+  Register,
+  EnhancedTherapeuticGuidance,
+  GenerativeSymbolicInsight,
+  AnticipationState
 } from './types';
 
 // Initialize Anthropic client
@@ -20,33 +23,121 @@ const anthropic = new Anthropic({
 
 /**
  * Generate therapeutic guidance based on the Orientation State Register
+ * Now returns EnhancedTherapeuticGuidance with anticipation support
  */
 export async function generateGuidance(
   osr: OrientationStateRegister,
   input: TurnInput
-): Promise<TherapeuticGuidance> {
+): Promise<EnhancedTherapeuticGuidance> {
   console.log(`🎯 [Guidance Generator] Generating guidance for user: ${input.userId}`);
 
   const startTime = Date.now();
 
+  // Extract anticipation and generative insight for enhanced guidance
+  const anticipation = osr.movement.anticipation;
+  const generativeInsight = osr.symbolic.generativeInsight;
+
   // 1. First, try rule-based guidance for speed
   const ruleBasedGuidance = generateRuleBasedGuidance(osr, input);
 
-  // 2. If situation is complex, enhance with Claude
+  // 2. Enhance with anticipation guidance
+  const anticipationGuidance = generateAnticipationGuidance(anticipation, generativeInsight);
+
+  // 3. If situation is complex, enhance with Claude
   const isComplex = isComplexSituation(osr);
 
   if (isComplex && process.env.ANTHROPIC_API_KEY) {
     try {
-      const claudeGuidance = await generateClaudeGuidance(osr, input);
-      console.log(`🎯 [Guidance Generator] Claude guidance generated (${Date.now() - startTime}ms)`);
+      const claudeGuidance = await generateEnhancedClaudeGuidance(osr, input);
+      console.log(`🎯 [Guidance Generator] Enhanced Claude guidance generated (${Date.now() - startTime}ms)`);
       return claudeGuidance;
     } catch (error) {
       console.error('🎯 [Guidance Generator] Claude failed, using rule-based:', error);
     }
   }
 
-  console.log(`🎯 [Guidance Generator] Rule-based guidance generated (${Date.now() - startTime}ms)`);
-  return ruleBasedGuidance;
+  // Combine rule-based with anticipation guidance
+  const enhancedGuidance: EnhancedTherapeuticGuidance = {
+    ...ruleBasedGuidance,
+    anticipationGuidance,
+    symbolicContext: generateSymbolicContext(osr),
+    enhancedPosture: {
+      mode: anticipation.patience.shouldWait ? 'wait_and_track' : ruleBasedGuidance.posture,
+      intensity: 'gentle',
+      description: anticipation.patience.shouldWait
+        ? `Let user continue building. ${anticipation.patience.waitingFor}`
+        : POSTURE_DESCRIPTIONS[ruleBasedGuidance.posture]
+    },
+    enhancedStrategicDirection: {
+      moveToward: ruleBasedGuidance.strategicDirection,
+      currentGoal: anticipation.patience.shouldWait
+        ? 'Create space for elaboration'
+        : 'Engage with emerging material',
+      longerArc: anticipation.trajectory.buildingToward
+    }
+  };
+
+  console.log(`🎯 [Guidance Generator] Enhanced rule-based guidance generated (${Date.now() - startTime}ms)`);
+  return enhancedGuidance;
+}
+
+/**
+ * Posture descriptions
+ */
+const POSTURE_DESCRIPTIONS: Record<TherapeuticPosture, string> = {
+  probe: 'Ask deepening questions to explore further',
+  hold: 'Stay with what\'s present. Allow space.',
+  challenge: 'Gently name the contradiction',
+  support: 'Validate and provide scaffolding',
+  reflect: 'Mirror back what you\'re hearing',
+  silent: 'Allow extended silence',
+  wait_and_track: 'Strategic patience - let user build material'
+};
+
+/**
+ * Generate anticipation-specific guidance
+ */
+function generateAnticipationGuidance(
+  anticipation: AnticipationState,
+  generativeInsight: GenerativeSymbolicInsight
+): EnhancedTherapeuticGuidance['anticipationGuidance'] {
+  return {
+    userBuildingToward: anticipation.trajectory.buildingToward,
+    currentPhase: anticipation.timing.phase,
+    shouldWait: anticipation.patience.shouldWait,
+    waitingFor: anticipation.patience.shouldWait ? anticipation.patience.waitingFor : undefined,
+    potentialIntervention: generativeInsight.potentialConnection?.suggestedIntervention,
+    interventionTiming: generativeInsight.potentialConnection?.interventionTiming || anticipation.timing.phase,
+    riskIfPremature: anticipation.patience.shouldWait
+      ? anticipation.patience.riskOfPrematureIntervention
+      : undefined
+  };
+}
+
+/**
+ * Generate symbolic context for therapist awareness
+ */
+function generateSymbolicContext(osr: OrientationStateRegister): EnhancedTherapeuticGuidance['symbolicContext'] | undefined {
+  const generativeInsight = osr.symbolic.generativeInsight;
+
+  if (generativeInsight.potentialConnection) {
+    return {
+      activeConnection: generativeInsight.potentialConnection.connectionInsight,
+      userAwareness: generativeInsight.potentialConnection.interventionTiming,
+      guidanceNote: generativeInsight.potentialConnection.suggestedIntervention || 'Guide toward discovery without naming'
+    };
+  }
+
+  if (osr.symbolic.activeMappings.length > 0) {
+    const mapping = osr.symbolic.activeMappings[0];
+    return {
+      activeConnection: mapping.presentPattern,
+      userAwareness: mapping.userAwareness,
+      guidanceNote: `Connection to: ${mapping.historicalMaterial}`
+    };
+  }
+
+  return undefined;
 }
 
 /**
@@ -360,14 +451,18 @@ function calculateRuleBasedConfidence(osr: OrientationStateRegister): number {
 }
 
 /**
- * Generate enhanced guidance using Claude
+ * Generate enhanced guidance using Claude with anticipation and generative insight
  */
-async function generateClaudeGuidance(
+async function generateEnhancedClaudeGuidance(
   osr: OrientationStateRegister,
   input: TurnInput
-): Promise<TherapeuticGuidance> {
-  // Prepare concise OSR summary
-  const osrSummary = prepareOSRSummary(osr);
+): Promise<EnhancedTherapeuticGuidance> {
+  // Extract anticipation and generative insight
+  const anticipation = osr.movement.anticipation;
+  const generativeInsight = osr.symbolic.generativeInsight;
+
+  // Prepare concise OSR summary with anticipation data
+  const osrSummary = prepareEnhancedOSRSummary(osr);
 
   const prompt = `You are a master psychodynamic therapist generating precise therapeutic guidance for a voice AI therapist.
 
@@ -382,9 +477,35 @@ SESSION CONTEXT:
 - Position: ${osr.movement.sessionPosition}
 - CSS Stage: ${osr.movement.cssStage}
 
+ANTICIPATION STATE:
+- Building toward: ${anticipation.trajectory.buildingToward}
+- Trajectory confidence: ${anticipation.trajectory.trajectoryConfidence}
+- Current phase: ${anticipation.timing.phase}
+- Should wait: ${anticipation.patience.shouldWait}
+- Waiting for: ${anticipation.patience.waitingFor}
+- Risk if premature: ${anticipation.patience.riskOfPrematureIntervention}
+- Estimated turns to ready: ${anticipation.timing.estimatedTurnsToReady}
+
+GENERATIVE INSIGHT:
+- User elaborating: ${generativeInsight.currentElaboration.topic}
+- Symbolic weight: ${generativeInsight.currentElaboration.symbolicWeight}
+- Themes: ${generativeInsight.currentElaboration.connectedThemes.join(', ') || 'none'}
+${generativeInsight.potentialConnection ? `
+- Potential connection: ${generativeInsight.potentialConnection.connectionInsight}
+- Suggested intervention: ${generativeInsight.potentialConnection.suggestedIntervention || 'none'}
+- Intervention timing: ${generativeInsight.potentialConnection.interventionTiming}
+` : '- No potential connection identified'}
+
+KEY PRINCIPLES:
+1. WAIT when anticipation says wait - Let user build material
+2. Strategic patience is therapeutic - Silence and space allow discovery
+3. When timing is "ready" - Consider the suggested intervention as question/reflection
+4. Guide toward discovery, not delivery - User should find insight, not receive it
+5. Register movement matters - If stuck, guide movement
+
 Generate therapeutic guidance in this exact JSON format:
 {
-  "posture": "probe|hold|challenge|support|reflect|silent",
+  "posture": "probe|hold|challenge|support|reflect|silent|wait_and_track",
   "registerDirection": null | {
     "from": "Real|Imaginary|Symbolic",
     "toward": "Real|Imaginary|Symbolic",
@@ -394,14 +515,38 @@ Generate therapeutic guidance in this exact JSON format:
   "avoidances": ["avoid 1", "avoid 2"],
   "framing": "optional specific framing suggestion or null",
   "urgency": "low|moderate|high|immediate",
-  "confidence": 0.0-1.0
+  "confidence": 0.0-1.0,
+  "anticipationGuidance": {
+    "userBuildingToward": "what they're building",
+    "currentPhase": "the phase",
+    "shouldWait": true/false,
+    "waitingFor": "if waiting, what for",
+    "potentialIntervention": "if ready, what to consider",
+    "interventionTiming": "timing assessment",
+    "riskIfPremature": "what could go wrong"
+  },
+  "symbolicContext": {
+    "activeConnection": "for awareness, not to speak",
+    "userAwareness": "where user is",
+    "guidanceNote": "how to handle"
+  },
+  "enhancedPosture": {
+    "mode": "posture mode",
+    "intensity": "gentle|moderate|firm",
+    "description": "what to do"
+  },
+  "enhancedStrategicDirection": {
+    "moveToward": "therapeutic goal",
+    "currentGoal": "this turn's goal",
+    "longerArc": "where this is headed"
+  }
 }
 
 Be concise and clinically precise. Focus on the most therapeutically relevant guidance.`;
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 400,
+    max_tokens: 1200,
     messages: [{ role: 'user', content: prompt }]
   });
 
@@ -430,8 +575,60 @@ Be concise and clinically precise. Focus on the most therapeutically relevant gu
     avoidances: Array.isArray(parsed.avoidances) ? parsed.avoidances.slice(0, 4) : [],
     framing: parsed.framing || null,
     urgency: validateUrgency(parsed.urgency),
-    confidence: Math.min(1, Math.max(0, parsed.confidence || 0.7))
+    confidence: Math.min(1, Math.max(0, parsed.confidence || 0.7)),
+    anticipationGuidance: parsed.anticipationGuidance || generateAnticipationGuidance(anticipation, generativeInsight),
+    symbolicContext: parsed.symbolicContext || generateSymbolicContext(osr),
+    enhancedPosture: parsed.enhancedPosture || {
+      mode: validatePosture(parsed.posture),
+      intensity: 'gentle',
+      description: POSTURE_DESCRIPTIONS[validatePosture(parsed.posture)]
+    },
+    enhancedStrategicDirection: parsed.enhancedStrategicDirection || {
+      moveToward: parsed.strategicDirection || '',
+      currentGoal: anticipation.patience.shouldWait ? 'Create space' : 'Engage material',
+      longerArc: anticipation.trajectory.buildingToward
+    }
   };
+}
+
+/**
+ * Prepare enhanced OSR summary including anticipation data
+ */
+function prepareEnhancedOSRSummary(osr: OrientationStateRegister): string {
+  const lines: string[] = [];
+
+  // Patterns
+  if (osr.patterns.activePatterns.length > 0) {
+    lines.push(`Active Patterns: ${osr.patterns.activePatterns.map(p => p.description).join('; ')}`);
+  }
+  if (osr.patterns.userExplicitIdentification) {
+    lines.push(`User Identified: "${osr.patterns.userExplicitIdentification.statement}"`);
+  }
+
+  // Register
+  lines.push(`Register: ${osr.register.currentRegister} (Stuckness: ${osr.register.stucknessScore.toFixed(2)})`);
+
+  // Symbolic with generative insight
+  if (osr.symbolic.activeMappings.length > 0) {
+    lines.push(`Symbolic Activation: ${osr.symbolic.activeMappings[0].presentPattern}`);
+  }
+  if (osr.symbolic.awarenessShift) {
+    lines.push(`Awareness Shift: ${osr.symbolic.awarenessShift.fromLevel} → ${osr.symbolic.awarenessShift.toLevel}`);
+  }
+  if (osr.symbolic.readyToSurface) {
+    lines.push(`Ready to Surface: ${osr.symbolic.readyToSurface.mapping}`);
+  }
+
+  // Movement
+  lines.push(`Trajectory: ${osr.movement.trajectory}`);
+  const highIndicators = Object.entries(osr.movement.indicators)
+    .filter(([_, v]) => v > 0.3)
+    .map(([k, v]) => `${k}:${v.toFixed(2)}`);
+  if (highIndicators.length > 0) {
+    lines.push(`Indicators: ${highIndicators.join(', ')}`);
+  }
+
+  return lines.join('\n');
 }
 
 /**
@@ -475,7 +672,7 @@ function prepareOSRSummary(osr: OrientationStateRegister): string {
  * Validate and normalize posture
  */
 function validatePosture(posture: string): TherapeuticPosture {
-  const valid: TherapeuticPosture[] = ['probe', 'hold', 'challenge', 'support', 'reflect', 'silent'];
+  const valid: TherapeuticPosture[] = ['probe', 'hold', 'challenge', 'support', 'reflect', 'silent', 'wait_and_track'];
   const normalized = posture?.toLowerCase() as TherapeuticPosture;
   return valid.includes(normalized) ? normalized : 'hold';
 }

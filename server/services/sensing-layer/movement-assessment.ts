@@ -2,6 +2,7 @@
 // Movement Assessment module for the Sensing Layer
 // Tracks therapeutic movement toward or away from mastery
 
+import Anthropic from '@anthropic-ai/sdk';
 import {
   TurnInput,
   UserTherapeuticProfile,
@@ -11,8 +12,14 @@ import {
   SessionPosition,
   MovementQuality,
   CSSStage,
-  CSSHistoryEntry
+  CSSHistoryEntry,
+  AnticipationState
 } from './types';
+
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY
+});
 
 /**
  * Movement indicator markers
@@ -113,7 +120,10 @@ export async function assessMovement(
   // 5. Assess movement quality
   const movementQuality = assessMovementQuality(input, indicators);
 
-  console.log(`📈 [Movement Assessment] Trajectory: ${trajectory}, CSS: ${cssStage}, Position: ${sessionPosition}`);
+  // 6. NEW: Assess anticipation - where is user headed, when to intervene
+  const anticipation = await assessAnticipation(input, profile);
+
+  console.log(`📈 [Movement Assessment] Trajectory: ${trajectory}, CSS: ${cssStage}, Position: ${sessionPosition}, Anticipation phase: ${anticipation.timing.phase}`);
 
   return {
     trajectory,
@@ -121,7 +131,8 @@ export async function assessMovement(
     cssStage,
     cssStageConfidence,
     sessionPosition,
-    movementQuality
+    movementQuality,
+    anticipation
   };
 }
 
@@ -415,4 +426,248 @@ export function getMovementRecommendations(result: MovementAssessmentResult): st
   }
 
   return recommendations;
+}
+
+/**
+ * Assess anticipation - where is the user headed and when should we intervene
+ */
+async function assessAnticipation(
+  input: TurnInput,
+  profile: UserTherapeuticProfile
+): Promise<AnticipationState> {
+  // Try Claude-based assessment if API key available
+  if (process.env.ANTHROPIC_API_KEY && input.conversationHistory.length >= 3) {
+    try {
+      return await assessAnticipationWithClaude(input, profile);
+    } catch (error) {
+      console.error('📈 [Movement Assessment] Claude anticipation failed, using heuristics:', error);
+    }
+  }
+
+  // Fall back to heuristic-based assessment
+  return assessAnticipationHeuristic(input, profile);
+}
+
+/**
+ * Heuristic-based anticipation assessment (fast fallback)
+ */
+function assessAnticipationHeuristic(
+  input: TurnInput,
+  profile: UserTherapeuticProfile
+): AnticipationState {
+  const utteranceLower = input.utterance.toLowerCase();
+  const exchangeCount = input.exchangeCount;
+
+  // Determine phase based on session position and indicators
+  let phase: AnticipationState['timing']['phase'] = 'building';
+  const waitReasons: string[] = [];
+  const readyIndicators: string[] = [];
+
+  // Early in session = early elaboration
+  if (exchangeCount < 5) {
+    phase = 'early_elaboration';
+    waitReasons.push('still in early session');
+  }
+
+  // Check for readiness indicators
+  const insightMarkers = ['i realize', 'i see', 'it\'s like', 'i think i', 'maybe it\'s'];
+  const connectionMarkers = ['reminds me', 'same as', 'just like', 'similar to'];
+  const groundingMarkers = ['i feel', 'in my body', 'notice', 'sensation'];
+
+  let readinessScore = 0;
+
+  for (const marker of insightMarkers) {
+    if (utteranceLower.includes(marker)) {
+      readinessScore += 0.2;
+      readyIndicators.push(`insight marker: "${marker}"`);
+    }
+  }
+
+  for (const marker of connectionMarkers) {
+    if (utteranceLower.includes(marker)) {
+      readinessScore += 0.15;
+      readyIndicators.push(`connection marker: "${marker}"`);
+    }
+  }
+
+  for (const marker of groundingMarkers) {
+    if (utteranceLower.includes(marker)) {
+      readinessScore += 0.1;
+      readyIndicators.push(`grounding marker: "${marker}"`);
+    }
+  }
+
+  // Adjust phase based on readiness score
+  if (readinessScore >= 0.5) {
+    phase = 'ready';
+  } else if (readinessScore >= 0.3) {
+    phase = 'approaching_readiness';
+  } else if (exchangeCount > 10 && readinessScore < 0.1) {
+    waitReasons.push('user still elaborating without clear direction');
+  }
+
+  // Check for signs we should wait
+  const elaborationMarkers = ['and then', 'also', 'another thing', 'let me tell you'];
+  for (const marker of elaborationMarkers) {
+    if (utteranceLower.includes(marker)) {
+      waitReasons.push('user still elaborating');
+      if (phase === 'approaching_readiness') {
+        phase = 'building';
+      }
+      break;
+    }
+  }
+
+  // Estimate turns to ready
+  const estimatedTurnsToReady = phase === 'ready' ? 0 :
+    phase === 'approaching_readiness' ? 1 :
+    phase === 'building' ? 3 :
+    5;
+
+  // Determine shouldWait
+  const shouldWait = phase !== 'ready' && phase !== 'moment_passed';
+
+  // Build trajectory from patterns
+  const activePatternDescriptions = profile.patterns
+    .filter(p => p.active)
+    .slice(0, 3)
+    .map(p => p.description);
+
+  const buildingToward = activePatternDescriptions.length > 0
+    ? `exploring patterns: ${activePatternDescriptions.join(', ')}`
+    : 'initial exploration of concerns';
+
+  return {
+    trajectory: {
+      buildingToward,
+      trajectoryConfidence: Math.min(0.7, 0.3 + (exchangeCount * 0.03)),
+      evidencePoints: readyIndicators.slice(0, 3)
+    },
+    timing: {
+      phase,
+      waitReasons: waitReasons.slice(0, 3),
+      readyIndicators: readyIndicators.slice(0, 3),
+      estimatedTurnsToReady
+    },
+    patience: {
+      shouldWait,
+      waitingFor: shouldWait ? (waitReasons[0] || 'more user elaboration') : 'n/a - ready to engage',
+      riskOfPrematureIntervention: shouldWait
+        ? 'may interrupt natural discovery process'
+        : 'low risk - user showing readiness'
+    }
+  };
+}
+
+/**
+ * Claude-based anticipation assessment (more sophisticated)
+ */
+async function assessAnticipationWithClaude(
+  input: TurnInput,
+  profile: UserTherapeuticProfile
+): Promise<AnticipationState> {
+  const recentHistory = input.conversationHistory.slice(-8);
+  const recentUserTurns = recentHistory
+    .filter(m => m.role === 'user')
+    .map(m => m.content)
+    .join('\n---\n');
+
+  const patternsContext = profile.patterns
+    .filter(p => p.active)
+    .map(p => p.description)
+    .join(', ');
+
+  const prompt = `You are tracking therapeutic conversation trajectory. Analyze where this user is headed and whether it's time to intervene or wait.
+
+## User's Known Patterns:
+${patternsContext || 'None detected yet'}
+
+## Recent User Turns:
+${recentUserTurns}
+
+## Current Utterance:
+"${input.utterance}"
+
+## Task
+
+Assess the user's trajectory and optimal intervention timing:
+
+1. **Building Toward**: What is the user building toward? What insight or connection might they be approaching?
+
+2. **Current Phase**:
+   - early_elaboration: User is just starting to explore, needs space
+   - building: User is developing material, accumulating symbolic content
+   - approaching_readiness: User is getting close to a potential insight
+   - ready: User has built enough material, intervention could land
+   - moment_passed: Optimal moment was missed, regroup
+
+3. **Should Wait?**: Should the therapist hold back and let the user continue building? What are they waiting for?
+
+4. **Risk Assessment**: What's the risk of intervening too early?
+
+Respond in JSON:
+{
+  "trajectory": {
+    "buildingToward": "string",
+    "trajectoryConfidence": 0.0-1.0,
+    "evidencePoints": ["evidence1", "evidence2"]
+  },
+  "timing": {
+    "phase": "early_elaboration|building|approaching_readiness|ready|moment_passed",
+    "waitReasons": ["reason1"],
+    "readyIndicators": ["indicator1"],
+    "estimatedTurnsToReady": number
+  },
+  "patience": {
+    "shouldWait": true/false,
+    "waitingFor": "what to wait for",
+    "riskOfPrematureIntervention": "what could go wrong"
+  }
+}`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 800,
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  const content = response.content[0];
+  if (content.type === 'text') {
+    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        trajectory: {
+          buildingToward: parsed.trajectory?.buildingToward || 'unclear',
+          trajectoryConfidence: Math.min(1, Math.max(0, parsed.trajectory?.trajectoryConfidence || 0.3)),
+          evidencePoints: Array.isArray(parsed.trajectory?.evidencePoints) ? parsed.trajectory.evidencePoints : []
+        },
+        timing: {
+          phase: validatePhase(parsed.timing?.phase),
+          waitReasons: Array.isArray(parsed.timing?.waitReasons) ? parsed.timing.waitReasons : [],
+          readyIndicators: Array.isArray(parsed.timing?.readyIndicators) ? parsed.timing.readyIndicators : [],
+          estimatedTurnsToReady: typeof parsed.timing?.estimatedTurnsToReady === 'number' ? parsed.timing.estimatedTurnsToReady : 3
+        },
+        patience: {
+          shouldWait: parsed.patience?.shouldWait ?? true,
+          waitingFor: parsed.patience?.waitingFor || 'more elaboration',
+          riskOfPrematureIntervention: parsed.patience?.riskOfPrematureIntervention || 'may short-circuit discovery'
+        }
+      };
+    }
+  }
+
+  // Fallback to heuristic if parsing fails
+  return assessAnticipationHeuristic(input, profile);
+}
+
+/**
+ * Validate anticipation phase value
+ */
+function validatePhase(phase: string): AnticipationState['timing']['phase'] {
+  const valid = ['early_elaboration', 'building', 'approaching_readiness', 'ready', 'moment_passed'];
+  if (valid.includes(phase)) {
+    return phase as AnticipationState['timing']['phase'];
+  }
+  return 'building';
 }
