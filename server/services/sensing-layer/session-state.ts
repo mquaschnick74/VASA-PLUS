@@ -47,6 +47,31 @@ export interface SessionAccumulator {
 }
 
 /**
+ * Session summary type for database storage
+ */
+export interface SessionSummary {
+  callId: string;
+  userId: string;
+  sessionId: string;
+  startTime: Date;
+  endTime: Date;
+  exchangeCount: number;
+  dominantRegister: Register;
+  registerDistribution: RegisterDistribution;
+  fluidityScore: number;
+  stucknessScore: number;
+  significantMoments: SessionAccumulator['significantMoments'];
+  patternsDetected: string[];
+  symbolicConnections: string[];
+  finalCSSStage: string;
+  finalMovementQuality: {
+    pace: string;
+    depth: string;
+    coherence: string;
+  };
+}
+
+/**
  * In-memory store for active sessions
  */
 const activeSessions = new Map<string, SessionAccumulator>();
@@ -307,29 +332,4 @@ export function clearSession(callId: string): void {
  */
 export function getActiveSessionCount(): number {
   return activeSessions.size;
-}
-
-/**
- * Session summary type for database storage
- */
-export interface SessionSummary {
-  callId: string;
-  userId: string;
-  sessionId: string;
-  startTime: Date;
-  endTime: Date;
-  exchangeCount: number;
-  dominantRegister: Register;
-  registerDistribution: RegisterDistribution;
-  fluidityScore: number;
-  stucknessScore: number;
-  significantMoments: SessionAccumulator['significantMoments'];
-  patternsDetected: string[];
-  symbolicConnections: string[];
-  finalCSSStage: string;
-  finalMovementQuality: {
-    pace: string;
-    depth: string;
-    coherence: string;
-  };
 }
