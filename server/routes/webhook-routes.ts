@@ -360,6 +360,10 @@ router.post('/webhook', async (req, res) => {
           conversationHistory: []
         });
 
+        // SENSING LAYER: Initialize session state for in-memory accumulation
+        sensingLayer.initializeCallSession(callId, userId, callId);
+        console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
+
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
         console.log(`✅ call-started event processed successfully`);
@@ -455,6 +459,18 @@ router.post('/webhook', async (req, res) => {
 
       case 'end-of-call-report':
       console.log('📊 Full end-of-call-report received for:', callId);
+
+      // SENSING LAYER: Finalize session and write summary to database
+      const sensingSessionSummary = await sensingLayer.finalizeSession(callId);
+      if (sensingSessionSummary) {
+        console.log(`🧠 [SENSING] Session finalized for call ${callId}:`);
+        console.log(`   📊 Exchanges: ${sensingSessionSummary.exchangeCount}`);
+        console.log(`   📈 Dominant register: ${sensingSessionSummary.dominantRegister}`);
+        console.log(`   ⭐ Significant moments: ${sensingSessionSummary.significantMoments.length}`);
+        console.log(`   🔄 Patterns detected: ${sensingSessionSummary.patternsDetected.length}`);
+      } else {
+        console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
+      }
 
       // SENSING LAYER: Clean up call state
       clearControlUrl(callId);

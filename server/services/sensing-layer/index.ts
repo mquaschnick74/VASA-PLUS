@@ -8,6 +8,18 @@ import { mapSymbolic } from './symbolic-mapping';
 import { assessMovement } from './movement-assessment';
 import { generateGuidance } from './guidance-generator';
 import {
+  initializeSession,
+  getSessionState,
+  updateSessionState,
+  recordSignificantMoment,
+  recordPatternDetected,
+  recordSymbolicConnection,
+  isSignificantMoment,
+  getSessionSummary,
+  clearSession,
+  SessionSummary
+} from './session-state';
+import {
   TurnInput,
   UserTherapeuticProfile,
   OrientationStateRegister,
@@ -46,6 +58,7 @@ export class SensingLayerService {
 
   /**
    * Main entry point - process a user utterance through the sensing layer
+   * Uses in-memory session state to avoid per-turn database writes
    */
   async processUtterance(input: TurnInput): Promise<TherapeuticGuidance> {
     const startTime = Date.now();
@@ -54,11 +67,17 @@ export class SensingLayerService {
     console.log(`📊 Session: ${input.sessionId}, Exchange: ${input.exchangeCount}`);
 
     try {
-      // 1. Get user profile from database
+      // 1. Ensure session state exists (initialize if first turn)
+      let sessionState = getSessionState(input.callId);
+      if (!sessionState) {
+        sessionState = initializeSession(input.callId, input.userId, input.sessionId);
+      }
+
+      // 2. Get user profile from database (cached per session ideally)
       const profile = await this.getUserProfile(input.userId);
       console.log(`👤 Profile loaded: ${profile.patterns.length} patterns, ${profile.historicalMaterial.length} historical items`);
 
-      // 2. Run sensing computations in parallel for speed
+      // 3. Run sensing computations in parallel for speed
       const [patterns, register, symbolic, movement] = await Promise.all([
         detectPatterns(input, profile),
         analyzeRegister(input, profile),
@@ -66,7 +85,7 @@ export class SensingLayerService {
         assessMovement(input, profile)
       ]);
 
-      // 3. Build Orientation State Register
+      // 4. Build Orientation State Register
       const osr: OrientationStateRegister = {
         patterns,
         register,
@@ -80,22 +99,40 @@ export class SensingLayerService {
       console.log(`   - Symbolic: ${symbolic.activeMappings.length} active mappings`);
       console.log(`   - Movement: ${movement.trajectory}, CSS: ${movement.cssStage}`);
 
-      // 4. Generate therapeutic guidance
+      // 5. Generate therapeutic guidance
       const guidance = await generateGuidance(osr, input);
 
       console.log(`🎯 Guidance: Posture=${guidance.posture}, Direction="${guidance.strategicDirection.substring(0, 50)}..."`);
 
-      // 5. Store sensing output for analysis (non-blocking)
+      // 6. Update in-memory session state (NO database write)
+      const previousMovement = sessionState.latestMovement;
+      updateSessionState(input.callId, register, movement, guidance);
+
+      // 7. Check for significant moments and record them
+      const significance = isSignificantMoment(movement, previousMovement);
+      if (significance.isSignificant && significance.type && significance.description) {
+        recordSignificantMoment(input.callId, significance.type, significance.description, guidance);
+      }
+
+      // 8. Track patterns and connections in memory (not DB)
+      for (const pattern of patterns.activePatterns) {
+        recordPatternDetected(input.callId, pattern.description);
+      }
+      for (const mapping of symbolic.activeMappings) {
+        // Build connection description from mapping properties
+        const connectionDesc = `${mapping.presentPattern} → ${mapping.historicalMaterial} (${mapping.connectionType})`;
+        recordSymbolicConnection(input.callId, connectionDesc);
+      }
+
+      // 9. Only write to DB on significant moments (optional - for real-time alerts)
+      if (significance.isSignificant && (significance.type === 'flooding' || significance.type === 'breakthrough')) {
+        // These are high-priority moments worth tracking immediately
+        this.storeSignificantMoment(input, significance.type!, significance.description!, guidance).catch(err => {
+          console.error('❌ [Sensing Layer] Failed to store significant moment:', err);
+        });
+      }
+
       const processingTimeMs = Date.now() - startTime;
-      this.storeSensingOutput(input, osr, guidance, processingTimeMs).catch(err => {
-        console.error('❌ [Sensing Layer] Failed to store output:', err);
-      });
-
-      // 6. Update user profile with new observations (non-blocking)
-      this.updateProfile(input.userId, input.sessionId, input.callId, osr, patterns).catch(err => {
-        console.error('❌ [Sensing Layer] Failed to update profile:', err);
-      });
-
       console.log(`⏱️ Total processing time: ${processingTimeMs}ms`);
       console.log(`🧠 ===== SENSING LAYER COMPLETE =====\n`);
 
@@ -114,6 +151,127 @@ export class SensingLayerService {
         urgency: 'low',
         confidence: 0.3
       };
+    }
+  }
+
+  /**
+   * Initialize a new session (call when VAPI call starts)
+   */
+  initializeCallSession(callId: string, userId: string, sessionId: string): void {
+    initializeSession(callId, userId, sessionId);
+  }
+
+  /**
+   * Finalize session and write summary to database (call when VAPI call ends)
+   */
+  async finalizeSession(callId: string): Promise<SessionSummary | null> {
+    const summary = getSessionSummary(callId);
+    if (!summary) {
+      console.warn(`⚠️ [Sensing Layer] No session found to finalize for call ${callId}`);
+      return null;
+    }
+
+    console.log(`📊 [Sensing Layer] Finalizing session for call ${callId}`);
+    console.log(`   Exchanges: ${summary.exchangeCount}`);
+    console.log(`   Dominant register: ${summary.dominantRegister}`);
+    console.log(`   Significant moments: ${summary.significantMoments.length}`);
+
+    try {
+      // Write session summary to database
+      await this.storeSessionSummary(summary);
+
+      // Clear from memory
+      clearSession(callId);
+
+      return summary;
+    } catch (error) {
+      console.error('❌ [Sensing Layer] Error finalizing session:', error);
+      clearSession(callId); // Still clear memory to avoid leaks
+      return null;
+    }
+  }
+
+  /**
+   * Store session summary to database (single write at end of call)
+   */
+  private async storeSessionSummary(summary: SessionSummary): Promise<void> {
+    // 1. Store session register analysis (single row per call)
+    const { error: registerError } = await supabase
+      .from('session_register_analysis')
+      .insert({
+        session_id: summary.sessionId,
+        call_id: summary.callId,
+        user_id: summary.userId,
+        dominant_register: summary.dominantRegister,
+        fluidity_score: summary.fluidityScore,
+        stuckness_score: summary.stucknessScore,
+        register_distribution: summary.registerDistribution,
+        analysis_notes: JSON.stringify({
+          exchangeCount: summary.exchangeCount,
+          significantMoments: summary.significantMoments.length,
+          patternsDetected: summary.patternsDetected,
+          symbolicConnections: summary.symbolicConnections,
+          finalCSSStage: summary.finalCSSStage,
+          finalMovementQuality: summary.finalMovementQuality,
+          duration: new Date(summary.endTime).getTime() - new Date(summary.startTime).getTime()
+        })
+      });
+
+    if (registerError) {
+      console.error('❌ [Sensing Layer] Error storing register analysis:', registerError);
+    } else {
+      console.log(`💾 [Sensing Layer] Session summary stored for call ${summary.callId}`);
+    }
+
+    // 2. Store significant moments if any (separate table for easy querying)
+    if (summary.significantMoments.length > 0) {
+      const moments = summary.significantMoments.map(m => ({
+        session_id: summary.sessionId,
+        call_id: summary.callId,
+        user_id: summary.userId,
+        exchange_number: m.exchange,
+        moment_type: m.type,
+        description: m.description,
+        guidance: m.guidance || null
+      }));
+
+      const { error: momentsError } = await supabase
+        .from('significant_moments')
+        .insert(moments);
+
+      if (momentsError) {
+        // Table might not exist yet - just log and continue
+        console.warn(`⚠️ [Sensing Layer] Could not store significant moments:`, momentsError.message);
+      }
+    }
+  }
+
+  /**
+   * Store a single significant moment immediately (for high-priority events)
+   */
+  private async storeSignificantMoment(
+    input: TurnInput,
+    type: string,
+    description: string,
+    guidance: TherapeuticGuidance
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('significant_moments')
+      .insert({
+        session_id: input.sessionId,
+        call_id: input.callId,
+        user_id: input.userId,
+        exchange_number: input.exchangeCount,
+        moment_type: type,
+        description: description,
+        guidance: guidance
+      });
+
+    if (error) {
+      // Table might not exist - silently fail
+      console.warn(`⚠️ [Sensing Layer] Could not store significant moment:`, error.message);
+    } else {
+      console.log(`⭐ [Sensing Layer] Significant moment stored: ${type}`);
     }
   }
 
@@ -197,220 +355,6 @@ export class SensingLayerService {
     }
   }
 
-  /**
-   * Store sensing output in database
-   */
-  private async storeSensingOutput(
-    input: TurnInput,
-    osr: OrientationStateRegister,
-    guidance: TherapeuticGuidance,
-    processingTimeMs: number
-  ): Promise<void> {
-    const output: SensingLayerOutputRow = {
-      session_id: input.sessionId,
-      call_id: input.callId,
-      user_id: input.userId,
-      exchange_number: input.exchangeCount,
-      user_utterance: input.utterance,
-      orientation_state: osr,
-      therapeutic_guidance: guidance,
-      processing_time_ms: processingTimeMs
-    };
-
-    const { error } = await supabase
-      .from('sensing_layer_outputs')
-      .insert(output);
-
-    if (error) {
-      console.error('❌ [Sensing Layer] Error storing output:', error);
-    } else {
-      console.log(`💾 [Sensing Layer] Output stored (${processingTimeMs}ms)`);
-    }
-  }
-
-  /**
-   * Update user profile with new observations
-   */
-  private async updateProfile(
-    userId: string,
-    sessionId: string,
-    callId: string,
-    osr: OrientationStateRegister,
-    patterns: PatternDetectionResult
-  ): Promise<void> {
-    const updates: Promise<void>[] = [];
-
-    // 1. Update/create emerging patterns that hit threshold
-    for (const emerging of patterns.emergingPatterns) {
-      if (emerging.occurrenceCount >= 3) {
-        updates.push(this.createOrUpdatePattern(userId, emerging));
-      }
-    }
-
-    // 2. Update existing pattern occurrences
-    for (const active of patterns.activePatterns) {
-      updates.push(this.incrementPatternOccurrence(active.patternId));
-    }
-
-    // 3. Store user-identified patterns
-    if (patterns.userExplicitIdentification) {
-      updates.push(this.storeUserIdentifiedPattern(
-        userId,
-        patterns.userExplicitIdentification
-      ));
-    }
-
-    // 4. Store register analysis
-    updates.push(this.storeRegisterAnalysis(
-      sessionId,
-      callId,
-      userId,
-      osr.register
-    ));
-
-    // 5. Update awareness levels if shift detected
-    if (osr.symbolic.awarenessShift) {
-      updates.push(this.updateAwarenessLevel(
-        osr.symbolic.awarenessShift.mappingId,
-        osr.symbolic.awarenessShift.toLevel
-      ));
-    }
-
-    await Promise.all(updates);
-    console.log(`📝 [Sensing Layer] Profile updated with ${updates.length} changes`);
-  }
-
-  /**
-   * Create or update a pattern
-   */
-  private async createOrUpdatePattern(
-    userId: string,
-    emerging: { description: string; patternType: PatternType; examples: string[] }
-  ): Promise<void> {
-    const { error } = await supabase
-      .from('user_patterns')
-      .upsert({
-        user_id: userId,
-        description: emerging.description,
-        pattern_type: emerging.patternType,
-        occurrences: 3,
-        examples: emerging.examples,
-        user_explicitly_identified: false,
-        first_detected: new Date().toISOString(),
-        last_observed: new Date().toISOString(),
-        active: true
-      }, {
-        onConflict: 'user_id,description'
-      });
-
-    if (error) {
-      console.error('❌ [Sensing Layer] Error upserting pattern:', error);
-    }
-  }
-
-  /**
-   * Increment pattern occurrence count
-   */
-  private async incrementPatternOccurrence(patternId: string): Promise<void> {
-    const { error } = await supabase.rpc('increment_pattern_occurrence', {
-      pattern_id: patternId
-    });
-
-    if (error) {
-      // Fallback: fetch and update manually
-      const { data } = await supabase
-        .from('user_patterns')
-        .select('occurrences')
-        .eq('id', patternId)
-        .single();
-
-      if (data) {
-        await supabase
-          .from('user_patterns')
-          .update({
-            occurrences: (data.occurrences || 0) + 1,
-            last_observed: new Date().toISOString()
-          })
-          .eq('id', patternId);
-      }
-    }
-  }
-
-  /**
-   * Store a pattern explicitly identified by user
-   */
-  private async storeUserIdentifiedPattern(
-    userId: string,
-    identification: { statement: string; inferredPattern: string; confidence: number }
-  ): Promise<void> {
-    const { error } = await supabase
-      .from('user_patterns')
-      .insert({
-        user_id: userId,
-        description: identification.inferredPattern,
-        pattern_type: 'behavioral' as PatternType, // Will be refined
-        occurrences: 1,
-        examples: [identification.statement],
-        user_explicitly_identified: true,
-        first_detected: new Date().toISOString(),
-        last_observed: new Date().toISOString(),
-        active: true
-      });
-
-    if (error && !error.message?.includes('duplicate')) {
-      console.error('❌ [Sensing Layer] Error storing user-identified pattern:', error);
-    }
-  }
-
-  /**
-   * Store register analysis for the session
-   */
-  private async storeRegisterAnalysis(
-    sessionId: string,
-    callId: string,
-    userId: string,
-    register: RegisterAnalysisResult
-  ): Promise<void> {
-    const { error } = await supabase
-      .from('session_register_analysis')
-      .insert({
-        session_id: sessionId,
-        call_id: callId,
-        user_id: userId,
-        dominant_register: register.currentRegister,
-        fluidity_score: register.fluidityScore,
-        stuckness_score: register.stucknessScore,
-        register_distribution: register.registerDistribution,
-        analysis_notes: `Movement: ${register.registerMovement}, Indicators: ${
-          register.indicators.realIndicators.length
-        }R/${register.indicators.imaginaryIndicators.length}I/${register.indicators.symbolicIndicators.length}S`
-      });
-
-    if (error) {
-      console.error('❌ [Sensing Layer] Error storing register analysis:', error);
-    }
-  }
-
-  /**
-   * Update awareness level for a symbolic mapping
-   */
-  private async updateAwarenessLevel(
-    mappingId: string,
-    newLevel: AwarenessLevel
-  ): Promise<void> {
-    const { error } = await supabase
-      .from('symbolic_mappings')
-      .update({
-        user_awareness: newLevel,
-        user_recognized: newLevel === 'conscious'
-      })
-      .eq('id', mappingId);
-
-    if (error) {
-      console.error('❌ [Sensing Layer] Error updating awareness level:', error);
-    }
-  }
-
   // Transform functions for database rows to domain types
 
   private transformPatterns(rows: UserPatternRow[]): UserPattern[] {
@@ -486,3 +430,6 @@ export const sensingLayer = SensingLayerService.getInstance();
 
 // Export types for external use
 export * from './types';
+
+// Export session state types and functions
+export { SessionSummary, getSessionState, clearSession } from './session-state';
