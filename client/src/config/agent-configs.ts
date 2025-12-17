@@ -497,21 +497,32 @@ ${VASA_SYSTEM_PROMPT}`,
   },
 
   {
-    id: 'zhanna',
-    name: 'Zhanna',
-    description: 'Emotional support and gentle guidance',
-    icon: '👩🏾‍🦱',
-    image: '/agents/zhanna.jpg',
-    color: 'amber',
-    model: { temperature: 0.85, model: 'gpt-4o' },
-    voice: { provider: '11labs', voiceId: 'Qggl4b0xRMiqOwhPtVWT', model: 'eleven_flash_v2_5', stability: 0.9, similarityBoost: 0.85, speed: 1.0, useSpeakerBoost: true },
-    systemPrompt: `Your proper name is **Zhanna**.
+    id: 'una',
+    name: 'UNA',
+    description: 'Narrative coherence and deep understanding',
+    icon: '🔮',
+    image: '/agents/una.jpg',
+    color: 'indigo',
+    model: { temperature: 0.9, model: 'gpt-4o' },
+    voice: { 
+      provider: '11labs', 
+      voiceId: 'Xb7hH8MSUJpSbSDYk0k2', 
+      model: 'eleven_turbo_v2_5', 
+      stability: 0.5, 
+      similarityBoost: 0.75, 
+      speed: 1.0, 
+      useSpeakerBoost: false 
+    },
+    systemPrompt: `Your proper name is **UNA**.
 
 ${VASA_SYSTEM_PROMPT}`,
-    firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
+    firstMessageTemplate: (firstName: string, hasMemory: boolean, lastSessionSummary?: string | null) => {
+      if (hasMemory && lastSessionSummary) {
+        return `Hello ${firstName}. I've been thinking about our last conversation. What feels most present for you right now?`;
+      }
       return hasMemory
-        ? `Hello ${firstName}. What's been present for you since we last spoke?`
-        : `Hello ${firstName}, I'm Zhanna. I would like to walk you through some very important steps.  Do you have any questions, otherwise, I do: How are you doing?`;
+        ? `Hello ${firstName}. What's alive in you today?`
+        : `Hello ${firstName}, I'm UNA. I'm here to help you make sense of your story. What's on your mind?`;
     }
   }
 ];
