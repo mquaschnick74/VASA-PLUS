@@ -182,7 +182,7 @@ ${SESSION_CONTINUITY}`,
     icon: '👨🏻‍💼',
     image: '/agents/mathew.jpg',
     color: 'blue',
-    model: { temperature: 0.6, model: 'gpt-4o' },
+    model: { temperature: 0.9, model: 'gpt-4o' },
     voice: {
       provider: '11labs',
       voiceId: '2hsbsDeRu57rsKFAC7uE',
