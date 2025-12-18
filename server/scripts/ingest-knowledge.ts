@@ -6,7 +6,6 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
-import mammoth from 'mammoth';
 
 // Lazy initialization of clients (only when needed)
 let openai: OpenAI | null = null;
@@ -114,7 +113,8 @@ async function readFileContent(filePath: string): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
 
   if (ext === '.docx') {
-    // Use mammoth to extract text from Word documents
+    // Dynamically import mammoth only when needed for .docx files
+    const mammoth = await import('mammoth');
     const result = await mammoth.extractRawText({ path: filePath });
     return result.value;
   } else {
