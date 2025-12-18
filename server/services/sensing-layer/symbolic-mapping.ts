@@ -24,6 +24,7 @@ const anthropic = new Anthropic({
 
 /**
  * Map symbolic connections between present patterns and historical material
+ * OPTIMIZED: Consolidated from 2 Claude calls to 1
  */
 export async function mapSymbolic(
   input: TurnInput,
@@ -39,25 +40,31 @@ export async function mapSymbolic(
   // 2. Check for potential new connections using heuristics first
   const heuristicConnections = detectHeuristicConnections(input, profile);
 
-  // 3. If we have historical material and the utterance is substantive, use Claude for deeper analysis
-  let potentialConnections: PotentialConnection[] = heuristicConnections;
+  // 3. Check for awareness shifts
+  const awarenessShift = detectAwarenessShift(input, profile.symbolicMappings);
 
-  if (profile.historicalMaterial.length > 0 && input.utterance.length > 50) {
+  // 4. CONSOLIDATED: Single Claude call for both connections and generative insight
+  let potentialConnections: PotentialConnection[] = heuristicConnections;
+  let generativeInsight: GenerativeSymbolicInsight = {
+    currentElaboration: {
+      topic: input.utterance.slice(0, 50),
+      symbolicWeight: 0.3,
+      connectedThemes: []
+    }
+  };
+
+  // Only use Claude if we have substantial content AND historical material
+  if (profile.historicalMaterial.length > 0 && input.utterance.length > 50 && process.env.ANTHROPIC_API_KEY) {
     try {
-      const claudeConnections = await analyzeSymbolicConnectionsWithClaude(input, profile);
-      potentialConnections = mergeConnections(heuristicConnections, claudeConnections);
+      const claudeResult = await analyzeSymbolicWithClaude(input, profile);
+      potentialConnections = mergeConnections(heuristicConnections, claudeResult.connections);
+      generativeInsight = claudeResult.insight;
     } catch (error) {
       console.error('🔗 [Symbolic Mapping] Claude analysis failed, using heuristics only:', error);
     }
   }
 
-  // 4. Check for awareness shifts
-  const awarenessShift = detectAwarenessShift(input, profile.symbolicMappings);
-
-  // 5. NEW: Generate novel symbolic insights
-  const generativeInsight = await generateSymbolicInsight(input, profile);
-
-  // 6. NEW: Assess what's ready to surface
+  // 5. Assess what's ready to surface
   const readyToSurface = assessReadinessToSurface(
     activeMappings.length > 0 ? activeMappings[0] : undefined,
     generativeInsight,
@@ -255,22 +262,23 @@ function detectHeuristicConnections(
 }
 
 /**
- * Use Claude to analyze deeper symbolic connections
+ * CONSOLIDATED: Single Claude call for both connections AND generative insight
+ * Replaces analyzeSymbolicConnectionsWithClaude + generateSymbolicInsight
  */
-async function analyzeSymbolicConnectionsWithClaude(
+async function analyzeSymbolicWithClaude(
   input: TurnInput,
   profile: UserTherapeuticProfile
-): Promise<PotentialConnection[]> {
-  // Don't call if no API key
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.log('🔗 [Symbolic Mapping] No ANTHROPIC_API_KEY, skipping Claude analysis');
-    return [];
-  }
-
+): Promise<{ connections: PotentialConnection[]; insight: GenerativeSymbolicInsight }> {
   // Prepare context
   const historicalContext = profile.historicalMaterial
     .slice(0, 5)
-    .map(m => `- ${m.content} (Figures: ${m.relatedFigures.join(', ')}, Emotion: ${m.emotionalValence})`)
+    .map(m => `- ${m.content} (Figures: ${m.relatedFigures?.join(', ') || 'none'}, Emotion: ${m.emotionalValence || 'unknown'})`)
+    .join('\n');
+
+  const patternsContext = profile.patterns
+    .filter(p => p.active)
+    .slice(0, 5)
+    .map(p => `- ${p.description} (type: ${p.patternType})`)
     .join('\n');
 
   const existingMappings = profile.symbolicMappings
@@ -278,66 +286,111 @@ async function analyzeSymbolicConnectionsWithClaude(
     .map(m => `- ${m.symbolicConnection} (Type: ${m.connectionType}, Awareness: ${m.userAwareness})`)
     .join('\n');
 
-  const prompt = `You are a psychodynamic therapist analyzing symbolic connections between a client's current utterance and their historical material.
+  const recentConversation = input.conversationHistory
+    .slice(-6)
+    .map(m => `${m.role}: ${m.content.slice(0, 100)}`)
+    .join('\n');
 
-CURRENT UTTERANCE:
-"${input.utterance}"
+  const prompt = `You are a depth psychologist. Analyze this utterance for symbolic connections AND generate therapeutic insights.
 
-DISCLOSED HISTORICAL MATERIAL:
-${historicalContext || 'No historical material disclosed yet.'}
+CURRENT UTTERANCE: "${input.utterance}"
 
-EXISTING SYMBOLIC MAPPINGS:
-${existingMappings || 'No mappings established yet.'}
+HISTORICAL MATERIAL:
+${historicalContext || 'None disclosed yet.'}
 
-Analyze for potential symbolic connections. Look for:
-1. FIGURE_SUBSTITUTION: Is the client relating to someone in the present the way they did to a historical figure?
-2. SITUATION_ECHO: Does the current situation structurally mirror a historical conflict?
-3. EMOTIONAL_RHYME: Are present feelings echoing unprocessed historical emotions?
-4. BEHAVIORAL_REPETITION: Is the client enacting a learned survival pattern?
+PATTERNS:
+${patternsContext || 'None detected yet.'}
 
-Respond in JSON format:
+EXISTING MAPPINGS:
+${existingMappings || 'None established yet.'}
+
+RECENT CONTEXT:
+${recentConversation}
+
+Respond in JSON:
 {
   "connections": [
     {
-      "utteranceContent": "relevant part of current utterance",
-      "possibleHistoricalLink": "relevant historical material",
-      "connectionType": "one of the four types",
+      "utteranceContent": "relevant part",
+      "possibleHistoricalLink": "historical material",
+      "connectionType": "figure_substitution|situation_echo|emotional_rhyme|behavioral_repetition",
       "confidence": 0.0-1.0,
-      "suggestedExploration": "therapeutic direction to explore this"
+      "suggestedExploration": "direction to explore"
     }
-  ]
+  ],
+  "elaboration": {
+    "topic": "what they're discussing",
+    "symbolicWeight": 0.0-1.0,
+    "themes": ["theme1", "theme2"]
+  },
+  "potentialConnection": {
+    "insight": "symbolic link for therapist awareness",
+    "intervention": "question or reflection to help discovery",
+    "timing": "not_ready|approaching|ready",
+    "confidence": 0.0-1.0
+  }
 }
 
-Only include connections with confidence > 0.3. If no meaningful connections, return empty array.
-Be concise and clinically relevant.`;
+Only include connections with confidence > 0.3. Be concise.`;
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 800,
       messages: [{ role: 'user', content: prompt }]
     });
 
-    // Extract text content
     const content = response.content[0];
-    if (content.type !== 'text') return [];
+    if (content.type !== 'text') {
+      return { connections: [], insight: defaultInsight(input) };
+    }
 
-    // Parse JSON from response
     const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return [];
+    if (!jsonMatch) {
+      return { connections: [], insight: defaultInsight(input) };
+    }
 
     const parsed = JSON.parse(jsonMatch[0]);
-    return (parsed.connections || []).map((c: any) => ({
+
+    const connections: PotentialConnection[] = (parsed.connections || []).map((c: any) => ({
       utteranceContent: c.utteranceContent || '',
       possibleHistoricalLink: c.possibleHistoricalLink || '',
       connectionType: validateConnectionType(c.connectionType),
       confidence: Math.min(1, Math.max(0, c.confidence || 0.5)),
       suggestedExploration: c.suggestedExploration || ''
     }));
+
+    const insight: GenerativeSymbolicInsight = {
+      currentElaboration: {
+        topic: parsed.elaboration?.topic || input.utterance.slice(0, 50),
+        symbolicWeight: parsed.elaboration?.symbolicWeight || 0.3,
+        connectedThemes: parsed.elaboration?.themes || []
+      },
+      potentialConnection: parsed.potentialConnection ? {
+        fromCurrent: input.utterance.slice(0, 50),
+        toPotential: parsed.potentialConnection.insight || '',
+        connectionInsight: parsed.potentialConnection.insight || '',
+        confidence: Math.min(1, Math.max(0, parsed.potentialConnection.confidence || 0.5)),
+        suggestedIntervention: parsed.potentialConnection.intervention,
+        interventionTiming: validateInterventionTiming(parsed.potentialConnection.timing)
+      } : undefined
+    };
+
+    return { connections, insight };
   } catch (error) {
     console.error('🔗 [Symbolic Mapping] Claude API error:', error);
-    return [];
+    return { connections: [], insight: defaultInsight(input) };
   }
+}
+
+function defaultInsight(input: TurnInput): GenerativeSymbolicInsight {
+  return {
+    currentElaboration: {
+      topic: input.utterance.slice(0, 50),
+      symbolicWeight: 0.3,
+      connectedThemes: []
+    }
+  };
 }
 
 /**
@@ -434,149 +487,6 @@ function getNextAwarenessLevel(current: AwarenessLevel): AwarenessLevel {
     return progression[currentIndex + 1];
   }
   return 'conscious';
-}
-
-/**
- * Generate novel symbolic insights using Claude
- * This is the key function for generating creative therapeutic connections
- */
-async function generateSymbolicInsight(
-  input: TurnInput,
-  profile: UserTherapeuticProfile
-): Promise<GenerativeSymbolicInsight> {
-  // Don't call if no API key
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.log('🔗 [Symbolic Mapping] No ANTHROPIC_API_KEY, skipping generative insight');
-    return {
-      currentElaboration: {
-        topic: input.utterance.slice(0, 50),
-        symbolicWeight: 0.3,
-        connectedThemes: []
-      }
-    };
-  }
-
-  // Build rich context for Claude
-  const patternsContext = profile.patterns
-    .filter(p => p.active)
-    .map(p => `- ${p.description} (observed ${p.occurrences}x, type: ${p.patternType})`)
-    .join('\n');
-
-  const historicalContext = profile.historicalMaterial
-    .map(h => `- ${h.content} (figures: ${h.relatedFigures?.join(', ') || 'none'}, valence: ${h.emotionalValence || 'unknown'})`)
-    .join('\n');
-
-  const existingMappings = profile.symbolicMappings
-    .map(m => `- "${m.symbolicConnection}" (user awareness: ${m.userAwareness}, confidence: ${m.confidence})`)
-    .join('\n');
-
-  const recentConversation = input.conversationHistory
-    .slice(-10)
-    .map(m => `${m.role}: ${m.content}`)
-    .join('\n');
-
-  const prompt = `You are a depth psychology analyst supporting a therapeutic AI. Your task is to generate symbolic insights - novel connections between what the user is currently discussing and deeper patterns from their history.
-
-## User's Therapeutic Profile
-
-### Detected Patterns (recurring behaviors/cognitions):
-${patternsContext || 'None detected yet'}
-
-### Historical Material (disclosed trauma/significant events):
-${historicalContext || 'None disclosed yet'}
-
-### Known Symbolic Mappings (connections already identified):
-${existingMappings || 'None identified yet'}
-
-## Recent Conversation:
-${recentConversation}
-
-## Current Utterance:
-"${input.utterance}"
-
-## Your Task
-
-Analyze what the user is CURRENTLY elaborating and generate insights:
-
-1. **Current Elaboration**: What symbolic material is the user building? What themes are present? How symbolically loaded is this material (0-1)?
-
-2. **Potential Novel Connection**: Based on their patterns and history, is there a connection they haven't made yet that could illuminate their situation? This should be a CREATIVE insight, not just matching keywords. Think like an experienced depth psychologist.
-
-3. **Intervention Suggestion**: If there's a potential connection, what intervention might help the user discover it themselves? Frame it as a question or reflection, not an interpretation. Consider timing - are they ready?
-
-4. **Teaching Moment**: Is there an opportunity to help the user see the symbolic structure itself (how Real/Imaginary/Symbolic interact in their experience)?
-
-Respond in JSON format:
-{
-  "currentElaboration": {
-    "topic": "string - what they're discussing",
-    "symbolicWeight": 0.0-1.0,
-    "connectedThemes": ["theme1", "theme2"]
-  },
-  "potentialConnection": {
-    "fromCurrent": "what they're discussing now",
-    "toPotential": "what it might connect to",
-    "connectionInsight": "the symbolic link (for therapist awareness, not to tell user)",
-    "confidence": 0.0-1.0,
-    "suggestedIntervention": "question or reflection to help them discover it",
-    "interventionTiming": "not_ready|approaching|ready|passed"
-  },
-  "teachingMoment": {
-    "available": true/false,
-    "structure": "what symbolic structure could be named",
-    "userReadiness": 0.0-1.0
-  }
-}
-
-If there's insufficient history or the current material isn't symbolically significant, return minimal values. Don't force connections that aren't there.`;
-
-  try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
-    });
-
-    const content = response.content[0];
-    if (content.type === 'text') {
-      // Parse JSON from response
-      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          currentElaboration: parsed.currentElaboration || {
-            topic: 'unclear',
-            symbolicWeight: 0,
-            connectedThemes: []
-          },
-          potentialConnection: parsed.potentialConnection ? {
-            fromCurrent: parsed.potentialConnection.fromCurrent || '',
-            toPotential: parsed.potentialConnection.toPotential || '',
-            connectionInsight: parsed.potentialConnection.connectionInsight || '',
-            confidence: Math.min(1, Math.max(0, parsed.potentialConnection.confidence || 0.5)),
-            suggestedIntervention: parsed.potentialConnection.suggestedIntervention,
-            interventionTiming: validateInterventionTiming(parsed.potentialConnection.interventionTiming)
-          } : undefined,
-          teachingMoment: parsed.teachingMoment ? {
-            available: !!parsed.teachingMoment.available,
-            structure: parsed.teachingMoment.structure || '',
-            userReadiness: Math.min(1, Math.max(0, parsed.teachingMoment.userReadiness || 0))
-          } : undefined
-        };
-      }
-    }
-  } catch (error) {
-    console.error('🔗 [Symbolic Mapping] Error generating insight:', error);
-  }
-
-  // Default return if Claude call fails
-  return {
-    currentElaboration: {
-      topic: input.utterance.slice(0, 50),
-      symbolicWeight: 0.3,
-      connectedThemes: []
-    }
-  };
 }
 
 /**

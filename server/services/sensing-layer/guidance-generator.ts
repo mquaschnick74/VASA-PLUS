@@ -582,7 +582,7 @@ Be concise and clinically precise. Focus on the most therapeutically relevant gu
   const claudeStart = Date.now();
   console.log(`🤖 [Claude] Calling API...`);
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-3-haiku-20240307',
     max_tokens: 1200,
     messages: [{ role: 'user', content: prompt }]
   });

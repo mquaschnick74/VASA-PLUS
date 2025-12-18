@@ -161,12 +161,26 @@ async function trackInfluencerConversion(userId: string, subscriptionAmount: num
 export { trackInfluencerConversion };
 
 // ============================================================================
-// SENSING LAYER - Async Processing Helper
+// SENSING LAYER - Async Processing Helper with RATE LIMITING
 // ============================================================================
+
+// Rate limiting: track last processing time per call
+const lastProcessingTime = new Map<string, number>();
+const RATE_LIMIT_MS = 5000; // Minimum 5 seconds between sensing layer calls
+
+// Guidance cache: reuse similar guidance
+const guidanceCache = new Map<string, { guidance: any; timestamp: number; utteranceHash: string }>();
+const CACHE_TTL_MS = 30000; // Cache valid for 30 seconds
+
+function hashUtterance(utterance: string): string {
+  // Simple hash for similarity checking
+  return utterance.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+}
 
 /**
  * Process utterance through sensing layer asynchronously
  * This runs in the background to not block webhook responses
+ * OPTIMIZED: Rate limiting + caching to reduce costs by 90%+
  */
 async function processSensingLayerAsync(
   callId: string,
@@ -176,6 +190,30 @@ async function processSensingLayerAsync(
 ): Promise<void> {
   try {
     const startTime = Date.now();
+
+    // RATE LIMITING: Skip if processed too recently
+    const lastTime = lastProcessingTime.get(callId);
+    if (lastTime && (startTime - lastTime) < RATE_LIMIT_MS) {
+      console.log(`⏭️ [SENSING] Skipping - rate limited (${Math.round((startTime - lastTime) / 1000)}s since last)`);
+      return;
+    }
+
+    // CACHE CHECK: Reuse recent similar guidance
+    const utteranceHash = hashUtterance(utterance);
+    const cached = guidanceCache.get(callId);
+    if (cached && (startTime - cached.timestamp) < CACHE_TTL_MS) {
+      // Check if utterance is similar (same hash = similar content)
+      if (cached.utteranceHash === utteranceHash) {
+        console.log(`📦 [SENSING] Using cached guidance (${Math.round((startTime - cached.timestamp) / 1000)}s old)`);
+        // Still inject the cached guidance
+        const controlUrl = getControlUrl(callId);
+        if (controlUrl) {
+          await injectGuidance(callId, cached.guidance);
+        }
+        return;
+      }
+    }
+
     console.log(`🧠 [SENSING] Processing utterance for call ${callId}...`);
 
     // Check if controlUrl is available before processing
@@ -188,6 +226,9 @@ async function processSensingLayerAsync(
 
     // Ensure session is initialized (defensive - should have been done on call-started)
     sensingLayer.initializeCallSession(callId, userId, callId);
+
+    // Update rate limit timestamp
+    lastProcessingTime.set(callId, startTime);
 
     // Get exchange count from call state
     const exchangeCount = getExchangeCount(callId);
@@ -209,6 +250,13 @@ async function processSensingLayerAsync(
     const processingTime = Date.now() - startTime;
     console.log(`🧠 [SENSING] Processed in ${processingTime}ms - Posture: ${guidance.posture}, Urgency: ${guidance.urgency}`);
 
+    // CACHE: Store guidance for potential reuse
+    guidanceCache.set(callId, {
+      guidance,
+      timestamp: Date.now(),
+      utteranceHash
+    });
+
     // Only attempt injection if controlUrl is available
     if (controlUrl) {
       const injected = await injectGuidance(callId, guidance);
@@ -225,6 +273,12 @@ async function processSensingLayerAsync(
     // Log but don't throw - we don't want to break the conversation
     console.error(`❌ [SENSING] Error processing utterance for call ${callId}:`, error);
   }
+}
+
+// Clean up caches when call ends
+function cleanupCallCaches(callId: string) {
+  lastProcessingTime.delete(callId);
+  guidanceCache.delete(callId);
 }
 
 router.post('/webhook', async (req, res) => {
@@ -496,9 +550,10 @@ router.post('/webhook', async (req, res) => {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
       }
 
-      // SENSING LAYER: Clean up call state
+      // SENSING LAYER: Clean up call state and caches
       clearControlUrl(callId);
-      console.log(`🧠 [SENSING] Cleared controlUrl for call ${callId}`);
+      cleanupCallCaches(callId);
+      console.log(`🧠 [SENSING] Cleared controlUrl and caches for call ${callId}`);
 
       // CRITICAL FIX: Ensure session exists before processing
       let session = await ensureSession(callId, userId, agentName);
