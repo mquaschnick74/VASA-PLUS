@@ -8,12 +8,32 @@ import * as fs from 'fs';
 import * as path from 'path';
 import mammoth from 'mammoth';
 
-// Initialize clients
-const openai = new OpenAI();
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy initialization of clients (only when needed)
+let openai: OpenAI | null = null;
+let supabase: ReturnType<typeof createClient> | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+    openai = new OpenAI();
+  }
+  return openai;
+}
+
+function getSupabase(): ReturnType<typeof createClient> {
+  if (!supabase) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required');
+    }
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+  }
+  return supabase;
+}
 
 interface DocumentConfig {
   filePath: string;
@@ -22,161 +42,68 @@ interface DocumentConfig {
   description?: string;
 }
 
-// Point to ACTUAL file locations - no reorganization needed
-// Add your PCA/PCP documents here
+// Point to ACTUAL file locations - knowledge/ folder
 const DOCUMENTS: DocumentConfig[] = [
   // Theory documents
   {
-    filePath: './attached_assets/Thend_Revised_Framework_v2.docx',
+    filePath: './knowledge/thend-framework.txt',
     type: 'theory',
     tags: ['thend', 'integration', 'cvdc', 'cyvc'],
     description: 'Thend framework and integration theory'
   },
   {
-    filePath: './attached_assets/Full_PCP_PCA_Synthesis_Revised.txt',
-    type: 'theory',
-    tags: ['pcp', 'pca', 'synthesis', 'register'],
-    description: 'Full PCP/PCA synthesis'
-  },
-  {
-    filePath: './attached_assets/PCP_CCM_Revised.txt',
-    type: 'theory',
-    tags: ['register', 'real', 'imaginary', 'symbolic', 'ccm'],
-    description: 'Register theory and CCM'
-  },
-  {
-    filePath: './attached_assets/NPP_RO_Revised.txt',
-    type: 'theory',
-    tags: ['register', 'non-prioritization', 'operational'],
-    description: 'Non-prioritization principle'
-  },
-  {
-    filePath: './attached_assets/The_Core_Symbol_Set-_PRAXIS__.txt',
-    type: 'theory',
-    tags: ['css', 'stages', 'praxis', 'methodology'],
-    description: 'CSS stages and PRAXIS methodology'
-  },
-  {
-    filePath: './attached_assets/The_Dual_Matrices_CCM___IBM__.txt',
-    type: 'theory',
-    tags: ['ccm', 'ibm', 'matrices', 'pattern'],
-    description: 'CCM and IBM dual matrices'
-  },
-  {
-    filePath: './attached_assets/The_Theoretical_Foundations_of_VASA.txt',
-    type: 'theory',
-    tags: ['vasa', 'foundations', 'theory'],
-    description: 'VASA theoretical foundations'
-  },
-  {
-    filePath: './attached_assets/Full_Integration_Narrative_Primacy_Revised.txt',
-    type: 'theory',
-    tags: ['integration', 'narrative', 'primacy'],
-    description: 'Narrative primacy and integration'
-  },
-
-  // Examples
-  {
-    filePath: './attached_assets/PCA_in_Practice-A_case_study__Eve.txt',
-    type: 'example',
-    tags: ['cvdc', 'thend', 'case-study', 'integration'],
-    description: 'Eve case study - PCA in practice'
-  },
-  {
-    filePath: './attached_assets/dom-session-transcript.txt',
-    type: 'example',
-    tags: ['symbolic-mapping', 'intervention', 'relational', 'timing'],
-    description: 'Dom therapy session - symbolic connection example'
-  },
-
-  // Techniques
-  {
-    filePath: './attached_assets/The_HSFB_Process.txt',
-    type: 'technique',
-    tags: ['hsfb', 'grounding', 'real', 'body', 'somatic'],
-    description: 'HSFB protocol for register grounding'
-  },
-  {
-    filePath: './attached_assets/Cyclical_Nature_of_Trauma__.txt',
-    type: 'technique',
-    tags: ['trauma', 'cyclical', 'pattern', 'repetition'],
-    description: 'Cyclical nature of trauma'
-  },
-  {
-    filePath: './attached_assets/Transference_and_Counter_Transference_in_Therapy.docx',
-    type: 'technique',
-    tags: ['transference', 'counter-transference', 'therapeutic-relationship'],
-    description: 'Transference dynamics in therapy'
-  },
-  {
-    filePath: './attached_assets/register-movement-techniques.txt',
-    type: 'technique',
-    tags: ['register', 'intervention', 'movement', 'stuck'],
-    description: 'Techniques for moving between registers'
-  },
-
-  // Guidelines
-  {
-    filePath: './attached_assets/VASA_Personality_Character_Sheet.txt',
-    type: 'guideline',
-    tags: ['voice', 'tone', 'personality', 'warmth'],
-    description: 'VASA agent personality'
-  },
-  {
-    filePath: './attached_assets/VASA_Voice___Tone_Style_Guide.txt',
-    type: 'guideline',
-    tags: ['voice', 'tone', 'style'],
-    description: 'VASA voice and tone guide'
-  },
-  {
-    filePath: './attached_assets/VASA_Pointed_Origin_Stage.txt',
-    type: 'guideline',
-    tags: ['pointed_origin', 'opening', 'stage'],
-    description: 'Pointed origin stage guidance'
-  },
-  {
-    filePath: './attached_assets/VUG_VASA_s_Ultimate_Goal.txt',
-    type: 'guideline',
-    tags: ['goal', 'thend', 'integration'],
-    description: 'VASA ultimate therapeutic goal'
-  },
-
-  // Also check docs/ folder for any manually organized files
-  {
-    filePath: './docs/pca/thend-framework.txt',
-    type: 'theory',
-    tags: ['thend', 'integration', 'cvdc', 'cyvc'],
-    description: 'Thend framework and integration theory'
-  },
-  {
-    filePath: './docs/pca/css-stages.txt',
-    type: 'theory',
-    tags: ['css', 'stages', 'pointed_origin', 'suspension', 'completion'],
-    description: 'CSS stage progression methodology'
-  },
-  {
-    filePath: './docs/pca/register-theory.txt',
+    filePath: './knowledge/register-theory.txt',
     type: 'theory',
     tags: ['register', 'real', 'imaginary', 'symbolic'],
     description: 'Real/Imaginary/Symbolic register theory'
   },
   {
-    filePath: './docs/examples/eve-case-study.txt',
+    filePath: './knowledge/css-stages.txt',
+    type: 'theory',
+    tags: ['css', 'stages', 'methodology'],
+    description: 'CSS stage progression methodology'
+  },
+  {
+    filePath: './knowledge/vasa-ultimate-goal.txt',
+    type: 'theory',
+    tags: ['vug', 'origin-trauma'],
+    description: 'VASA Ultimate Goal - origin trauma integration'
+  },
+
+  // Examples
+  {
+    filePath: './knowledge/eve-case-study.txt',
     type: 'example',
-    tags: ['cvdc', 'thend', 'case-study', 'integration'],
+    tags: ['cvdc', 'thend', 'case-study'],
     description: 'Eve case study demonstrating PCA methodology'
   },
   {
-    filePath: './docs/techniques/hsfb-protocol.txt',
+    filePath: './knowledge/example-intervention.txt',
+    type: 'example',
+    tags: ['symbolic-mapping', 'timing', 'intervention'],
+    description: 'Example therapeutic intervention with timing'
+  },
+
+  // Techniques
+  {
+    filePath: './knowledge/hsfb-protocol.txt',
     type: 'technique',
-    tags: ['hsfb', 'grounding', 'real', 'body', 'somatic'],
+    tags: ['hsfb', 'grounding', 'real', 'body'],
     description: 'HSFB protocol for register grounding'
   },
+
+  // Guidelines
   {
-    filePath: './docs/guidelines/vasa-personality.txt',
+    filePath: './knowledge/vasa-personality.txt',
     type: 'guideline',
-    tags: ['voice', 'tone', 'personality', 'warmth'],
-    description: 'VASA agent personality and voice guidelines'
+    tags: ['voice', 'tone', 'personality'],
+    description: 'VASA agent personality guidelines'
+  },
+  {
+    filePath: './knowledge/vasa-voice-tone.txt',
+    type: 'guideline',
+    tags: ['voice', 'tone', 'style'],
+    description: 'VASA voice and tone style guide'
   }
 ];
 
@@ -234,7 +161,7 @@ function chunkDocument(
  * Generate embedding for text
  */
 async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model: 'text-embedding-3-small',
     input: text.slice(0, 8000),
   });
@@ -274,7 +201,7 @@ async function ingestDocument(config: DocumentConfig): Promise<number> {
       try {
         const embedding = await generateEmbedding(chunk);
 
-        const { error } = await supabase.from('knowledge_chunks').insert({
+        const { error } = await getSupabase().from('knowledge_chunks').insert({
           content: chunk,
           embedding: embedding,
           metadata: {
@@ -316,7 +243,7 @@ async function ingestDocument(config: DocumentConfig): Promise<number> {
  */
 async function clearKnowledgeBase(): Promise<void> {
   console.log('🗑️ Clearing existing knowledge base...');
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('knowledge_chunks')
     .delete()
     .neq('id', '00000000-0000-0000-0000-000000000000');
