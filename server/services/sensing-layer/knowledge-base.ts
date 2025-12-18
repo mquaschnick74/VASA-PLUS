@@ -26,53 +26,87 @@ export interface RagQueryOptions {
 }
 
 /**
- * Generate embedding for a text query
+ * Generate embedding for a text query with timeout
  */
 async function generateEmbedding(text: string): Promise<number[]> {
+  const startTime = Date.now();
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
     const response = await openai.embeddings.create({
       model: 'text-embedding-3-small',
       input: text.slice(0, 8000), // Limit input length
     });
+
+    clearTimeout(timeoutId);
+    console.log(`[RAG] Embedding generated in ${Date.now() - startTime}ms`);
     return response.data[0].embedding;
-  } catch (error) {
-    console.error('[RAG] Embedding error:', error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.warn(`[RAG] Embedding timed out after ${Date.now() - startTime}ms`);
+    } else {
+      console.error('[RAG] Embedding error:', error);
+    }
     throw error;
   }
 }
 
 /**
- * Query the knowledge base for relevant chunks
+ * Query the knowledge base for relevant chunks with timeout
  */
 export async function queryKnowledgeBase(
   query: string,
   options: RagQueryOptions = {}
 ): Promise<KnowledgeChunk[]> {
   const { types, tags, limit = 5, threshold = 0.7 } = options;
+  const startTime = Date.now();
 
-  try {
-    console.log(`[RAG] Querying: "${query.slice(0, 100)}..."`);
+  // Wrap in timeout to prevent hanging
+  const timeoutPromise = new Promise<KnowledgeChunk[]>((_, reject) => {
+    setTimeout(() => reject(new Error('RAG query timeout')), 5000); // 5 second total timeout
+  });
 
-    const embedding = await generateEmbedding(query);
+  const queryPromise = async (): Promise<KnowledgeChunk[]> => {
+    try {
+      console.log(`[RAG] Querying: "${query.slice(0, 80)}..."`);
 
-    const { data, error } = await supabase.rpc('match_knowledge_chunks', {
-      query_embedding: embedding,
-      match_threshold: threshold,
-      match_count: limit,
-      filter_types: types || null,
-      filter_tags: tags || null
-    });
+      const embedding = await generateEmbedding(query);
+      console.log(`[RAG] Embedding ready, querying Supabase...`);
 
-    if (error) {
-      console.error('[RAG] Query error:', error);
+      const rpcStart = Date.now();
+      const { data, error } = await supabase.rpc('match_knowledge_chunks', {
+        query_embedding: embedding,
+        match_threshold: threshold,
+        match_count: limit,
+        filter_types: types || null,
+        filter_tags: tags || null
+      });
+      console.log(`[RAG] Supabase RPC took ${Date.now() - rpcStart}ms`);
+
+      if (error) {
+        // RPC function might not exist yet - that's OK
+        if (error.message?.includes('function') || error.code === '42883') {
+          console.warn(`[RAG] RPC function not found - knowledge base not set up yet`);
+          return [];
+        }
+        console.error('[RAG] Query error:', error);
+        return [];
+      }
+
+      console.log(`[RAG] Retrieved ${data?.length || 0} chunks in ${Date.now() - startTime}ms total`);
+      return (data || []) as KnowledgeChunk[];
+
+    } catch (error) {
+      console.error('[RAG] Query failed:', error);
       return [];
     }
+  };
 
-    console.log(`[RAG] Retrieved ${data?.length || 0} chunks`);
-    return (data || []) as KnowledgeChunk[];
-
-  } catch (error) {
-    console.error('[RAG] Query failed:', error);
+  try {
+    return await Promise.race([queryPromise(), timeoutPromise]);
+  } catch (error: any) {
+    console.warn(`[RAG] Query timed out after ${Date.now() - startTime}ms`);
     return [];
   }
 }

@@ -22,6 +22,7 @@ import { sensingLayer } from '../services/sensing-layer';
 import { injectGuidance } from '../services/sensing-layer/guidance-injector';
 import {
   setControlUrl,
+  getControlUrl,
   clearControlUrl,
   addToConversationHistory,
   getConversationHistory,
@@ -162,6 +163,7 @@ export { trackInfluencerConversion };
 // ============================================================================
 // SENSING LAYER - Async Processing Helper
 // ============================================================================
+
 /**
  * Process utterance through sensing layer asynchronously
  * This runs in the background to not block webhook responses
@@ -173,8 +175,19 @@ async function processSensingLayerAsync(
   conversationHistory: Array<{ role: string; content: string }>
 ): Promise<void> {
   try {
-    console.log(`🧠 [SENSING] Processing utterance for call ${callId}...`);
     const startTime = Date.now();
+    console.log(`🧠 [SENSING] Processing utterance for call ${callId}...`);
+
+    // Check if controlUrl is available before processing
+    const controlUrl = getControlUrl(callId);
+    if (!controlUrl) {
+      console.warn(`⚠️ [SENSING] No controlUrl available for call ${callId} - call-started may not have fired yet`);
+      console.warn(`   This means VAPI did not provide a controlUrl, or events arrived out of order`);
+      // Continue processing anyway - guidance will still be generated for logging
+    }
+
+    // Ensure session is initialized (defensive - should have been done on call-started)
+    sensingLayer.initializeCallSession(callId, userId, callId);
 
     // Get exchange count from call state
     const exchangeCount = getExchangeCount(callId);
@@ -196,13 +209,16 @@ async function processSensingLayerAsync(
     const processingTime = Date.now() - startTime;
     console.log(`🧠 [SENSING] Processed in ${processingTime}ms - Posture: ${guidance.posture}, Urgency: ${guidance.urgency}`);
 
-    // Inject guidance into VAPI conversation
-    const injected = await injectGuidance(callId, guidance);
-
-    if (injected) {
-      console.log(`✅ [SENSING] Guidance injected successfully for call ${callId}`);
+    // Only attempt injection if controlUrl is available
+    if (controlUrl) {
+      const injected = await injectGuidance(callId, guidance);
+      if (injected) {
+        console.log(`✅ [SENSING] Guidance injected successfully for call ${callId}`);
+      } else {
+        console.warn(`⚠️ [SENSING] Failed to inject guidance for call ${callId}`);
+      }
     } else {
-      console.warn(`⚠️ [SENSING] Failed to inject guidance for call ${callId}`);
+      console.log(`📝 [SENSING] Guidance generated but NOT injected (no controlUrl): ${guidance.posture}`);
     }
 
   } catch (error) {
@@ -336,20 +352,28 @@ router.post('/webhook', async (req, res) => {
         console.log(`   User ID: ${userId}`);
         console.log(`   Agent Name: ${agentName}`);
 
+        // DEBUG: Log full call object structure to understand VAPI's format
+        console.log(`🔍 [DEBUG] message.call keys: ${message?.call ? Object.keys(message.call).join(', ') : 'undefined'}`);
+        console.log(`🔍 [DEBUG] message.call.monitor: ${JSON.stringify(message?.call?.monitor || 'undefined')}`);
+
         // PRESERVED: Monitor URL logging
         if (message?.call?.monitor) {
           console.log('🔍 MONITOR URLs FOR TESTING:');
           console.log(`TEST_LISTEN_URL="${message.call.monitor.listenUrl}"`);
           console.log(`TEST_CONTROL_URL="${message.call.monitor.controlUrl}"`);
+        } else {
+          console.warn(`⚠️ [DEBUG] No monitor object in call-started. Check VAPI assistant config.`);
+          console.warn(`   VAPI requires serverMessages: ["call-started"] AND the assistant must be configured for monitoring`);
         }
 
         // SENSING LAYER: Store controlUrl for real-time guidance injection
         const controlUrl = message?.call?.monitor?.controlUrl;
         if (controlUrl) {
           setControlUrl(callId, controlUrl, userId);
-          console.log(`🧠 [SENSING] Stored controlUrl for call ${callId}`);
+          console.log(`🧠 [SENSING] Stored controlUrl for call ${callId}: ${controlUrl.substring(0, 50)}...`);
         } else {
           console.warn(`⚠️ [SENSING] No controlUrl in call-started for ${callId}`);
+          console.warn(`   This usually means VAPI's monitor is not enabled for this assistant`);
         }
 
         // Initialize call state for conversation tracking

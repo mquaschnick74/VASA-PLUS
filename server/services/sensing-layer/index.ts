@@ -74,16 +74,19 @@ export class SensingLayerService {
       }
 
       // 2. Get user profile from database (cached per session ideally)
+      const profileStart = Date.now();
       const profile = await this.getUserProfile(input.userId);
-      console.log(`👤 Profile loaded: ${profile.patterns.length} patterns, ${profile.historicalMaterial.length} historical items`);
+      console.log(`👤 Profile loaded in ${Date.now() - profileStart}ms: ${profile.patterns.length} patterns, ${profile.historicalMaterial.length} historical items`);
 
       // 3. Run sensing computations in parallel for speed
+      const sensingStart = Date.now();
       const [patterns, register, symbolic, movement] = await Promise.all([
         detectPatterns(input, profile),
         analyzeRegister(input, profile),
         mapSymbolic(input, profile),
         assessMovement(input, profile)
       ]);
+      console.log(`⚡ Sensing computations completed in ${Date.now() - sensingStart}ms`);
 
       // 4. Build Orientation State Register
       const osr: OrientationStateRegister = {
@@ -100,9 +103,9 @@ export class SensingLayerService {
       console.log(`   - Movement: ${movement.trajectory}, CSS: ${movement.cssStage}`);
 
       // 5. Generate therapeutic guidance
+      const guidanceStart = Date.now();
       const guidance = await generateGuidance(osr, input);
-
-      console.log(`🎯 Guidance: Posture=${guidance.posture}, Direction="${guidance.strategicDirection.substring(0, 50)}..."`);
+      console.log(`🎯 Guidance generated in ${Date.now() - guidanceStart}ms: Posture=${guidance.posture}`);
 
       // 6. Update in-memory session state (NO database write)
       const previousMovement = sessionState.latestMovement;

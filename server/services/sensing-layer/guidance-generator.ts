@@ -53,11 +53,22 @@ export async function generateGuidance(
 
   if (isComplex && process.env.ANTHROPIC_API_KEY) {
     try {
-      const claudeGuidance = await generateEnhancedClaudeGuidance(osr, input);
+      // Wrap Claude call in timeout to ensure fast response
+      const claudeTimeout = 8000; // 8 second max for Claude + RAG
+      const claudePromise = generateEnhancedClaudeGuidance(osr, input);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Claude guidance timeout')), claudeTimeout);
+      });
+
+      const claudeGuidance = await Promise.race([claudePromise, timeoutPromise]);
       console.log(`🎯 [Guidance Generator] Enhanced Claude guidance generated (${Date.now() - startTime}ms)`);
       return claudeGuidance;
-    } catch (error) {
-      console.error('🎯 [Guidance Generator] Claude failed, using rule-based:', error);
+    } catch (error: any) {
+      if (error.message === 'Claude guidance timeout') {
+        console.warn(`🎯 [Guidance Generator] Claude timed out after 8s, using rule-based`);
+      } else {
+        console.error('🎯 [Guidance Generator] Claude failed, using rule-based:', error);
+      }
     }
   }
 
@@ -469,16 +480,20 @@ async function generateEnhancedClaudeGuidance(
   // Prepare concise OSR summary with anticipation data
   const osrSummary = prepareEnhancedOSRSummary(osr);
 
-  // RAG: Retrieve relevant PCA/PCP guidance
+  // RAG: Retrieve relevant PCA/PCP guidance (with timing)
   let retrievedContext = '';
+  const ragStart = Date.now();
   try {
     const ragResult = await getRelevantGuidance(osr);
+    const ragTime = Date.now() - ragStart;
     if (ragResult.chunks.length > 0) {
       retrievedContext = ragResult.context;
-      console.log(`🧠 [RAG] Retrieved ${ragResult.chunks.length} relevant chunks for guidance`);
+      console.log(`🧠 [RAG] Retrieved ${ragResult.chunks.length} chunks in ${ragTime}ms`);
+    } else {
+      console.log(`🧠 [RAG] No chunks retrieved (${ragTime}ms) - knowledge base may be empty`);
     }
   } catch (error) {
-    console.warn('🧠 [RAG] Failed to retrieve guidance:', error);
+    console.warn(`🧠 [RAG] Failed after ${Date.now() - ragStart}ms:`, error);
   }
 
   const prompt = `You are a master psychodynamic therapist generating precise therapeutic guidance for a voice AI therapist.
@@ -563,11 +578,15 @@ Generate therapeutic guidance in this exact JSON format:
 
 Be concise and clinically precise. Focus on the most therapeutically relevant guidance.`;
 
+  // Claude API call with timing
+  const claudeStart = Date.now();
+  console.log(`🤖 [Claude] Calling API...`);
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1200,
     messages: [{ role: 'user', content: prompt }]
   });
+  console.log(`🤖 [Claude] Response received in ${Date.now() - claudeStart}ms`);
 
   // Extract text content
   const content = response.content[0];
