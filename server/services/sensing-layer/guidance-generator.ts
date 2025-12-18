@@ -1,6 +1,7 @@
 // server/services/sensing-layer/guidance-generator.ts
 // Therapeutic Guidance Generator for the Sensing Layer
 // Uses Claude to generate context-aware therapeutic guidance
+// Enhanced with RAG (Retrieval-Augmented Generation) for PCA/PCP methodology
 
 import Anthropic from '@anthropic-ai/sdk';
 import {
@@ -15,6 +16,10 @@ import {
   GenerativeSymbolicInsight,
   AnticipationState
 } from './types';
+import {
+  getRelevantGuidance,
+  KnowledgeChunk
+} from './knowledge-base';
 
 // Initialize Anthropic client
 const anthropic = new Anthropic({
@@ -451,7 +456,7 @@ function calculateRuleBasedConfidence(osr: OrientationStateRegister): number {
 }
 
 /**
- * Generate enhanced guidance using Claude with anticipation and generative insight
+ * Generate enhanced guidance using Claude with anticipation, generative insight, and RAG
  */
 async function generateEnhancedClaudeGuidance(
   osr: OrientationStateRegister,
@@ -464,7 +469,20 @@ async function generateEnhancedClaudeGuidance(
   // Prepare concise OSR summary with anticipation data
   const osrSummary = prepareEnhancedOSRSummary(osr);
 
+  // RAG: Retrieve relevant PCA/PCP guidance
+  let retrievedContext = '';
+  try {
+    const ragResult = await getRelevantGuidance(osr);
+    if (ragResult.chunks.length > 0) {
+      retrievedContext = ragResult.context;
+      console.log(`🧠 [RAG] Retrieved ${ragResult.chunks.length} relevant chunks for guidance`);
+    }
+  } catch (error) {
+    console.warn('🧠 [RAG] Failed to retrieve guidance:', error);
+  }
+
   const prompt = `You are a master psychodynamic therapist generating precise therapeutic guidance for a voice AI therapist.
+${retrievedContext}
 
 CURRENT UTTERANCE:
 "${input.utterance}"
@@ -502,6 +520,7 @@ KEY PRINCIPLES:
 3. When timing is "ready" - Consider the suggested intervention as question/reflection
 4. Guide toward discovery, not delivery - User should find insight, not receive it
 5. Register movement matters - If stuck, guide movement
+6. Use the retrieved PCA/PCP guidance above to inform your recommendations (if any)
 
 Generate therapeutic guidance in this exact JSON format:
 {
