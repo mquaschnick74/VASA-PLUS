@@ -22,8 +22,19 @@ interface TranscriptData {
 
 interface AnalysisResult {
   analysisType: AnalysisType;
-  content?: string;        // User-visible content (ephemeral - not stored)
+  analysisId: string;      // ID for retrieving stored analysis
+  content?: string;        // Analysis content
   message?: string;        // Confirmation message for pca_master
+  createdAt?: string;      // Timestamp
+}
+
+interface StoredAnalysis {
+  id: string;
+  analysisType: AnalysisType;
+  analyzedSessions: string[];
+  sessionCount: number;
+  content: string;
+  createdAt: string;
 }
 
 interface SessionInfo {
@@ -71,20 +82,36 @@ export class UserAnalysisService {
     const processingTime = Date.now() - startTime;
     console.log(`✅ ${analysisType} analysis completed in ${processingTime}ms`);
 
-    // 4. For pca_master, store to therapeutic_context for agent injection
+    // 4. Get the session IDs that were analyzed
+    const analyzedSessionIds = sessionIds ||
+      (await this.getRecentSessionIds(userId, sessionCount || 3));
+
+    // 5. Store analysis to database (all types are now persistent)
+    const analysisId = await this.storeAnalysis(
+      userId,
+      analysisType,
+      analyzedSessionIds,
+      response.content
+    );
+
+    // 6. For pca_master, also store to therapeutic_context for agent injection
     if (analysisType === 'pca_master') {
       await this.storePCATherapeuticContext(userId, response.content);
 
       return {
         analysisType,
-        message: 'Analysis complete. Advanced insights are now enhancing your future sessions.'
+        analysisId,
+        message: 'Analysis complete. Advanced insights are now enhancing your future sessions.',
+        createdAt: new Date().toISOString()
       };
     }
 
-    // 5. For user-visible types, return content directly (ephemeral - not stored)
+    // 7. Return stored analysis with content
     return {
       analysisType,
-      content: response.content
+      analysisId,
+      content: response.content,
+      createdAt: new Date().toISOString()
     };
   }
 
@@ -411,6 +438,135 @@ ${t.text}
     } else {
       console.log(`💾 Stored PCA therapeutic context for agent injection`);
     }
+  }
+
+  /**
+   * Get recent session IDs for multi-session analyses
+   */
+  private async getRecentSessionIds(userId: string, limit: number): Promise<string[]> {
+    const { data: sessions } = await supabase
+      .from('therapeutic_sessions')
+      .select('call_id')
+      .eq('user_id', userId)
+      .not('duration_seconds', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    return sessions?.map(s => s.call_id) || [];
+  }
+
+  /**
+   * Store analysis to database (all types are now persistent)
+   */
+  private async storeAnalysis(
+    userId: string,
+    analysisType: AnalysisType,
+    sessionIds: string[],
+    content: string
+  ): Promise<string> {
+    const { data, error } = await supabase
+      .from('user_analyses')
+      .insert({
+        user_id: userId,
+        analysis_type: analysisType,
+        analyzed_sessions: sessionIds,
+        session_count: sessionIds.length,
+        content: content
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('❌ Error storing analysis:', error);
+      throw new Error('Failed to store analysis');
+    }
+
+    console.log(`💾 Stored ${analysisType} analysis with ID: ${data.id}`);
+    return data.id;
+  }
+
+  /**
+   * Get analysis history for a user
+   */
+  async getAnalysisHistory(
+    userId: string,
+    analysisType?: AnalysisType,
+    limit: number = 20
+  ): Promise<StoredAnalysis[]> {
+    let query = supabase
+      .from('user_analyses')
+      .select('id, analysis_type, analyzed_sessions, session_count, content, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (analysisType) {
+      query = query.eq('analysis_type', analysisType);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching analysis history:', error);
+      throw new Error('Failed to fetch analysis history');
+    }
+
+    return (data || []).map(row => ({
+      id: row.id,
+      analysisType: row.analysis_type as AnalysisType,
+      analyzedSessions: row.analyzed_sessions,
+      sessionCount: row.session_count,
+      content: row.content,
+      createdAt: row.created_at
+    }));
+  }
+
+  /**
+   * Get a specific analysis by ID
+   */
+  async getAnalysisById(userId: string, analysisId: string): Promise<StoredAnalysis | null> {
+    const { data, error } = await supabase
+      .from('user_analyses')
+      .select('id, analysis_type, analyzed_sessions, session_count, content, created_at')
+      .eq('user_id', userId)
+      .eq('id', analysisId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Not found
+      }
+      console.error('Error fetching analysis:', error);
+      throw new Error('Failed to fetch analysis');
+    }
+
+    return {
+      id: data.id,
+      analysisType: data.analysis_type as AnalysisType,
+      analyzedSessions: data.analyzed_sessions,
+      sessionCount: data.session_count,
+      content: data.content,
+      createdAt: data.created_at
+    };
+  }
+
+  /**
+   * Delete an analysis by ID
+   */
+  async deleteAnalysis(userId: string, analysisId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('user_analyses')
+      .delete()
+      .eq('user_id', userId)
+      .eq('id', analysisId);
+
+    if (error) {
+      console.error('Error deleting analysis:', error);
+      return false;
+    }
+
+    console.log(`🗑️ Deleted analysis ${analysisId}`);
+    return true;
   }
 }
 
