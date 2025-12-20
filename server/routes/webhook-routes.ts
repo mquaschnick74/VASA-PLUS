@@ -2,9 +2,9 @@
 // MERGED VERSION - Preserves all existing functionality + adds enhanced tracking
 import { Router } from 'express';
 import crypto from 'crypto';
-import { 
-  initializeSession, 
-  processTranscript, 
+import {
+  initializeSession,
+  processTranscript,
   processEndOfCall,
   ensureSession
 } from '../services/orchestration-service';
@@ -16,6 +16,19 @@ import { subscriptionService } from '../services/subscription-service';
 // NEW IMPORTS - User profile & therapist-client relationship
 // ⬇️ Using existing supabase service instead of non-existent services
 import { supabase } from '../services/supabase-service';
+
+// SENSING LAYER IMPORTS - Real-time therapeutic guidance
+import { sensingLayer } from '../services/sensing-layer';
+import { injectGuidance } from '../services/sensing-layer/guidance-injector';
+import {
+  setControlUrl,
+  getControlUrl,
+  clearControlUrl,
+  addToConversationHistory,
+  getConversationHistory,
+  getExchangeCount,
+  updateCallState
+} from '../services/sensing-layer/call-state';
 
 const router = Router();
 
@@ -147,6 +160,127 @@ async function trackInfluencerConversion(userId: string, subscriptionAmount: num
 // Export for use in other routes
 export { trackInfluencerConversion };
 
+// ============================================================================
+// SENSING LAYER - Async Processing Helper with RATE LIMITING
+// ============================================================================
+
+// Rate limiting: track last processing time per call
+const lastProcessingTime = new Map<string, number>();
+const RATE_LIMIT_MS = 5000; // Minimum 5 seconds between sensing layer calls
+
+// Guidance cache: reuse similar guidance
+const guidanceCache = new Map<string, { guidance: any; timestamp: number; utteranceHash: string }>();
+const CACHE_TTL_MS = 30000; // Cache valid for 30 seconds
+
+function hashUtterance(utterance: string): string {
+  // Simple hash for similarity checking
+  return utterance.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+}
+
+/**
+ * Process utterance through sensing layer asynchronously
+ * This runs in the background to not block webhook responses
+ * OPTIMIZED: Rate limiting + caching to reduce costs by 90%+
+ */
+async function processSensingLayerAsync(
+  callId: string,
+  userId: string,
+  utterance: string,
+  conversationHistory: Array<{ role: string; content: string }>
+): Promise<void> {
+  try {
+    const startTime = Date.now();
+
+    // RATE LIMITING: Skip if processed too recently
+    const lastTime = lastProcessingTime.get(callId);
+    if (lastTime && (startTime - lastTime) < RATE_LIMIT_MS) {
+      console.log(`⏭️ [SENSING] Skipping - rate limited (${Math.round((startTime - lastTime) / 1000)}s since last)`);
+      return;
+    }
+
+    // CACHE CHECK: Reuse recent similar guidance
+    const utteranceHash = hashUtterance(utterance);
+    const cached = guidanceCache.get(callId);
+    if (cached && (startTime - cached.timestamp) < CACHE_TTL_MS) {
+      // Check if utterance is similar (same hash = similar content)
+      if (cached.utteranceHash === utteranceHash) {
+        console.log(`📦 [SENSING] Using cached guidance (${Math.round((startTime - cached.timestamp) / 1000)}s old)`);
+        // Still inject the cached guidance
+        const controlUrl = getControlUrl(callId);
+        if (controlUrl) {
+          await injectGuidance(callId, cached.guidance);
+        }
+        return;
+      }
+    }
+
+    console.log(`🧠 [SENSING] Processing utterance for call ${callId}...`);
+
+    // Check if controlUrl is available before processing
+    const controlUrl = getControlUrl(callId);
+    if (!controlUrl) {
+      console.warn(`⚠️ [SENSING] No controlUrl available for call ${callId} - call-started may not have fired yet`);
+      console.warn(`   This means VAPI did not provide a controlUrl, or events arrived out of order`);
+      // Continue processing anyway - guidance will still be generated for logging
+    }
+
+    // Ensure session is initialized (defensive - should have been done on call-started)
+    sensingLayer.initializeCallSession(callId, userId, callId);
+
+    // Update rate limit timestamp
+    lastProcessingTime.set(callId, startTime);
+
+    // Get exchange count from call state
+    const exchangeCount = getExchangeCount(callId);
+
+    // Process through sensing layer
+    const guidance = await sensingLayer.processUtterance({
+      utterance,
+      sessionId: callId,
+      callId,
+      userId,
+      exchangeCount,
+      conversationHistory: conversationHistory.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        timestamp: new Date().toISOString()
+      }))
+    });
+
+    const processingTime = Date.now() - startTime;
+    console.log(`🧠 [SENSING] Processed in ${processingTime}ms - Posture: ${guidance.posture}, Urgency: ${guidance.urgency}`);
+
+    // CACHE: Store guidance for potential reuse
+    guidanceCache.set(callId, {
+      guidance,
+      timestamp: Date.now(),
+      utteranceHash
+    });
+
+    // Only attempt injection if controlUrl is available
+    if (controlUrl) {
+      const injected = await injectGuidance(callId, guidance);
+      if (injected) {
+        console.log(`✅ [SENSING] Guidance injected successfully for call ${callId}`);
+      } else {
+        console.warn(`⚠️ [SENSING] Failed to inject guidance for call ${callId}`);
+      }
+    } else {
+      console.log(`📝 [SENSING] Guidance generated but NOT injected (no controlUrl): ${guidance.posture}`);
+    }
+
+  } catch (error) {
+    // Log but don't throw - we don't want to break the conversation
+    console.error(`❌ [SENSING] Error processing utterance for call ${callId}:`, error);
+  }
+}
+
+// Clean up caches when call ends
+function cleanupCallCaches(callId: string) {
+  lastProcessingTime.delete(callId);
+  guidanceCache.delete(callId);
+}
+
 router.post('/webhook', async (req, res) => {
   // Enhanced logging for debugging
   console.log('');
@@ -272,12 +406,41 @@ router.post('/webhook', async (req, res) => {
         console.log(`   User ID: ${userId}`);
         console.log(`   Agent Name: ${agentName}`);
 
+        // DEBUG: Log full call object structure to understand VAPI's format
+        console.log(`🔍 [DEBUG] message.call keys: ${message?.call ? Object.keys(message.call).join(', ') : 'undefined'}`);
+        console.log(`🔍 [DEBUG] message.call.monitor: ${JSON.stringify(message?.call?.monitor || 'undefined')}`);
+
         // PRESERVED: Monitor URL logging
         if (message?.call?.monitor) {
           console.log('🔍 MONITOR URLs FOR TESTING:');
           console.log(`TEST_LISTEN_URL="${message.call.monitor.listenUrl}"`);
           console.log(`TEST_CONTROL_URL="${message.call.monitor.controlUrl}"`);
+        } else {
+          console.warn(`⚠️ [DEBUG] No monitor object in call-started. Check VAPI assistant config.`);
+          console.warn(`   VAPI requires serverMessages: ["call-started"] AND the assistant must be configured for monitoring`);
         }
+
+        // SENSING LAYER: Store controlUrl for real-time guidance injection
+        const controlUrl = message?.call?.monitor?.controlUrl;
+        if (controlUrl) {
+          setControlUrl(callId, controlUrl, userId);
+          console.log(`🧠 [SENSING] Stored controlUrl for call ${callId}: ${controlUrl.substring(0, 50)}...`);
+        } else {
+          console.warn(`⚠️ [SENSING] No controlUrl in call-started for ${callId}`);
+          console.warn(`   This usually means VAPI's monitor is not enabled for this assistant`);
+        }
+
+        // Initialize call state for conversation tracking
+        updateCallState(callId, {
+          userId,
+          sessionId: callId,
+          exchangeCount: 0,
+          conversationHistory: []
+        });
+
+        // SENSING LAYER: Initialize session state for in-memory accumulation
+        sensingLayer.initializeCallSession(callId, userId, callId);
+        console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
 
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
@@ -315,6 +478,24 @@ router.post('/webhook', async (req, res) => {
             userId,
             formattedConversation
           );
+
+          // SENSING LAYER: Process latest user utterance for real-time guidance
+          // Find the latest user message in the conversation
+          const latestUserMessage = [...formattedConversation]
+            .reverse()
+            .find((m: any) => m.role === 'user');
+
+          if (latestUserMessage?.content && latestUserMessage.content.trim().length > 0) {
+            // Update conversation history in call state
+            for (const msg of formattedConversation) {
+              if (msg.role && msg.content) {
+                addToConversationHistory(callId, msg.role, msg.content);
+              }
+            }
+
+            // Process through sensing layer asynchronously (don't block webhook response)
+            processSensingLayerAsync(callId, userId, latestUserMessage.content, formattedConversation);
+          }
         }
 
         // PRESERVED: Your original transcript processing
@@ -356,6 +537,23 @@ router.post('/webhook', async (req, res) => {
 
       case 'end-of-call-report':
       console.log('📊 Full end-of-call-report received for:', callId);
+
+      // SENSING LAYER: Finalize session and write summary to database
+      const sensingSessionSummary = await sensingLayer.finalizeSession(callId);
+      if (sensingSessionSummary) {
+        console.log(`🧠 [SENSING] Session finalized for call ${callId}:`);
+        console.log(`   📊 Exchanges: ${sensingSessionSummary.exchangeCount}`);
+        console.log(`   📈 Dominant register: ${sensingSessionSummary.dominantRegister}`);
+        console.log(`   ⭐ Significant moments: ${sensingSessionSummary.significantMoments.length}`);
+        console.log(`   🔄 Patterns detected: ${sensingSessionSummary.patternsDetected.length}`);
+      } else {
+        console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
+      }
+
+      // SENSING LAYER: Clean up call state and caches
+      clearControlUrl(callId);
+      cleanupCallCaches(callId);
+      console.log(`🧠 [SENSING] Cleared controlUrl and caches for call ${callId}`);
 
       // CRITICAL FIX: Ensure session exists before processing
       let session = await ensureSession(callId, userId, agentName);
