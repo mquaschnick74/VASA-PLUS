@@ -197,7 +197,7 @@ ${SESSION_CONTINUITY}`,
   {
     id: 'mathew',
     name: 'Mathew',
-    description: 'Direct and perceptive',
+    description: 'Direct and perceptive: No hand-holding here',
     icon: '👨🏻‍💼',
     image: '/agents/mathew.jpg',
     color: 'blue',
