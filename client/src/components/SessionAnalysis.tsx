@@ -22,7 +22,10 @@ import {
   CheckCircle,
   Info,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  History,
+  Trash2,
+  Eye
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import ReactMarkdown from 'react-markdown';
@@ -54,6 +57,14 @@ interface AnalysisResult {
   content?: string;
   message?: string;
   createdAt?: string;
+}
+
+interface HistoryItem {
+  id: string;
+  analysisType: AnalysisType;
+  sessionCount: number;
+  content: string;
+  createdAt: string;
 }
 
 const ANALYSIS_TYPES: AnalysisTypeOption[] = [
@@ -99,6 +110,12 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
   const [error, setError] = useState<string | null>(null);
   const [showContent, setShowContent] = useState(true);
 
+  // History state
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [viewingHistoryItem, setViewingHistoryItem] = useState<HistoryItem | null>(null);
+
   // Get current type config
   const currentTypeConfig = ANALYSIS_TYPES.find(t => t.value === selectedType)!;
 
@@ -141,6 +158,57 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
       setError('Unable to load sessions. Please try again.');
     } finally {
       setIsLoadingSessions(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    setIsLoadingHistory(true);
+
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch('/api/analysis/history?limit=20', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load history');
+      }
+
+      const data = await response.json();
+      setHistory(data.data || []);
+    } catch (err: any) {
+      console.error('Error loading history:', err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const deleteHistoryItem = async (analysisId: string) => {
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) return;
+
+      const response = await fetch(`/api/analysis/${analysisId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setHistory(prev => prev.filter(item => item.id !== analysisId));
+        if (viewingHistoryItem?.id === analysisId) {
+          setViewingHistoryItem(null);
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting analysis:', err);
     }
   };
 
@@ -191,6 +259,11 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
         message: data.data.message,
         createdAt: new Date().toISOString()
       });
+
+      // Reload history if it's open
+      if (showHistory) {
+        loadHistory();
+      }
 
     } catch (err: any) {
       console.error('Analysis error:', err);
@@ -328,13 +401,12 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
           </div>
         )}
 
-        {/* Ephemeral Notice - for user-visible types */}
+        {/* Saved Notice - analyses are now persistent */}
         {selectedType !== 'pca_master' && (
-          <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-700">
-            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
-              <strong>Note:</strong> This analysis is generated on-demand and not saved.
-              Copy or screenshot any insights you want to keep.
+          <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700">
+            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
+              <strong>Note:</strong> Your analysis will be saved and accessible in your history.
             </AlertDescription>
           </Alert>
         )}
@@ -431,7 +503,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
         )}
 
         {/* Help Text - Show when no analysis has been run */}
-        {!result && !error && !isAnalyzing && (
+        {!result && !error && !isAnalyzing && !viewingHistoryItem && (
           <div className="text-sm text-muted-foreground pt-2">
             <p className="font-medium mb-2">Analysis Types:</p>
             <ul className="space-y-1 ml-2">
@@ -440,6 +512,119 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
               <li><strong>Concept Insights:</strong> Key mental models and takeaways</li>
               <li><strong>Advanced Analysis:</strong> Deep pattern analysis (enhances future sessions)</li>
             </ul>
+          </div>
+        )}
+
+        {/* History Section */}
+        <div className="border-t pt-4 mt-4">
+          <button
+            onClick={() => {
+              setShowHistory(!showHistory);
+              if (!showHistory && history.length === 0) {
+                loadHistory();
+              }
+            }}
+            className="flex items-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+          >
+            <History className="h-4 w-4" />
+            <span>Analysis History</span>
+            {showHistory ? (
+              <ChevronUp className="h-4 w-4 ml-auto" />
+            ) : (
+              <ChevronDown className="h-4 w-4 ml-auto" />
+            )}
+          </button>
+
+          {showHistory && (
+            <div className="mt-4 space-y-3">
+              {isLoadingHistory ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading history...
+                </div>
+              ) : history.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-3">
+                  No analyses yet. Run an analysis to see it here.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {history.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700"
+                    >
+                      <div className="flex items-center gap-3">
+                        {getIconForType(item.analysisType)}
+                        <div>
+                          <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            {ANALYSIS_TYPES.find(t => t.value === item.analysisType)?.label || item.analysisType}
+                          </div>
+                          <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {new Date(item.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })}
+                            {' · '}
+                            {item.sessionCount} session{item.sessionCount !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {item.analysisType !== 'pca_master' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewingHistoryItem(item)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteHistoryItem(item.id)}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Viewing History Item */}
+        {viewingHistoryItem && (
+          <div className="border-t pt-4 mt-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                {getIconForType(viewingHistoryItem.analysisType)}
+                <span className="font-medium">
+                  {ANALYSIS_TYPES.find(t => t.value === viewingHistoryItem.analysisType)?.label}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(viewingHistoryItem.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewingHistoryItem(null)}
+              >
+                Close
+              </Button>
+            </div>
+            <div className="border-2 border-zinc-300 dark:border-zinc-600 rounded-lg p-6 bg-white dark:bg-zinc-900">
+              <div className="prose prose-zinc dark:prose-invert max-w-none prose-headings:text-zinc-900 dark:prose-headings:text-zinc-100 prose-p:text-zinc-700 dark:prose-p:text-zinc-300 prose-li:text-zinc-700 dark:prose-li:text-zinc-300 prose-strong:text-zinc-900 dark:prose-strong:text-zinc-100">
+                <ReactMarkdown>{viewingHistoryItem.content}</ReactMarkdown>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

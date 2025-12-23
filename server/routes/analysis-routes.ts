@@ -160,6 +160,144 @@ router.post('/run', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * GET /api/analysis/history
+ * Get analysis history for the authenticated user
+ * Query params:
+ *   - type?: 'session_summary' | 'intent_analysis' | 'concept_insights' | 'pca_master'
+ *   - limit?: number (default 20)
+ */
+router.get('/history', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const authUserEmail = req.user?.email;
+    if (!authUserEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userId = await getUserProfileId(authUserEmail);
+    if (!userId) {
+      return res.status(403).json({ error: 'User profile not found' });
+    }
+
+    const analysisType = req.query.type as AnalysisType | undefined;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    // Validate type if provided
+    if (analysisType && !VALID_ANALYSIS_TYPES.includes(analysisType)) {
+      return res.status(400).json({
+        error: 'Invalid analysis type',
+        message: `type must be one of: ${VALID_ANALYSIS_TYPES.join(', ')}`
+      });
+    }
+
+    const service = await getAnalysisService();
+    const history = await service.getAnalysisHistory(userId, analysisType, limit);
+
+    res.json({
+      success: true,
+      count: history.length,
+      data: history
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error fetching analysis history:', error);
+    res.status(500).json({
+      error: 'Failed to fetch analysis history',
+      message: error.message || 'An unexpected error occurred'
+    });
+  }
+});
+
+/**
+ * GET /api/analysis/:id
+ * Get a specific analysis by ID
+ */
+router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const authUserEmail = req.user?.email;
+    if (!authUserEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userId = await getUserProfileId(authUserEmail);
+    if (!userId) {
+      return res.status(403).json({ error: 'User profile not found' });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Analysis ID is required' });
+    }
+
+    const service = await getAnalysisService();
+    const analysis = await service.getAnalysisById(userId, id);
+
+    if (!analysis) {
+      return res.status(404).json({
+        error: 'Analysis not found',
+        message: 'The requested analysis could not be found or does not belong to this user.'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: analysis
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error fetching analysis:', error);
+    res.status(500).json({
+      error: 'Failed to fetch analysis',
+      message: error.message || 'An unexpected error occurred'
+    });
+  }
+});
+
+/**
+ * DELETE /api/analysis/:id
+ * Delete a specific analysis by ID
+ */
+router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const authUserEmail = req.user?.email;
+    if (!authUserEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userId = await getUserProfileId(authUserEmail);
+    if (!userId) {
+      return res.status(403).json({ error: 'User profile not found' });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Analysis ID is required' });
+    }
+
+    const service = await getAnalysisService();
+    const deleted = await service.deleteAnalysis(userId, id);
+
+    if (!deleted) {
+      return res.status(404).json({
+        error: 'Analysis not found or could not be deleted',
+        message: 'The requested analysis could not be found or does not belong to this user.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Analysis deleted successfully'
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error deleting analysis:', error);
+    res.status(500).json({
+      error: 'Failed to delete analysis',
+      message: error.message || 'An unexpected error occurred'
+    });
+  }
+});
+
 // ============================================================================
 // LEGACY PCA ROUTES (kept for backward compatibility)
 // These routes maintain the existing /api/analysis/pca-master endpoints
