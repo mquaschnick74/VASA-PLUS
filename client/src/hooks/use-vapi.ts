@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { TherapeuticAgent } from '../config/agent-configs';
+import { TherapeuticAgent, FIRST_SESSION_INTRODUCTION } from '../config/agent-configs';
 
 interface OnboardingData {
   voice: string;
@@ -278,8 +278,11 @@ ${memoryContext}
 IMPORTANT: Reference the above context naturally in conversation when relevant.
 Do not make up or hallucinate any details not explicitly mentioned above.`;
       } else if (!lastSessionSummary) {
-        // Only add this if we don't have a last session summary
-        systemPrompt += '\n\nThis is your first session with this user. Get to know them gently.';
+        // FIRST SESSION: Inject the first session introduction talk track
+        // This gives the agent a specific opening script to use
+        const firstSessionIntro = FIRST_SESSION_INTRODUCTION.replace(/\{firstName\}/g, firstName);
+        systemPrompt += `\n\n${firstSessionIntro}`;
+        console.log('🎬 [VAPI] First session detected - injecting introduction script');
       }
 
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
