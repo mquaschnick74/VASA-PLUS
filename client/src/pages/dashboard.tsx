@@ -17,6 +17,9 @@ import AdminDashboard from '@/pages/admin-dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout, withTimeout } from '@/lib/auth-helpers';
 
+// Feature flag: Set VITE_REQUIRE_ASSESSMENT=false to skip assessment for new users
+const ASSESSMENT_REQUIRED = import.meta.env.VITE_REQUIRE_ASSESSMENT !== 'false';
+
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userType, setUserType] = useState<string>('individual');
@@ -430,11 +433,13 @@ export default function Dashboard() {
       // STEP 3: After consent check, check assessment using user_profiles.assessment_completed_at
       // Note: We check user_profiles instead of assessment_results to avoid RLS issues
       // The assessment_completed_at field is set when assessment is saved successfully
-      if (!profile?.assessment_completed_at) {
-        console.log('📋 [DASHBOARD] No assessment found, showing assessment modal');
+      // Feature flag: VITE_REQUIRE_ASSESSMENT controls whether assessment is mandatory
+      if (ASSESSMENT_REQUIRED && !profile?.assessment_completed_at) {
+        console.log('📋 [DASHBOARD] Assessment required but not found, showing assessment modal');
         setShowAssessmentModal(true);
       } else {
-        console.log('✅ [DASHBOARD] Assessment already completed at:', profile.assessment_completed_at);
+        console.log('✅ [DASHBOARD] Assessment check passed:',
+          ASSESSMENT_REQUIRED ? `completed at ${profile.assessment_completed_at}` : 'not required');
         setAssessmentChecked(true);
       }
     };
@@ -459,13 +464,15 @@ export default function Dashboard() {
       .eq('id', userId)
       .single();
 
-    // If assessment not completed, show modal
-    if (!profile?.assessment_completed_at) {
-      console.log('📋 [DASHBOARD] Showing assessment iframe');
+    // If assessment required and not completed, show modal
+    // Feature flag: VITE_REQUIRE_ASSESSMENT controls whether assessment is mandatory
+    if (ASSESSMENT_REQUIRED && !profile?.assessment_completed_at) {
+      console.log('📋 [DASHBOARD] Assessment required, showing assessment iframe');
       setShowAssessmentModal(true);
     } else {
-      // If assessment already completed, proceed to dashboard
-      console.log('✅ [DASHBOARD] Assessment completed at:', profile.assessment_completed_at);
+      // Assessment completed or not required - proceed to dashboard
+      console.log('✅ [DASHBOARD] Proceeding to dashboard:',
+        ASSESSMENT_REQUIRED ? `assessment completed at ${profile?.assessment_completed_at}` : 'assessment not required');
       setAssessmentChecked(true);
     }
   };

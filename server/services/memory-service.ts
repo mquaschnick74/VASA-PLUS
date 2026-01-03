@@ -424,6 +424,14 @@ export async function buildMemoryContext(userId: string): Promise<string> {
         }
         memoryContext += `This provides foundational context for your ongoing work together.\n\n`;
       }
+    } else {
+      // No assessment completed - provide guidance for first session without assessment data
+      const isFirstSession = !sessions || sessions.length === 0;
+      if (isFirstSession) {
+        memoryContext += `\n📋 Note: ${userName} has not completed an initial assessment. `;
+        memoryContext += `Take time to explore their concerns naturally during this session. `;
+        memoryContext += `Listen for patterns, contradictions, and recurring themes as they share.\n\n`;
+      }
     }
     auditSizes['assessment_data'] = memoryContext.length - preAssessmentLen;
 
