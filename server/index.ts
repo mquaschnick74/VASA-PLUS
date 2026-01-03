@@ -55,11 +55,23 @@ app.use(express.json({ limit: '10mb' }));  // Increased from default 100kb
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Redirect ivasa.ai to beta.ivasa.ai
+// IMPORTANT: Skip redirects for webhook endpoints - Stripe/VAPI don't follow redirects
 app.use((req, res, next) => {
   const host = req.get('host');
+  const path = req.path;
 
-  // Check if request is coming to ivasa.ai (with or without www)
-  if (host === 'ivasa.ai' || host === 'www.ivasa.ai') {
+  // NEVER redirect webhook endpoints - external services like Stripe don't follow redirects
+  // They expect a direct 2xx response from the webhook URL
+  if (path.includes('/stripe-webhook') ||
+      path.includes('/stripe/webhook') ||
+      path.includes('/vapi/webhook')) {
+    console.log(`🔓 Webhook request detected at ${path} - skipping redirect`);
+    return next();
+  }
+
+  // Check if request is coming to ivasa.ai or ivasa-ai.com (with or without www)
+  if (host === 'ivasa.ai' || host === 'www.ivasa.ai' ||
+      host === 'ivasa-ai.com' || host === 'www.ivasa-ai.com') {
     const redirectUrl = `https://beta.ivasa.ai${req.originalUrl}`;
     console.log(`🔀 Redirecting ${host} to beta.ivasa.ai`);
     return res.redirect(301, redirectUrl);
