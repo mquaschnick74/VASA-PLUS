@@ -241,7 +241,7 @@ ${SESSION_CONTINUITY}`,
       model: 'eleven_flash_v2_5',
       stability: 0.9,
       similarityBoost: 0.85,
-      speed: 1.5,
+      speed: 1.2,
       useSpeakerBoost: true
     },
     systemPrompt: `Your name is Mathew. You're cerebral and direct. You can hold complexity - you see the layers, the contradictions, the things that don't quite add up - and you name them plainly without softening or over-explaining.
