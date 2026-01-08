@@ -405,8 +405,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           timeoutSeconds: 20,  // This is for webhook timeout, not call duration
           secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
         },
-        firstMessage: null,  // MUST be null, not undefined or omitted
-        firstMessageMode: "assistant-speaks-first-with-model-generated-message",
+        firstMessage: null,  // MUST be null for model-generated first message
+        firstMessageMode: "assistant-speaks-first",  // With null firstMessage, model will generate greeting
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
@@ -436,7 +436,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       console.log('⚠️ Configuration checks:');
       console.log('  - VAPI Public Key:', import.meta.env.VITE_VAPI_PUBLIC_KEY ? '✅ Set' : '❌ Missing');
       console.log('  - Webhook URL:', serverUrl);
-      console.log('  - First Message Mode:', assistantConfig.firstMessageMode);
+      console.log('  - First Message Mode:', assistantConfig.firstMessageMode, '(with null firstMessage = model-generated)');
       console.log('  - Model:', assistantConfig.model.model);
 
       try {
