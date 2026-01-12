@@ -414,9 +414,21 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-6">
-              <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
-              <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
-              <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Guide.</p>
+              <p className="text-emerald-500 text-xl md:text-2xl lg:text-3xl font-bold leading-tight">
+                Your Voice. Your Journey. Your AI Therapeutic Guide.
+              </p>
+
+              {/* YouTube Video Player */}
+              <div className="w-full max-w-lg mx-auto aspect-video rounded-xl overflow-hidden shadow-lg">
+                <iframe
+                  className="w-full h-full"
+                  src="https://www.youtube.com/embed/VIDEO_ID_HERE"
+                  title="iVASA Introduction"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+
               <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
