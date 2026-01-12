@@ -422,7 +422,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               <div className="w-full max-w-lg mx-auto aspect-video rounded-xl overflow-hidden shadow-lg">
                 <iframe
                   className="w-full h-full"
-                  src="https://www.youtube.com/embed/VIDEO_ID_HERE"
+                  src="https://www.youtube.com/embed/9gPCGf9XPCo"
                   title="iVASA Introduction"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
