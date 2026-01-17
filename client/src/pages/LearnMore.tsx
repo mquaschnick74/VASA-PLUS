@@ -28,21 +28,21 @@ export default function LearnMore() {
     {
       title: "Meditation Library",
       description: "Guided meditations for relaxation and mindfulness",
-      icon: <Music className="w-8 h-8 text-emerald-400" />,
+      icon: <Music className="w-8 h-8 text-purple-400" />,
       path: "/meditations",
       count: "6 meditations"
     },
     {
       title: "Blog",
       description: "Articles and insights on therapeutic voice analysis",
-      icon: <BookOpen className="w-8 h-8 text-emerald-400" />,
+      icon: <BookOpen className="w-8 h-8 text-purple-400" />,
       path: "/blog",
       count: "Latest articles"
     },
     {
       title: "Video Library",
       description: "Educational videos and practice sessions",
-      icon: <Video className="w-8 h-8 text-emerald-400" />,
+      icon: <Video className="w-8 h-8 text-purple-400" />,
       path: "/videos",
       count: "3 videos"
     }
@@ -57,7 +57,7 @@ export default function LearnMore() {
         <Button
           variant="ghost"
           onClick={() => setLocation(isLoggedIn ? '/dashboard' : '/')}
-          className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10"
+          className="mb-6 text-purple-200 hover:text-white hover:bg-purple-500/10"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           {isLoggedIn ? 'Back to Dashboard' : 'Back to Main Page'}
@@ -73,7 +73,7 @@ export default function LearnMore() {
             Need help? Check out our{" "}
             <span
               onClick={() => setLocation('/faq')}
-              className="text-emerald-400 hover:text-emerald-300 cursor-pointer underline"
+              className="text-purple-400 hover:text-purple-300 cursor-pointer underline"
             >
               FAQ page
             </span>
@@ -90,10 +90,10 @@ export default function LearnMore() {
             >
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
                     {resource.icon}
                   </div>
-                  <ChevronRight className="w-5 h-5 text-purple-300 group-hover:text-emerald-400 transition-colors" />
+                  <ChevronRight className="w-5 h-5 text-purple-300 group-hover:text-purple-400 transition-colors" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -104,7 +104,7 @@ export default function LearnMore() {
                   {resource.description}
                 </CardDescription>
                 {resource.count && (
-                  <span className="text-sm text-emerald-400 font-medium">
+                  <span className="text-sm text-purple-400 font-medium">
                     {resource.count}
                   </span>
                 )}

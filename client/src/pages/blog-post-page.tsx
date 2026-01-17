@@ -62,7 +62,7 @@ function markdownToHtml(markdown: string): string {
   html = html.replace(/\*(.+?)\*/g, '<em class="italic">$1</em>');
 
   // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-emerald-400 hover:text-emerald-300 underline" target="_blank" rel="noopener noreferrer">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-purple-400 hover:text-purple-300 underline" target="_blank" rel="noopener noreferrer">$1</a>');
 
   // Bullet points
   html = html.replace(/^\- (.+)$/gim, '<li class="ml-6 mb-2">$1</li>');
@@ -299,7 +299,7 @@ export default function BlogPostPage() {
                   href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(`https://beta.ivasa.ai/blog/${post.slug}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white hover:text-emerald-400"
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white hover:text-purple-400"
                   title="Share on X (Twitter)"
                 >
                   <XIcon className="w-4 h-4" />

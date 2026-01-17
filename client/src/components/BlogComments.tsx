@@ -242,7 +242,7 @@ export default function BlogComments({ slug }: BlogCommentsProps) {
           <Button
             type="submit"
             disabled={submitting}
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-purple-600 hover:bg-purple-700"
           >
             <Send className="w-4 h-4 mr-2" />
             {submitting ? "Posting..." : "Post Comment"}
@@ -312,7 +312,7 @@ export default function BlogComments({ slug }: BlogCommentsProps) {
                         onClick={() => submitReply(comment.id)}
                         disabled={submitting}
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700"
+                        className="bg-purple-600 hover:bg-purple-700"
                       >
                         <Send className="w-3 h-3 mr-1" />
                         Reply

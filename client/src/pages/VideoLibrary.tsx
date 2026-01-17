@@ -92,12 +92,12 @@ export default function VideoLibrary() {
 
       <div className="max-w-5xl mx-auto py-12 px-4">
         {/* Smart Back Button - shows Dashboard or Resources based on auth */}
-        <SmartBackButton className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10" />
+        <SmartBackButton className="mb-6 text-purple-200 hover:text-white hover:bg-purple-500/10" />
 
         {/* Header Section */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 mb-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-            <PlayCircle className="w-8 h-8 text-emerald-400" />
+          <div className="inline-flex items-center justify-center p-3 mb-4 rounded-lg bg-purple-500/10 border border-purple-500/30">
+            <PlayCircle className="w-8 h-8 text-purple-400" />
           </div>
           <h1 className="text-5xl font-bold text-white mb-4">Video Library</h1>
           <p className="text-xl text-purple-200">
@@ -115,7 +115,7 @@ export default function VideoLibrary() {
               onClick={() => setActiveCategory(category)}
               className={
                 activeCategory === category
-                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30"
+                  ? "bg-purple-500/20 border-purple-500/50 text-purple-400 hover:bg-purple-500/30"
                   : "bg-transparent border-white/20 text-purple-200 hover:bg-white/10 hover:border-white/30"
               }
             >
@@ -154,7 +154,7 @@ export default function VideoLibrary() {
                   <div className="flex items-center justify-between">
                     <Badge
                       variant="outline"
-                      className="border-emerald-500/30 text-emerald-400"
+                      className="border-purple-500/30 text-purple-400"
                     >
                       {video.category}
                     </Badge>

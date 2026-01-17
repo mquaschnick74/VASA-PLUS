@@ -125,7 +125,7 @@ export default function EmailPreferencesSettings({ userId }: EmailPreferencesSet
       <Card className="glass border-white/10">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-emerald-500" />
+            <Mail className="h-5 w-5 text-purple-500" />
             <CardTitle>Weekly Therapeutic Recaps</CardTitle>
           </div>
           <CardDescription>
@@ -135,8 +135,8 @@ export default function EmailPreferencesSettings({ userId }: EmailPreferencesSet
         <CardContent className="space-y-6">
           {/* Success/Error Messages */}
           {saveSuccess && (
-            <Alert className="bg-emerald-500/10 border-emerald-500/30">
-              <AlertDescription className="text-emerald-400">
+            <Alert className="bg-purple-500/10 border-purple-500/30">
+              <AlertDescription className="text-purple-400">
                 ✓ Preferences saved successfully
               </AlertDescription>
             </Alert>

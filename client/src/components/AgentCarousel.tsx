@@ -202,7 +202,7 @@ export default function AgentCarousel() {
 
       {/* Agent Bio Modal */}
       <Dialog open={selectedAgent !== null} onOpenChange={(open) => !open && setSelectedAgent(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass-strong border-2 border-emerald-500/30">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass-strong border-2 border-purple-500/30">
           {selectedAgent && (
             <div className="space-y-6">
               {/* Agent Header with Photo */}
@@ -241,7 +241,7 @@ export default function AgentCarousel() {
                 </p>
                 <button
                   onClick={() => setSelectedAgent(null)}
-                  className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-emerald-500 text-white font-medium hover:shadow-lg hover:shadow-emerald-500/30 transition-all"
+                  className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-purple-500 text-white font-medium hover:shadow-lg hover:shadow-purple-500/30 transition-all"
                 >
                   Begin Session
                 </button>

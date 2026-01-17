@@ -109,7 +109,7 @@ export default function AccountSettings({ userId, setUserId, userType }: Account
       <Card className="glass border-white/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-emerald-500" />
+            <User className="h-5 w-5 text-purple-500" />
             Profile Information
           </CardTitle>
           <CardDescription>

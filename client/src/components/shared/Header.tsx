@@ -66,7 +66,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
             {isLoggedIn && showDashboardLink && (
               <Button
                 variant="ghost"
-                className="text-sm hidden sm:inline-flex backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                className="text-sm hidden sm:inline-flex backdrop-filter backdrop-blur-md bg-transparent border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all"
                 onClick={() => setLocation('/dashboard')}
               >
                 Dashboard
@@ -79,7 +79,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                    className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all"
                     data-testid="button-settings"
                   >
                     <Settings className="h-4 w-4 mr-2" />
@@ -90,7 +90,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                   align="end"
                   className="w-56 glass-strong border-white/10 backdrop-blur-xl"
                 >
-                  <DropdownMenuLabel className="text-emerald-500/80">
+                  <DropdownMenuLabel className="text-purple-500/80">
                     <User className="h-4 w-4 inline mr-2" />
                     {userType ? userType.charAt(0).toUpperCase() + userType.slice(1) : 'User'} Menu
                   </DropdownMenuLabel>
@@ -98,7 +98,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
 
                   <DropdownMenuItem
                     onClick={() => setLocation('/settings')}
-                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                    className="cursor-pointer hover:bg-purple-500/10 focus:bg-purple-500/10"
                   >
                     <Settings className="h-4 w-4 mr-2" />
                     Settings
@@ -108,7 +108,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
 
                   <DropdownMenuItem
                     onClick={() => setLocation('/learn-more')}
-                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                    className="cursor-pointer hover:bg-purple-500/10 focus:bg-purple-500/10"
                   >
                     <BookOpen className="h-4 w-4 mr-2" />
                     Learn More
@@ -116,7 +116,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
 
                   <DropdownMenuItem
                     onClick={() => setLocation('/pricing')}
-                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                    className="cursor-pointer hover:bg-purple-500/10 focus:bg-purple-500/10"
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
                     Pricing
@@ -124,7 +124,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
 
                   <DropdownMenuItem
                     onClick={() => setLocation('/faq')}
-                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                    className="cursor-pointer hover:bg-purple-500/10 focus:bg-purple-500/10"
                     data-testid="menu-item-faq"
                   >
                     <HelpCircle className="h-4 w-4 mr-2" />
@@ -149,7 +149,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
-                  className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                  className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all"
                   onClick={() => setLocation('/public-pricing')}
                 >
                   <CreditCard className="h-4 w-4 mr-2" />
@@ -157,7 +157,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                 </Button>
                 <Button
                   variant="ghost"
-                  className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                  className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all"
                   onClick={() => setLocation('/learn-more')}
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
@@ -169,7 +169,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                 {!hideSignInButton && (
                   <Button
                     variant="ghost"
-                    className="text-sm backdrop-filter backdrop-blur-md bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-500/60 hover:bg-emerald-500/15 shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all"
+                    className="text-sm backdrop-filter backdrop-blur-md bg-purple-500/10 border border-purple-500/40 hover:border-purple-500/60 hover:bg-purple-500/15 shadow-[0_0_15px_rgba(0,208,98,0.2)] transition-all"
                     onClick={() => setLocation('/')}
                   >
                     Sign In

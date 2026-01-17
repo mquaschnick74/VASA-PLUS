@@ -117,7 +117,7 @@ export default function PublicPricing() {
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Plan
           </h1>
-          <p className="text-lg max-w-2xl mx-auto text-emerald-400 font-medium">
+          <p className="text-lg max-w-2xl mx-auto text-purple-400 font-medium">
             AI-powered therapeutic conversations tailored to your needs. Start with a 30-day free trial.
           </p>
         </div>
@@ -144,7 +144,7 @@ export default function PublicPricing() {
 
         {/* Featured Free Account Card */}
         <div className="max-w-4xl mx-auto mb-12 pt-6">
-          <Card className="glass border-2 border-emerald-500/50 relative" style={{
+          <Card className="glass border-2 border-purple-500/50 relative" style={{
             borderImage: 'linear-gradient(to right, rgb(16 185 129 / 0.5) 0%, rgb(16 185 129 / 0.5) 35%, rgb(245 158 11 / 0.7) 45%, rgb(245 158 11 / 0.7) 55%, rgb(16 185 129 / 0.5) 65%, rgb(16 185 129 / 0.5) 100%) 1'
           }}>
             <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
@@ -161,41 +161,41 @@ export default function PublicPricing() {
               <CardTitle className="text-3xl">Free Account</CardTitle>
               <CardDescription className="text-lg">Try iVASA risk-free - no credit card required</CardDescription>
               <div className="mt-4">
-                <span className="text-5xl font-bold text-emerald-400">$0</span>
+                <span className="text-5xl font-bold text-purple-400">$0</span>
                 <span className="text-muted-foreground ml-2">for 30 days</span>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
                 <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <Check className="w-5 h-5 text-purple-500 flex-shrink-0" />
                   <span>180 Minutes Voice Time</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <Check className="w-5 h-5 text-purple-500 flex-shrink-0" />
                   <span>Access to All 4 AI Agents</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <Check className="w-5 h-5 text-purple-500 flex-shrink-0" />
                   <span>30-Day Trial Period</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <Check className="w-5 h-5 text-purple-500 flex-shrink-0" />
                   <span>CSS Pattern Tracking</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <Check className="w-5 h-5 text-purple-500 flex-shrink-0" />
                   <span>Session History & Insights</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <Check className="w-5 h-5 text-purple-500 flex-shrink-0" />
                   <span>No Credit Card Required</span>
                 </div>
               </div>
               <div className="text-center pt-4">
                 <Button
                   size="lg"
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-6 text-lg"
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-8 py-6 text-lg"
                   onClick={() => setLocation('/?mode=signup')}
                 >
                   <Gift className="w-5 h-5 mr-2" />

@@ -36,7 +36,7 @@ export function TypewriterQuestion({
 
   return (
     <p 
-      className={`text-emerald-300 italic font-light transition-opacity duration-500 ${className} ${
+      className={`text-purple-300 italic font-light transition-opacity duration-500 ${className} ${
         isVisible ? 'opacity-90' : 'opacity-0'
       }`}
     >

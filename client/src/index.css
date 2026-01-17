@@ -5,74 +5,129 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(240, 15%, 6%);
-  --foreground: hsl(240, 5%, 95%);
-  --card: hsla(268, 70%, 15%, 0.3);
-  --card-foreground: hsl(240, 5%, 95%);
-  --popover: hsla(268, 70%, 15%, 0.9);
-  --popover-foreground: hsl(240, 5%, 95%);
-  --primary: hsl(263, 70%, 60%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsla(268, 70%, 25%, 0.4);
-  --secondary-foreground: hsl(240, 5%, 95%);
-  --muted: hsla(268, 50%, 20%, 0.3);
-  --muted-foreground: hsl(240, 4%, 65%);
-  --accent: hsl(268, 85%, 70%);
-  --accent-foreground: hsl(0, 0%, 100%);
-  --destructive: hsl(0, 62%, 50%);
-  --destructive-foreground: hsl(0, 0%, 100%);
-  --border: hsla(148, 100%, 41%, 0.2);
-  --input: hsla(268, 50%, 30%, 0.4);
-  --ring: hsl(148, 100%, 41%);
-  --chart-1: hsl(203.8863, 88.2845%, 53.1373%);
-  --chart-2: hsl(159.7826, 100%, 36.0784%);
-  --chart-3: hsl(42.0290, 92.8251%, 56.2745%);
-  --chart-4: hsl(147.1429, 78.5047%, 41.9608%);
-  --chart-5: hsl(341.4894, 75.2000%, 50.9804%);
-  --sidebar: hsla(268, 70%, 15%, 0.3);
-  --sidebar-foreground: hsl(240, 5%, 95%);
-  --sidebar-primary: hsl(263, 70%, 60%);
-  --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(268, 85%, 70%);
-  --sidebar-accent-foreground: hsl(0, 0%, 100%);
-  --sidebar-border: hsla(268, 50%, 50%, 0.2);
-  --sidebar-ring: hsl(263, 70%, 60%);
+  --button-outline: rgba(0, 0, 0, 0.08);
+  --badge-outline: rgba(0, 0, 0, 0.05);
+  --opaque-button-border-intensity: 6;
+  --elevate-1: rgba(255, 255, 255, 0.7);
+  --elevate-2: rgba(255, 255, 255, 0.85);
+
+  /* Light theme backgrounds */
+  --background: 0 0% 98%;           /* Near white */
+  --foreground: 270 20% 15%;        /* Dark purple-gray for text */
+
+  /* Borders */
+  --border: 270 20% 90%;            /* Light purple-tinted border */
+
+  /* Cards - frosted glass base */
+  --card: 0 0% 100%;                /* White */
+  --card-foreground: 270 20% 15%;
+  --card-border: 270 30% 92%;
+
+  /* Sidebar */
+  --sidebar: 270 30% 97%;           /* Very light purple tint */
+  --sidebar-foreground: 270 20% 15%;
+  --sidebar-border: 270 20% 90%;
+  --sidebar-primary: 270 88% 53%;   /* #A020F0 */
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 270 40% 95%;
+  --sidebar-accent-foreground: 270 20% 15%;
+  --sidebar-ring: 270 88% 53%;
+
+  /* Popovers */
+  --popover: 0 0% 100%;
+  --popover-foreground: 270 20% 15%;
+  --popover-border: 270 20% 90%;
+
+  /* Primary - Vibrant Purple #A020F0 */
+  --primary: 270 88% 53%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary */
+  --secondary: 270 30% 95%;
+  --secondary-foreground: 270 20% 25%;
+
+  /* Muted */
+  --muted: 270 20% 96%;
+  --muted-foreground: 270 10% 45%;
+
+  /* Accent */
+  --accent: 270 50% 95%;
+  --accent-foreground: 270 88% 45%;
+
+  /* Destructive */
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Inputs */
+  --input: 270 20% 92%;
+  --ring: 270 88% 53%;
+
+  /* Charts - purple palette */
+  --chart-1: 270 88% 53%;
+  --chart-2: 280 70% 60%;
+  --chart-3: 260 70% 65%;
+  --chart-4: 290 60% 55%;
+  --chart-5: 250 65% 60%;
+
+  /* Typography */
   --font-sans: Inter, system-ui, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
-  --radius: 12px;
-  --shadow-2xs: 0px 2px 0px 0px rgba(0, 208, 98, 0.1);
-  --shadow-xs: 0px 2px 0px 0px rgba(0, 208, 98, 0.1);
-  --shadow-sm: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 1px 2px -1px rgba(0, 208, 98, 0.1);
-  --shadow: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 1px 2px -1px rgba(0, 208, 98, 0.1);
-  --shadow-md: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 2px 4px -1px rgba(0, 208, 98, 0.1);
-  --shadow-lg: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 4px 6px -1px rgba(0, 208, 98, 0.1);
-  --shadow-xl: 0px 2px 0px 0px rgba(0, 208, 98, 0.1), 0px 8px 10px -1px rgba(0, 208, 98, 0.1);
-  --shadow-2xl: 0px 2px 0px 0px rgba(0, 208, 98, 0.1);
+
+  /* Radius */
+  --radius: 0.75rem;
+
+  /* Shadows - subtle for light theme */
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 6px 12px rgba(0, 0, 0, 0.08), 0 3px 6px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.1), 0 6px 12px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.12), 0 10px 20px rgba(0, 0, 0, 0.08);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.15);
+
   --tracking-normal: 0em;
   --spacing: 0.25rem;
+
+  /* Border fallbacks */
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --primary-border: hsl(270 88% 48%);
+  --secondary-border: hsl(var(--secondary));
+  --muted-border: hsl(var(--muted));
+  --accent-border: hsl(var(--accent));
+  --destructive-border: hsl(var(--destructive));
 }
 
 .dark {
-  --background: hsl(240, 15%, 6%);
-  --foreground: hsl(240, 5%, 95%);
-  --card: hsla(268, 70%, 15%, 0.3);
-  --card-foreground: hsl(240, 5%, 95%);
-  --popover: hsla(268, 70%, 15%, 0.9);
-  --popover-foreground: hsl(240, 5%, 95%);
-  --primary: hsl(263, 70%, 60%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsla(268, 70%, 25%, 0.4);
-  --secondary-foreground: hsl(240, 5%, 95%);
-  --muted: hsla(268, 50%, 20%, 0.3);
-  --muted-foreground: hsl(240, 4%, 65%);
-  --accent: hsl(268, 85%, 70%);
-  --accent-foreground: hsl(0, 0%, 100%);
-  --destructive: hsl(0, 62%, 50%);
-  --destructive-foreground: hsl(0, 0%, 100%);
-  --border: hsla(148, 100%, 41%, 0.2);
-  --input: hsla(268, 50%, 30%, 0.4);
-  --ring: hsl(148, 100%, 41%);
+  --background: 270 15% 8%;
+  --foreground: 270 5% 95%;
+  --border: 270 20% 20%;
+  --card: 270 20% 12%;
+  --card-foreground: 270 5% 95%;
+  --card-border: 270 20% 18%;
+  --popover: 270 20% 10%;
+  --popover-foreground: 270 5% 95%;
+  --popover-border: 270 20% 18%;
+  --primary: 270 88% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 270 20% 18%;
+  --secondary-foreground: 270 5% 90%;
+  --muted: 270 15% 20%;
+  --muted-foreground: 270 5% 60%;
+  --accent: 270 30% 22%;
+  --accent-foreground: 270 88% 75%;
+  --input: 270 20% 22%;
+  --ring: 270 88% 60%;
+  --sidebar: 270 20% 10%;
+  --sidebar-foreground: 270 5% 95%;
+  --sidebar-border: 270 20% 18%;
+  --sidebar-primary: 270 88% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 270 20% 18%;
+  --sidebar-accent-foreground: 270 5% 90%;
+  --sidebar-ring: 270 88% 60%;
 }
 
 @layer base {
@@ -88,22 +143,41 @@
 
 @layer utilities {
   .glass {
-    backdrop-filter: blur(16px);
-    background: rgba(0, 208, 98, 0.05);
-    border: 1px solid rgba(0, 208, 98, 0.3);
-    box-shadow: 0 8px 32px rgba(0, 208, 98, 0.15), 0 0 20px rgba(0, 208, 98, 0.1);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(160, 32, 240, 0.12);
+    box-shadow:
+      0 4px 24px rgba(160, 32, 240, 0.08),
+      0 1px 2px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
   }
 
   .glass-strong {
-    backdrop-filter: blur(20px);
-    background: rgba(0, 208, 98, 0.08);
-    border: 1px solid rgba(0, 208, 98, 0.4);
-    box-shadow: 0 12px 40px rgba(0, 208, 98, 0.2), 0 0 30px rgba(0, 208, 98, 0.15);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(160, 32, 240, 0.18);
+    box-shadow:
+      0 8px 32px rgba(160, 32, 240, 0.12),
+      0 2px 4px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .glass-card {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba(160, 32, 240, 0.1);
+    box-shadow:
+      0 2px 16px rgba(160, 32, 240, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   .gradient-bg {
     position: relative;
-    background-color: var(--background);
+    background: linear-gradient(135deg, hsl(270 30% 98%) 0%, hsl(270 20% 95%) 50%, hsl(0 0% 98%) 100%);
+    min-height: 100vh;
   }
 
   .gradient-bg::before {
@@ -113,41 +187,29 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background:
-      linear-gradient(to bottom, rgba(15, 10, 25, 0.85) 0%, rgba(15, 10, 25, 0.75) 50%, rgba(15, 10, 25, 0.85) 100%),
-      url('/iVASA_Heiti.png') center center / contain no-repeat;
-    opacity: 0.1;
+    background: url('/iVASA_Heiti.png') center center / contain no-repeat;
+    opacity: 0.03;
     z-index: 0;
     pointer-events: none;
-    animation: fadeInLogo 2s ease-in-out;
   }
 
   .gradient-bg::after {
     content: '';
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     background:
-      radial-gradient(ellipse at top, rgba(139, 92, 246, 0.15) 0%, transparent 70%),
-      radial-gradient(ellipse at bottom, rgba(107, 70, 193, 0.1) 0%, transparent 70%);
-    z-index: 1;
+      radial-gradient(ellipse at top right, rgba(160, 32, 240, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom left, rgba(160, 32, 240, 0.05) 0%, transparent 50%);
+    z-index: 0;
     pointer-events: none;
   }
 
   .gradient-bg > * {
     position: relative;
-    z-index: 2;
-  }
-
-  @keyframes fadeInLogo {
-    0% {
-      opacity: 0.5;
-    }
-    100% {
-      opacity: 0.1;
-    }
+    z-index: 1;
   }
 
   @keyframes float {
@@ -199,12 +261,12 @@
 
   .agent-card-with-image.selected {
     @apply ring-2;
-    ring-color: hsl(148, 100%, 41%);
-    box-shadow: 0 0 20px rgba(0, 208, 98, 0.3);
+    ring-color: hsl(270, 88%, 53%);
+    box-shadow: 0 0 20px rgba(160, 32, 240, 0.3);
   }
 
   .agent-card-with-image.selected::before {
-    background: linear-gradient(to bottom, rgba(0, 208, 98, 0.2) 0%, rgba(0, 0, 0, 0.7) 100%);
+    background: linear-gradient(to bottom, rgba(160, 32, 240, 0.2) 0%, rgba(0, 0, 0, 0.7) 100%);
   }
 
   .agent-card-with-image.disabled {
@@ -242,8 +304,8 @@
 
   .agent-card.selected {
     @apply glass-strong ring-2;
-    ring-color: hsl(148, 100%, 41%);
-    box-shadow: 0 0 20px rgba(0, 208, 98, 0.3);
+    ring-color: hsl(270, 88%, 53%);
+    box-shadow: 0 0 20px rgba(160, 32, 240, 0.3);
   }
 
   .agent-card.disabled {
@@ -252,22 +314,22 @@
 
   /* Color variants for different agents */
   .agent-card[data-agent="sarah"] {
-    border-color: hsl(148, 100%, 41%);
+    border-color: hsl(270, 88%, 53%);
     border-opacity: 0.3;
   }
 
   .agent-card[data-agent="sarah"].selected {
-    ring-color: hsl(148, 100%, 41%);
+    ring-color: hsl(270, 88%, 53%);
     ring-opacity: 0.5;
   }
 
   .agent-card[data-agent="mathew"] {
-    border-color: hsl(148, 100%, 41%);
+    border-color: hsl(270, 88%, 53%);
     border-opacity: 0.3;
   }
 
   .agent-card[data-agent="mathew"].selected {
-    ring-color: hsl(148, 100%, 41%);
+    ring-color: hsl(270, 88%, 53%);
     ring-opacity: 0.5;
   }
 
@@ -345,14 +407,14 @@
     transform: translateX(0) scale(1) translateZ(0);
     opacity: 1;
     z-index: 10;
-    border: 2px solid rgba(0, 208, 98, 0.4);
-    box-shadow: 0 0 40px rgba(0, 208, 98, 0.3);
+    border: 2px solid rgba(160, 32, 240, 0.4);
+    box-shadow: 0 0 40px rgba(160, 32, 240, 0.3);
     cursor: pointer;
   }
 
   .carousel-card-active:hover {
     transform: translateX(0) scale(1.02) translateZ(0);
-    box-shadow: 0 0 50px rgba(0, 208, 98, 0.4);
+    box-shadow: 0 0 50px rgba(160, 32, 240, 0.4);
   }
 
   .carousel-card-left {
@@ -448,9 +510,9 @@
   }
 
   .carousel-dot-active {
-    background: rgba(0, 208, 98, 0.8);
-    border-color: rgba(0, 208, 98, 1);
-    box-shadow: 0 0 12px rgba(0, 208, 98, 0.6);
+    background: rgba(160, 32, 240, 0.8);
+    border-color: rgba(160, 32, 240, 1);
+    box-shadow: 0 0 12px rgba(160, 32, 240, 0.6);
   }
 
   /* Agent Bio Modal Enhancements */

@@ -72,7 +72,7 @@ export default function SubscriptionSettings({ userId, userType }: SubscriptionS
         <Card className="glass border-white/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-500" />
+              <TrendingUp className="h-5 w-5 text-purple-500" />
               Usage Statistics
             </CardTitle>
             <CardDescription>
@@ -85,7 +85,7 @@ export default function SubscriptionSettings({ userId, userType }: SubscriptionS
                 <label className="text-sm text-muted-foreground">
                   Minutes Used
                 </label>
-                <p className="text-2xl font-bold text-emerald-500">
+                <p className="text-2xl font-bold text-purple-500">
                   {usageStats.minutes_used.toFixed(1)}
                 </p>
               </div>
@@ -130,7 +130,7 @@ export default function SubscriptionSettings({ userId, userType }: SubscriptionS
               </div>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all duration-300"
                   style={{
                     width: `${usageStats.minutes_limit > 0
                       ? Math.min((usageStats.minutes_used / usageStats.minutes_limit) * 100, 100)
@@ -147,7 +147,7 @@ export default function SubscriptionSettings({ userId, userType }: SubscriptionS
       <Card className="glass border-white/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-emerald-500" />
+            <CreditCard className="h-5 w-5 text-purple-500" />
             Billing Information
           </CardTitle>
           <CardDescription>
@@ -172,7 +172,7 @@ export default function SubscriptionSettings({ userId, userType }: SubscriptionS
       <Card className="glass border-white/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-emerald-500" />
+            <FileText className="h-5 w-5 text-purple-500" />
             Recent Invoices
           </CardTitle>
           <CardDescription>

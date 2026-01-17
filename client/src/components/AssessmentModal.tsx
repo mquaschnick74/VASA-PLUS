@@ -26,15 +26,15 @@ export default function AssessmentModal({ isOpen, onClose, userEmail }: Assessme
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-4xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-hidden border border-emerald-400/30">
+      <div className="relative w-full max-w-4xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-hidden border border-purple-400/30">
         {/* Header with Close Button */}
         <div className="absolute top-0 right-0 z-10 p-4">
           <button
             onClick={onClose}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-emerald-400/30 hover:bg-emerald-400/10 hover:border-emerald-400/60 transition-all duration-200 group"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-purple-400/30 hover:bg-purple-400/10 hover:border-purple-400/60 transition-all duration-200 group"
             aria-label="Close assessment"
           >
-            <X className="w-5 h-5 text-muted-foreground group-hover:text-emerald-400 transition-colors" />
+            <X className="w-5 h-5 text-muted-foreground group-hover:text-purple-400 transition-colors" />
           </button>
         </div>
 

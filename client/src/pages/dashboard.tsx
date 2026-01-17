@@ -619,7 +619,7 @@ export default function Dashboard() {
   if (showAssessmentModal) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-        <div className="relative w-full max-w-5xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-y-auto border border-emerald-400/30">
+        <div className="relative w-full max-w-5xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-y-auto border border-purple-400/30">
           <AssessmentIframe
             onComplete={handleAssessmentComplete}
             className="w-full"

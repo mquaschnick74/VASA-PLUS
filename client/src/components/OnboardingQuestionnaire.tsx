@@ -92,7 +92,7 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
       <button
         onClick={handleSkip}
         disabled={isSubmitting}
-        className="absolute top-4 right-4 text-white hover:text-emerald-400 transition-colors duration-200 p-2 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="absolute top-4 right-4 text-white hover:text-purple-400 transition-colors duration-200 p-2 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Skip onboarding"
       >
         <X size={32} />
@@ -110,7 +110,7 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
 
           {/* Section 1: Your Voice */}
           <div className="space-y-6 text-center">
-            <h2 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-medium">
+            <h2 className="text-purple-400 text-2xl md:text-3xl lg:text-4xl font-medium">
               Your Voice.
             </h2>
 
@@ -120,7 +120,7 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
                 {!voiceResponse && (
                   <div className="absolute inset-0 pointer-events-none flex items-start justify-start p-4 z-10">
                     <p 
-                      className={`text-emerald-400 italic font-light text-lg md:text-xl transition-opacity duration-1000 ${
+                      className={`text-purple-400 italic font-light text-lg md:text-xl transition-opacity duration-1000 ${
                         isVisible ? 'opacity-100' : 'opacity-0'
                       }`}
                     >
@@ -135,17 +135,17 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
                   placeholder=""
                   disabled={isSubmitting}
                   className="w-full h-32 p-4 rounded-lg
-                           text-emerald-400 placeholder-transparent
+                           text-purple-400 placeholder-transparent
                            bg-[#1a1a2e]
-                           border border-emerald-500/30
-                           focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20
+                           border border-purple-500/30
+                           focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20
                            focus:outline-none transition-all duration-200
                            disabled:opacity-50 disabled:cursor-not-allowed
                            resize-none
-                           shadow-[0_0_20px_rgba(16,185,129,0.15)]
-                           focus:shadow-[0_0_30px_rgba(16,185,129,0.25)]"
+                           shadow-[0_0_20px_rgba(160,32,240,0.15)]
+                           focus:shadow-[0_0_30px_rgba(160,32,240,0.25)]"
                   style={{
-                    boxShadow: '0 0 20px rgba(16, 185, 129, 0.15), 0 0 40px rgba(16, 185, 129, 0.1)'
+                    boxShadow: '0 0 20px rgba(160, 32, 240, 0.15), 0 0 40px rgba(160, 32, 240, 0.1)'
                   }}
                 />
               </div>
@@ -154,7 +154,7 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
 
           {/* Section 2: Your Journey */}
           <div className="space-y-6 text-center">
-            <h2 className="text-emerald-400 text-4xl md:text-5xl lg:text-6xl font-semibold">
+            <h2 className="text-purple-400 text-4xl md:text-5xl lg:text-6xl font-semibold">
               Your Journey.
             </h2>
 
@@ -164,7 +164,7 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
                 {!journeyResponse && (
                   <div className="absolute inset-0 pointer-events-none flex items-start justify-start p-4 z-10">
                     <p 
-                      className={`text-emerald-400 italic font-light text-lg md:text-xl transition-opacity duration-1000 ${
+                      className={`text-purple-400 italic font-light text-lg md:text-xl transition-opacity duration-1000 ${
                         isVisible ? 'opacity-100' : 'opacity-0'
                       }`}
                     >
@@ -179,17 +179,17 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
                   placeholder=""
                   disabled={isSubmitting}
                   className="w-full h-32 p-4 rounded-lg
-                           text-emerald-400 placeholder-transparent
+                           text-purple-400 placeholder-transparent
                            bg-[#1a1a2e]
-                           border border-emerald-500/30
-                           focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20
+                           border border-purple-500/30
+                           focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20
                            focus:outline-none transition-all duration-200
                            disabled:opacity-50 disabled:cursor-not-allowed
                            resize-none
-                           shadow-[0_0_20px_rgba(16,185,129,0.15)]
-                           focus:shadow-[0_0_30px_rgba(16,185,129,0.25)]"
+                           shadow-[0_0_20px_rgba(160,32,240,0.15)]
+                           focus:shadow-[0_0_30px_rgba(160,32,240,0.25)]"
                   style={{
-                    boxShadow: '0 0 20px rgba(16, 185, 129, 0.15), 0 0 40px rgba(16, 185, 129, 0.1)'
+                    boxShadow: '0 0 20px rgba(160, 32, 240, 0.15), 0 0 40px rgba(160, 32, 240, 0.1)'
                   }}
                 />
               </div>
@@ -198,7 +198,7 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
 
           {/* Section 3: Motivational Closer */}
           <div className="space-y-8 text-center">
-            <h2 className="text-emerald-400 text-4xl md:text-5xl lg:text-7xl font-bold leading-tight">
+            <h2 className="text-purple-400 text-4xl md:text-5xl lg:text-7xl font-bold leading-tight">
               Let's see what we can do to make this happen MORE or NEVER again!
             </h2>
 
@@ -207,12 +207,12 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
               <Button
                 onClick={() => handleSubmit(false)}
                 disabled={isSubmitting}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold
+                className="bg-purple-500 hover:bg-purple-600 text-white font-bold
                          py-6 px-12 rounded-lg text-xl
                          transition-all duration-200 transform hover:scale-105
                          disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                         shadow-[0_0_20px_rgba(16,185,129,0.3)]
-                         hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]"
+                         shadow-[0_0_20px_rgba(160,32,240,0.3)]
+                         hover:shadow-[0_0_30px_rgba(160,32,240,0.4)]"
               >
                 {isSubmitting ? 'Submitting...' : 'Submit'}
               </Button>
@@ -220,8 +220,8 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
 
             {/* Expert messaging - mirrors landing page */}
             <div className="mt-8 text-center">
-              <p className="text-emerald-400/80 text-lg md:text-xl italic font-light">
-                You are becoming the <span className="font-semibold text-emerald-400">EXPERT</span>… 
+              <p className="text-purple-400/80 text-lg md:text-xl italic font-light">
+                You are becoming the <span className="font-semibold text-purple-400">EXPERT</span>… 
                 you can choose to answer these questions or skip them by clicking on the "X"
               </p>
             </div>

@@ -1093,7 +1093,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                       >
                         <span className="text-xs sm:text-sm">💬 Start Text Session</span>
                       </Button>
-                      <p className="text-xs text-emerald-500/80 text-center">
+                      <p className="text-xs text-purple-500/80 text-center">
                         ✨ Text conversations are unlimited and free
                       </p>
                     </div>

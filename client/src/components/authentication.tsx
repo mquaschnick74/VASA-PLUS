@@ -384,11 +384,11 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           />
 
           {/* Modal Content */}
-          <div className="relative w-full max-w-4xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-hidden border border-emerald-400/30">
+          <div className="relative w-full max-w-4xl h-[90vh] mx-4 bg-background rounded-2xl shadow-2xl overflow-hidden border border-purple-400/30">
             {/* Close Button */}
             <button
               onClick={() => setShowAssessment(false)}
-              className="absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-emerald-400/30 hover:bg-emerald-400/10 hover:border-emerald-400/60 transition-all duration-200"
+              className="absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-purple-400/30 hover:bg-purple-400/10 hover:border-purple-400/60 transition-all duration-200"
             >
               <i className="fas fa-times text-muted-foreground"></i>
             </button>
@@ -414,9 +414,9 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* LEFT COLUMN: Branding */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-6">
-              <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
-              <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
-              <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Guide.</p>
+              <p className="text-purple-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
+              <p className="text-purple-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
+              <p className="text-purple-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Guide.</p>
               <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground">
                 Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
@@ -654,12 +654,12 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   >
                     {mode === 'signin' ? (
                       <>
-                        <span className="text-emerald-500">Don't have an account? </span>
+                        <span className="text-purple-500">Don't have an account? </span>
                         <span className="text-amber-500 font-semibold">Sign up</span>
                       </>
                     ) : (
                       <>
-                        <span className="text-emerald-500">Already have an account? </span>
+                        <span className="text-purple-500">Already have an account? </span>
                         <span className="text-amber-500 font-semibold">Sign in</span>
                       </>
                     )}
@@ -681,7 +681,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
           {/* Assessment CTA Section */}
           <div className="mt-16 w-full max-w-3xl mx-auto">
-            <Card className="glass rounded-2xl border-2 border-emerald-400/60">
+            <Card className="glass rounded-2xl border-2 border-purple-400/60">
               <CardContent className="p-8 md:p-10">
                 <div className="text-center space-y-4">
                   <h3 className="text-xl md:text-2xl text-white font-semibold">
@@ -704,7 +704,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* Agent Carousel Section */}
           <div className="mt-24 mb-24 w-full">
             <div className="text-center mb-12">
-              <h2 className="text-4xl md:text-5xl font-bold text-emerald-500 mb-4">
+              <h2 className="text-4xl md:text-5xl font-bold text-purple-500 mb-4">
                 Meet Your AI Therapeutic Guides
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -728,7 +728,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 
                 {/* Features Title - Overlaid, positioned lower for symmetry */}
                 <div className="absolute top-16 left-8 md:top-24 md:left-12">
-                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-emerald-500 drop-shadow-2xl">
+                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-purple-500 drop-shadow-2xl">
                     Features
                   </h2>
                 </div>
@@ -747,7 +747,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-1">
-                        Extremely <span className="text-emerald-400">Affordable</span>
+                        Extremely <span className="text-purple-400">Affordable</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         Low cost therapy, small fraction of the cost of traditional therapy
@@ -758,13 +758,13 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   {/* Feature 2: Always Available */}
                   <div className="flex items-start gap-4 glass p-5 rounded-xl shadow-xl backdrop-blur-md bg-background/80 border border-white/20 transform transition-transform hover:scale-105">
                     <div className="flex-shrink-0 mt-1">
-                      <div className="w-12 h-12 rounded-full bg-emerald-500/30 flex items-center justify-center shadow-lg">
-                        <i className="fas fa-clock text-lg text-emerald-400"></i>
+                      <div className="w-12 h-12 rounded-full bg-purple-500/30 flex items-center justify-center shadow-lg">
+                        <i className="fas fa-clock text-lg text-purple-400"></i>
                       </div>
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-1">
-                        Always <span className="text-emerald-400">Available</span>
+                        Always <span className="text-purple-400">Available</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         Access therapy 24/7 whenever and wherever you need
@@ -781,7 +781,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-1">
-                        Personalized <span className="text-emerald-400">Therapist</span>
+                        Personalized <span className="text-purple-400">Therapist</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         Therapist learns more about you with every conversation
@@ -798,7 +798,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-1">
-                        Customizable <span className="text-emerald-400">Experience</span>
+                        Customizable <span className="text-purple-400">Experience</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         Choose how you want your therapist to be

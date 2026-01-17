@@ -90,36 +90,36 @@ export default function MeditationLibrary() {
         }
 
         .meditation-audio::-webkit-media-controls-panel {
-          background-color: rgba(16, 185, 129, 0.1);
+          background-color: rgba(160, 32, 240, 0.1);
           border-radius: 8px;
         }
 
         .meditation-audio::-webkit-media-controls-play-button {
-          filter: sepia(1) saturate(5) hue-rotate(100deg);
+          filter: sepia(1) saturate(5) hue-rotate(270deg);
         }
 
         .meditation-audio::-webkit-media-controls-current-time-display,
         .meditation-audio::-webkit-media-controls-time-remaining-display {
-          color: #10B981;
+          color: #A020F0;
         }
 
         .meditation-audio::-webkit-media-controls-timeline {
-          filter: sepia(1) saturate(3) hue-rotate(100deg);
+          filter: sepia(1) saturate(3) hue-rotate(270deg);
         }
 
         .meditation-audio::-webkit-media-controls-volume-slider {
-          filter: sepia(1) saturate(3) hue-rotate(100deg);
+          filter: sepia(1) saturate(3) hue-rotate(270deg);
         }
       `}</style>
 
       <div className="max-w-4xl mx-auto py-12 px-4">
         {/* Smart Back Button - shows Dashboard or Resources based on auth */}
-        <SmartBackButton className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10" />
+        <SmartBackButton className="mb-6 text-purple-200 hover:text-white hover:bg-purple-500/10" />
 
         {/* Header Section */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 mb-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-            <Waves className="w-8 h-8 text-emerald-400" />
+          <div className="inline-flex items-center justify-center p-3 mb-4 rounded-lg bg-purple-500/10 border border-purple-500/30">
+            <Waves className="w-8 h-8 text-purple-400" />
           </div>
           <h1 className="text-5xl font-bold text-white mb-4">Meditation Library</h1>
           <p className="text-xl text-purple-200">
@@ -137,7 +137,7 @@ export default function MeditationLibrary() {
               onClick={() => setActiveCategory(category)}
               className={
                 activeCategory === category
-                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30"
+                  ? "bg-purple-500/20 border-purple-500/50 text-purple-400 hover:bg-purple-500/30"
                   : "bg-transparent border-white/20 text-purple-200 hover:bg-white/10 hover:border-white/30"
               }
             >
@@ -162,7 +162,7 @@ export default function MeditationLibrary() {
                   </div>
                   <Badge
                     variant="outline"
-                    className="border-emerald-500/30 text-emerald-400 w-fit"
+                    className="border-purple-500/30 text-purple-400 w-fit"
                   >
                     {meditation.category}
                   </Badge>

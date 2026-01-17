@@ -32,7 +32,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
       <Card className="glass border-white/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-emerald-500" />
+            <Mail className="h-5 w-5 text-purple-500" />
             Contact Support
           </CardTitle>
           <CardDescription>
@@ -48,7 +48,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
               </label>
               <a
                 href="mailto:support@ivasa.ai"
-                className="text-base font-medium text-emerald-500 hover:text-emerald-400 transition-colors flex items-center gap-2"
+                className="text-base font-medium text-purple-500 hover:text-purple-400 transition-colors flex items-center gap-2"
               >
                 support@ivasa.ai
                 <ExternalLink className="h-3 w-3" />
@@ -65,7 +65,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
               </label>
               <a
                 href="tel:+1234567890"
-                className="text-base font-medium text-emerald-500 hover:text-emerald-400 transition-colors"
+                className="text-base font-medium text-purple-500 hover:text-purple-400 transition-colors"
               >
                 +1 (234) 567-8900
               </a>
@@ -81,7 +81,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
       <Card className="glass border-white/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <HelpCircle className="h-5 w-5 text-emerald-500" />
+            <HelpCircle className="h-5 w-5 text-purple-500" />
             Help Resources
           </CardTitle>
           <CardDescription>
@@ -123,7 +123,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
       <Card className="glass border-white/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-emerald-500" />
+            <MessageCircle className="h-5 w-5 text-purple-500" />
             Common Issues & Solutions
           </CardTitle>
           <CardDescription>
@@ -167,7 +167,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
       <Card className="glass border-white/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
             System Status
           </CardTitle>
           <CardDescription>

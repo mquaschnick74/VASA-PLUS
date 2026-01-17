@@ -167,7 +167,7 @@ export default function BlogListPage() {
                       </div>
 
                       <div className="mt-4">
-                        <span className="text-emerald-400 hover:text-emerald-300 font-medium">
+                        <span className="text-purple-400 hover:text-purple-300 font-medium">
                           Read more →
                         </span>
                       </div>

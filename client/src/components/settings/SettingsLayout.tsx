@@ -44,7 +44,7 @@ export default function SettingsLayout({
                 onClick={() => onSectionChange(section.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(0,208,98,0.3)]'
+                    ? 'bg-purple-500/20 border border-purple-500/40 text-purple-400 shadow-[0_0_15px_rgba(160,32,240,0.3)]'
                     : 'hover:bg-white/5 border border-transparent text-muted-foreground hover:text-white'
                 }`}
               >
