@@ -173,17 +173,17 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
-  /* Emerald glow effects - stronger visibility */
+  /* Emerald glow effects - maximum visibility */
   .glow-emerald {
-    box-shadow: 0 0 20px rgba(0, 208, 98, 0.5),
-                0 0 40px rgba(0, 208, 98, 0.3),
-                0 0 60px rgba(0, 208, 98, 0.15);
+    box-shadow: 0 0 25px rgba(0, 208, 98, 0.7),
+                0 0 50px rgba(0, 208, 98, 0.5),
+                0 0 80px rgba(0, 208, 98, 0.3);
   }
 
   .glow-emerald-strong {
-    box-shadow: 0 0 25px rgba(0, 208, 98, 0.6),
-                0 0 50px rgba(0, 208, 98, 0.4),
-                0 0 80px rgba(0, 208, 98, 0.25);
+    box-shadow: 0 0 35px rgba(0, 208, 98, 0.8),
+                0 0 70px rgba(0, 208, 98, 0.6),
+                0 0 100px rgba(0, 208, 98, 0.4);
   }
 
   /* Apply glow to primary buttons */
@@ -191,29 +191,30 @@
   button[class*="bg-primary"],
   button[class*="bg-emerald"],
   [data-variant="default"] {
-    box-shadow: 0 0 20px rgba(0, 208, 98, 0.5),
-                0 0 40px rgba(0, 208, 98, 0.3);
+    box-shadow: 0 0 25px rgba(0, 208, 98, 0.7),
+                0 0 50px rgba(0, 208, 98, 0.5),
+                0 0 80px rgba(0, 208, 98, 0.3);
     transition: box-shadow 0.3s ease, transform 0.2s ease;
   }
 
   .btn-primary:hover,
   button[class*="bg-primary"]:hover,
   button[class*="bg-emerald"]:hover {
-    box-shadow: 0 0 30px rgba(0, 208, 98, 0.6),
-                0 0 60px rgba(0, 208, 98, 0.4),
-                0 0 80px rgba(0, 208, 98, 0.2);
+    box-shadow: 0 0 35px rgba(0, 208, 98, 0.8),
+                0 0 70px rgba(0, 208, 98, 0.6),
+                0 0 100px rgba(0, 208, 98, 0.4);
   }
 
   /* Emerald border glow for ghost buttons with emerald borders */
   button[class*="border-emerald"] {
-    box-shadow: 0 0 15px rgba(0, 208, 98, 0.3),
-                0 0 30px rgba(0, 208, 98, 0.15);
+    box-shadow: 0 0 20px rgba(0, 208, 98, 0.5),
+                0 0 40px rgba(0, 208, 98, 0.3);
     transition: box-shadow 0.3s ease;
   }
 
   button[class*="border-emerald"]:hover {
-    box-shadow: 0 0 20px rgba(0, 208, 98, 0.5),
-                0 0 40px rgba(0, 208, 98, 0.25);
+    box-shadow: 0 0 30px rgba(0, 208, 98, 0.7),
+                0 0 60px rgba(0, 208, 98, 0.5);
   }
 
   .gradient-bg {
