@@ -48,7 +48,7 @@
 
   /* Muted */
   --muted: 276 40% 25%;
-  --muted-foreground: 276 20% 70%;
+  --muted-foreground: 0 0% 75%;
 
   /* Accent - subtle purple */
   --accent: 276 60% 35%;
@@ -133,6 +133,12 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
+    color: hsl(0 0% 98%);  /* Force white text */
+  }
+
+  /* Ensure all text defaults to white on purple backgrounds */
+  h1, h2, h3, h4, h5, h6, p, span, label, a {
+    color: inherit;
   }
 }
 
@@ -165,6 +171,32 @@
     box-shadow:
       0 4px 24px rgba(0, 0, 0, 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* Emerald glow effects */
+  .glow-emerald {
+    box-shadow: 0 0 20px rgba(0, 208, 98, 0.3),
+                0 0 40px rgba(0, 208, 98, 0.15);
+  }
+
+  .glow-emerald-strong {
+    box-shadow: 0 0 30px rgba(0, 208, 98, 0.4),
+                0 0 60px rgba(0, 208, 98, 0.2);
+  }
+
+  /* Apply glow to primary buttons */
+  .btn-primary,
+  button[class*="bg-primary"],
+  [data-variant="default"] {
+    box-shadow: 0 0 20px rgba(0, 208, 98, 0.25),
+                0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.3s ease;
+  }
+
+  .btn-primary:hover,
+  button[class*="bg-primary"]:hover {
+    box-shadow: 0 0 30px rgba(0, 208, 98, 0.4),
+                0 6px 16px rgba(0, 0, 0, 0.2);
   }
 
   .gradient-bg {
