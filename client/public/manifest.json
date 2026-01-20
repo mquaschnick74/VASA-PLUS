@@ -1,6 +1,6 @@
 {
-  "name": "VASA-Plus",
-  "short_name": "VASA",
+  "name": "iVASA",
+  "short_name": "iVASA",
   "description": "AI-powered therapeutic voice assistant with emotional pattern recognition",
   "start_url": "/",
   "display": "standalone",
@@ -12,13 +12,13 @@
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

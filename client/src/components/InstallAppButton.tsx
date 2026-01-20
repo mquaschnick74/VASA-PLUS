@@ -121,10 +121,10 @@ export default function InstallAppButton() {
         <DialogContent className="glass-strong border-white/10 max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-emerald-400 text-center">
-              Install VASA on iOS
+              Install iVASA on iOS
             </DialogTitle>
             <DialogDescription className="text-gray-300 text-center">
-              Add VASA to your home screen for the best experience
+              Add iVASA to your home screen for the best experience
             </DialogDescription>
           </DialogHeader>
 
@@ -169,7 +169,7 @@ export default function InstallAppButton() {
               <div className="flex-1">
                 <p className="text-white font-medium">Tap "Add"</p>
                 <p className="text-gray-400 text-sm">
-                  VASA will appear on your home screen
+                  iVASA will appear on your home screen
                 </p>
               </div>
             </div>
