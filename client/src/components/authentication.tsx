@@ -416,7 +416,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-4 max-w-lg">
               <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
-                Your problem is rooted in your past:<br />
+                Your problem is roo your past:<br />
                 We guarantee it!
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground font-medium">
