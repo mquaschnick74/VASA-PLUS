@@ -280,7 +280,7 @@ export default function DemoVoiceCard() {
                         className="w-10 h-10 rounded-full object-cover"
                       />
                       <div className="flex flex-col">
-                        <span className="font-medium">{agent.name}</span>
+                        <span className="font-medium">{agent.name}:</span>
                         <span className="text-xs text-muted-foreground">{AGENT_TAGLINES[agent.id]}</span>
                       </div>
                     </Label>
