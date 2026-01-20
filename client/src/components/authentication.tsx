@@ -17,6 +17,7 @@ import { Link, useLocation } from 'wouter';
 import { HelpCircle } from 'lucide-react';
 import Header from '@/components/shared/Header';
 import AgentCarousel from '@/components/AgentCarousel';
+import DemoVoiceCard from './DemoVoiceCard';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
@@ -411,17 +412,22 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
           
-          {/* LEFT COLUMN: Branding */}
+          {/* LEFT COLUMN: Value Proposition + Demo */}
           <div className="flex flex-col items-center justify-center">
-            <div className="text-center space-y-6">
-              <p className="text-emerald-500 text-lg md:text-xl lg:text-2xl font-medium">Your Voice.</p>
-              <p className="text-emerald-500 text-2xl md:text-3xl lg:text-4xl font-semibold">Your Journey.</p>
-              <p className="text-emerald-500 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">Your AI Therapeutic Guide.</p>
-              <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground">
-                Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
+            <div className="text-center space-y-4 max-w-lg">
+              <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
+                Your future is a reflection of your past:<br />
+                
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground font-medium">
+                Reveal what you can't see alone, and change it!
               </p>
-              <p className="text-amber-400 text-sm md:text-base font-medium max-w-xl mx-auto">
-                "In no time you'll know iVASA is different!" — Dan
+
+              {/* Demo Voice Card */}
+              <DemoVoiceCard />
+
+              <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground pt-2">
+                Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
               </p>
             </div>
           </div>
