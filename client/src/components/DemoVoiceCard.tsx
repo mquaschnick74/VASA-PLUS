@@ -274,12 +274,14 @@ export default function DemoVoiceCard() {
                         hover:border-emerald-400/50 hover:bg-emerald-400/5
                         peer-data-[state=checked]:border-emerald-400 peer-data-[state=checked]:bg-emerald-400/10"
                     >
-                      <img
-                        src={agent.image}
-                        alt={agent.name}
-                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                      />
-                      <div className="flex flex-col min-w-0">
+                      <div className="w-10 h-10 flex-shrink-0">
+                        <img
+                          src={agent.image}
+                          alt={agent.name}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
                         <span className="font-medium">{agent.name}:</span>
                         <span className="text-xs text-muted-foreground truncate">{AGENT_TAGLINES[agent.id]}</span>
                       </div>
