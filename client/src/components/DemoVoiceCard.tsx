@@ -10,6 +10,14 @@ import useDemoVapi from '@/hooks/use-demo-vapi';
 const DEMO_STORAGE_KEY = 'ivasa_demo_usage';
 const MAX_DEMOS_PER_DAY = 3;
 
+// Agent taglines for the demo card
+const AGENT_TAGLINES: Record<string, string> = {
+  sarah: 'Here for you.',
+  marcus: 'Energy+',
+  mathew: 'No holding back',
+  una: 'Coherence Now'
+};
+
 interface DemoUsage {
   count: number;
   lastUsedDate: string; // ISO date string (YYYY-MM-DD)
@@ -271,7 +279,10 @@ export default function DemoVoiceCard() {
                         alt={agent.name}
                         className="w-10 h-10 rounded-full object-cover"
                       />
-                      <span className="font-medium">{agent.name}</span>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{agent.name}</span>
+                        <span className="text-xs text-muted-foreground">{AGENT_TAGLINES[agent.id]}</span>
+                      </div>
                     </Label>
                   </div>
                 ))}
