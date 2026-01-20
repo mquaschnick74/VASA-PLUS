@@ -420,7 +420,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                 
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground font-medium">
-                Reveal what you can't see alone
+                Reveal what you can't see alone, and then change it!
               </p>
 
               {/* Demo Voice Card */}
