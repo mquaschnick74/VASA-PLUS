@@ -59,7 +59,7 @@ export default function LearnMore() {
     <div className="min-h-screen gradient-bg">
       <Header showDashboardLink={true} />
 
-      <div className="max-w-6xl mx-auto py-12 px-4">
+      <div className="max-w-3xl mx-auto py-12 px-4">
         {/* Back Button */}
         <Button
           variant="ghost"
@@ -87,8 +87,8 @@ export default function LearnMore() {
           </p>
         </div>
 
-        {/* Resource Cards Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Resource Cards Grid - 2x2 layout, stacked on mobile */}
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
           {resources.map((resource) => (
             <Card
               key={resource.path}
