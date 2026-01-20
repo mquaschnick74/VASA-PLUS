@@ -277,11 +277,11 @@ export default function DemoVoiceCard() {
                       <img
                         src={agent.image}
                         alt={agent.name}
-                        className="w-10 h-10 rounded-full object-cover"
+                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                       />
-                      <div className="flex flex-col">
+                      <div className="flex flex-col min-w-0">
                         <span className="font-medium">{agent.name}:</span>
-                        <span className="text-xs text-muted-foreground">{AGENT_TAGLINES[agent.id]}</span>
+                        <span className="text-xs text-muted-foreground truncate">{AGENT_TAGLINES[agent.id]}</span>
                       </div>
                     </Label>
                   </div>
