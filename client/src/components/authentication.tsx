@@ -416,11 +416,11 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-4 max-w-lg">
               <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
-                Your problem is roo your past:<br />
-                We guarantee it!
+                Your future is a reflection of your past:<br />
+                
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground font-medium">
-                Revealing patterns you can't see alone
+                Reveal what you can't see alone
               </p>
 
               {/* Demo Voice Card */}
