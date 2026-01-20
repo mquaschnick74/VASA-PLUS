@@ -1,11 +1,11 @@
 // Location: client/src/pages/LearnMore.tsx
-// Hub page with navigation cards to Meditations, Blog, and Videos
+// Hub page (More+) with navigation cards to Meditations, Blog, Videos, and Pricing
 
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { Music, BookOpen, Video, ArrowLeft, ChevronRight } from "lucide-react";
+import { Music, BookOpen, Video, ArrowLeft, ChevronRight, CreditCard } from "lucide-react";
 import Header from "@/components/shared/Header";
 
 interface ResourceCard {
@@ -21,7 +21,7 @@ export default function LearnMore() {
   const isLoggedIn = !!localStorage.getItem('userId');
 
   useEffect(() => {
-    document.title = 'Learn More - iVASA';
+    document.title = 'More+ - iVASA';
   }, []);
 
   const resources: ResourceCard[] = [
@@ -45,6 +45,13 @@ export default function LearnMore() {
       icon: <Video className="w-8 h-8 text-emerald-400" />,
       path: "/videos",
       count: "3 videos"
+    },
+    {
+      title: "Pricing",
+      description: "View our subscription plans and pricing options",
+      icon: <CreditCard className="w-8 h-8 text-emerald-400" />,
+      path: "/pricing",
+      count: "Plans & pricing"
     }
   ];
 
@@ -52,7 +59,7 @@ export default function LearnMore() {
     <div className="min-h-screen gradient-bg">
       <Header showDashboardLink={true} />
 
-      <div className="max-w-4xl mx-auto py-12 px-4">
+      <div className="max-w-6xl mx-auto py-12 px-4">
         {/* Back Button */}
         <Button
           variant="ghost"
@@ -65,7 +72,7 @@ export default function LearnMore() {
 
         {/* Header Section */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-white mb-4">Learn More</h1>
+          <h1 className="text-5xl font-bold text-white mb-4">More+</h1>
           <p className="text-xl text-purple-200">
             Explore our resources to deepen your understanding and practice
           </p>
@@ -81,7 +88,7 @@ export default function LearnMore() {
         </div>
 
         {/* Resource Cards Grid */}
-        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {resources.map((resource) => (
             <Card
               key={resource.path}
