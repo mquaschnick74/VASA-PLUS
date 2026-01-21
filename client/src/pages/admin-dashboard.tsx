@@ -167,6 +167,7 @@
           case "overview": {
             const overviewRes = await fetch(getApiUrl("/api/admin/overview"), {
               headers: { Authorization: `Bearer ${token}` },
+              credentials: 'include',
             });
             if (overviewRes.ok) {
               const data: OverviewStats = await overviewRes.json();
@@ -178,6 +179,7 @@
           case "partners": {
             const partnersRes = await fetch(getApiUrl("/api/admin/partners"), {
               headers: { Authorization: `Bearer ${token}` },
+              credentials: 'include',
             });
             if (partnersRes.ok) {
               const data = (await partnersRes.json()) as { partners: Partner[] };
@@ -189,6 +191,7 @@
           case "influencers": {
             const influencersRes = await fetch(getApiUrl("/api/admin/influencers"), {
               headers: { Authorization: `Bearer ${token}` },
+              credentials: 'include',
             });
             if (influencersRes.ok) {
               const data = (await influencersRes.json()) as { influencers: Influencer[] };
@@ -200,6 +203,7 @@
           case "content": {
             const contentRes = await fetch(getApiUrl("/api/admin/content/pending"), {
               headers: { Authorization: `Bearer ${token}` },
+              credentials: 'include',
             });
             if (contentRes.ok) {
               const data = (await contentRes.json()) as { content: ContentItem[] };
@@ -211,6 +215,7 @@
           case "blog": {
             const blogRes = await fetch(getApiUrl("/api/blog/admin/posts"), {
               headers: { Authorization: `Bearer ${token}` },
+              credentials: 'include',
             });
             if (blogRes.ok) {
               const data = (await blogRes.json()) as { posts: BlogPost[] };
@@ -285,6 +290,7 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
+          credentials: 'include',
           body: JSON.stringify({
             userEmail: formData.get("userEmail"),
             organizationName: formData.get("organizationName"),
@@ -332,6 +338,7 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
+          credentials: 'include',
           body: JSON.stringify({
             userEmail: formData.get("userEmail"),
             influencerName: formData.get("influencerName"),
@@ -466,6 +473,7 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${sessionToken}`,
           },
+          credentials: 'include',
           body: JSON.stringify({
             title: formData.get("title"),
             excerpt: formData.get("excerpt"),

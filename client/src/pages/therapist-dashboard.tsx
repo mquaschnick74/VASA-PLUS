@@ -176,6 +176,7 @@ export default function TherapistDashboard({
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
+          credentials: 'include',
         });
 
         if (clientsResponse.ok) {
@@ -271,6 +272,7 @@ export default function TherapistDashboard({
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
+          credentials: 'include',
         });
 
         if (inviteResponse.ok) {
@@ -336,6 +338,7 @@ export default function TherapistDashboard({
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           therapist_id: userId,
           client_email: inviteEmail,

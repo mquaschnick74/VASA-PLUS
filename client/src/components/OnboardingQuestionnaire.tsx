@@ -63,6 +63,7 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify({
           userId,
           voiceResponse: wasSkipped ? '' : voiceResponse,

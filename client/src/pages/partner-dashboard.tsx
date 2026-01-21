@@ -155,14 +155,16 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
     try {
       // Load transactions
       const transResponse = await fetch(getApiUrl('/api/partner/revenue/transactions?limit=10'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include'
       });
       const transData = await transResponse.json();
       setRevenueTransactions(transData.transactions || []);
 
       // Load summary
       const summaryResponse = await fetch(getApiUrl('/api/partner/revenue/summary'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include'
       });
       const summaryData = await summaryResponse.json();
       setRevenueSummary(summaryData.summary || []);
@@ -175,7 +177,8 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
     console.log('🔍 [THERAPISTS] Loading therapist data...');
     try {
       const response = await fetch(getApiUrl('/api/partner/therapists'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include'
       });
       console.log('🔍 [THERAPISTS] API response status:', response.status);
       const data = await response.json();
@@ -189,7 +192,8 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
   const loadEquityData = async (token: string) => {
     try {
       const response = await fetch(getApiUrl('/api/partner/equity/status'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include'
       });
       const data = await response.json();
       setEquityData(data);
@@ -201,7 +205,8 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
   const loadReferralData = async (token: string) => {
     try {
       const response = await fetch(getApiUrl('/api/partner/referrals'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include'
       });
       const data = await response.json();
       setReferralData(data);
@@ -214,14 +219,16 @@ export default function PartnerDashboard({ userId, setUserId }: PartnerDashboard
     try {
       // Load growth data
       const growthResponse = await fetch(getApiUrl('/api/partner/analytics/growth'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include'
       });
       const growthDataResult = await growthResponse.json();
       setGrowthData(growthDataResult.growthData || []);
 
       // Load usage data
       const usageResponse = await fetch(getApiUrl(`/api/partner/analytics/usage?days=${timeframe}`), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include'
       });
       const usageDataResult = await usageResponse.json();
       setUsageData(usageDataResult.usage);

@@ -36,6 +36,7 @@ export default function ConsentPopup({ userId, userEmail, onConsentAccepted }: C
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify({ userId })
       });
 

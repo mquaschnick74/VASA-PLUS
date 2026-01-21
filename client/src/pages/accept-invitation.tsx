@@ -89,6 +89,7 @@ export default function AcceptInvitation() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
+        credentials: 'include',
         body: JSON.stringify({
           token: invitationToken
         })
