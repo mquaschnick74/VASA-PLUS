@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { authenticateToken } from "./middleware/auth";
@@ -53,6 +54,36 @@ app.use('/api/stripe-webhook', express.raw({
 // INCREASED LIMITS for VAPI webhooks with large transcripts
 app.use(express.json({ limit: '10mb' }));  // Increased from default 100kb
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// CORS configuration for web and mobile apps
+const allowedOrigins = [
+  'https://beta.ivasa.ai',
+  'https://start.ivasa.ai',
+  'https://ivasa.ai',
+  'https://www.ivasa.ai',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'capacitor://localhost',  // iOS Capacitor app
+  'http://localhost',       // Android Capacitor app
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // Log blocked origins for debugging but still allow (be permissive for now)
+      console.log('⚠️ CORS request from origin:', origin);
+      callback(null, true);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}));
 
 // Redirect ivasa.ai to beta.ivasa.ai
 // IMPORTANT: Skip redirects for webhook endpoints - Stripe/VAPI don't follow redirects
