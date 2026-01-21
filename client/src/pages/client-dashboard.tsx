@@ -8,6 +8,7 @@ import VoiceInterface from '@/components/voice-interface';
 import SessionAnalysis from '@/components/SessionAnalysis';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
+import { getApiUrl } from '@/lib/platform';
 import { Link } from 'wouter';
 import { HelpCircle } from 'lucide-react';
 import Header from '@/components/shared/Header';
@@ -68,7 +69,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         return;
       }
 
-      const response = await fetch(`/api/auth/user-context/${userId}`, {
+      const response = await fetch(getApiUrl(`/api/auth/user-context/${userId}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

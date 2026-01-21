@@ -419,7 +419,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           'Authorization': `Bearer ${authToken}`
         };
 
-        const response = await fetch(`/api/auth/user-context/${userId}`, {
+        const response = await fetch(getApiUrl(`/api/auth/user-context/${userId}`), {
           cache: 'no-store',
           headers
         });
@@ -447,7 +447,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         }
 
         // Check if user is a therapist's client and get their session duration limit
-        const relationshipResponse = await fetch(`/api/therapist/client-settings/${userId}`, {
+        const relationshipResponse = await fetch(getApiUrl(`/api/therapist/client-settings/${userId}`), {
           headers
         });
 
