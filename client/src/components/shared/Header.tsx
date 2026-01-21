@@ -14,6 +14,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Settings, BookOpen, HelpCircle, LogOut, User } from 'lucide-react';
+import InstallAppButton from '@/components/InstallAppButton';
 
 interface HeaderProps {
   userId?: string | null;
@@ -72,6 +73,9 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
                 Dashboard
               </Button>
             )}
+
+            {/* Install App Button - Shows when PWA installation is available */}
+            <InstallAppButton />
 
             {/* Settings Dropdown - Shown when logged in */}
             {isLoggedIn ? (
