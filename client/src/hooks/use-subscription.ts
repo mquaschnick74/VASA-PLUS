@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { getApiUrl } from '@/lib/platform';
 
 interface SubscriptionData {
   limits: {
@@ -56,19 +57,80 @@ export function useSubscription(userId: string | null) {
         const token = session.data.session?.access_token;
 
         if (!token) {
-          throw new Error('No authentication token available');
+          console.warn('⚠️ No auth token available for subscription fetch');
+          // Set default trial data instead of throwing
+          const defaultData: SubscriptionData = {
+            limits: {
+              can_use_voice: true,
+              minutes_remaining: 45,
+              minutes_used: 0,
+              minutes_limit: 45,
+              subscription_tier: 'trial',
+              subscription_status: 'active',
+              client_limit: 0,
+              is_trial: true,
+              trial_days_left: 30
+            },
+            user_id: userId,
+            subscription_tier: 'trial',
+            subscription_status: 'active',
+            plan_type: 'recurring',
+            trial_ends_at: null,
+            current_period_end: null,
+            usage_minutes_limit: 45,
+            usage_minutes_used: 0,
+            client_limit: 0,
+            clients_used: 0
+          };
+
+          if (isMounted) {
+            setData(defaultData);
+            setIsLoading(false);
+          }
+          return;
         }
 
-        // FIXED: Use backend API which handles therapist-client relationships
-        const response = await fetch(`/api/subscription/status/${userId}`, {
+        // Use backend API with getApiUrl for iOS Capacitor support
+        const response = await fetch(getApiUrl(`/api/subscription/status/${userId}`), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          credentials: 'include'
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to load subscription: ${response.status}`);
+          console.warn(`⚠️ Subscription API returned ${response.status}, using trial defaults`);
+          // Use trial defaults instead of throwing
+          const defaultData: SubscriptionData = {
+            limits: {
+              can_use_voice: true,
+              minutes_remaining: 45,
+              minutes_used: 0,
+              minutes_limit: 45,
+              subscription_tier: 'trial',
+              subscription_status: 'active',
+              client_limit: 0,
+              is_trial: true,
+              trial_days_left: 30
+            },
+            user_id: userId,
+            subscription_tier: 'trial',
+            subscription_status: 'active',
+            plan_type: 'recurring',
+            trial_ends_at: null,
+            current_period_end: null,
+            usage_minutes_limit: 45,
+            usage_minutes_used: 0,
+            client_limit: 0,
+            clients_used: 0
+          };
+
+          if (isMounted) {
+            setData(defaultData);
+            setIsLoading(false);
+          }
+          return;
         }
 
         const apiData = await response.json();
@@ -76,24 +138,21 @@ export function useSubscription(userId: string | null) {
         if (!isMounted) return;
 
         if (apiData.success && apiData.limits) {
-          // Structure the data from API response
-            const structuredData: SubscriptionData = {
-              // Nested limits object for compatibility
-              limits: {
-                can_use_voice: apiData.limits.can_use_voice ?? true,
-                minutes_remaining: apiData.limits.minutes_remaining || 0,
-                minutes_used: apiData.limits.minutes_used || 0,
-                minutes_limit: apiData.limits.minutes_limit || 0,
-                subscription_tier: apiData.limits.subscription_tier || 'trial',
-                subscription_status: apiData.subscription?.subscription_status || 'active',
-                client_limit: apiData.subscription?.client_limit || 0,
-                is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
-                subscription_owner_id: apiData.limits.subscription_owner_id,
-                subscription_owner_email: apiData.limits.subscription_owner_email,
-                is_trial: apiData.limits.is_trial,
-                trial_days_left: apiData.limits.trial_days_left
-              },
-            // Original flat data
+          const structuredData: SubscriptionData = {
+            limits: {
+              can_use_voice: apiData.limits.can_use_voice ?? true,
+              minutes_remaining: apiData.limits.minutes_remaining || 0,
+              minutes_used: apiData.limits.minutes_used || 0,
+              minutes_limit: apiData.limits.minutes_limit || 0,
+              subscription_tier: apiData.limits.subscription_tier || 'trial',
+              subscription_status: apiData.subscription?.subscription_status || 'active',
+              client_limit: apiData.subscription?.client_limit || 0,
+              is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
+              subscription_owner_id: apiData.limits.subscription_owner_id,
+              subscription_owner_email: apiData.limits.subscription_owner_email,
+              is_trial: apiData.limits.is_trial,
+              trial_days_left: apiData.limits.trial_days_left
+            },
             user_id: userId,
             subscription_tier: apiData.limits.subscription_tier || 'trial',
             subscription_status: apiData.subscription?.subscription_status || 'active',
@@ -106,10 +165,8 @@ export function useSubscription(userId: string | null) {
             clients_used: apiData.subscription?.clients_used || 0
           };
 
-          console.log('✅ Subscription loaded via API');
-          console.log('Full subscription data:', JSON.stringify(structuredData, null, 2));
-          console.log('Subscription data:', structuredData, 'Loading:', false);
           setData(structuredData);
+          console.log('✅ Subscription loaded successfully');
         } else {
           // Default subscription data if API returns invalid response
           const defaultData: SubscriptionData = {
@@ -119,12 +176,14 @@ export function useSubscription(userId: string | null) {
               minutes_used: 0,
               minutes_limit: 45,
               subscription_tier: 'trial',
-              subscription_status: 'trialing',
-              client_limit: 0
+              subscription_status: 'active',
+              client_limit: 0,
+              is_trial: true,
+              trial_days_left: 30
             },
             user_id: userId,
             subscription_tier: 'trial',
-            subscription_status: 'trialing',
+            subscription_status: 'active',
             plan_type: 'recurring',
             trial_ends_at: null,
             current_period_end: null,
@@ -138,34 +197,37 @@ export function useSubscription(userId: string | null) {
           setData(defaultData);
         }
       } catch (err) {
-        console.error('Subscription loading error:', err);
-        if (isMounted) {
-          setError(err as Error);
+        console.error('❌ Subscription loading error:', err);
+        // Don't throw - set error state and use trial defaults
+        setError(err as Error);
 
-          // Return safe defaults on error
-          const fallbackData: SubscriptionData = {
-            limits: {
-              can_use_voice: false,
-              minutes_remaining: 0,
-              minutes_used: 0,
-              minutes_limit: 0,
-              subscription_tier: 'trial',
-              subscription_status: 'error',
-              client_limit: 0
-            },
-            user_id: userId,
+        // Set trial defaults so app can continue (with voice enabled)
+        const defaultData: SubscriptionData = {
+          limits: {
+            can_use_voice: true,
+            minutes_remaining: 45,
+            minutes_used: 0,
+            minutes_limit: 45,
             subscription_tier: 'trial',
-            subscription_status: 'error',
-            plan_type: 'recurring',
-            trial_ends_at: null,
-            current_period_end: null,
-            usage_minutes_limit: 0,
-            usage_minutes_used: 0,
+            subscription_status: 'active',
             client_limit: 0,
-            clients_used: 0
-          };
+            is_trial: true,
+            trial_days_left: 30
+          },
+          user_id: userId,
+          subscription_tier: 'trial',
+          subscription_status: 'active',
+          plan_type: 'recurring',
+          trial_ends_at: null,
+          current_period_end: null,
+          usage_minutes_limit: 45,
+          usage_minutes_used: 0,
+          client_limit: 0,
+          clients_used: 0
+        };
 
-          setData(fallbackData);
+        if (isMounted) {
+          setData(defaultData);
         }
       } finally {
         if (isMounted) {
@@ -236,39 +298,44 @@ export function useSubscription(userId: string | null) {
           const token = session.data.session?.access_token;
 
           if (!token) {
-            throw new Error('No authentication token available');
+            console.warn('⚠️ No auth token for refetch, using defaults');
+            setIsLoading(false);
+            return;
           }
 
-          // Use backend API
-          const response = await fetch(`/api/subscription/status/${userId}`, {
+          // Use backend API with getApiUrl for iOS Capacitor support
+          const response = await fetch(getApiUrl(`/api/subscription/status/${userId}`), {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
-            }
+            },
+            credentials: 'include'
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to load subscription: ${response.status}`);
+            console.warn(`⚠️ Refetch returned ${response.status}`);
+            setIsLoading(false);
+            return;
           }
 
           const apiData = await response.json();
 
           if (apiData.success && apiData.limits) {
-              const structuredData: SubscriptionData = {
-                limits: {
-                  can_use_voice: apiData.limits.can_use_voice ?? true,
-                  minutes_remaining: apiData.limits.minutes_remaining || 0,
-                  minutes_used: apiData.limits.minutes_used || 0,
-                  minutes_limit: apiData.limits.minutes_limit || 0,
-                  subscription_tier: apiData.limits.subscription_tier || 'trial',
-                  subscription_status: apiData.subscription?.subscription_status || 'active',
-                  client_limit: apiData.subscription?.client_limit || 0,
-                  is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
-                  subscription_owner_id: apiData.limits.subscription_owner_id,
-                  subscription_owner_email: apiData.limits.subscription_owner_email,
-                  is_trial: apiData.limits.is_trial,
-                  trial_days_left: apiData.limits.trial_days_left
-                },
+            const structuredData: SubscriptionData = {
+              limits: {
+                can_use_voice: apiData.limits.can_use_voice ?? true,
+                minutes_remaining: apiData.limits.minutes_remaining || 0,
+                minutes_used: apiData.limits.minutes_used || 0,
+                minutes_limit: apiData.limits.minutes_limit || 0,
+                subscription_tier: apiData.limits.subscription_tier || 'trial',
+                subscription_status: apiData.subscription?.subscription_status || 'active',
+                client_limit: apiData.subscription?.client_limit || 0,
+                is_using_therapist_subscription: apiData.limits.is_using_therapist_subscription,
+                subscription_owner_id: apiData.limits.subscription_owner_id,
+                subscription_owner_email: apiData.limits.subscription_owner_email,
+                is_trial: apiData.limits.is_trial,
+                trial_days_left: apiData.limits.trial_days_left
+              },
               user_id: userId,
               subscription_tier: apiData.limits.subscription_tier || 'trial',
               subscription_status: apiData.subscription?.subscription_status || 'active',
@@ -286,7 +353,7 @@ export function useSubscription(userId: string | null) {
           }
         } catch (err) {
           console.error('Refetch error:', err);
-          setError(err as Error);
+          // Don't break the app on refetch errors
         } finally {
           setIsLoading(false);
         }
