@@ -116,7 +116,8 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -153,7 +154,8 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include'
       });
 
       const data = await response.json();

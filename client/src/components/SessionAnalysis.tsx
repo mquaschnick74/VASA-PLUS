@@ -140,7 +140,8 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
       const response = await fetch(getApiUrl('/api/analysis/sessions'), {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -174,7 +175,8 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
       const response = await fetch(getApiUrl('/api/analysis/history?limit=20'), {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -244,6 +246,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(body)
       });
 

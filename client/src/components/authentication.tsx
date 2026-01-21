@@ -150,6 +150,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
       const response = await fetch(getApiUrl('/api/auth/validate-promo'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ promoCode: code })
       });
 
@@ -268,6 +269,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
+            credentials: 'include',
             body: JSON.stringify({
               email: authData.user.email,
               firstName: authData.user.user_metadata?.first_name,

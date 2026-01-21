@@ -341,6 +341,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           sessionId: activeTextSessionId,
           agentName: selectedAgent?.name,
@@ -584,6 +585,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       await fetch(getApiUrl('/api/vapi/webhook'), {
         method: 'POST',
         headers,
+        credentials: 'include',
         body: JSON.stringify({
           message: {
             type: 'end-of-call-report',
@@ -680,6 +682,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           userId: requestUserId,
           sessionId: activeTextSessionId,

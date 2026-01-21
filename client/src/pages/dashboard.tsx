@@ -60,6 +60,7 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
+        credentials: 'include',
         body: JSON.stringify({ token })
       });
 
@@ -120,6 +121,7 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify({
           email: freshSession.user.email,
           firstName: freshSession.user.user_metadata?.first_name || freshSession.user.email.split('@')[0],
@@ -191,6 +193,7 @@ export default function Dashboard() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               },
+              credentials: 'include',
               body: JSON.stringify({
                 userId: user.id,
                 email: freshSession.user.email,
@@ -498,6 +501,7 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify({
           userId,
           email: userEmail,

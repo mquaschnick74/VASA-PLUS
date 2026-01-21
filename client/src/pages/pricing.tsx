@@ -107,6 +107,7 @@ export default function Pricing() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           priceId,
           userId,

@@ -67,7 +67,9 @@ export default function BlogListPage() {
 
   const loadPosts = async () => {
     try {
-      const res = await fetch(getApiUrl('/api/blog/public/posts'));
+      const res = await fetch(getApiUrl('/api/blog/public/posts'), {
+        credentials: 'include'
+      });
       if (res.ok) {
         const data = await res.json();
         setPosts(data.posts);
