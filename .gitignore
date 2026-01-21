@@ -5,3 +5,10 @@ server/public
 vite.config.ts.*
 *.tar.gz
 .env
+
+# Capacitor
+ios/App/Pods/
+ios/App/App/public/
+ios/.sourcery/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
