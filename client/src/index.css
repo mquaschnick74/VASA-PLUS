@@ -4,6 +4,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Capacitor scrolling fix */
+html, body {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
+}
+
+#root {
+  min-height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS safe area support */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
 :root {
   --button-outline: rgba(255, 255, 255, 0.15);
   --badge-outline: rgba(255, 255, 255, 0.10);

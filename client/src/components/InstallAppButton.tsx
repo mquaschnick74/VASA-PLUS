@@ -1,5 +1,6 @@
 // Location: client/src/components/InstallAppButton.tsx
 // PWA Install button component - shows for Chrome/Android (native prompt) and iOS (instructions modal)
+// Hidden on native platforms (Capacitor iOS/Android apps)
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Download, Share, PlusSquare } from 'lucide-react';
+import { isNativeApp } from '@/lib/platform';
 
 // Extend Window interface for beforeinstallprompt event
 interface BeforeInstallPromptEvent extends Event {
@@ -99,8 +101,8 @@ export default function InstallAppButton() {
     }
   };
 
-  // Don't render if not installable
-  if (!isInstallable) {
+  // Don't render on native apps or if not installable
+  if (isNativeApp || !isInstallable) {
     return null;
   }
 
