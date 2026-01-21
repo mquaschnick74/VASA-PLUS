@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SubscriptionStatus from '../SubscriptionStatus';
+import { supabase } from '@/lib/supabaseClient';
+import { getApiUrl } from '@/lib/platform';
 import { CreditCard, FileText, TrendingUp } from 'lucide-react';
 
 interface SubscriptionSettingsProps {
@@ -27,10 +29,21 @@ export default function SubscriptionSettings({ userId, userType }: SubscriptionS
       if (!userId) return;
 
       try {
-        const response = await fetch(`/api/subscription/status/${userId}`, {
+        // Get fresh Supabase session token
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        if (!token) {
+          console.error('❌ [SUBSCRIPTION-SETTINGS] No auth token available');
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(getApiUrl(`/api/subscription/status/${userId}`), {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'include'
         });
 
         if (!response.ok) throw new Error('Failed to fetch usage stats');
