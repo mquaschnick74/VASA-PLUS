@@ -11,6 +11,15 @@ html, body {
   height: 100%;
 }
 
+/* Fix iOS safe area background color (purple-900) */
+html {
+  background-color: #581c87;
+}
+
+body {
+  background-color: #581c87;
+}
+
 #root {
   min-height: 100%;
   overflow: auto;
