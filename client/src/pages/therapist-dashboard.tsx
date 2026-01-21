@@ -16,6 +16,7 @@ import VoiceInterface from "@/components/voice-interface";
 import SessionAnalysis from "@/components/SessionAnalysis";
 import { supabase } from "@/lib/supabaseClient";
 import { handleLogout } from "@/lib/auth-helpers";
+import { getApiUrl } from "@/lib/platform";
 import { useSubscription } from "@/hooks/use-subscription";
 import { Users, Clock, TrendingUp, UserPlus, HelpCircle, Brain } from "lucide-react";
 import { useLocation, Link } from "wouter";
@@ -171,7 +172,7 @@ export default function TherapistDashboard({
       let relationshipError = null;
 
       try {
-        const clientsResponse = await fetch("/api/therapist/clients", {
+        const clientsResponse = await fetch(getApiUrl("/api/therapist/clients"), {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
@@ -266,7 +267,7 @@ export default function TherapistDashboard({
       console.log("📨 [THERAPIST-DASH] Loading pending invitations...");
       setInvitationsLoading(true);
       try {
-        const inviteResponse = await fetch("/api/therapist/invitations", {
+        const inviteResponse = await fetch(getApiUrl("/api/therapist/invitations"), {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
@@ -329,7 +330,7 @@ export default function TherapistDashboard({
         return;
       }
 
-      const response = await fetch("/api/therapist/invite-client", {
+      const response = await fetch(getApiUrl("/api/therapist/invite-client"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

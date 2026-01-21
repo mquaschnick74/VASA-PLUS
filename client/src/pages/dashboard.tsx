@@ -16,7 +16,7 @@ import InfluencerDashboard from '@/pages/influencer-dashboard';
 import AdminDashboard from '@/pages/admin-dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout, withTimeout } from '@/lib/auth-helpers';
-import { isNativeApp } from '@/lib/platform';
+import { isNativeApp, getApiUrl } from '@/lib/platform';
 import { NativeAuthScreen } from '@/components/NativeAuthScreen';
 
 // Feature flag: Set VITE_REQUIRE_ASSESSMENT=false to skip assessment for new users
@@ -54,7 +54,7 @@ export default function Dashboard() {
         return false;
       }
 
-      const response = await fetch('/api/therapist/accept-invitation', {
+      const response = await fetch(getApiUrl('/api/therapist/accept-invitation'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +105,7 @@ export default function Dashboard() {
     const token = freshSession.access_token;
 
     try {
-      const apiUrl = '/api/auth/user';
+      const apiUrl = getApiUrl('/api/auth/user');
       console.log('🔐 [DASHBOARD] Calling API:', apiUrl);
 
       // Check for pending promo code from signup
@@ -185,7 +185,7 @@ export default function Dashboard() {
           try {
             const assessmentData = JSON.parse(pendingAssessment);
 
-            const assessmentResponse = await fetch('/api/assessment/link', {
+            const assessmentResponse = await fetch(getApiUrl('/api/assessment/link'), {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -492,7 +492,7 @@ export default function Dashboard() {
       }
 
       // Save assessment data to database
-      const response = await fetch('/api/assessment/save', {
+      const response = await fetch(getApiUrl('/api/assessment/save'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

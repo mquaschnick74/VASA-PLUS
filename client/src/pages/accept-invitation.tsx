@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabaseClient';
+import { getApiUrl } from '@/lib/platform';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 
 interface InvitationDetails {
@@ -82,7 +83,7 @@ export default function AcceptInvitation() {
     setMessage('Accepting invitation...');
 
     try {
-      const response = await fetch('/api/therapist/accept-invitation', {
+      const response = await fetch(getApiUrl('/api/therapist/accept-invitation'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

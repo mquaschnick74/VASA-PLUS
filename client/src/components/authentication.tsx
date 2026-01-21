@@ -17,6 +17,7 @@ import { Link, useLocation } from 'wouter';
 import { HelpCircle } from 'lucide-react';
 import Header from '@/components/shared/Header';
 import AgentCarousel from '@/components/AgentCarousel';
+import { getApiUrl } from '@/lib/platform';
 import DemoVoiceCard from './DemoVoiceCard';
 
 interface AuthenticationProps {
@@ -146,7 +147,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     setValidatingPromo(true);
     
     try {
-      const response = await fetch('/api/auth/validate-promo', {
+      const response = await fetch(getApiUrl('/api/auth/validate-promo'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ promoCode: code })
@@ -261,7 +262,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           localStorage.setItem('authToken', token);
 
           // Try to create/get user profile
-          const response = await fetch('/api/auth/user', {
+          const response = await fetch(getApiUrl('/api/auth/user'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

@@ -28,6 +28,7 @@ import {
   Eye
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { getApiUrl } from '@/lib/platform';
 import ReactMarkdown from 'react-markdown';
 
 interface SessionAnalysisProps {
@@ -136,7 +137,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch('/api/analysis/sessions', {
+      const response = await fetch(getApiUrl('/api/analysis/sessions'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -170,7 +171,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch('/api/analysis/history?limit=20', {
+      const response = await fetch(getApiUrl('/api/analysis/history?limit=20'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -237,7 +238,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
         body.sessionCount = sessionCount;
       }
 
-      const response = await fetch('/api/analysis/run', {
+      const response = await fetch(getApiUrl('/api/analysis/run'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

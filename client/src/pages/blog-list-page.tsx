@@ -9,6 +9,7 @@ import { useLocation } from "wouter";
 import { Calendar, Eye, ArrowLeft } from "lucide-react";
 import Header from "@/components/shared/Header";
 import SmartBackButton from "@/components/SmartBackButton";
+import { getApiUrl } from "@/lib/platform";
 
 interface BlogPost {
   id: string;
@@ -66,7 +67,7 @@ export default function BlogListPage() {
 
   const loadPosts = async () => {
     try {
-      const res = await fetch('/api/blog/public/posts');
+      const res = await fetch(getApiUrl('/api/blog/public/posts'));
       if (res.ok) {
         const data = await res.json();
         setPosts(data.posts);
