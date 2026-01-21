@@ -8,6 +8,7 @@
   import { TechnicalSupportCard } from "@/components/TechnicalSupportCard";
   import { supabase } from "@/lib/supabaseClient";
   import { handleLogout } from "@/lib/auth-helpers";
+  import { getApiUrl } from "@/lib/platform";
   import Header from "@/components/shared/Header";
   import {
     Users,
@@ -164,7 +165,7 @@
       try {
         switch (activeTab) {
           case "overview": {
-            const overviewRes = await fetch("/api/admin/overview", {
+            const overviewRes = await fetch(getApiUrl("/api/admin/overview"), {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (overviewRes.ok) {
@@ -175,7 +176,7 @@
           }
 
           case "partners": {
-            const partnersRes = await fetch("/api/admin/partners", {
+            const partnersRes = await fetch(getApiUrl("/api/admin/partners"), {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (partnersRes.ok) {
@@ -186,7 +187,7 @@
           }
 
           case "influencers": {
-            const influencersRes = await fetch("/api/admin/influencers", {
+            const influencersRes = await fetch(getApiUrl("/api/admin/influencers"), {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (influencersRes.ok) {
@@ -197,7 +198,7 @@
           }
 
           case "content": {
-            const contentRes = await fetch("/api/admin/content/pending", {
+            const contentRes = await fetch(getApiUrl("/api/admin/content/pending"), {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (contentRes.ok) {
@@ -208,7 +209,7 @@
           }
 
           case "blog": {
-            const blogRes = await fetch("/api/blog/admin/posts", {
+            const blogRes = await fetch(getApiUrl("/api/blog/admin/posts"), {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (blogRes.ok) {
@@ -278,7 +279,7 @@
       }
 
       try {
-        const res = await fetch("/api/admin/partners/onboard", {
+        const res = await fetch(getApiUrl("/api/admin/partners/onboard"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -325,7 +326,7 @@
       }
 
       try {
-        const res = await fetch("/api/admin/influencers/onboard", {
+        const res = await fetch(getApiUrl("/api/admin/influencers/onboard"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -459,7 +460,7 @@
         console.log('📝 [BLOG-CREATE] FormData created successfully');
 
         console.log('📝 [BLOG-CREATE] Sending API request...');
-        const res = await fetch("/api/blog/admin/posts", {
+        const res = await fetch(getApiUrl("/api/blog/admin/posts"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

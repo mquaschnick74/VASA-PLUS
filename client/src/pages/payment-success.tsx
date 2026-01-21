@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { getApiUrl } from '@/lib/platform';
 
 export default function PaymentSuccess() {
   const [, setLocation] = useLocation();
@@ -27,7 +28,7 @@ export default function PaymentSuccess() {
         return false;
       }
 
-      const response = await fetch('/api/stripe/sync-subscription', {
+      const response = await fetch(getApiUrl('/api/stripe/sync-subscription'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,

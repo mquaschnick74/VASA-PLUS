@@ -3,6 +3,7 @@ import { useLocation } from 'wouter'; // Fixed: wouter uses useLocation, not use
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast'; // Fixed: correct import path
 import { queryClient } from '@/lib/queryClient';
+import { getApiUrl } from '@/lib/platform';
 
 interface AssessmentData {
   encoded: string;
@@ -122,7 +123,7 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
         // Store email and assessment data for later processing
         try {
           // You can make an API call here to save the email and assessment
-          const response = await fetch('/api/assessment/save-for-later', {
+          const response = await fetch(getApiUrl('/api/assessment/save-for-later'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

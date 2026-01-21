@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabaseClient';
+import { getApiUrl } from '@/lib/platform';
 import { Clock, AlertTriangle, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
@@ -110,7 +111,7 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
         return;
       }
 
-      const response = await fetch('/api/stripe/create-portal-session', {
+      const response = await fetch(getApiUrl('/api/stripe/create-portal-session'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +148,7 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
         return;
       }
 
-      const response = await fetch('/api/stripe/sync-subscription', {
+      const response = await fetch(getApiUrl('/api/stripe/sync-subscription'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

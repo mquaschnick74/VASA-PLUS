@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Check, Sparkles, Users, Clock, TrendingUp, Shield } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabaseClient';
+import { getApiUrl } from '@/lib/platform';
 import Header from '@/components/shared/Header';
 
 // Declare the custom Stripe element for TypeScript
@@ -101,7 +102,7 @@ export default function Pricing() {
       console.log('🛒 Starting checkout:', { tier, planType, userId, userEmail, userType });
 
       // Call backend to create checkout session
-      const response = await fetch('/api/stripe/create-checkout-session', {
+      const response = await fetch(getApiUrl('/api/stripe/create-checkout-session'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -10,6 +10,7 @@ import { TechnicalSupportCard } from './TechnicalSupportCard';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
+import { getApiUrl } from '@/lib/platform';
 import { useSubscription } from '@/hooks/use-subscription';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 import { Link } from 'wouter';
@@ -334,7 +335,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      const response = await fetch('/api/chat/end-session', {
+      const response = await fetch(getApiUrl('/api/chat/end-session'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -580,7 +581,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      await fetch('/api/vapi/webhook', {
+      await fetch(getApiUrl('/api/vapi/webhook'), {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -673,7 +674,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           content: msg.content
         }));
 
-      const response = await fetch('/api/chat/send-message', {
+      const response = await fetch(getApiUrl('/api/chat/send-message'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

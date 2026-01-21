@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
+import { getApiUrl } from '@/lib/platform';
 
 interface OnboardingQuestionnaireProps {
   userId: string;
@@ -56,7 +57,7 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/auth/complete-onboarding', {
+      const response = await fetch(getApiUrl('/api/auth/complete-onboarding'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

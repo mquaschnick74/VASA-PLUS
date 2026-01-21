@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
+import { getApiUrl } from '@/lib/platform';
 
 interface ConsentPopupProps {
   userId: string;
@@ -29,7 +30,7 @@ export default function ConsentPopup({ userId, userEmail, onConsentAccepted }: C
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/auth/accept-consent', {
+      const response = await fetch(getApiUrl('/api/auth/accept-consent'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
