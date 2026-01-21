@@ -39,10 +39,21 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
 
     const fetchStatus = async () => {
       try {
-        const response = await fetch(`/api/subscription/status/${userId}`, {
+        // Get fresh Supabase session token
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        if (!token) {
+          console.error('❌ [SUBSCRIPTION-STATUS] No auth token available');
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(getApiUrl(`/api/subscription/status/${userId}`), {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'include'
         });
 
         if (!response.ok) {
