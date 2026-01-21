@@ -16,6 +16,8 @@ import InfluencerDashboard from '@/pages/influencer-dashboard';
 import AdminDashboard from '@/pages/admin-dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout, withTimeout } from '@/lib/auth-helpers';
+import { isNativeApp } from '@/lib/platform';
+import { NativeAuthScreen } from '@/components/NativeAuthScreen';
 
 // Feature flag: Set VITE_REQUIRE_ASSESSMENT=false to skip assessment for new users
 const ASSESSMENT_REQUIRED = import.meta.env.VITE_REQUIRE_ASSESSMENT !== 'false';
@@ -592,7 +594,11 @@ export default function Dashboard() {
   }
 
   // Show auth if no user
+  // Use NativeAuthScreen for native apps (iOS/Android), Authentication for web
   if (!userId) {
+    if (isNativeApp) {
+      return <NativeAuthScreen setUserId={setUserId} />;
+    }
     return <Authentication setUserId={setUserId} />;
   }
 
