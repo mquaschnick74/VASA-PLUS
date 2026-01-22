@@ -429,6 +429,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           cache: 'no-store',
           headers
         });
+        console.log('🔍 [DEBUG] Response status:', response.status, response.statusText);
 
         if (response.ok) {
           const data = await response.json();
@@ -471,8 +472,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           console.log(`⏱️ NOT A CLIENT - Using default: 7200 seconds`);
         }
 
-      } catch (error) {
-        console.error('Error loading user context:', error);
+      } catch (error: any) {
+        console.error('❌ [VOICE-INTERFACE] Fetch error details:', {
+          message: error?.message,
+          name: error?.name,
+          stack: error?.stack
+        });
       } finally {
         setMemoryLoading(false);
       }
