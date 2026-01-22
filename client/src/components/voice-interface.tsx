@@ -10,7 +10,7 @@ import { TechnicalSupportCard } from './TechnicalSupportCard';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
-import { getApiUrl } from '@/lib/platform';
+import { getApiUrl, isNativeApp, API_BASE_URL } from '@/lib/platform';
 import { useSubscription } from '@/hooks/use-subscription';
 import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
 import { Link } from 'wouter';
@@ -419,7 +419,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           'Authorization': `Bearer ${authToken}`
         };
 
-        const response = await fetch(getApiUrl(`/api/auth/user-context/${userId}`), {
+        const userContextUrl = getApiUrl(`/api/auth/user-context/${userId}`);
+        console.log('🔍 [DEBUG] User context URL:', userContextUrl);
+        console.log('🔍 [DEBUG] isNativeApp:', isNativeApp);
+        console.log('🔍 [DEBUG] API_BASE_URL:', API_BASE_URL);
+
+        const response = await fetch(userContextUrl, {
           cache: 'no-store',
           headers
         });
