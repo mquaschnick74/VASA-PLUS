@@ -400,6 +400,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   // Load memory context and session duration limit
   useEffect(() => {
     const loadUserContext = async () => {
+      console.log('🎯 [VOICE-INTERFACE] loadUserContext called with userId:', userId);
       if (!userId) return;
 
       setMemoryLoading(true);

@@ -69,6 +69,8 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         return;
       }
 
+      console.log('🎯 [CLIENT-DASHBOARD] Fetching user context for userId:', userId);
+      console.log('🎯 [CLIENT-DASHBOARD] URL:', getApiUrl(`/api/auth/user-context/${userId}`));
       const response = await fetch(getApiUrl(`/api/auth/user-context/${userId}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -82,7 +84,7 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         return;
       }
     } catch (error) {
-      console.error('Error loading client data:', error);
+      console.error('❌ [CLIENT-DASHBOARD] Error loading client data:', error);
       handleLogout(setUserId);
     } finally {
       setLoading(false);
