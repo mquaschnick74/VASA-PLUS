@@ -535,7 +535,22 @@ router.post('/user', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // Get user context - REQUIRES AUTHENTICATION
+// OPTIONS handler for CORS preflight
+router.options('/user-context/:userId', (req, res) => {
+  console.log('🔵 [USER-CONTEXT] OPTIONS preflight request received');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, Cache-Control');
+  res.sendStatus(200);
+});
+
 router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, res) => {
+  console.log('🔵 [USER-CONTEXT] Request received:', {
+    userId: req.params.userId,
+    method: req.method,
+    origin: req.headers.origin,
+    host: req.headers.host
+  });
   try {
     const { userId } = req.params;
     const useEnhanced = req.query.enhanced !== 'false';
