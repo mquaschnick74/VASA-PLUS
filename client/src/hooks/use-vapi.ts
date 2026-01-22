@@ -38,6 +38,7 @@ interface UseVapiReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
   onTranscript: (callback: (message: TranscriptMessage) => void) => void;
   onSpeechUpdate: (callback: (message: SpeechUpdateMessage) => void) => void;
+  speakingRole: 'user' | 'assistant' | null;
   error: string | null;
   clearError: () => void;
 }
@@ -57,6 +58,7 @@ const useVapi = ({
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [error, setError] = useState<string | null>(null);
+  const [speakingRole, setSpeakingRole] = useState<'user' | 'assistant' | null>(null);
   const vapiRef = useRef<any>(null);
   const transcriptCallbackRef = useRef<((message: TranscriptMessage) => void) | null>(null);
   const speechUpdateCallbackRef = useRef<((message: SpeechUpdateMessage) => void) | null>(null);
@@ -97,10 +99,13 @@ const useVapi = ({
         // Add more event listeners for debugging
         vapiInstance.on('speech-start', () => {
           console.log('🎤 User started speaking');
+          setSpeakingRole('user');
         });
 
         vapiInstance.on('speech-end', () => {
           console.log('🎤 User stopped speaking');
+          // Only clear if user was speaking (assistant might have started)
+          setSpeakingRole(prev => prev === 'user' ? null : prev);
         });
 
         vapiInstance.on('message', (message: any) => {
@@ -170,6 +175,13 @@ const useVapi = ({
               status: message.status,
               role: message.role === 'assistant' ? 'assistant' : 'user'
             };
+
+            // Track who is currently speaking
+            if (message.status === 'started') {
+              setSpeakingRole(message.role === 'assistant' ? 'assistant' : 'user');
+            } else if (message.status === 'stopped') {
+              setSpeakingRole(null);
+            }
 
             // Call the speech update callback if it exists
             if (speechUpdateCallbackRef.current) {
@@ -492,6 +504,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     connectionStatus,
     onTranscript,
     onSpeechUpdate,
+    speakingRole,
     error,
     clearError
   };

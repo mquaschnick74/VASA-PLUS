@@ -612,3 +612,113 @@ body {
     z-index: 100;
   }
 }
+
+/* ===== Avatar Aura Animations ===== */
+
+@keyframes aura-breathe {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.05) rotate(2deg);
+    opacity: 0.6;
+  }
+}
+
+@keyframes aura-pulse {
+  0%, 100% {
+    transform: scale(0.95);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes aura-listen {
+  0% {
+    transform: scale(1.1) rotate(0deg);
+    opacity: 0.5;
+  }
+  25% {
+    transform: scale(0.95) rotate(-2deg);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.05) rotate(1deg);
+    opacity: 0.6;
+  }
+  75% {
+    transform: scale(0.98) rotate(-1deg);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.1) rotate(0deg);
+    opacity: 0.5;
+  }
+}
+
+@keyframes aura-think {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.5;
+    filter: blur(12px);
+  }
+  33% {
+    transform: scale(1.03) rotate(120deg);
+    opacity: 0.6;
+    filter: blur(16px);
+  }
+  66% {
+    transform: scale(0.97) rotate(240deg);
+    opacity: 0.55;
+    filter: blur(14px);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+    opacity: 0.5;
+    filter: blur(12px);
+  }
+}
+
+@keyframes aura-speak {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  25% {
+    transform: scale(1.08);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.55;
+  }
+  75% {
+    transform: scale(1.1);
+    opacity: 0.75;
+  }
+}
+
+/* Animation utility classes */
+.animate-aura-breathe {
+  animation: aura-breathe 4s ease-in-out infinite;
+}
+
+.animate-aura-pulse {
+  animation: aura-pulse 1.5s ease-in-out infinite;
+}
+
+.animate-aura-listen {
+  animation: aura-listen 2s ease-in-out infinite;
+}
+
+.animate-aura-think {
+  animation: aura-think 3s linear infinite;
+}
+
+.animate-aura-speak {
+  animation: aura-speak 1s ease-in-out infinite;
+}
