@@ -416,17 +416,19 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
         const authToken = session.access_token;
         const headers: Record<string, string> = {
-          'Cache-Control': 'no-cache',
           'Authorization': `Bearer ${authToken}`
         };
 
-        const userContextUrl = getApiUrl(`/api/auth/user-context/${userId}`);
+        // Note: Removed 'cache: no-store' and 'Cache-Control' header as they cause
+        // iOS WebView to reject the request. Adding timestamp param prevents caching instead.
+        const timestamp = Date.now();
+        const userContextUrl = getApiUrl(`/api/auth/user-context/${userId}?_t=${timestamp}`);
         console.log('🔍 [DEBUG] User context URL:', userContextUrl);
         console.log('🔍 [DEBUG] isNativeApp:', isNativeApp);
         console.log('🔍 [DEBUG] API_BASE_URL:', API_BASE_URL);
 
         const response = await fetch(userContextUrl, {
-          cache: 'no-store',
+          method: 'GET',
           headers
         });
         console.log('🔍 [DEBUG] Response status:', response.status, response.statusText);
