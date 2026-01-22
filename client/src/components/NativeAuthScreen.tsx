@@ -163,20 +163,21 @@ export function NativeAuthScreen({ setUserId }: NativeAuthScreenProps) {
       <div className="p-6">
         <button
           onClick={() => {
-            setMode('welcome');
+            // Switch between login and signup instead of going to welcome
+            setMode(mode === 'login' ? 'signup' : 'login');
             setError('');
             setMessage('');
             setEmail('');
             setPassword('');
           }}
-          className="text-purple-300 text-lg flex items-center gap-2"
+          className="text-purple-300 text-lg flex items-center gap-2 py-2 px-4 -ml-4 min-h-[44px]"
         >
           ← Back
         </button>
       </div>
 
       {/* Form - centered vertically in remaining space */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 -mt-16">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 -mt-32">
         <h2 className="text-3xl font-bold text-white mb-8">
           {mode === 'login' ? 'Welcome Back' : 'Create Account'}
         </h2>
