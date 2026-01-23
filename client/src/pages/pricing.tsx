@@ -184,27 +184,31 @@ export default function Pricing() {
     }
   ];
 
-  // Individual plans for non-logged-in users (static display)
+  // Individual/Personal plans for non-logged-in users (static display)
   const individualPlans = [
     {
-      name: 'Basic',
-      price: '$9',
+      name: 'Intro',
+      price: '$10',
       period: '/month',
+      annualPrice: '$7.99',
+      annualPeriod: '/mo billed annually',
       description: 'Perfect for getting started',
       features: [
-        '30 minutes voice time/month',
-        'Access to Sarah AI agent',
-        'Basic conversation history',
+        '45 minutes voice time/month',
+        'Access to AI therapeutic agents',
+        'Conversation history',
         'Email support'
       ]
     },
     {
-      name: 'Standard',
-      price: '$29',
+      name: 'Plus',
+      price: '$20',
       period: '/month',
+      annualPrice: '$17.99',
+      annualPeriod: '/mo billed annually',
       description: 'Most popular choice',
       features: [
-        '2 hours voice time/month',
+        '180 minutes voice time/month',
         'Access to all AI agents',
         'Full conversation history',
         'Priority support',
@@ -213,12 +217,14 @@ export default function Pricing() {
       popular: true
     },
     {
-      name: 'Premium',
-      price: '$79',
+      name: 'Complete',
+      price: '$40',
       period: '/month',
+      annualPrice: '$37.99',
+      annualPeriod: '/mo billed annually',
       description: 'For dedicated users',
       features: [
-        '5 hours voice time/month',
+        '420 minutes voice time/month',
         'Access to all AI agents',
         'Full conversation history',
         'Priority support',
@@ -369,8 +375,16 @@ export default function Pricing() {
                             <CardTitle className="text-2xl">{plan.name}</CardTitle>
                             <CardDescription>{plan.description}</CardDescription>
                             <div className="mt-4">
-                              <span className="text-4xl font-bold">{plan.price}</span>
-                              <span className="text-muted-foreground ml-1">{plan.period}</span>
+                              <div className="mb-2">
+                                <span className="text-4xl font-bold">{plan.price}</span>
+                                <span className="text-muted-foreground ml-1">{plan.period}</span>
+                              </div>
+                              {plan.annualPrice && (
+                                <div className="text-sm text-emerald-400">
+                                  or {plan.annualPrice}{plan.annualPeriod}
+                                  <span className="ml-1 text-xs text-purple-300">(save ~20%)</span>
+                                </div>
+                              )}
                             </div>
                           </CardHeader>
 
