@@ -77,5 +77,9 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VASA needs microphone access for voice therapy sessions with your AI therapeutic assistant.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>VASA uses speech recognition to understand your voice during therapy sessions.</string>
 </dict>
 </plist>
