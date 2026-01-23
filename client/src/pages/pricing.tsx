@@ -308,14 +308,58 @@ export default function Pricing() {
                 )}
 
                 {scriptLoaded && userId && userEmail ? (
-                  // Stripe Pricing Table - promo codes handled directly by Stripe during checkout
-                  <stripe-pricing-table
-                    pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
-                    publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
-                    client-reference-id={userId}
-                    customer-email={userEmail}
-                  >
-                  </stripe-pricing-table>
+                  <>
+                    {/* Billing Period Toggle for logged-in Individual users */}
+                    <div className="flex justify-center mb-8">
+                      <div className="inline-flex items-center gap-4">
+                        <span
+                          className={`text-sm cursor-pointer ${billingPeriod === 'monthly' ? 'text-white font-semibold' : 'text-purple-300 hover:text-purple-200'}`}
+                          onClick={() => setBillingPeriod('monthly')}
+                        >
+                          Monthly
+                        </span>
+                        <button
+                          onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'annual' : 'monthly')}
+                          className="relative w-12 h-6 rounded-full transition-colors bg-gray-600 hover:bg-gray-500"
+                          aria-label="Toggle billing period"
+                        >
+                          <span
+                            className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-200 ease-in-out ${
+                              billingPeriod === 'annual' ? 'left-7' : 'left-1'
+                            }`}
+                          />
+                        </button>
+                        <span
+                          className={`text-sm cursor-pointer ${billingPeriod === 'annual' ? 'text-white font-semibold' : 'text-purple-300 hover:text-purple-200'}`}
+                          onClick={() => setBillingPeriod('annual')}
+                        >
+                          Annual
+                        </span>
+                        {billingPeriod === 'annual' && (
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2 py-0.5">
+                            Save up to 33%
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Stripe Pricing Table - switches based on billing period */}
+                    {billingPeriod === 'monthly' ? (
+                      <stripe-pricing-table
+                        pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
+                        publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                        client-reference-id={userId}
+                        customer-email={userEmail}
+                      />
+                    ) : (
+                      <stripe-pricing-table
+                        pricing-table-id="prctbl_1Ssqyg4gtJy4JzhOFpyTio2j"
+                        publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                        client-reference-id={userId}
+                        customer-email={userEmail}
+                      />
+                    )}
+                  </>
                 ) : scriptLoaded && (!userId || !userEmail) ? (
                   // NON-LOGGED-IN USERS: Show static pricing cards with signup redirect
                   <div>
@@ -473,53 +517,109 @@ export default function Pricing() {
         ) : (
           <>
             {/* Therapist Plans - Cards with Server-Side Checkout */}
-            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
-              {therapistPlans.map((plan) => (
-                <Card 
-                  key={plan.name}
-                  className={`glass relative ${plan.popular ? 'border-purple-500 border-2' : ''}`}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <Badge className="bg-purple-500 text-white">
-                        Most Popular
-                      </Badge>
-                    </div>
-                  )}
-
-                  <CardHeader>
-                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                    <CardDescription>{plan.description}</CardDescription>
-                    <div className="mt-4">
-                      <span className="text-4xl font-bold">{plan.price}</span>
-                      <span className="text-muted-foreground ml-1">{plan.period}</span>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-6">
-                    {/* Features List */}
-                    <ul className="space-y-3">
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start">
-                          <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* CTA Button - UPDATED to use new checkout handler */}
-                    <Button
-                      className="w-full"
-                      size="lg"
-                      onClick={() => handleCheckout(plan.tier, plan.planType, plan.priceId)}
-                      variant={plan.popular ? 'default' : 'outline'}
-                      disabled={isCheckoutLoading}
+            <div className="max-w-5xl mx-auto mb-16">
+              <div className="glass rounded-2xl p-8">
+                {/* Billing Period Toggle for logged-in Therapist users */}
+                <div className="flex justify-center mb-8">
+                  <div className="inline-flex items-center gap-4">
+                    <span
+                      className={`text-sm cursor-pointer ${billingPeriod === 'monthly' ? 'text-white font-semibold' : 'text-purple-300 hover:text-purple-200'}`}
+                      onClick={() => setBillingPeriod('monthly')}
                     >
-                      {isCheckoutLoading ? 'Loading...' : 'Get Started'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+                      Monthly
+                    </span>
+                    <button
+                      onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'annual' : 'monthly')}
+                      className="relative w-12 h-6 rounded-full transition-colors bg-gray-600 hover:bg-gray-500"
+                      aria-label="Toggle billing period"
+                    >
+                      <span
+                        className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-200 ease-in-out ${
+                          billingPeriod === 'annual' ? 'left-7' : 'left-1'
+                        }`}
+                      />
+                    </button>
+                    <span
+                      className={`text-sm cursor-pointer ${billingPeriod === 'annual' ? 'text-white font-semibold' : 'text-purple-300 hover:text-purple-200'}`}
+                      onClick={() => setBillingPeriod('annual')}
+                    >
+                      Annual
+                    </span>
+                    {billingPeriod === 'annual' && (
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2 py-0.5">
+                        Save over 15%
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Monthly: Custom cards | Annual: Stripe pricing table */}
+                {billingPeriod === 'monthly' ? (
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {therapistPlans.map((plan) => (
+                      <Card
+                        key={plan.name}
+                        className={`glass relative ${plan.popular ? 'border-purple-500 border-2' : ''}`}
+                      >
+                        {plan.popular && (
+                          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                            <Badge className="bg-purple-500 text-white">
+                              Most Popular
+                            </Badge>
+                          </div>
+                        )}
+
+                        <CardHeader>
+                          <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                          <CardDescription>{plan.description}</CardDescription>
+                          <div className="mt-4">
+                            <span className="text-4xl font-bold">{plan.price}</span>
+                            <span className="text-muted-foreground ml-1">{plan.period}</span>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="space-y-6">
+                          {/* Features List */}
+                          <ul className="space-y-3">
+                            {plan.features.map((feature, idx) => (
+                              <li key={idx} className="flex items-start">
+                                <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
+                                <span className="text-sm">{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+
+                          {/* CTA Button */}
+                          <Button
+                            className="w-full"
+                            size="lg"
+                            onClick={() => handleCheckout(plan.tier, plan.planType, plan.priceId)}
+                            variant={plan.popular ? 'default' : 'outline'}
+                            disabled={isCheckoutLoading}
+                          >
+                            {isCheckoutLoading ? 'Loading...' : 'Get Started'}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  /* Annual: Stripe pricing table for therapists */
+                  scriptLoaded ? (
+                    <stripe-pricing-table
+                      pricing-table-id="prctbl_1Ssqve4gtJy4JzhOogCNHYDR"
+                      publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                      client-reference-id={userId}
+                      customer-email={userEmail}
+                    />
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                      <p className="text-muted-foreground">Loading pricing options...</p>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
           </>
         )}
