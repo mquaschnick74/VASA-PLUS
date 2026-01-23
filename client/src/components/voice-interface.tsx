@@ -630,7 +630,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
 
       if (sessionError || !sessionData?.session?.access_token) {
         console.error('❌ Failed to get session:', sessionError);
-        alert('Please log in to manage your subscription.');
+        // Redirect to pricing if session fails
+        setLocation('/pricing');
         return;
       }
 
@@ -648,6 +649,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       if (!response.ok) {
         const error = await response.json();
         console.error('❌ Portal error:', error);
+        // If no subscription found (404), redirect to pricing instead of showing alert
+        if (response.status === 404) {
+          setLocation('/pricing');
+          return;
+        }
         alert(error.error || 'Failed to open subscription management. Please try again.');
         return;
       }
@@ -658,7 +664,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
       window.location.href = url;
     } catch (error) {
       console.error('❌ Error opening subscription portal:', error);
-      alert('Failed to open subscription management. Please try again.');
+      // Fallback to pricing page on any error
+      setLocation('/pricing');
     }
   };
 
@@ -965,15 +972,28 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                       </div>
                     </div>
 
-                    {subscription.limits.subscription_tier === 'trial' && !subscription.limits.is_using_therapist_subscription && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={handleManageSubscription}
-                      >
-                        Upgrade
-                      </Button>
+                    {!subscription.limits.is_using_therapist_subscription && (
+                      subscription.limits.subscription_tier === 'trial' ? (
+                        // Trial users - go to pricing to subscribe
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => setLocation('/pricing')}
+                        >
+                          Upgrade
+                        </Button>
+                      ) : (
+                        // Subscribed users - go to Stripe Portal to manage
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={handleManageSubscription}
+                        >
+                          Manage
+                        </Button>
+                      )
                     )}
                   </div>
 
