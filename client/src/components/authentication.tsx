@@ -37,13 +37,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>('individual');
-  const [promoCode, setPromoCode] = useState('');
-  const [promoValidation, setPromoValidation] = useState<{
-    valid: boolean;
-    message: string;
-    influencerName?: string;
-  } | null>(null);
-  const [validatingPromo, setValidatingPromo] = useState(false);
   const [showAssessment, setShowAssessment] = useState(false);
 
   // Lock body scroll when assessment modal is open
@@ -114,72 +107,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     if (urlMode === 'signup') {
       setMode('signup');
     }
-
-    // Check URL parameters for promo code
-    const urlPromoCode = urlParams.get('promo');
-    if (urlPromoCode) {
-      console.log('Promo code detected in URL:', urlPromoCode);
-      setPromoCode(urlPromoCode.toUpperCase());
-      setMode('signup'); // Force signup mode when promo code present
-
-      // Auto-validate the promo code
-      validatePromoCode(urlPromoCode);
-    }
-
-    // 🆕 CHECK LOCALSTORAGE FOR SAVED PROMO CODE (from previous signup)
-    const savedPromo = localStorage.getItem('pendingPromoCode');
-    if (savedPromo && !urlPromoCode) {  // Only use saved if no URL promo
-      console.log('Found saved promo code:', savedPromo);
-      setPromoCode(savedPromo);
-      validatePromoCode(savedPromo);
-    }
   }, []);
 
-  // ============================================================================
-  // PROMO CODE VALIDATION FUNCTION
-  // ============================================================================
-  const validatePromoCode = async (code: string) => {
-    if (!code || code.trim().length === 0) {
-      setPromoValidation(null);
-      return;
-    }
-
-    setValidatingPromo(true);
-    
-    try {
-      const response = await fetch(getApiUrl('/api/auth/validate-promo'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ promoCode: code })
-      });
-
-      const result = await response.json();
-      
-      if (result.valid) {
-        setPromoValidation({
-          valid: true,
-          message: result.message,
-          influencerName: result.influencer.name
-        });
-      } else {
-        setPromoValidation({
-          valid: false,
-          message: result.error || 'Invalid promo code'
-        });
-      }
-    } catch (error) {
-      console.error('Promo validation error:', error);
-      setPromoValidation({
-        valid: false,
-        message: 'Failed to validate promo code'
-      });
-    } finally {
-      setValidatingPromo(false);
-    }
-  };
-
   // ✅ REMOVED: acceptInvitation function - Now handled in Dashboard component
+  // Note: Promo codes are now handled directly by Stripe during checkout
   // This ensures invitation is accepted BEFORE any modals appear
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -221,11 +152,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         // Show verification message
         setVerificationEmail(email);
         setVerificationSent(true);
-
-        // NEW: Store invitation token so we can use it after email verification
-        if (promoCode && promoValidation?.valid) {
-          localStorage.setItem('pendingPromoCode', promoCode);
-        }
 
         setPassword('');
         setShowPassword(false);
@@ -274,8 +200,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
               email: authData.user.email,
               firstName: authData.user.user_metadata?.first_name,
               authUserId: authData.user.id,
-              userType: authData.user.user_metadata?.user_type || 'individual',
-              promoCode: promoCode || null
+              userType: authData.user.user_metadata?.user_type || 'individual'
             })
           });
 
@@ -548,62 +473,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                       onChange={(e) => setFirstName(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-input border border-border"
                     />
-                  </div>
-                )}
-
-                {mode === 'signup' && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Promo Code (Optional)
-                    </Label>
-                    <div className="relative">
-                      <Input 
-                        type="text" 
-                        placeholder="Enter promo code"
-                        value={promoCode}
-                        onChange={(e) => {
-                          const value = e.target.value.toUpperCase();
-                          setPromoCode(value);
-                          
-                          // Validate on change (debounced)
-                          if (value.length >= 4) {
-                            validatePromoCode(value);
-                          } else {
-                            setPromoValidation(null);
-                          }
-                        }}
-                        className="w-full px-4 py-3 rounded-xl bg-input border border-border pr-12"
-                        maxLength={20}
-                      />
-                      {validatingPromo && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <i className="fas fa-spinner fa-spin text-muted-foreground"></i>
-                        </div>
-                      )}
-                      {!validatingPromo && promoValidation && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          {promoValidation.valid ? (
-                            <i className="fas fa-check-circle text-green-500"></i>
-                          ) : (
-                            <i className="fas fa-times-circle text-red-500"></i>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Validation message */}
-                    {promoValidation && (
-                      <div className={`text-xs ${promoValidation.valid ? 'text-green-500' : 'text-red-500'}`}>
-                        {promoValidation.message}
-                      </div>
-                    )}
-                    
-                    {/* Helpful hint */}
-                    {!promoCode && (
-                      <p className="text-xs text-muted-foreground">
-                        Have a promo code? Enter it to support your favorite creator!
-                      </p>
-                    )}
                   </div>
                 )}
 
