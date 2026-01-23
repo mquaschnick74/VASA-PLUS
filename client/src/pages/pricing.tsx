@@ -26,6 +26,7 @@ export default function Pricing() {
   const [promoCode, setPromoCode] = useState<string>('');
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -183,6 +184,50 @@ export default function Pricing() {
     }
   ];
 
+  // Individual plans for non-logged-in users (static display)
+  const individualPlans = [
+    {
+      name: 'Basic',
+      price: '$9',
+      period: '/month',
+      description: 'Perfect for getting started',
+      features: [
+        '30 minutes voice time/month',
+        'Access to Sarah AI agent',
+        'Basic conversation history',
+        'Email support'
+      ]
+    },
+    {
+      name: 'Standard',
+      price: '$29',
+      period: '/month',
+      description: 'Most popular choice',
+      features: [
+        '2 hours voice time/month',
+        'Access to all AI agents',
+        'Full conversation history',
+        'Priority support',
+        'CSS Pattern Tracking'
+      ],
+      popular: true
+    },
+    {
+      name: 'Premium',
+      price: '$79',
+      period: '/month',
+      description: 'For dedicated users',
+      features: [
+        '5 hours voice time/month',
+        'Access to all AI agents',
+        'Full conversation history',
+        'Priority support',
+        'Advanced CSS Tracking',
+        'Custom agent preferences'
+      ]
+    }
+  ];
+
   return (
     <div className="min-h-screen gradient-bg">
       <Header userId={userId} showDashboardLink={true} />
@@ -295,9 +340,62 @@ export default function Pricing() {
                     </stripe-pricing-table>
                   )
                 ) : scriptLoaded && (!userId || !userEmail) ? (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground mb-4">Please sign in to view pricing options.</p>
-                    <Button onClick={() => setLocation('/')}>Sign In</Button>
+                  // NON-LOGGED-IN USERS: Show static pricing cards with signup redirect
+                  <div>
+                    <div className="text-center mb-8 p-4 glass rounded-xl">
+                      <p className="text-lg text-purple-200 mb-2">
+                        Create a free account to subscribe
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Sign up takes less than a minute
+                      </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-3 gap-6">
+                      {individualPlans.map((plan) => (
+                        <Card
+                          key={plan.name}
+                          className={`glass relative ${plan.popular ? 'border-purple-500 border-2' : ''}`}
+                        >
+                          {plan.popular && (
+                            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                              <Badge className="bg-purple-500 text-white">
+                                Most Popular
+                              </Badge>
+                            </div>
+                          )}
+
+                          <CardHeader>
+                            <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                            <CardDescription>{plan.description}</CardDescription>
+                            <div className="mt-4">
+                              <span className="text-4xl font-bold">{plan.price}</span>
+                              <span className="text-muted-foreground ml-1">{plan.period}</span>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="space-y-6">
+                            <ul className="space-y-3">
+                              {plan.features.map((feature, idx) => (
+                                <li key={idx} className="flex items-start">
+                                  <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
+                                  <span className="text-sm">{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
+
+                            <Button
+                              className="w-full"
+                              size="lg"
+                              onClick={() => setLocation('/?mode=signup&redirect=/pricing')}
+                              variant={plan.popular ? 'default' : 'outline'}
+                            >
+                              Get Started
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
               </div>
