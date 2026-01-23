@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TherapeuticAgent, FIRST_SESSION_INTRODUCTION } from '../config/agent-configs';
+import { getApiUrl, isNativeApp } from '@/lib/platform';
 
 interface OnboardingData {
   voice: string;
@@ -316,18 +317,17 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       console.log('===== END PROMPT SIZE AUDIT =====\n');
 
       // Get the current server URL for webhook configuration
-      // Use environment variable if available, otherwise fall back to window.location.origin
-      const baseUrl = import.meta.env.VITE_SERVER_URL || window.location.origin;
-      const serverUrl = `${baseUrl}/api/vapi/webhook`;
+      // VAPI webhook must always use the full HTTPS URL because VAPI's servers need to reach it
+      // On native apps (iOS/Android), window.location.origin returns capacitor://localhost which VAPI rejects
+      const serverUrl = getApiUrl('/api/vapi/webhook');
 
       console.log('');
       console.log('╔══════════════════════════════════════════════════════════════╗');
       console.log('║ VAPI SESSION CONFIGURATION                                    ║');
       console.log('╚══════════════════════════════════════════════════════════════╝');
       console.log('📍 Webhook URL:', serverUrl);
-      console.log('   ├─ Base URL:', baseUrl);
-      console.log('   ├─ From Env Var:', !!import.meta.env.VITE_SERVER_URL);
-      console.log('   └─ Full Path:', `${baseUrl}/api/vapi/webhook`);
+      console.log('   ├─ Is Native App:', isNativeApp);
+      console.log('   └─ Using getApiUrl() for proper HTTPS URL');
       console.log('👤 User ID:', userId);
       console.log('🤖 Agent:', selectedAgent.name);
       console.log('📝 Session continuity:', shouldReferenceLastSession ? 'Enabled' : 'Disabled');
