@@ -71,7 +71,6 @@ router.post('/create-checkout-session', async (req, res) => {
 // Create customer portal session for subscription management
 router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res) => {
   try {
-    // Step 1: Get Supabase auth user ID
     const auth_user_id = req.user?.id;
     const auth_email = req.user?.email;
 
@@ -84,66 +83,61 @@ router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res)
 
     console.log('🔧 Creating customer portal session for auth user:', auth_user_id);
 
-    // Step 2: Look up the INTERNAL user profile ID and user type
-    const { data: userProfile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('id, user_type')
-      .eq('email', auth_email)
+    // Get user's internal ID from users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_user_id', auth_user_id)
       .single();
 
-    if (profileError || !userProfile) {
-      console.error('❌ User profile not found for email:', auth_email, profileError);
-      return res.status(404).json({
-        error: 'User profile not found'
-      });
+    if (userError || !userData) {
+      console.error('❌ Failed to find user:', userError);
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    const internal_user_id = userProfile.id;
-    const userType = userProfile.user_type || 'individual';
-    console.log('✅ Found internal user ID:', internal_user_id, '| User type:', userType);
+    // Get user type from user_profiles
+    const { data: profileData, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('user_type')
+      .eq('id', userData.id)
+      .single();
 
-    // Step 3: Get the user's Stripe customer ID using the INTERNAL ID
+    const userType = profileData?.user_type || 'individual';
+    console.log('👤 User type:', userType);
+
+    // Get Stripe customer ID from subscriptions table
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
-      .eq('user_id', internal_user_id)
+      .eq('user_id', userData.id)
       .single();
 
-    if (subError) {
-      console.error('❌ Supabase error:', subError);
-      return res.status(500).json({
-        error: 'Database error while fetching subscription'
-      });
-    }
-
-    if (!subscription?.stripe_customer_id) {
-      console.error('❌ No Stripe customer found for user:', internal_user_id);
+    if (subError || !subscription?.stripe_customer_id) {
+      console.error('❌ No Stripe customer found for user:', userData.id);
       return res.status(404).json({
-        error: 'No active subscription found. Please upgrade first.'
+        error: 'No subscription found. Please subscribe first.'
       });
     }
 
-    console.log('✅ Found Stripe customer:', subscription.stripe_customer_id);
+    console.log('💳 Found Stripe customer:', subscription.stripe_customer_id);
 
-    // Step 4: Select the correct portal configuration based on user type
+    // Select the correct portal configuration based on user type
     const portalConfigId = userType === 'therapist'
       ? 'bpc_1Ssr984gtJy4JzhO2qY8PcwM'  // Therapist Portal
       : 'bpc_1SG0XO4gtJy4JzhOryt1zsWf'; // Individual Portal
 
     console.log('🔧 Using portal configuration:', portalConfigId, 'for user type:', userType);
 
-    // Step 5: Create a Stripe customer portal session with the correct configuration
+    // Create portal session with the correct configuration
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
       return_url: `${process.env.CLIENT_URL || 'https://beta.ivasa.ai'}/dashboard`,
       configuration: portalConfigId,
     });
 
-    console.log('✅ Customer portal session created');
+    console.log('✅ Portal session created:', portalSession.url);
 
-    res.json({
-      url: portalSession.url
-    });
+    res.json({ url: portalSession.url });
   } catch (error: any) {
     console.error('❌ Error creating portal session:', error);
     res.status(500).json({
