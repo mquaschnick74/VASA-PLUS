@@ -190,7 +190,8 @@ export default function Pricing() {
   const individualPlans = [
     {
       name: 'Intro',
-      monthlyPrice: '$10',
+      oneTimePrice: '$10',
+      monthlyPrice: '$7.99',
       annualPrice: '$79.90',
       description: 'Perfect for getting started',
       features: [
@@ -202,7 +203,8 @@ export default function Pricing() {
     },
     {
       name: 'Plus',
-      monthlyPrice: '$20',
+      oneTimePrice: '$20',
+      monthlyPrice: '$17.99',
       annualPrice: '$179.90',
       description: 'Most popular choice',
       features: [
@@ -216,7 +218,8 @@ export default function Pricing() {
     },
     {
       name: 'Complete',
-      monthlyPrice: '$40',
+      oneTimePrice: '$40',
+      monthlyPrice: '$37.99',
       annualPrice: '$379.90',
       description: 'For dedicated users',
       features: [
@@ -417,27 +420,32 @@ export default function Pricing() {
 
                     {/* Billing Period Toggle: Monthly / Annual */}
                     <div className="flex justify-center mb-8">
-                      <div className="inline-flex items-center gap-3">
-                        <span className={`text-sm ${billingPeriod === 'monthly' ? 'text-white font-medium' : 'text-purple-300'}`}>
+                      <div className="inline-flex items-center gap-4">
+                        <span
+                          className={`text-sm cursor-pointer ${billingPeriod === 'monthly' ? 'text-white font-semibold' : 'text-purple-300 hover:text-purple-200'}`}
+                          onClick={() => setBillingPeriod('monthly')}
+                        >
                           Monthly
                         </span>
                         <button
                           onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'annual' : 'monthly')}
-                          className={`relative w-14 h-7 rounded-full transition-colors ${
-                            billingPeriod === 'annual' ? 'bg-emerald-500' : 'bg-gray-600'
-                          }`}
+                          className="relative w-12 h-6 rounded-full transition-colors bg-gray-600 hover:bg-gray-500"
+                          aria-label="Toggle billing period"
                         >
                           <span
-                            className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                              billingPeriod === 'annual' ? 'translate-x-8' : 'translate-x-1'
+                            className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-200 ease-in-out ${
+                              billingPeriod === 'annual' ? 'left-7' : 'left-1'
                             }`}
                           />
                         </button>
-                        <span className={`text-sm ${billingPeriod === 'annual' ? 'text-white font-medium' : 'text-purple-300'}`}>
+                        <span
+                          className={`text-sm cursor-pointer ${billingPeriod === 'annual' ? 'text-white font-semibold' : 'text-purple-300 hover:text-purple-200'}`}
+                          onClick={() => setBillingPeriod('annual')}
+                        >
                           Annual
                         </span>
                         {billingPeriod === 'annual' && (
-                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 ml-2">
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2 py-0.5">
                             Save up to 33%
                           </Badge>
                         )}
@@ -463,18 +471,37 @@ export default function Pricing() {
                             <CardTitle className="text-2xl">{plan.name}</CardTitle>
                             <CardDescription>{plan.description}</CardDescription>
                             <div className="mt-4">
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-4xl font-bold">
-                                  {billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {billingPeriod === 'monthly' ? '/month' : '/year'}
-                                </span>
-                              </div>
-                              {billingPeriod === 'annual' && (
-                                <p className="text-sm text-emerald-400 mt-1">
-                                  {planCategory === 'individual' ? 'Save 2+ months' : 'Save over 15%'}
-                                </p>
+                              {billingPeriod === 'monthly' ? (
+                                // Monthly view
+                                planCategory === 'individual' ? (
+                                  // Individual: Show one-time price + monthly recurring option
+                                  <>
+                                    <div className="flex items-baseline gap-1">
+                                      <span className="text-4xl font-bold">{plan.oneTimePrice}</span>
+                                      <span className="text-muted-foreground">one-time</span>
+                                    </div>
+                                    <p className="text-sm text-emerald-400 mt-2">
+                                      or {plan.monthlyPrice}/mo recurring
+                                    </p>
+                                  </>
+                                ) : (
+                                  // Therapist: Just show monthly recurring
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-4xl font-bold">{plan.monthlyPrice}</span>
+                                    <span className="text-muted-foreground">/month</span>
+                                  </div>
+                                )
+                              ) : (
+                                // Annual view
+                                <>
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-4xl font-bold">{plan.annualPrice}</span>
+                                    <span className="text-muted-foreground">/year</span>
+                                  </div>
+                                  <p className="text-sm text-emerald-400 mt-1">
+                                    {planCategory === 'individual' ? 'Save 2+ months' : 'Save over 15%'}
+                                  </p>
+                                </>
                               )}
                             </div>
                           </CardHeader>
