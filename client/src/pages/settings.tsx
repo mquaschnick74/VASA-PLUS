@@ -6,7 +6,6 @@ import { useLocation, useRoute } from 'wouter';
 import Header from '@/components/shared/Header';
 import SettingsLayout from '@/components/settings/SettingsLayout';
 import AccountSettings from '@/components/settings/AccountSettings';
-import SubscriptionSettings from '@/components/settings/SubscriptionSettings';
 import SupportSettings from '@/components/settings/SupportSettings';
 import EmailPreferencesSettings from '@/components/settings/EmailPreferencesSettings';
 import { supabase } from '@/lib/supabaseClient';
@@ -83,27 +82,13 @@ export default function Settings() {
   }, [setLocation]);
 
   // Define available sections based on user type
+  // Note: Subscription management is now handled via Stripe Portal from the dashboard
   const getSections = () => {
     const baseSections = [
       { id: 'account', label: 'Account', icon: 'User' },
+      { id: 'email-preferences', label: 'Email Preferences', icon: 'Mail' },
       { id: 'support', label: 'Support & Help', icon: 'HelpCircle' },
     ];
-
-    // Add subscription section for therapists, individuals, partners, influencers
-    if (['therapist', 'individual', 'partner', 'influencer'].includes(userType)) {
-      baseSections.splice(1, 0, {
-        id: 'subscription',
-        label: 'Subscription & Billing',
-        icon: 'CreditCard'
-      });
-    }
-
-    // Add email preferences section for all users
-    baseSections.splice(baseSections.length - 1, 0, {
-      id: 'email-preferences',
-      label: 'Email Preferences',
-      icon: 'Mail'
-    });
 
     return baseSections;
   };
@@ -122,8 +107,6 @@ export default function Settings() {
     switch (currentSection) {
       case 'account':
         return <AccountSettings userId={userId} setUserId={setUserId} userType={userType} />;
-      case 'subscription':
-        return <SubscriptionSettings userId={userId} userType={userType} />;
       case 'email-preferences':
         return <EmailPreferencesSettings userId={userId} userType={userType} />;
       case 'support':
