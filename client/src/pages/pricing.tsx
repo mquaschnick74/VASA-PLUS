@@ -27,6 +27,8 @@ export default function Pricing() {
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
+  const [planCategory, setPlanCategory] = useState<'individual' | 'therapist'>('individual');
 
   useEffect(() => {
     const loadUser = async () => {
@@ -188,10 +190,9 @@ export default function Pricing() {
   const individualPlans = [
     {
       name: 'Intro',
-      price: '$10',
-      period: '/month',
-      annualPrice: '$7.99',
-      annualPeriod: '/mo billed annually',
+      oneTimePrice: '$10',
+      monthlyPrice: '$7.99',
+      annualPrice: '$79.90',
       description: 'Perfect for getting started',
       features: [
         '45 minutes voice time/month',
@@ -202,10 +203,9 @@ export default function Pricing() {
     },
     {
       name: 'Plus',
-      price: '$20',
-      period: '/month',
-      annualPrice: '$17.99',
-      annualPeriod: '/mo billed annually',
+      oneTimePrice: '$20',
+      monthlyPrice: '$17.99',
+      annualPrice: '$179.90',
       description: 'Most popular choice',
       features: [
         '180 minutes voice time/month',
@@ -218,10 +218,9 @@ export default function Pricing() {
     },
     {
       name: 'Complete',
-      price: '$40',
-      period: '/month',
-      annualPrice: '$37.99',
-      annualPeriod: '/mo billed annually',
+      oneTimePrice: '$40',
+      monthlyPrice: '$37.99',
+      annualPrice: '$379.90',
       description: 'For dedicated users',
       features: [
         '420 minutes voice time/month',
@@ -231,6 +230,41 @@ export default function Pricing() {
         'Advanced CSS Tracking',
         'Custom agent preferences'
       ]
+    }
+  ];
+
+  // Therapist plans for non-logged-in users (static display)
+  const therapistPlansStatic = [
+    {
+      name: 'Basic',
+      monthlyPrice: '$99',
+      annualPrice: '$999',
+      description: 'Perfect for individual practitioners',
+      features: [
+        '3 Client Accounts',
+        'Personal iVASA Access',
+        '3 Hours Voice Time/Month',
+        'Basic Analytics',
+        'Email Support',
+        'CSS Pattern Tracking'
+      ],
+      popular: false
+    },
+    {
+      name: 'Premium',
+      monthlyPrice: '$199',
+      annualPrice: '$1,999',
+      description: 'For growing practices',
+      features: [
+        '10 Client Accounts',
+        'Personal iVASA Access',
+        '10 Hours Voice Time/Month',
+        'Advanced Analytics',
+        'Priority Support',
+        'Advanced CSS Tracking',
+        'Custom Agent Configuration'
+      ],
+      popular: true
     }
   ];
 
@@ -348,6 +382,7 @@ export default function Pricing() {
                 ) : scriptLoaded && (!userId || !userEmail) ? (
                   // NON-LOGGED-IN USERS: Show static pricing cards with signup redirect
                   <div>
+                    {/* Banner */}
                     <div className="text-center mb-8 p-4 glass rounded-xl">
                       <p className="text-lg text-purple-200 mb-2">
                         Create a free account to subscribe
@@ -357,8 +392,69 @@ export default function Pricing() {
                       </p>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-6">
-                      {individualPlans.map((plan) => (
+                    {/* Category Tabs: Individual / Therapist */}
+                    <div className="flex justify-center mb-6">
+                      <div className="inline-flex rounded-lg p-1 glass">
+                        <button
+                          onClick={() => setPlanCategory('individual')}
+                          className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+                            planCategory === 'individual'
+                              ? 'bg-emerald-500 text-white shadow-lg'
+                              : 'text-purple-200 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          Individual
+                        </button>
+                        <button
+                          onClick={() => setPlanCategory('therapist')}
+                          className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+                            planCategory === 'therapist'
+                              ? 'bg-emerald-500 text-white shadow-lg'
+                              : 'text-purple-200 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          Therapist
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Billing Period Toggle: Monthly / Annual */}
+                    <div className="flex justify-center mb-8">
+                      <div className="inline-flex items-center gap-4">
+                        <span
+                          className={`text-sm cursor-pointer ${billingPeriod === 'monthly' ? 'text-white font-semibold' : 'text-purple-300 hover:text-purple-200'}`}
+                          onClick={() => setBillingPeriod('monthly')}
+                        >
+                          Monthly
+                        </span>
+                        <button
+                          onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'annual' : 'monthly')}
+                          className="relative w-12 h-6 rounded-full transition-colors bg-gray-600 hover:bg-gray-500"
+                          aria-label="Toggle billing period"
+                        >
+                          <span
+                            className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-200 ease-in-out ${
+                              billingPeriod === 'annual' ? 'left-7' : 'left-1'
+                            }`}
+                          />
+                        </button>
+                        <span
+                          className={`text-sm cursor-pointer ${billingPeriod === 'annual' ? 'text-white font-semibold' : 'text-purple-300 hover:text-purple-200'}`}
+                          onClick={() => setBillingPeriod('annual')}
+                        >
+                          Annual
+                        </span>
+                        {billingPeriod === 'annual' && (
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2 py-0.5">
+                            Save up to 33%
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pricing Cards Grid */}
+                    <div className={`grid gap-6 ${planCategory === 'individual' ? 'md:grid-cols-3' : 'md:grid-cols-2 max-w-4xl mx-auto'}`}>
+                      {(planCategory === 'individual' ? individualPlans : therapistPlansStatic).map((plan) => (
                         <Card
                           key={plan.name}
                           className={`glass relative ${plan.popular ? 'border-purple-500 border-2' : ''}`}
@@ -375,15 +471,37 @@ export default function Pricing() {
                             <CardTitle className="text-2xl">{plan.name}</CardTitle>
                             <CardDescription>{plan.description}</CardDescription>
                             <div className="mt-4">
-                              <div className="mb-2">
-                                <span className="text-4xl font-bold">{plan.price}</span>
-                                <span className="text-muted-foreground ml-1">{plan.period}</span>
-                              </div>
-                              {plan.annualPrice && (
-                                <div className="text-sm text-emerald-400">
-                                  or {plan.annualPrice}{plan.annualPeriod}
-                                  <span className="ml-1 text-xs text-purple-300">(save ~20%)</span>
-                                </div>
+                              {billingPeriod === 'monthly' ? (
+                                // Monthly view
+                                planCategory === 'individual' ? (
+                                  // Individual: Show one-time price + monthly recurring option
+                                  <>
+                                    <div className="flex items-baseline gap-1">
+                                      <span className="text-4xl font-bold">{plan.oneTimePrice}</span>
+                                      <span className="text-muted-foreground">one-time</span>
+                                    </div>
+                                    <p className="text-sm text-emerald-400 mt-2">
+                                      or {plan.monthlyPrice}/mo recurring
+                                    </p>
+                                  </>
+                                ) : (
+                                  // Therapist: Just show monthly recurring
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-4xl font-bold">{plan.monthlyPrice}</span>
+                                    <span className="text-muted-foreground">/month</span>
+                                  </div>
+                                )
+                              ) : (
+                                // Annual view
+                                <>
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-4xl font-bold">{plan.annualPrice}</span>
+                                    <span className="text-muted-foreground">/year</span>
+                                  </div>
+                                  <p className="text-sm text-emerald-400 mt-1">
+                                    {planCategory === 'individual' ? 'Save 2+ months' : 'Save over 15%'}
+                                  </p>
+                                </>
                               )}
                             </div>
                           </CardHeader>
@@ -401,7 +519,7 @@ export default function Pricing() {
                             <Button
                               className="w-full"
                               size="lg"
-                              onClick={() => setLocation('/?mode=signup&redirect=/pricing')}
+                              onClick={() => setLocation(`/?mode=signup&redirect=/pricing&type=${planCategory}`)}
                               variant={plan.popular ? 'default' : 'outline'}
                             >
                               Get Started
