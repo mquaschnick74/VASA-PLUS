@@ -622,6 +622,46 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     handleLogout(setUserId);
   };
 
+  // Handle opening Stripe Customer Portal for subscription management
+  const handleManageSubscription = async () => {
+    try {
+      // Get authentication token
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !sessionData?.session?.access_token) {
+        console.error('❌ Failed to get session:', sessionError);
+        alert('Please log in to manage your subscription.');
+        return;
+      }
+
+      const token = sessionData.session.access_token;
+
+      const response = await fetch(getApiUrl('/api/stripe/create-portal-session'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('❌ Portal error:', error);
+        alert(error.error || 'Failed to open subscription management. Please try again.');
+        return;
+      }
+
+      const { url } = await response.json();
+
+      // Redirect to Stripe Customer Portal
+      window.location.href = url;
+    } catch (error) {
+      console.error('❌ Error opening subscription portal:', error);
+      alert('Failed to open subscription management. Please try again.');
+    }
+  };
+
   // NEW: Handle sending text messages
   const handleSendTextMessage = async () => {
     if (!textInput.trim() || isSessionActive || !activeTextSessionId) return;
@@ -926,11 +966,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                     </div>
 
                     {subscription.limits.subscription_tier === 'trial' && !subscription.limits.is_using_therapist_subscription && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         className="text-xs"
-                        onClick={() => window.location.href = '/pricing'}
+                        onClick={handleManageSubscription}
                       >
                         Upgrade
                       </Button>

@@ -2,7 +2,7 @@
 // Reusable settings layout with sidebar navigation
 
 import { ReactNode } from 'react';
-import { User, CreditCard, HelpCircle } from 'lucide-react';
+import { User, Mail, HelpCircle } from 'lucide-react';
 
 interface Section {
   id: string;
@@ -19,7 +19,7 @@ interface SettingsLayoutProps {
 
 const iconMap: Record<string, any> = {
   User,
-  CreditCard,
+  Mail,
   HelpCircle,
 };
 

@@ -22,8 +22,6 @@ export default function Pricing() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [userType, setUserType] = useState<string>('individual');
-  const [isPromoActive, setIsPromoActive] = useState<boolean>(false);
-  const [promoCode, setPromoCode] = useState<string>('');
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -39,21 +37,13 @@ export default function Pricing() {
 
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('id, user_type, promo_code, promo_discount_expires_at')
+          .select('id, user_type')
           .eq('email', user.email)
           .single();
 
         if (profile) {
           setUserId(profile.id);
           setUserType(profile.user_type || 'individual');
-          setPromoCode(profile.promo_code || '');
-
-          // Check if promo is still active
-          if (profile.promo_discount_expires_at) {
-            const expiryDate = new Date(profile.promo_discount_expires_at);
-            const now = new Date();
-            setIsPromoActive(expiryDate > now);
-          }
         }
       }
     };
@@ -318,67 +308,14 @@ export default function Pricing() {
                 )}
 
                 {scriptLoaded && userId && userEmail ? (
-                  promoCode === 'TESTA2025' ? (
-                    // PROMO A: 30 days free + 50% off for 1 month
-                    <div>
-                      <div className="text-center mb-4">
-                        <Badge className="bg-green-500">
-                          🎉 30 Days FREE + 50% Off Next Month - Code: {promoCode}
-                        </Badge>
-                      </div>
-                      <stripe-pricing-table
-                        pricing-table-id="prctbl_1SG3sP4gtJy4JzhOKL4JWBqj"
-                        publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
-                        client-reference-id={userId}
-                        customer-email={userEmail}
-                        customer-promo-code="TESTA2025"
-                      >
-                      </stripe-pricing-table>
-                    </div>
-                  ) : promoCode === 'TESTB2025' ? (
-                    // PROMO B: 30 days free + 50% off for 2 months
-                    <div>
-                      <div className="text-center mb-4">
-                        <Badge className="bg-green-500">
-                          🎉 30 Days FREE + 50% Off Next 2 Months - Code: {promoCode}
-                        </Badge>
-                      </div>
-                      <stripe-pricing-table
-                        pricing-table-id="prctbl_1SG3sP4gtJy4JzhOKL4JWBqj"
-                        publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
-                        client-reference-id={userId}
-                        customer-email={userEmail}
-                        customer-promo-code="TESTB2025"
-                      >
-                      </stripe-pricing-table>
-                    </div>
-                  ) : isPromoActive ? (
-                    // EXISTING GENERIC PROMO (keep as fallback for old INFLUENCER50 code)
-                    <div>
-                      <div className="text-center mb-4">
-                        <Badge className="bg-green-500">
-                          🎉 50% OFF First Month - Code: INFLUENCER50
-                        </Badge>
-                      </div>
-                      <stripe-pricing-table
-                        pricing-table-id="prctbl_1SG3sP4gtJy4JzhOKL4JWBqj"
-                        publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
-                        client-reference-id={userId}
-                        customer-email={userEmail}
-                        customer-promo-code="INFLUENCER50"
-                      >
-                      </stripe-pricing-table>
-                    </div>
-                  ) : (
-                    // NORMAL PRICING - No promo code applied
-                    <stripe-pricing-table
-                      pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
-                      publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
-                      client-reference-id={userId}
-                      customer-email={userEmail}
-                    >
-                    </stripe-pricing-table>
-                  )
+                  // Stripe Pricing Table - promo codes handled directly by Stripe during checkout
+                  <stripe-pricing-table
+                    pricing-table-id="prctbl_1SG0XO4gtJy4JzhOOyw7zQu0"
+                    publishable-key="pk_live_51Rng6m4gtJy4JzhOgdbmZOoUUZ9LNWn6Vc4aNY5FsB5hZ5s8iI06kj496y8K4h9Xs72EBSNJicgVdGuaiP2JmrAx00cOEWDBqW"
+                    client-reference-id={userId}
+                    customer-email={userEmail}
+                  >
+                  </stripe-pricing-table>
                 ) : scriptLoaded && (!userId || !userEmail) ? (
                   // NON-LOGGED-IN USERS: Show static pricing cards with signup redirect
                   <div>
