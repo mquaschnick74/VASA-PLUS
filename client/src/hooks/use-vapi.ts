@@ -209,42 +209,30 @@ const useVapi = ({
     try {
       // iOS AUDIO UNLOCK: iOS WebView requires audio context to be "unlocked" by user gesture
       // This must happen BEFORE vapi.start() to allow audio playback
-      // Without this, iOS blocks audio with "A user gesture is required" error
+      // IMPORTANT: Do NOT await these calls - they must be fire-and-forget to avoid blocking
       if (isNativeApp) {
         console.log('🔊 [iOS] Unlocking audio context for WebView...');
         try {
-          // Create and immediately play a silent audio context
           const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
           if (AudioContext) {
             const audioContext = new AudioContext();
 
-            // Create a silent oscillator and play it briefly
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            gainNode.gain.value = 0; // Silent
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.start(0);
-            oscillator.stop(0.001); // Stop almost immediately
+            // Create a silent buffer and play it (this unlocks audio on iOS)
+            const buffer = audioContext.createBuffer(1, 1, 22050);
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            source.start(0);
 
-            // Also create and play a silent audio element (belt and suspenders approach)
-            const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
-            silentAudio.volume = 0.01;
-            await silentAudio.play().catch(() => {
-              console.log('🔊 [iOS] Silent audio play failed (expected on some devices)');
-            });
+            // Resume audio context if suspended (fire-and-forget, don't await)
+            if (audioContext.state === 'suspended') {
+              audioContext.resume().catch(() => {});
+            }
 
             console.log('🔊 [iOS] Audio context unlocked successfully');
-
-            // Resume the audio context if it's suspended
-            if (audioContext.state === 'suspended') {
-              await audioContext.resume();
-              console.log('🔊 [iOS] Audio context resumed from suspended state');
-            }
           }
         } catch (audioError) {
           console.warn('🔊 [iOS] Audio unlock warning (non-fatal):', audioError);
-          // Continue anyway - this is a best-effort fix
         }
       }
 
