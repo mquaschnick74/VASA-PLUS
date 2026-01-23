@@ -341,7 +341,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        credentials: 'include',
+        ...(isNativeApp ? {} : { credentials: 'include' as RequestCredentials }),
         body: JSON.stringify({
           sessionId: activeTextSessionId,
           agentName: selectedAgent?.name,
