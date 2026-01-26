@@ -341,6 +341,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       // Send transcript to backend for processing and storage with timeout
       console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
       console.log('📤 [TEXT] Sending request to /api/chat/end-session');
+      console.log('📱 [TEXT] isNativeApp:', isNativeApp);
+      console.log('📱 [TEXT] API URL:', getApiUrl('/api/chat/end-session'));
+      console.log('📱 [TEXT] Token exists:', !!token);
+      console.log('📱 [TEXT] Token length:', token?.length);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
