@@ -12,13 +12,18 @@ import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { getApiUrl, isNativeApp, API_BASE_URL } from '@/lib/platform';
 import { useSubscription } from '@/hooks/use-subscription';
-import vasaLogo from '@assets/VASA Favi Minimal_1758122988999.png';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 
 interface VoiceInterfaceProps {
   userId: string;
   setUserId: (id: string | null) => void;
   hideLogoutButton?: boolean;
+}
+
+interface TranscriptMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
 }
 
 interface ExtendedTranscriptMessage extends TranscriptMessage {
@@ -47,7 +52,7 @@ interface UserContext {
   onboarding?: OnboardingData | null;
 }
 
-export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: VoiceInterfaceProps) {
+export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _hideLogoutButton }: VoiceInterfaceProps) {
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [callTimer, setCallTimer] = useState(0);
@@ -57,6 +62,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
   const [showDurationWarning, setShowDurationWarning] = useState(false);
   const [sessionDurationLimit, setSessionDurationLimit] = useState(7200); // Default: 2 hours in seconds
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+
+  const [, setLocation] = useLocation();
 
   // NEW: Transcript and text messaging state
   const [transcript, setTranscript] = useState<ExtendedTranscriptMessage[]>(() => {
@@ -110,7 +117,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     isLoading,
     startSession,
     endSession,
-    connectionStatus,
+    connectionStatus: _connectionStatus,
     error: vapiError,
     clearError
   } = useVapi({
@@ -620,10 +627,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     }
   };
 
-
-  const handleSignOut = () => {
-    handleLogout(setUserId);
-  };
 
   // Handle opening Stripe Customer Portal for subscription management
   const handleManageSubscription = async () => {
