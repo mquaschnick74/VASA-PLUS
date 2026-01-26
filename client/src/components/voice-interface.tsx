@@ -72,6 +72,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     return localStorage.getItem('vasa_text_session_id');
   });
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Typewriter effect state
@@ -156,9 +157,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
     // Only scroll when a new message is actually added (not on every re-render)
     if (transcript.length > lastTranscriptLengthRef.current) {
       lastTranscriptLengthRef.current = transcript.length;
-      // Use requestAnimationFrame for smoother scrolling
+      // Scroll the transcript container directly (not the whole page)
       requestAnimationFrame(() => {
-        transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (transcriptContainerRef.current) {
+          transcriptContainerRef.current.scrollTop = transcriptContainerRef.current.scrollHeight;
+        }
       });
     }
   }, [transcript.length]);
@@ -1226,7 +1229,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton }: 
                     </h3>
                   </div>
 
-                  <div className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="transcript-container">
+                  <div ref={transcriptContainerRef} className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="transcript-container">
                   {transcript.length === 0 ? (
                     // Placeholder when no messages
                     <>
