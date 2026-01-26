@@ -6,14 +6,13 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { handleLogout } from '@/lib/auth-helpers';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
-import { Settings, BookOpen, HelpCircle, LogOut, User } from 'lucide-react';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Settings, BookOpen, HelpCircle, LogOut, User, Menu } from 'lucide-react';
 import InstallAppButton from '@/components/InstallAppButton';
 
 interface HeaderProps {
@@ -27,6 +26,8 @@ interface HeaderProps {
 export default function Header({ userId, setUserId, userType, showDashboardLink = false, hideSignInButton = false }: HeaderProps) {
   const [location, setLocation] = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
   // Check userId prop first, fallback to localStorage for pages that don't pass the prop
   const isLoggedIn = !!userId || !!localStorage.getItem('userId');
 
@@ -36,6 +37,7 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
   const handleSignOut = async () => {
     if (setUserId && !loggingOut) {
       setLoggingOut(true);
+      setMenuOpen(false);
       try {
         await handleLogout(setUserId);
       } catch (error) {
@@ -43,6 +45,11 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
         setLoggingOut(false);
       }
     }
+  };
+
+  const handleNavigation = (path: string) => {
+    setMenuOpen(false);
+    setLocation(path);
   };
 
   return (
@@ -77,69 +84,76 @@ export default function Header({ userId, setUserId, userType, showDashboardLink 
             {/* Install App Button - Shows when PWA installation is available */}
             <InstallAppButton />
 
-            {/* Settings Dropdown - Shown when logged in */}
+            {/* Menu Sheet - Shown when logged in */}
             {isLoggedIn ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                <SheetTrigger asChild>
                   <Button
                     variant="ghost"
                     className="text-sm backdrop-filter backdrop-blur-md bg-transparent border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
                     data-testid="button-settings"
                   >
-                    <Settings className="h-4 w-4 mr-2" />
+                    <Menu className="h-4 w-4 mr-2" />
                     Menu
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 glass-strong border-white/10 backdrop-blur-xl"
+                </SheetTrigger>
+                <SheetContent 
+                  side="right" 
+                  className="glass-strong border-white/10 backdrop-blur-xl bg-background/95"
                 >
-                  <DropdownMenuLabel className="text-emerald-500/80">
-                    <User className="h-4 w-4 inline mr-2" />
-                    {userType ? userType.charAt(0).toUpperCase() + userType.slice(1) : 'User'} Menu
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-white/10" />
+                  <SheetHeader>
+                    <SheetTitle className="text-emerald-500/80 flex items-center">
+                      <User className="h-4 w-4 mr-2" />
+                      {userType ? userType.charAt(0).toUpperCase() + userType.slice(1) : 'User'} Menu
+                    </SheetTitle>
+                  </SheetHeader>
 
-                  <DropdownMenuItem
-                    onClick={() => setLocation('/settings')}
-                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
+                  <div className="flex flex-col gap-2 mt-6">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleNavigation('/settings')}
+                      className="w-full justify-start hover:bg-emerald-500/10"
+                    >
+                      <Settings className="h-4 w-4 mr-3" />
+                      Settings
+                    </Button>
 
-                  <DropdownMenuSeparator className="bg-white/10" />
+                    <div className="h-px bg-white/10 my-2" />
 
-                  <DropdownMenuItem
-                    onClick={() => setLocation('/learn-more')}
-                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
-                  >
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    More+
-                  </DropdownMenuItem>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleNavigation('/learn-more')}
+                      className="w-full justify-start hover:bg-emerald-500/10"
+                    >
+                      <BookOpen className="h-4 w-4 mr-3" />
+                      More+
+                    </Button>
 
-                  <DropdownMenuItem
-                    onClick={() => setLocation('/faq')}
-                    className="cursor-pointer hover:bg-emerald-500/10 focus:bg-emerald-500/10"
-                    data-testid="menu-item-faq"
-                  >
-                    <HelpCircle className="h-4 w-4 mr-2" />
-                    FAQ
-                  </DropdownMenuItem>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleNavigation('/faq')}
+                      className="w-full justify-start hover:bg-emerald-500/10"
+                      data-testid="menu-item-faq"
+                    >
+                      <HelpCircle className="h-4 w-4 mr-3" />
+                      FAQ
+                    </Button>
 
-                  <DropdownMenuSeparator className="bg-white/10" />
+                    <div className="h-px bg-white/10 my-2" />
 
-                  <DropdownMenuItem
-                    onClick={handleSignOut}
-                    disabled={loggingOut}
-                    className="cursor-pointer hover:bg-red-500/10 focus:bg-red-500/10 text-red-400"
-                    data-testid="menu-item-signout"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    {loggingOut ? 'Signing Out...' : 'Sign Out'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <Button
+                      variant="ghost"
+                      onClick={handleSignOut}
+                      disabled={loggingOut}
+                      className="w-full justify-start hover:bg-red-500/10 text-red-400"
+                      data-testid="menu-item-signout"
+                    >
+                      <LogOut className="h-4 w-4 mr-3" />
+                      {loggingOut ? 'Signing Out...' : 'Sign Out'}
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
             ) : !isOnLearnMorePages ? (
               /* Buttons shown when not logged in (except on learn-more pages) */
               <div className="flex items-center gap-2">
