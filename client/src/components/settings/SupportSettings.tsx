@@ -17,9 +17,9 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Support & Help</h2>
+        <h2 className="text-2xl font-bold mb-2">Tech Support</h2>
         <p className="text-muted-foreground text-sm">
-          Get help, access resources, and contact support
+          Access resources, and contact tech support
         </p>
       </div>
 
@@ -33,10 +33,10 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-emerald-500" />
-            Contact Support
+            Contact Tech Support
           </CardTitle>
           <CardDescription>
-            Get help from our support team
+            Get help from our tech team
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -47,7 +47,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
                 Email Support
               </label>
               <a
-                href="mailto:support@ivasa.ai"
+                href="mailto:tech.support@ivasa.ai"
                 className="text-base font-medium text-emerald-500 hover:text-emerald-400 transition-colors flex items-center gap-2"
               >
                 support@ivasa.ai
@@ -61,7 +61,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground flex items-center gap-2">
                 <Phone className="h-4 w-4" />
-                Phone Support
+                Tech Phone Support
               </label>
               <a
                 href="tel:+1234567890"
@@ -156,7 +156,7 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
             <div>
               <h4 className="font-medium text-sm mb-1">Account issues?</h4>
               <p className="text-xs text-muted-foreground">
-                Contact support at support@ivasa.ai for help with account-related problems.
+                Contact support at tech.support@ivasa.ai for help with account-related problems.
               </p>
             </div>
           </div>
