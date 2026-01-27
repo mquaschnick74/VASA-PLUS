@@ -925,3 +925,148 @@ export const userEmailPreferences = pgTable("user_email_preferences", {
 
 export type UserEmailPreferences = typeof userEmailPreferences.$inferSelect;
 export type InsertUserEmailPreferences = typeof userEmailPreferences.$inferInsert;
+
+// ============================================================================
+// PUSH NOTIFICATION TABLES
+// ============================================================================
+
+// Device tokens table - stores APNs/FCM tokens for push notifications
+export const deviceTokens = pgTable("device_tokens", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Device token from APNs/FCM
+  token: text("token").notNull(),
+
+  // Platform info
+  platform: varchar("platform", { length: 20 }).notNull(), // 'ios', 'android', 'web'
+
+  // Device metadata (optional, for debugging)
+  device_model: varchar("device_model", { length: 100 }),
+  os_version: varchar("os_version", { length: 50 }),
+  app_version: varchar("app_version", { length: 20 }),
+
+  // Token status
+  is_active: boolean("is_active").default(true),
+  last_used_at: timestamp("last_used_at", { withTimezone: true }),
+  failed_delivery_count: integer("failed_delivery_count").default(0),
+
+  // Timestamps
+  created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+  updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+});
+
+// User push notification preferences table
+export const userPushNotificationPreferences = pgTable("user_push_notification_preferences", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+
+  // Global push notification toggle
+  push_notifications_enabled: boolean("push_notifications_enabled").default(true),
+
+  // Individual notification type toggles
+  session_reminders_enabled: boolean("session_reminders_enabled").default(true),
+  therapeutic_followups_enabled: boolean("therapeutic_followups_enabled").default(true),
+  announcements_enabled: boolean("announcements_enabled").default(true),
+
+  // Session reminder settings
+  reminder_minutes_before: integer("reminder_minutes_before").default(30),
+
+  // Quiet hours
+  quiet_hours_enabled: boolean("quiet_hours_enabled").default(false),
+  quiet_hours_start: text("quiet_hours_start").default("22:00"), // HH:MM format
+  quiet_hours_end: text("quiet_hours_end").default("08:00"), // HH:MM format
+
+  // Timestamps
+  created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+  updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+});
+
+// Scheduled notifications table - for session reminders and future notifications
+export const scheduledNotifications = pgTable("scheduled_notifications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Notification content
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  notification_type: varchar("notification_type", { length: 50 }).notNull(), // 'session_reminder', 'therapeutic_followup', 'announcement'
+
+  // Scheduling
+  scheduled_for: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+
+  // Status tracking
+  status: varchar("status", { length: 20 }).default("pending"), // 'pending', 'sent', 'failed', 'cancelled'
+  sent_at: timestamp("sent_at", { withTimezone: true }),
+  error_message: text("error_message"),
+
+  // Reference data
+  reference_id: uuid("reference_id"),
+  reference_type: varchar("reference_type", { length: 50 }),
+
+  // Custom data payload
+  data: jsonb("data").default({}),
+
+  // Timestamps
+  created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+  updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+});
+
+// Notification history table - audit trail of sent notifications
+export const notificationHistory = pgTable("notification_history", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  device_token_id: uuid("device_token_id").references(() => deviceTokens.id, { onDelete: "set null" }),
+
+  // Notification content
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  notification_type: varchar("notification_type", { length: 50 }).notNull(),
+
+  // Delivery status
+  delivery_status: varchar("delivery_status", { length: 20 }).default("pending"), // 'pending', 'sent', 'delivered', 'failed', 'opened'
+
+  // APNs/FCM response data
+  apns_id: varchar("apns_id", { length: 255 }),
+  error_code: varchar("error_code", { length: 50 }),
+  error_message: text("error_message"),
+
+  // Engagement tracking
+  opened_at: timestamp("opened_at", { withTimezone: true }),
+  action_taken: varchar("action_taken", { length: 50 }),
+
+  // Custom data payload
+  data: jsonb("data").default({}),
+
+  // Timestamps
+  sent_at: timestamp("sent_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+  created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
+});
+
+// Types for push notification tables
+export type DeviceToken = typeof deviceTokens.$inferSelect;
+export type InsertDeviceToken = typeof deviceTokens.$inferInsert;
+export type UserPushNotificationPreferences = typeof userPushNotificationPreferences.$inferSelect;
+export type InsertUserPushNotificationPreferences = typeof userPushNotificationPreferences.$inferInsert;
+export type ScheduledNotification = typeof scheduledNotifications.$inferSelect;
+export type InsertScheduledNotification = typeof scheduledNotifications.$inferInsert;
+export type NotificationHistory = typeof notificationHistory.$inferSelect;
+export type InsertNotificationHistory = typeof notificationHistory.$inferInsert;
+
+// Notification type constants
+export const NOTIFICATION_TYPES = {
+  SESSION_REMINDER: 'session_reminder',
+  THERAPEUTIC_FOLLOWUP: 'therapeutic_followup',
+  ANNOUNCEMENT: 'announcement'
+} as const;
+
+export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
+
+// Device platform constants
+export const DEVICE_PLATFORMS = {
+  IOS: 'ios',
+  ANDROID: 'android',
+  WEB: 'web'
+} as const;
+
+export type DevicePlatform = typeof DEVICE_PLATFORMS[keyof typeof DEVICE_PLATFORMS];
