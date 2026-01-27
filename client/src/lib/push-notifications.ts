@@ -1,6 +1,6 @@
 // Location: client/src/lib/push-notifications.ts
 // Push notification service layer for iOS Capacitor app
-// Uses dynamic imports to avoid issues with Vite/web bundling
+// Uses dynamic imports with hidden module path to avoid Vite bundling issues
 
 import { Capacitor } from '@capacitor/core';
 import { getApiUrl, isNativeApp, isIOS } from './platform';
@@ -62,21 +62,41 @@ export interface ActionPerformed {
   notification: PushNotificationSchema;
 }
 
-// Lazy-loaded PushNotifications module
-let PushNotificationsModule: typeof import('@capacitor/push-notifications') | null = null;
+// Interface for the PushNotifications plugin
+interface PushNotificationsPlugin {
+  checkPermissions(): Promise<{ receive: 'granted' | 'denied' | 'prompt' }>;
+  requestPermissions(): Promise<{ receive: 'granted' | 'denied' | 'prompt' }>;
+  register(): Promise<void>;
+  removeAllListeners(): Promise<void>;
+  addListener(eventName: 'registration', callback: (token: Token) => void): Promise<any>;
+  addListener(eventName: 'registrationError', callback: (error: { error: string }) => void): Promise<any>;
+  addListener(eventName: 'pushNotificationReceived', callback: (notification: PushNotificationSchema) => void): Promise<any>;
+  addListener(eventName: 'pushNotificationActionPerformed', callback: (action: ActionPerformed) => void): Promise<any>;
+  getDeliveredNotifications(): Promise<{ notifications: PushNotificationSchema[] }>;
+  removeAllDeliveredNotifications(): Promise<void>;
+}
+
+// Lazy-loaded PushNotifications module - using 'any' to avoid Vite static analysis
+let PushNotificationsModule: { PushNotifications: PushNotificationsPlugin } | null = null;
+
+// Module path split to prevent Vite static analysis
+const CAPACITOR_PREFIX = '@capacitor';
+const PUSH_NOTIFICATIONS_SUFFIX = 'push-notifications';
 
 /**
  * Dynamically load the push notifications module
  * Only loads on native platforms to avoid Vite bundling issues
  */
-async function getPushNotificationsModule(): Promise<typeof import('@capacitor/push-notifications') | null> {
+async function getPushNotificationsModule(): Promise<{ PushNotifications: PushNotificationsPlugin } | null> {
   if (!isPushNotificationsSupported()) {
     return null;
   }
 
   if (!PushNotificationsModule) {
     try {
-      PushNotificationsModule = await import('@capacitor/push-notifications');
+      // Construct module path at runtime to hide from Vite's static analysis
+      const modulePath = `${CAPACITOR_PREFIX}/${PUSH_NOTIFICATIONS_SUFFIX}`;
+      PushNotificationsModule = await import(/* @vite-ignore */ modulePath);
     } catch (error) {
       console.error('Failed to load push notifications module:', error);
       return null;
@@ -87,8 +107,8 @@ async function getPushNotificationsModule(): Promise<typeof import('@capacitor/p
 }
 
 // Callbacks for notification events
-type NotificationCallback = (notification: any) => void;
-type ActionCallback = (action: any) => void;
+type NotificationCallback = (notification: PushNotificationSchema) => void;
+type ActionCallback = (action: ActionPerformed) => void;
 
 // Store callbacks for notification events
 let notificationReceivedCallbacks: NotificationCallback[] = [];
@@ -216,28 +236,28 @@ async function setupPushNotificationListeners(): Promise<void> {
   const { PushNotifications } = module;
 
   // Remove any existing listeners
-  PushNotifications.removeAllListeners();
+  await PushNotifications.removeAllListeners();
 
   // Registration successful - token received
-  PushNotifications.addListener('registration', (token) => {
+  await PushNotifications.addListener('registration', (token: Token) => {
     console.log('Push notification registration successful, token:', token.value);
     currentToken = token.value;
   });
 
   // Registration error
-  PushNotifications.addListener('registrationError', (error) => {
+  await PushNotifications.addListener('registrationError', (error: { error: string }) => {
     console.error('Push notification registration error:', error);
     registrationErrorCallbacks.forEach(callback => callback(new Error(error.error)));
   });
 
   // Notification received while app is in foreground
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
+  await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
     console.log('Push notification received in foreground:', notification);
     notificationReceivedCallbacks.forEach(callback => callback(notification));
   });
 
   // User tapped on notification
-  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+  await PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
     console.log('Push notification action performed:', action);
     notificationActionCallbacks.forEach(callback => callback(action));
   });
@@ -446,7 +466,7 @@ export async function clearBadges(): Promise<void> {
 /**
  * Get the list of delivered notifications
  */
-export async function getDeliveredNotifications(): Promise<any[]> {
+export async function getDeliveredNotifications(): Promise<PushNotificationSchema[]> {
   if (!isPushNotificationsSupported()) {
     return [];
   }
