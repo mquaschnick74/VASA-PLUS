@@ -2,7 +2,7 @@
 // Reusable settings layout with sidebar navigation
 
 import { ReactNode } from 'react';
-import { User, Mail, HelpCircle } from 'lucide-react';
+import { User, Mail, HelpCircle, Bell } from 'lucide-react';
 
 interface Section {
   id: string;
@@ -21,6 +21,7 @@ const iconMap: Record<string, any> = {
   User,
   Mail,
   HelpCircle,
+  Bell,
 };
 
 export default function SettingsLayout({

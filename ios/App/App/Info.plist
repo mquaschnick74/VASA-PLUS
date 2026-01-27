@@ -81,5 +81,9 @@
 	<string>VASA needs microphone access for voice therapy sessions with your AI therapeutic assistant.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>VASA uses speech recognition to understand your voice during therapy sessions.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

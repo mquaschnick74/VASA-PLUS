@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import UserNotifications
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -8,7 +9,41 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+
+        // Register for push notifications
+        registerForPushNotifications(application)
+
         return true
+    }
+
+    // MARK: - Push Notification Registration
+
+    func registerForPushNotifications(_ application: UIApplication) {
+        // Set the UNUserNotificationCenter delegate
+        UNUserNotificationCenter.current().delegate = self
+
+        // Request authorization is handled by Capacitor PushNotifications plugin
+        // This ensures the system knows we want to receive push notifications
+        application.registerForRemoteNotifications()
+    }
+
+    // MARK: - Push Notification Token Handling
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        // Forward the token to Capacitor's ApplicationDelegateProxy
+        // The PushNotifications plugin will handle storing/sending this token
+        NotificationCenter.default.post(
+            name: .capacitorDidRegisterForRemoteNotifications,
+            object: deviceToken
+        )
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        // Forward the error to Capacitor's ApplicationDelegateProxy
+        NotificationCenter.default.post(
+            name: .capacitorDidFailToRegisterForRemoteNotifications,
+            object: error
+        )
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -27,6 +62,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+
+        // Clear badge count when app becomes active
+        UIApplication.shared.applicationIconBadgeNumber = 0
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
@@ -46,4 +84,40 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+
+    // Called when a notification is received while the app is in the foreground
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Show the notification even when the app is in foreground
+        // The Capacitor plugin will handle forwarding this to JavaScript
+        completionHandler([.banner, .badge, .sound])
+    }
+
+    // Called when a user taps on a notification
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        // Forward notification tap to Capacitor's notification handler
+        // The PushNotifications plugin will emit the 'pushNotificationActionPerformed' event
+        let userInfo = response.notification.request.content.userInfo
+
+        // Post notification for Capacitor to handle
+        NotificationCenter.default.post(
+            name: NSNotification.Name("capacitorDidReceiveRemoteNotification"),
+            object: nil,
+            userInfo: userInfo
+        )
+
+        completionHandler()
+    }
 }

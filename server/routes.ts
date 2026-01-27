@@ -15,6 +15,7 @@ import chatRoutes from './routes/chat-routes';  // NEW: Text-to-text chat
 import analysisRoutes from './routes/analysis-routes';  // Unified analysis routes (includes legacy PCA)
 import assessmentRoutes from './routes/assessment-routes';  // NEW: Assessment integration
 import emailPreferencesRoutes from './routes/email-preferences-routes';
+import pushNotificationRoutes from './routes/push-notification-routes';
 import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 import stripeCheckoutRoutes from './routes/stripe-checkout';
@@ -43,6 +44,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/assessment', assessmentRoutes);  // NEW: Assessment integration
   console.log('✅ Assessment routes mounted at /api/assessment');
   apiRouter.use('/email-preferences', emailPreferencesRoutes);
+  apiRouter.use('/push-notifications', pushNotificationRoutes);
+  console.log('✅ Push notification routes mounted at /api/push-notifications');
   apiRouter.use('/stripe/webhook', stripeWebhookRoutes);
   apiRouter.use('/stripe-webhook', stripeWebhookRoutes); // Backwards compatibility for existing Stripe config
   apiRouter.use('/stripe', stripeCheckoutRoutes);
@@ -65,6 +68,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         analysis: 'Mounted at /api/analysis (unified)',  // Unified analysis routes
         assessment: 'Mounted at /api/assessment',  // NEW: Assessment integration
         emailPreferences: 'Mounted at /api/email-preferences',
+        pushNotifications: 'Mounted at /api/push-notifications',
         health: 'Mounted at /api/health'
       }
     });

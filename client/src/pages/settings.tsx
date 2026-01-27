@@ -8,6 +8,7 @@ import SettingsLayout from '@/components/settings/SettingsLayout';
 import AccountSettings from '@/components/settings/AccountSettings';
 import SupportSettings from '@/components/settings/SupportSettings';
 import EmailPreferencesSettings from '@/components/settings/EmailPreferencesSettings';
+import PushNotificationSettings from '@/components/settings/PushNotificationSettings';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function Settings() {
@@ -86,6 +87,7 @@ export default function Settings() {
   const getSections = () => {
     const baseSections = [
       { id: 'account', label: 'Account', icon: 'User' },
+      { id: 'push-notifications', label: 'Push Notifications', icon: 'Bell' },
       { id: 'email-preferences', label: 'Email Preferences', icon: 'Mail' },
       { id: 'support', label: 'Support & Help', icon: 'HelpCircle' },
     ];
@@ -107,6 +109,8 @@ export default function Settings() {
     switch (currentSection) {
       case 'account':
         return <AccountSettings userId={userId} setUserId={setUserId} userType={userType} />;
+      case 'push-notifications':
+        return <PushNotificationSettings userId={userId} userType={userType} />;
       case 'email-preferences':
         return <EmailPreferencesSettings userId={userId} userType={userType} />;
       case 'support':
