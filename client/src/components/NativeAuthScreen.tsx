@@ -105,50 +105,61 @@ export function NativeAuthScreen({ setUserId }: NativeAuthScreenProps) {
   };
 
   // Welcome screen
+  // Welcome screen
   if (mode === 'welcome') {
     return (
-        <div
-          className="h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-purple-900 via-purple-800 to-black overflow-hidden fixed inset-0"
-          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
-        {/* Logo */}
-        <div className="mb-8">
-          <img
-            src="/apple-touch-icon.png"
-            alt="iVASA"
-            className="w-24 h-24 rounded-2xl shadow-lg"
-          />
+      <div
+        className="h-screen flex flex-col items-center justify-between bg-gradient-to-b from-purple-900 via-purple-800 to-black overflow-hidden fixed inset-0"
+        style={{ 
+          paddingTop: 'calc(env(safe-area-inset-top) + 60px)', 
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
+          paddingLeft: '24px',
+          paddingRight: '24px'
+        }}
+      >
+        {/* Top spacer */}
+        <div className="flex-1" />
+
+        {/* Center content */}
+        <div className="flex flex-col items-center">
+          {/* Logo */}
+          <div className="mb-8">
+            <img
+              src="/apple-touch-icon.png"
+              alt="iVASA"
+              className="w-24 h-24 rounded-2xl shadow-lg"
+            />
+          </div>
+
+          {/* App name */}
+          <h1 className="text-4xl font-bold text-white mb-2">iVASA</h1>
+          <p className="text-purple-300 text-center mb-12 text-lg">
+            AI-powered therapeutic voice assistant
+          </p>
+
+          {/* Buttons */}
+          <div className="w-full max-w-xs space-y-4">
+            <Button
+              onClick={() => setMode('login')}
+              className="w-full py-6 text-lg bg-emerald-500 hover:bg-emerald-600 rounded-xl"
+            >
+              Log In
+            </Button>
+            <Button
+              onClick={() => setMode('signup')}
+              className="w-full py-6 text-lg bg-emerald-700 hover:bg-emerald-800 rounded-xl"
+            >
+              Sign Up
+            </Button>
+          </div>
         </div>
 
-        {/* App name */}
-        <h1 className="text-4xl font-bold text-white mb-2">iVASA</h1>
-        <p className="text-purple-300 text-center mb-12 px-4 text-lg">
-          AI-powered therapeutic voice assistant
-        </p>
-
-        {/* Buttons */}
-        <div className="w-full max-w-xs space-y-4">
-          <Button
-            onClick={() => setMode('login')}
-            className="w-full py-6 text-lg bg-emerald-500 hover:bg-emerald-600 rounded-xl"
-          >
-            Log In
-          </Button>
-          <Button
-            onClick={() => setMode('signup')}
-            className="w-full py-6 text-lg bg-emerald-700 hover:bg-emerald-800 rounded-xl"
-          >
-            Sign Up
-          </Button>
+        {/* Bottom spacer + Footer */}
+        <div className="flex-1 flex flex-col justify-end">
+          <p className="text-xs text-purple-400 text-center">
+            Built by a therapist, for those seeking to become their own expert.
+          </p>
         </div>
-
-        {/* Footer */}
-        <p
-          className="absolute bottom-8 text-xs text-purple-400 text-center px-4"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
-          Built by a therapist, for those seeking to become their own expert.
-        </p>
       </div>
     );
   }
