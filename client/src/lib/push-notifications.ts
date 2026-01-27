@@ -1,9 +1,19 @@
 // Location: client/src/lib/push-notifications.ts
 // Push notification service layer for iOS Capacitor app
-// Uses dynamic imports with hidden module path to avoid Vite bundling issues
+// Uses static imports like other Capacitor plugins
 
 import { Capacitor } from '@capacitor/core';
-import { getApiUrl, isNativeApp, isIOS } from './platform';
+import { PushNotifications } from '@capacitor/push-notifications';
+import type {
+  Token,
+  PushNotificationSchema,
+  ActionPerformed,
+  RegistrationError
+} from '@capacitor/push-notifications';
+import { getApiUrl } from './platform';
+
+// Re-export types for consumers
+export type { Token, PushNotificationSchema, ActionPerformed };
 
 // Types for push notification preferences
 export interface PushNotificationPreferences {
@@ -37,75 +47,6 @@ export interface NotificationPayload {
   [key: string]: unknown;
 }
 
-// Local type definitions (to avoid importing from @capacitor/push-notifications at bundle time)
-export interface Token {
-  value: string;
-}
-
-export interface PushNotificationSchema {
-  title?: string;
-  subtitle?: string;
-  body?: string;
-  id: string;
-  tag?: string;
-  badge?: number;
-  data: any;
-  click_action?: string;
-  link?: string;
-  group?: string;
-  groupSummary?: boolean;
-}
-
-export interface ActionPerformed {
-  actionId: string;
-  inputValue?: string;
-  notification: PushNotificationSchema;
-}
-
-// Interface for the PushNotifications plugin
-interface PushNotificationsPlugin {
-  checkPermissions(): Promise<{ receive: 'granted' | 'denied' | 'prompt' }>;
-  requestPermissions(): Promise<{ receive: 'granted' | 'denied' | 'prompt' }>;
-  register(): Promise<void>;
-  removeAllListeners(): Promise<void>;
-  addListener(eventName: 'registration', callback: (token: Token) => void): Promise<any>;
-  addListener(eventName: 'registrationError', callback: (error: { error: string }) => void): Promise<any>;
-  addListener(eventName: 'pushNotificationReceived', callback: (notification: PushNotificationSchema) => void): Promise<any>;
-  addListener(eventName: 'pushNotificationActionPerformed', callback: (action: ActionPerformed) => void): Promise<any>;
-  getDeliveredNotifications(): Promise<{ notifications: PushNotificationSchema[] }>;
-  removeAllDeliveredNotifications(): Promise<void>;
-}
-
-// Lazy-loaded PushNotifications module - using 'any' to avoid Vite static analysis
-let PushNotificationsModule: { PushNotifications: PushNotificationsPlugin } | null = null;
-
-// Module path split to prevent Vite static analysis
-const CAPACITOR_PREFIX = '@capacitor';
-const PUSH_NOTIFICATIONS_SUFFIX = 'push-notifications';
-
-/**
- * Dynamically load the push notifications module
- * Only loads on native platforms to avoid Vite bundling issues
- */
-async function getPushNotificationsModule(): Promise<{ PushNotifications: PushNotificationsPlugin } | null> {
-  if (!isPushNotificationsSupported()) {
-    return null;
-  }
-
-  if (!PushNotificationsModule) {
-    try {
-      // Construct module path at runtime to hide from Vite's static analysis
-      const modulePath = `${CAPACITOR_PREFIX}/${PUSH_NOTIFICATIONS_SUFFIX}`;
-      PushNotificationsModule = await import(/* @vite-ignore */ modulePath);
-    } catch (error) {
-      console.error('Failed to load push notifications module:', error);
-      return null;
-    }
-  }
-
-  return PushNotificationsModule;
-}
-
 // Callbacks for notification events
 type NotificationCallback = (notification: PushNotificationSchema) => void;
 type ActionCallback = (action: ActionPerformed) => void;
@@ -118,12 +59,16 @@ let registrationErrorCallbacks: ((error: Error) => void)[] = [];
 // Store the current token
 let currentToken: string | null = null;
 
+// Track if listeners are set up
+let listenersSetUp = false;
+
 /**
  * Check if push notifications are supported on this platform
  */
 export function isPushNotificationsSupported(): boolean {
-  // Only supported on native iOS for now
-  return isNativeApp && isIOS;
+  // Only supported on native iOS/Android
+  const platform = Capacitor.getPlatform();
+  return Capacitor.isNativePlatform() && (platform === 'ios' || platform === 'android');
 }
 
 /**
@@ -135,10 +80,7 @@ export async function checkPushNotificationPermission(): Promise<'granted' | 'de
   }
 
   try {
-    const module = await getPushNotificationsModule();
-    if (!module) return 'denied';
-
-    const result = await module.PushNotifications.checkPermissions();
+    const result = await PushNotifications.checkPermissions();
     return result.receive;
   } catch (error) {
     console.error('Error checking push notification permission:', error);
@@ -155,10 +97,7 @@ export async function requestPushNotificationPermission(): Promise<'granted' | '
   }
 
   try {
-    const module = await getPushNotificationsModule();
-    if (!module) return 'denied';
-
-    const result = await module.PushNotifications.requestPermissions();
+    const result = await PushNotifications.requestPermissions();
     return result.receive;
   } catch (error) {
     console.error('Error requesting push notification permission:', error);
@@ -176,8 +115,12 @@ export async function initializePushNotifications(): Promise<void> {
     return;
   }
 
+  // Set up listeners first (before checking permission)
+  await setupPushNotificationListeners();
+
   // Check current permission status
   const permission = await checkPushNotificationPermission();
+  console.log('Push notification permission status:', permission);
 
   if (permission === 'granted') {
     // Register with APNs
@@ -195,8 +138,12 @@ export async function enablePushNotifications(): Promise<boolean> {
   }
 
   try {
+    // Set up listeners if not already done
+    await setupPushNotificationListeners();
+
     // Request permission
     const permission = await requestPushNotificationPermission();
+    console.log('Push notification permission result:', permission);
 
     if (permission !== 'granted') {
       console.log('Push notification permission not granted');
@@ -216,51 +163,56 @@ export async function enablePushNotifications(): Promise<boolean> {
  * Register with APNs to get device token
  */
 async function registerWithAPNs(): Promise<void> {
-  const module = await getPushNotificationsModule();
-  if (!module) return;
-
-  // Set up listeners before registering
-  await setupPushNotificationListeners();
-
-  // Register with APNs
-  await module.PushNotifications.register();
+  try {
+    console.log('Registering with APNs...');
+    await PushNotifications.register();
+    console.log('APNs registration initiated');
+  } catch (error) {
+    console.error('Error registering with APNs:', error);
+  }
 }
 
 /**
  * Set up listeners for push notification events
  */
 async function setupPushNotificationListeners(): Promise<void> {
-  const module = await getPushNotificationsModule();
-  if (!module) return;
+  if (listenersSetUp) {
+    return;
+  }
 
-  const { PushNotifications } = module;
+  try {
+    // Remove any existing listeners first
+    await PushNotifications.removeAllListeners();
 
-  // Remove any existing listeners
-  await PushNotifications.removeAllListeners();
+    // Registration successful - token received
+    await PushNotifications.addListener('registration', (token: Token) => {
+      console.log('Push notification registration successful, token:', token.value);
+      currentToken = token.value;
+    });
 
-  // Registration successful - token received
-  await PushNotifications.addListener('registration', (token: Token) => {
-    console.log('Push notification registration successful, token:', token.value);
-    currentToken = token.value;
-  });
+    // Registration error
+    await PushNotifications.addListener('registrationError', (error: RegistrationError) => {
+      console.error('Push notification registration error:', error.error);
+      registrationErrorCallbacks.forEach(callback => callback(new Error(error.error)));
+    });
 
-  // Registration error
-  await PushNotifications.addListener('registrationError', (error: { error: string }) => {
-    console.error('Push notification registration error:', error);
-    registrationErrorCallbacks.forEach(callback => callback(new Error(error.error)));
-  });
+    // Notification received while app is in foreground
+    await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+      console.log('Push notification received in foreground:', notification);
+      notificationReceivedCallbacks.forEach(callback => callback(notification));
+    });
 
-  // Notification received while app is in foreground
-  await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-    console.log('Push notification received in foreground:', notification);
-    notificationReceivedCallbacks.forEach(callback => callback(notification));
-  });
+    // User tapped on notification
+    await PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
+      console.log('Push notification action performed:', action);
+      notificationActionCallbacks.forEach(callback => callback(action));
+    });
 
-  // User tapped on notification
-  await PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
-    console.log('Push notification action performed:', action);
-    notificationActionCallbacks.forEach(callback => callback(action));
-  });
+    listenersSetUp = true;
+    console.log('Push notification listeners set up successfully');
+  } catch (error) {
+    console.error('Error setting up push notification listeners:', error);
+  }
 }
 
 /**
@@ -307,11 +259,9 @@ export async function registerDeviceToken(token: string, authToken: string): Pro
   try {
     const platform = Capacitor.getPlatform() as 'ios' | 'android' | 'web';
 
-    // Get device info (simplified for now)
     const payload: DeviceTokenPayload = {
       token,
       platform,
-      // Additional device info could be added here
     };
 
     const response = await fetch(getApiUrl('/api/push-notifications/register-token'), {
@@ -343,7 +293,7 @@ export async function registerDeviceToken(token: string, authToken: string): Pro
 export async function unregisterDeviceToken(authToken: string): Promise<boolean> {
   const token = getCurrentToken();
   if (!token) {
-    return true; // No token to unregister
+    return true;
   }
 
   try {
@@ -438,7 +388,6 @@ export function handleNotificationDeepLink(payload: NotificationPayload): string
     return payload.deep_link;
   }
 
-  // Default routing based on notification type
   switch (payload.type) {
     case 'session_reminder':
       return payload.session_id ? `/session/${payload.session_id}` : '/dashboard';
@@ -458,9 +407,7 @@ export async function clearBadges(): Promise<void> {
   if (!isPushNotificationsSupported()) {
     return;
   }
-
   // On iOS, the badge is cleared automatically when opening the app
-  // This function is here for explicit clearing if needed
 }
 
 /**
@@ -472,10 +419,7 @@ export async function getDeliveredNotifications(): Promise<PushNotificationSchem
   }
 
   try {
-    const module = await getPushNotificationsModule();
-    if (!module) return [];
-
-    const result = await module.PushNotifications.getDeliveredNotifications();
+    const result = await PushNotifications.getDeliveredNotifications();
     return result.notifications;
   } catch (error) {
     console.error('Error getting delivered notifications:', error);
@@ -492,10 +436,7 @@ export async function removeAllDeliveredNotifications(): Promise<void> {
   }
 
   try {
-    const module = await getPushNotificationsModule();
-    if (!module) return;
-
-    await module.PushNotifications.removeAllDeliveredNotifications();
+    await PushNotifications.removeAllDeliveredNotifications();
   } catch (error) {
     console.error('Error removing delivered notifications:', error);
   }
