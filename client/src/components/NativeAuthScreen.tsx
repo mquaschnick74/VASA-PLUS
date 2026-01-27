@@ -167,15 +167,14 @@ export function NativeAuthScreen({ setUserId }: NativeAuthScreenProps) {
   // Login or Signup form
   return (
     <div
-      className="min-h-screen flex flex-col bg-gradient-to-b from-purple-900 via-purple-800 to-black"
+      className="h-screen flex flex-col bg-gradient-to-b from-purple-900 via-purple-800 to-black overflow-hidden fixed inset-0"
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {/* Back button - positioned at top */}
       <div className="p-6">
         <button
           onClick={() => {
-            // Switch between login and signup instead of going to welcome
-            setMode(mode === 'login' ? 'signup' : 'login');
+            setMode('welcome');
             setError('');
             setMessage('');
             setEmail('');
@@ -188,7 +187,7 @@ export function NativeAuthScreen({ setUserId }: NativeAuthScreenProps) {
       </div>
 
       {/* Form - centered vertically in remaining space */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 -mt-32">
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
         <h2 className="text-3xl font-bold text-white mb-8">
           {mode === 'login' ? 'Welcome Back' : 'Create Account'}
         </h2>
