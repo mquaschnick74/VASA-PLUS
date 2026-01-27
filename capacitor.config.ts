@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'ai.ivasa.app',
-  appName: 'VASA-Plus',
+  appName: 'iVASA',
   webDir: 'dist/public',
   server: {
     // For development, you can use your live server

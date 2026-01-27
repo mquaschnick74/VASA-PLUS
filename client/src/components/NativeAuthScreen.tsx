@@ -107,10 +107,10 @@ export function NativeAuthScreen({ setUserId }: NativeAuthScreenProps) {
   // Welcome screen
   if (mode === 'welcome') {
     return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-purple-900 via-purple-800 to-black"
-        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
+        <div
+          className="h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-purple-900 via-purple-800 to-black overflow-hidden fixed inset-0"
+          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
         {/* Logo */}
         <div className="mb-8">
           <img
@@ -121,7 +121,7 @@ export function NativeAuthScreen({ setUserId }: NativeAuthScreenProps) {
         </div>
 
         {/* App name */}
-        <h1 className="text-4xl font-bold text-white mb-2">VASA-Plus</h1>
+        <h1 className="text-4xl font-bold text-white mb-2">iVASA</h1>
         <p className="text-purple-300 text-center mb-12 px-4 text-lg">
           AI-powered therapeutic voice assistant
         </p>
