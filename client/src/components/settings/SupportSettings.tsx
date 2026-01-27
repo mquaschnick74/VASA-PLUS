@@ -44,13 +44,13 @@ export default function SupportSettings({ userType }: SupportSettingsProps) {
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground flex items-center gap-2">
                 <Mail className="h-4 w-4" />
-                Email Support
+                Tech Email Support
               </label>
               <a
                 href="mailto:tech.support@ivasa.ai"
                 className="text-base font-medium text-emerald-500 hover:text-emerald-400 transition-colors flex items-center gap-2"
               >
-                support@ivasa.ai
+                tech.support@ivasa.ai
                 <ExternalLink className="h-3 w-3" />
               </a>
               <p className="text-xs text-muted-foreground">
