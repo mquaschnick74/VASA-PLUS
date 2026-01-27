@@ -87,7 +87,7 @@ export default function Settings() {
     const baseSections = [
       { id: 'account', label: 'Account', icon: 'User' },
       { id: 'email-preferences', label: 'Email Preferences', icon: 'Mail' },
-      { id: 'support', label: 'Support & Help', icon: 'HelpCircle' },
+      { id: 'support', label: 'Tech Support', icon: 'HelpCircle' },
     ];
 
     return baseSections;
