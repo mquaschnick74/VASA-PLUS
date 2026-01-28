@@ -1,55 +1,22 @@
 // Location: client/src/lib/push-notifications.ts
 // Push notification service layer for iOS Capacitor app
-// Uses dynamic imports to prevent crashes on web - module only loads on native iOS
+// Uses static imports with platform checks (standard Capacitor pattern)
 
 import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+import type {
+  Token,
+  PushNotificationSchema,
+  ActionPerformed,
+  RegistrationError
+} from '@capacitor/push-notifications';
 import { getApiUrl } from './platform';
+
+// Re-export types for consumers
+export type { Token, PushNotificationSchema, ActionPerformed };
 
 // Debug logging prefix
 const LOG_PREFIX = '[PushNotifications]';
-
-// Local type definitions (to avoid importing from @capacitor/push-notifications at load time)
-export interface Token {
-  value: string;
-}
-
-export interface PushNotificationSchema {
-  title?: string;
-  subtitle?: string;
-  body?: string;
-  id: string;
-  tag?: string;
-  badge?: number;
-  data: any;
-  click_action?: string;
-  link?: string;
-  group?: string;
-  groupSummary?: boolean;
-}
-
-export interface ActionPerformed {
-  actionId: string;
-  inputValue?: string;
-  notification: PushNotificationSchema;
-}
-
-interface RegistrationError {
-  error: string;
-}
-
-// Interface for the PushNotifications plugin
-interface PushNotificationsPlugin {
-  checkPermissions(): Promise<{ receive: 'granted' | 'denied' | 'prompt' }>;
-  requestPermissions(): Promise<{ receive: 'granted' | 'denied' | 'prompt' }>;
-  register(): Promise<void>;
-  removeAllListeners(): Promise<void>;
-  addListener(eventName: 'registration', callback: (token: Token) => void): Promise<any>;
-  addListener(eventName: 'registrationError', callback: (error: RegistrationError) => void): Promise<any>;
-  addListener(eventName: 'pushNotificationReceived', callback: (notification: PushNotificationSchema) => void): Promise<any>;
-  addListener(eventName: 'pushNotificationActionPerformed', callback: (action: ActionPerformed) => void): Promise<any>;
-  getDeliveredNotifications(): Promise<{ notifications: PushNotificationSchema[] }>;
-  removeAllDeliveredNotifications(): Promise<void>;
-}
 
 // Types for push notification preferences
 export interface PushNotificationPreferences {
@@ -98,9 +65,6 @@ let currentToken: string | null = null;
 // Track if listeners are set up
 let listenersSetUp = false;
 
-// Cached PushNotifications plugin instance
-let pushNotificationsPlugin: PushNotificationsPlugin | null = null;
-
 /**
  * Check if push notifications are supported on this platform
  */
@@ -124,60 +88,19 @@ export function isPushNotificationsSupported(): boolean {
 }
 
 /**
- * Dynamically load the PushNotifications plugin
- * Only loads on native platforms to prevent web crashes
- */
-async function getPushNotificationsPlugin(): Promise<PushNotificationsPlugin | null> {
-  console.log(`${LOG_PREFIX} getPushNotificationsPlugin() called`);
-
-  if (!isPushNotificationsSupported()) {
-    console.log(`${LOG_PREFIX} Not supported, returning null`);
-    return null;
-  }
-
-  if (pushNotificationsPlugin) {
-    console.log(`${LOG_PREFIX} Returning cached plugin instance`);
-    return pushNotificationsPlugin;
-  }
-
-  try {
-    console.log(`${LOG_PREFIX} Dynamically importing @capacitor/push-notifications...`);
-
-    // Dynamic import - only runs on native platforms
-    const module = await import('@capacitor/push-notifications');
-
-    console.log(`${LOG_PREFIX} Import successful, module:`, typeof module);
-    console.log(`${LOG_PREFIX} PushNotifications:`, typeof module.PushNotifications);
-
-    pushNotificationsPlugin = module.PushNotifications as PushNotificationsPlugin;
-    return pushNotificationsPlugin;
-  } catch (error) {
-    console.error(`${LOG_PREFIX} Failed to load push notifications module:`, {
-      message: error instanceof Error ? error.message : String(error),
-      name: error instanceof Error ? error.name : typeof error,
-      stack: error instanceof Error ? error.stack : undefined,
-      errorType: typeof error,
-      fullError: error
-    });
-    return null;
-  }
-}
-
-/**
  * Check if push notifications are available (permission granted)
  */
 export async function checkPushNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
   console.log(`${LOG_PREFIX} checkPushNotificationPermission called`);
 
-  const plugin = await getPushNotificationsPlugin();
-  if (!plugin) {
-    console.log(`${LOG_PREFIX} No plugin available, returning denied`);
+  if (!isPushNotificationsSupported()) {
+    console.log(`${LOG_PREFIX} Not supported, returning denied`);
     return 'denied';
   }
 
   try {
-    console.log(`${LOG_PREFIX} Calling checkPermissions()...`);
-    const result = await plugin.checkPermissions();
+    console.log(`${LOG_PREFIX} Calling PushNotifications.checkPermissions()...`);
+    const result = await PushNotifications.checkPermissions();
     console.log(`${LOG_PREFIX} checkPermissions result:`, result);
     return result.receive;
   } catch (error) {
@@ -195,15 +118,14 @@ export async function checkPushNotificationPermission(): Promise<'granted' | 'de
 export async function requestPushNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
   console.log(`${LOG_PREFIX} requestPushNotificationPermission called`);
 
-  const plugin = await getPushNotificationsPlugin();
-  if (!plugin) {
-    console.log(`${LOG_PREFIX} No plugin available, returning denied`);
+  if (!isPushNotificationsSupported()) {
+    console.log(`${LOG_PREFIX} Not supported, returning denied`);
     return 'denied';
   }
 
   try {
-    console.log(`${LOG_PREFIX} Calling requestPermissions()...`);
-    const result = await plugin.requestPermissions();
+    console.log(`${LOG_PREFIX} Calling PushNotifications.requestPermissions()...`);
+    const result = await PushNotifications.requestPermissions();
     console.log(`${LOG_PREFIX} requestPermissions result:`, result);
     return result.receive;
   } catch (error) {
@@ -301,12 +223,11 @@ export async function enablePushNotifications(): Promise<boolean> {
  * Register with APNs to get device token
  */
 async function registerWithAPNs(): Promise<void> {
-  const plugin = await getPushNotificationsPlugin();
-  if (!plugin) return;
+  if (!isPushNotificationsSupported()) return;
 
   try {
-    console.log(`${LOG_PREFIX} registerWithAPNs() - Calling register()...`);
-    await plugin.register();
+    console.log(`${LOG_PREFIX} registerWithAPNs() - Calling PushNotifications.register()...`);
+    await PushNotifications.register();
     console.log(`${LOG_PREFIX} registerWithAPNs() - Registration call completed`);
   } catch (error) {
     console.error(`${LOG_PREFIX} Error registering with APNs:`, {
@@ -325,9 +246,8 @@ async function setupPushNotificationListeners(): Promise<void> {
     return;
   }
 
-  const plugin = await getPushNotificationsPlugin();
-  if (!plugin) {
-    console.log(`${LOG_PREFIX} No plugin available, cannot set up listeners`);
+  if (!isPushNotificationsSupported()) {
+    console.log(`${LOG_PREFIX} Not supported, cannot set up listeners`);
     return;
   }
 
@@ -336,32 +256,32 @@ async function setupPushNotificationListeners(): Promise<void> {
   try {
     // Remove any existing listeners first
     console.log(`${LOG_PREFIX} Removing existing listeners...`);
-    await plugin.removeAllListeners();
+    await PushNotifications.removeAllListeners();
 
     // Registration successful - token received
     console.log(`${LOG_PREFIX} Adding registration listener...`);
-    await plugin.addListener('registration', (token: Token) => {
+    await PushNotifications.addListener('registration', (token: Token) => {
       console.log(`${LOG_PREFIX} ✅ REGISTRATION SUCCESS - Token received:`, token.value);
       currentToken = token.value;
     });
 
     // Registration error
     console.log(`${LOG_PREFIX} Adding registrationError listener...`);
-    await plugin.addListener('registrationError', (error: RegistrationError) => {
+    await PushNotifications.addListener('registrationError', (error: RegistrationError) => {
       console.error(`${LOG_PREFIX} ❌ REGISTRATION ERROR:`, error.error);
       registrationErrorCallbacks.forEach(callback => callback(new Error(error.error)));
     });
 
     // Notification received while app is in foreground
     console.log(`${LOG_PREFIX} Adding pushNotificationReceived listener...`);
-    await plugin.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+    await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
       console.log(`${LOG_PREFIX} 📬 Notification received in foreground:`, notification);
       notificationReceivedCallbacks.forEach(callback => callback(notification));
     });
 
     // User tapped on notification
     console.log(`${LOG_PREFIX} Adding pushNotificationActionPerformed listener...`);
-    await plugin.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
+    await PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
       console.log(`${LOG_PREFIX} 👆 Notification action performed:`, action);
       notificationActionCallbacks.forEach(callback => callback(action));
     });
@@ -575,13 +495,12 @@ export async function clearBadges(): Promise<void> {
  * Get the list of delivered notifications
  */
 export async function getDeliveredNotifications(): Promise<PushNotificationSchema[]> {
-  const plugin = await getPushNotificationsPlugin();
-  if (!plugin) {
+  if (!isPushNotificationsSupported()) {
     return [];
   }
 
   try {
-    const result = await plugin.getDeliveredNotifications();
+    const result = await PushNotifications.getDeliveredNotifications();
     return result.notifications;
   } catch (error) {
     console.error(`${LOG_PREFIX} Error getting delivered notifications:`, error);
@@ -593,13 +512,12 @@ export async function getDeliveredNotifications(): Promise<PushNotificationSchem
  * Remove all delivered notifications from notification center
  */
 export async function removeAllDeliveredNotifications(): Promise<void> {
-  const plugin = await getPushNotificationsPlugin();
-  if (!plugin) {
+  if (!isPushNotificationsSupported()) {
     return;
   }
 
   try {
-    await plugin.removeAllDeliveredNotifications();
+    await PushNotifications.removeAllDeliveredNotifications();
   } catch (error) {
     console.error(`${LOG_PREFIX} Error removing delivered notifications:`, error);
   }
