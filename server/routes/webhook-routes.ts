@@ -764,13 +764,32 @@ router.post('/recover-orphaned-sessions', async (req, res) => {
 
 // PRESERVED: All your extraction functions with production debugging
 function extractUserId(message: any): string | null {
+  // Debug: Log all possible metadata locations
+  console.log('🔍 [extractUserId] Searching for userId in all possible locations...');
+
+  // Check each location individually for debugging
+  const locations = {
+    'call.metadata.userId': message?.call?.metadata?.userId,
+    'metadata.userId': message?.metadata?.userId,
+    'call.assistant.metadata.userId': message?.call?.assistant?.metadata?.userId,
+    'assistant.metadata.userId': message?.assistant?.metadata?.userId,
+    'call.assistantOverrides.metadata.userId': message?.call?.assistantOverrides?.metadata?.userId,
+    'assistantOverrides.metadata.userId': message?.assistantOverrides?.metadata?.userId,
+    'call.customer.userId': message?.call?.customer?.userId,
+    'customer.userId': message?.customer?.userId,
+  };
+
+  console.log('🔍 [extractUserId] Checked locations:', JSON.stringify(locations, null, 2));
+
   // Try multiple locations for userId
   const userId = message?.call?.metadata?.userId ||
          message?.metadata?.userId ||
          message?.call?.assistant?.metadata?.userId ||
          message?.assistant?.metadata?.userId ||
-         message?.call?.assistantId || // New: Try assistantId
-         message?.assistantId || // New: Direct assistantId
+         message?.call?.assistantOverrides?.metadata?.userId ||
+         message?.assistantOverrides?.metadata?.userId ||
+         message?.call?.customer?.userId ||
+         message?.customer?.userId ||
          null;
 
   // If still not found, try to extract from call object deeply
@@ -779,19 +798,22 @@ function extractUserId(message: any): string | null {
     const callObj = message.call;
     if (callObj.customer?.userId) return callObj.customer.userId;
     if (callObj.user?.id) return callObj.user.id;
+
+    // Check if metadata exists but userId is under a different key
+    if (callObj.metadata) {
+      console.log('🔍 [extractUserId] call.metadata contents:', JSON.stringify(callObj.metadata, null, 2));
+    }
+  }
+
+  // Also check assistant metadata at root level
+  if (!userId && message?.assistant?.metadata) {
+    console.log('🔍 [extractUserId] assistant.metadata contents:', JSON.stringify(message.assistant.metadata, null, 2));
   }
 
   if (!userId) {
     console.log('⚠️ Could not extract userId directly from webhook message');
     console.log('Event type:', message?.type || 'unknown');
-    console.log('Available paths:', {
-      hasCallMetadata: !!message?.call?.metadata,
-      hasDirectMetadata: !!message?.metadata,
-      callMetadataKeys: message?.call?.metadata ? Object.keys(message.call.metadata) : [],
-      directMetadataKeys: message?.metadata ? Object.keys(message.metadata) : [],
-      messageKeys: Object.keys(message || {}),
-      callKeys: message?.call ? Object.keys(message.call) : []
-    });
+    console.log('Full message structure (truncated):', JSON.stringify(message, null, 2).substring(0, 2000));
   } else {
     console.log(`✅ Extracted userId: ${userId}`);
   }
