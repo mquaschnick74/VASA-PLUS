@@ -30,7 +30,8 @@ interface RegistrationError {
 }
 
 // Lazily loaded PushNotifications module
-let PushNotificationsModule: typeof import('@capacitor/push-notifications').PushNotifications | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let PushNotificationsModule: any = null;
 
 async function getPushNotifications() {
   if (PushNotificationsModule) return PushNotificationsModule;
@@ -40,7 +41,9 @@ async function getPushNotifications() {
   }
 
   try {
-    const module = await import('@capacitor/push-notifications');
+    // Dynamic import - only resolved at runtime on native platforms
+    const modulePath = '@capaci' + 'tor/push-notifications';
+    const module = await import(/* @vite-ignore */ modulePath);
     PushNotificationsModule = module.PushNotifications;
     return PushNotificationsModule;
   } catch (error) {
