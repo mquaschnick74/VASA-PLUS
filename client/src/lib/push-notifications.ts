@@ -1,16 +1,53 @@
 // Location: client/src/lib/push-notifications.ts
 // Push notification service layer for iOS Capacitor app
-// Uses static imports with platform checks (standard Capacitor pattern)
+// Uses dynamic imports to avoid Vite resolution issues on web
 
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
-import type {
-  Token,
-  PushNotificationSchema,
-  ActionPerformed,
-  RegistrationError
-} from '@capacitor/push-notifications';
 import { getApiUrl } from './platform';
+
+// Types defined locally to avoid import issues
+interface Token {
+  value: string;
+}
+
+interface PushNotificationSchema {
+  title?: string;
+  subtitle?: string;
+  body?: string;
+  id: string;
+  badge?: number;
+  data: Record<string, unknown>;
+}
+
+interface ActionPerformed {
+  actionId: string;
+  inputValue?: string;
+  notification: PushNotificationSchema;
+}
+
+interface RegistrationError {
+  error: string;
+}
+
+// Lazily loaded PushNotifications module
+let PushNotificationsModule: typeof import('@capacitor/push-notifications').PushNotifications | null = null;
+
+async function getPushNotifications() {
+  if (PushNotificationsModule) return PushNotificationsModule;
+
+  if (!isPushNotificationsSupported()) {
+    return null;
+  }
+
+  try {
+    const module = await import('@capacitor/push-notifications');
+    PushNotificationsModule = module.PushNotifications;
+    return PushNotificationsModule;
+  } catch (error) {
+    console.error('[PushNotifications] Failed to load module:', error);
+    return null;
+  }
+}
 
 // Re-export types for consumers
 export type { Token, PushNotificationSchema, ActionPerformed };
@@ -93,7 +130,8 @@ export function isPushNotificationsSupported(): boolean {
 export async function checkPushNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
   console.log(`${LOG_PREFIX} checkPushNotificationPermission called`);
 
-  if (!isPushNotificationsSupported()) {
+  const PushNotifications = await getPushNotifications();
+  if (!PushNotifications) {
     console.log(`${LOG_PREFIX} Not supported, returning denied`);
     return 'denied';
   }
@@ -118,7 +156,8 @@ export async function checkPushNotificationPermission(): Promise<'granted' | 'de
 export async function requestPushNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
   console.log(`${LOG_PREFIX} requestPushNotificationPermission called`);
 
-  if (!isPushNotificationsSupported()) {
+  const PushNotifications = await getPushNotifications();
+  if (!PushNotifications) {
     console.log(`${LOG_PREFIX} Not supported, returning denied`);
     return 'denied';
   }
@@ -223,7 +262,8 @@ export async function enablePushNotifications(): Promise<boolean> {
  * Register with APNs to get device token
  */
 async function registerWithAPNs(): Promise<void> {
-  if (!isPushNotificationsSupported()) return;
+  const PushNotifications = await getPushNotifications();
+  if (!PushNotifications) return;
 
   try {
     console.log(`${LOG_PREFIX} registerWithAPNs() - Calling PushNotifications.register()...`);
@@ -246,7 +286,8 @@ async function setupPushNotificationListeners(): Promise<void> {
     return;
   }
 
-  if (!isPushNotificationsSupported()) {
+  const PushNotifications = await getPushNotifications();
+  if (!PushNotifications) {
     console.log(`${LOG_PREFIX} Not supported, cannot set up listeners`);
     return;
   }
@@ -261,33 +302,33 @@ async function setupPushNotificationListeners(): Promise<void> {
     // Registration successful - token received
     console.log(`${LOG_PREFIX} Adding registration listener...`);
     await PushNotifications.addListener('registration', (token: Token) => {
-      console.log(`${LOG_PREFIX} ✅ REGISTRATION SUCCESS - Token received:`, token.value);
+      console.log(`${LOG_PREFIX} REGISTRATION SUCCESS - Token received:`, token.value);
       currentToken = token.value;
     });
 
     // Registration error
     console.log(`${LOG_PREFIX} Adding registrationError listener...`);
     await PushNotifications.addListener('registrationError', (error: RegistrationError) => {
-      console.error(`${LOG_PREFIX} ❌ REGISTRATION ERROR:`, error.error);
+      console.error(`${LOG_PREFIX} REGISTRATION ERROR:`, error.error);
       registrationErrorCallbacks.forEach(callback => callback(new Error(error.error)));
     });
 
     // Notification received while app is in foreground
     console.log(`${LOG_PREFIX} Adding pushNotificationReceived listener...`);
     await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-      console.log(`${LOG_PREFIX} 📬 Notification received in foreground:`, notification);
+      console.log(`${LOG_PREFIX} Notification received in foreground:`, notification);
       notificationReceivedCallbacks.forEach(callback => callback(notification));
     });
 
     // User tapped on notification
     console.log(`${LOG_PREFIX} Adding pushNotificationActionPerformed listener...`);
     await PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
-      console.log(`${LOG_PREFIX} 👆 Notification action performed:`, action);
+      console.log(`${LOG_PREFIX} Notification action performed:`, action);
       notificationActionCallbacks.forEach(callback => callback(action));
     });
 
     listenersSetUp = true;
-    console.log(`${LOG_PREFIX} ✅ All listeners set up successfully`);
+    console.log(`${LOG_PREFIX} All listeners set up successfully`);
   } catch (error) {
     console.error(`${LOG_PREFIX} Error setting up push notification listeners:`, {
       message: error instanceof Error ? error.message : String(error),
@@ -485,7 +526,8 @@ export function handleNotificationDeepLink(payload: NotificationPayload): string
  * Clear all notification badges
  */
 export async function clearBadges(): Promise<void> {
-  if (!isPushNotificationsSupported()) {
+  const PushNotifications = await getPushNotifications();
+  if (!PushNotifications) {
     return;
   }
   // On iOS, the badge is cleared automatically when opening the app
@@ -495,13 +537,14 @@ export async function clearBadges(): Promise<void> {
  * Get the list of delivered notifications
  */
 export async function getDeliveredNotifications(): Promise<PushNotificationSchema[]> {
-  if (!isPushNotificationsSupported()) {
+  const PushNotifications = await getPushNotifications();
+  if (!PushNotifications) {
     return [];
   }
 
   try {
     const result = await PushNotifications.getDeliveredNotifications();
-    return result.notifications;
+    return result.notifications as PushNotificationSchema[];
   } catch (error) {
     console.error(`${LOG_PREFIX} Error getting delivered notifications:`, error);
     return [];
@@ -512,7 +555,8 @@ export async function getDeliveredNotifications(): Promise<PushNotificationSchem
  * Remove all delivered notifications from notification center
  */
 export async function removeAllDeliveredNotifications(): Promise<void> {
-  if (!isPushNotificationsSupported()) {
+  const PushNotifications = await getPushNotifications();
+  if (!PushNotifications) {
     return;
   }
 
