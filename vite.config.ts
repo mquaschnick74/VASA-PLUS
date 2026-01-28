@@ -28,6 +28,12 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
+  optimizeDeps: {
+    include: [
+      '@capacitor/core',
+      '@capacitor/push-notifications',
+    ],
+  },
   server: {
     fs: {
       strict: true,
