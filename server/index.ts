@@ -34,11 +34,8 @@ const app = express();
 // IMPORTANT: Raw body parsers for webhooks MUST come BEFORE global JSON parser
 // This allows webhook signature validation to work properly
 
-// Special handling for VAPI webhook endpoint with raw body for signature validation
-app.use('/api/vapi/webhook', express.raw({
-  type: 'application/json',
-  limit: '10mb'
-}));
+// NOTE: VAPI webhook does NOT need raw body - signature validation is optional
+// Let express.json() handle VAPI requests normally
 
 // Special handling for Stripe webhook endpoint with raw body for signature validation
 // Support both /api/stripe/webhook and /api/stripe-webhook (for backwards compatibility)
