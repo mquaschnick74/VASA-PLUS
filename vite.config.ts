@@ -27,15 +27,13 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      external: ['@capacitor/push-notifications'],
-    },
   },
   optimizeDeps: {
-    include: [
-      '@capacitor/core',
-      '@capacitor/push-notifications',
-    ],
+    include: ['@capacitor/core'],
+    exclude: ['@capacitor/push-notifications'],
+  },
+  ssr: {
+    noExternal: ['@capacitor/push-notifications'],
   },
   server: {
     fs: {
