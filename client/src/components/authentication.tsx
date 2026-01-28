@@ -580,7 +580,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           </div>
 
           {/* Agent Carousel Section */}
-          <div className="mt-24 mb-24 w-full">
+          <div className="mt-24 mb-24 w-full overflow-hidden">
             <div className="text-center mb-12">
               <h2 className="text-4xl md:text-5xl font-bold text-emerald-500 mb-4">
                 Meet Your AI Therapeutic Guides
@@ -593,30 +593,30 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           </div>
 
           {/* Features Section - Layered 3D Design */}
-          <div className="mt-16 md:mt-24 w-full relative">
-            <div className="relative max-w-5xl mx-auto">
-              
+          <div className="mt-16 md:mt-24 w-full relative overflow-hidden">
+            <div className="relative max-w-5xl mx-auto px-4 md:px-0">
+
               {/* Background: Envelope-sized autumn road image - 3/4 page width */}
-              <div className="relative w-3/4 h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
+              <div className="relative w-full md:w-3/4 h-[300px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
                 <img
                   src={autumnRoadImage}
                   alt="Autumn road"
                   className="w-full h-full object-cover"
                 />
-                
+
                 {/* Features Title - Overlaid, positioned lower for symmetry */}
-                <div className="absolute top-16 left-8 md:top-24 md:left-12">
-                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-emerald-500 drop-shadow-2xl">
+                <div className="absolute top-8 left-6 md:top-24 md:left-12">
+                  <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-emerald-500 drop-shadow-2xl">
                     Features
                   </h2>
                 </div>
               </div>
 
-              {/* Foreground: Feature cards stacked higher, last card mostly off photo */}
-              <div className="relative -mt-[420px] md:-mt-[480px] flex justify-end pr-4 md:pr-8">
-                <div className="w-full md:w-2/3 lg:w-1/2 space-y-6">
+              {/* Foreground: Feature cards - stacked below image on mobile, overlaid on desktop */}
+              <div className="relative mt-6 md:-mt-[480px] flex md:justify-end pr-0 md:pr-8">
+                <div className="w-full md:w-2/3 lg:w-1/2 space-y-4 md:space-y-6">
 
-                  {/* Feature 1: Extremely Affordable */}
+                  {/* Feature 1: Accessible Pricing */}
                   <div className="flex items-start gap-4 glass p-5 rounded-xl shadow-xl backdrop-blur-md bg-background/80 border border-white/20 transform transition-transform hover:scale-105">
                     <div className="flex-shrink-0 mt-1">
                       <div className="w-12 h-12 rounded-full bg-blue-500/30 flex items-center justify-center shadow-lg">
@@ -625,15 +625,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-1">
-                        Extremely <span className="text-emerald-400">Affordable</span>
+                        Accessible <span className="text-emerald-400">Pricing</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Low cost therapy, small fraction of the cost of traditional therapy
+                        Starting at $7.99/month vs. traditional therapy averaging $100-200/session
                       </p>
                     </div>
                   </div>
 
-                  {/* Feature 2: Always Available */}
+                  {/* Feature 2: Available 24/7 */}
                   <div className="flex items-start gap-4 glass p-5 rounded-xl shadow-xl backdrop-blur-md bg-background/80 border border-white/20 transform transition-transform hover:scale-105">
                     <div className="flex-shrink-0 mt-1">
                       <div className="w-12 h-12 rounded-full bg-emerald-500/30 flex items-center justify-center shadow-lg">
@@ -642,15 +642,15 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-1">
-                        Always <span className="text-emerald-400">Available</span>
+                        Available <span className="text-emerald-400">24/7</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Access therapy 24/7 whenever and wherever you need
+                        Access support whenever and wherever you need (requires internet connection)
                       </p>
                     </div>
                   </div>
 
-                  {/* Feature 3: Personalized Therapist */}
+                  {/* Feature 3: Personalized Support */}
                   <div className="flex items-start gap-4 glass p-5 rounded-xl shadow-xl backdrop-blur-md bg-background/80 border border-white/20 transform transition-transform hover:scale-105">
                     <div className="flex-shrink-0 mt-1">
                       <div className="w-12 h-12 rounded-full bg-purple-500/30 flex items-center justify-center shadow-lg">
@@ -659,10 +659,10 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-1">
-                        Personalized <span className="text-emerald-400">Therapist</span>
+                        Personalized <span className="text-emerald-400">Support</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Therapist learns more about you with every conversation
+                        AI remembers context from your conversations to provide continuity
                       </p>
                     </div>
                   </div>
@@ -679,7 +679,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                         Customizable <span className="text-emerald-400">Experience</span>
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Choose how you want your therapist to be
+                        Choose your preferred AI companion and conversation style
                       </p>
                     </div>
                   </div>
