@@ -629,15 +629,21 @@ export default function Dashboard() {
     // Demo mode - show DemoVoiceCard with back button
     if (showDemo) {
       return (
-        <div className="min-h-screen gradient-bg flex flex-col items-center justify-center px-4">
-          <button
-            onClick={() => setShowDemo(false)}
-            className="absolute top-4 left-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-          <DemoVoiceCard />
+        <div className="min-h-screen gradient-bg flex flex-col">
+          <div className="p-4">
+            <button
+              onClick={() => setShowDemo(false)}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center px-4">
+            <div className="w-full max-w-md">
+              <DemoVoiceCard />
+            </div>
+          </div>
         </div>
       );
     }
