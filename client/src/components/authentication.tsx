@@ -343,10 +343,18 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* LEFT COLUMN: Value Proposition + Demo */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-4 max-w-lg">
-              <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
+              <div className="mb-6">
+                <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight mb-2">
+                  Human in the Loop — AI-Assisted Therapy
+                </h1>
+                <p className="text-emerald-400 text-lg md:text-xl font-medium">
+                  Depth therapy with a licensed clinician, enhanced by AI that actually understands you.
+                </p>
+              </div>
+              <h2 className="text-emerald-400 text-xl md:text-2xl lg:text-3xl font-bold leading-tight">
                 Your future is a reflection of your past:<br />
-                
-              </h1>
+
+              </h2>
               <p className="text-lg md:text-xl text-muted-foreground font-medium">
                 Reveal what you can't see alone, and change it!
               </p>
