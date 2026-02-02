@@ -335,31 +335,20 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack 
         </div>
       )}
 
-      <div className="min-h-screen gradient-bg">
-        <Header hideSignInButton={true} />
-
-        {/* Full-width Hero Banner */}
-        <div className="w-full py-12 md:py-20 lg:py-24 px-4 text-center">
-          <h1 className="text-emerald-400 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3">
-            Human in the Loop — AI-Assisted Therapy
-          </h1>
-          <p className="text-emerald-400 text-lg md:text-xl lg:text-2xl font-medium max-w-3xl mx-auto">
-            Depth therapy with a licensed clinician, enhanced by AI that actually understands you.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-center p-4 md:p-6 pt-4 md:pt-8">
-      <div className="w-full max-w-6xl mx-auto px-4">
-        {/* Back button */}
+      <div className="min-h-screen gradient-bg relative">
+        {/* Back button - absolute positioned */}
         {onBack && (
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors mb-4"
+            className="absolute top-4 left-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors z-20"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
         )}
+        <Header hideSignInButton={true} />
+        <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
+      <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
           {/* LEFT COLUMN: Value Proposition + Demo */}
