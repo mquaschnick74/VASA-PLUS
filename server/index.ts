@@ -83,13 +83,12 @@ app.use(cors({
 }));
 
 // Redirect ivasa.ai to beta.ivasa.ai
-// IMPORTANT: Skip redirects for webhook endpoints - Stripe/VAPI don't follow redirects
+// IMPORTANT: Skip redirects for webhook endpoints and social media crawlers
 app.use((req, res, next) => {
   const host = req.get('host');
   const path = req.path;
 
   // NEVER redirect webhook endpoints - external services like Stripe don't follow redirects
-  // They expect a direct 2xx response from the webhook URL
   if (path.includes('/stripe-webhook') ||
       path.includes('/stripe/webhook') ||
       path.includes('/vapi/webhook')) {
@@ -100,6 +99,26 @@ app.use((req, res, next) => {
   // Check if request is coming to ivasa.ai or ivasa-ai.com (with or without www)
   if (host === 'ivasa.ai' || host === 'www.ivasa.ai' ||
       host === 'ivasa-ai.com' || host === 'www.ivasa-ai.com') {
+
+    // Social media crawlers do NOT follow redirects - they need the HTML served directly
+    // so they can read the Open Graph meta tags for link previews
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+    const isCrawler = userAgent.includes('twitterbot') ||
+                      userAgent.includes('facebookexternalhit') ||
+                      userAgent.includes('linkedinbot') ||
+                      userAgent.includes('slackbot') ||
+                      userAgent.includes('discordbot') ||
+                      userAgent.includes('whatsapp') ||
+                      userAgent.includes('telegrambot') ||
+                      userAgent.includes('googlebot') ||
+                      userAgent.includes('bingbot') ||
+                      userAgent.includes('applebot');
+
+    if (isCrawler) {
+      console.log(`🤖 Social crawler detected on ${host} (${userAgent.substring(0, 50)}) - serving page directly`);
+      return next();
+    }
+
     const redirectUrl = `https://beta.ivasa.ai${req.originalUrl}`;
     console.log(`🔀 Redirecting ${host} to beta.ivasa.ai`);
     return res.redirect(301, redirectUrl);
