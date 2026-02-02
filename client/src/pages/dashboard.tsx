@@ -38,15 +38,14 @@ export default function Dashboard() {
   // 🆕 NEW: Track invitation acceptance status
   const [invitationProcessing, setInvitationProcessing] = useState(false);
   const [invitationChecked, setInvitationChecked] = useState(false);
-  // Gateway page state for unauthenticated users
-  const [selectedPath, setSelectedPath] = useState<'individual' | 'therapist' | 'client' | null>(null);
+  // Demo mode state for unauthenticated users
   const [showDemo, setShowDemo] = useState(false);
   const authListenerRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
   const lastEventRef = useRef<string>('');
 
-  // Check URL params on mount — invitation links and mode params bypass the gateway
+  // Check URL params on mount — redirect invitation links to dedicated signup pages
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
@@ -54,11 +53,13 @@ export default function Dashboard() {
     const urlMode = urlParams.get('mode');
 
     if (token && therapist) {
-      // Client invitation link — skip gateway, go straight to auth with client type
-      setSelectedPath('client');
+      // Client invitation link — redirect to dedicated client signup page
+      window.location.href = `/signup/client?token=${encodeURIComponent(token)}&therapist=${encodeURIComponent(therapist)}`;
+      return;
     } else if (urlMode === 'signup') {
-      // Direct signup link — skip gateway, go to auth as individual
-      setSelectedPath('individual');
+      // Direct signup link — redirect to individual signup page
+      window.location.href = '/signup/individual';
+      return;
     }
   }, []);
 
@@ -648,23 +649,11 @@ export default function Dashboard() {
       );
     }
 
-    // No path selected yet - show gateway page
-    if (selectedPath === null) {
-      return (
-        <GatewayPage
-          onSelectPath={setSelectedPath}
-          onTryDemo={() => setShowDemo(true)}
-          onSignIn={() => setSelectedPath('individual')}
-        />
-      );
-    }
-
-    // Path selected - show authentication form
+    // Show gateway page for unauthenticated users
+    // Gateway buttons navigate to dedicated signup pages (/signup/individual, /signup/therapist, etc.)
     return (
-      <Authentication
-        setUserId={setUserId}
-        preSelectedUserType={selectedPath}
-        onBack={() => setSelectedPath(null)}
+      <GatewayPage
+        onTryDemo={() => setShowDemo(true)}
       />
     );
   }

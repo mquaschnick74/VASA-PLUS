@@ -2,23 +2,24 @@
 // Full-screen gateway page for user path selection - Two-column layout
 
 import { ExternalLink } from 'lucide-react';
+import { useLocation } from 'wouter';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
 interface GatewayPageProps {
-  onSelectPath: (userType: 'individual' | 'therapist') => void;
   onTryDemo: () => void;
-  onSignIn: () => void;
 }
 
-export default function GatewayPage({ onSelectPath, onTryDemo, onSignIn }: GatewayPageProps) {
+export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
+  const [, setLocation] = useLocation();
+
   return (
     <div className="min-h-screen gradient-bg">
       {/* Top bar */}
       <div className="sticky top-0 left-0 right-0 flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4 z-50">
         <img src={vasaLogo} alt="iVASA" className="h-8 md:h-10" />
         <button
-          onClick={onSignIn}
+          onClick={() => setLocation('/signup/individual')}
           className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
         >
           Log in
@@ -66,7 +67,7 @@ export default function GatewayPage({ onSelectPath, onTryDemo, onSignIn }: Gatew
               <div className="flex flex-col gap-3">
                 {/* Button 1: AI Therapy */}
                 <button
-                  onClick={() => onSelectPath('individual')}
+                  onClick={() => setLocation('/signup/individual')}
                   className="w-full p-4 rounded-xl border border-purple-400/40 hover:border-purple-400 hover:bg-purple-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
                 >
                   <div className="flex justify-between items-start">
@@ -97,7 +98,7 @@ export default function GatewayPage({ onSelectPath, onTryDemo, onSignIn }: Gatew
 
                 {/* Button 3: Therapist or Clinic */}
                 <button
-                  onClick={() => onSelectPath('therapist')}
+                  onClick={() => setLocation('/signup/therapist')}
                   className="w-full p-4 rounded-xl border border-amber-400/40 hover:border-amber-400 hover:bg-amber-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
                 >
                   <div className="flex justify-between items-start">
