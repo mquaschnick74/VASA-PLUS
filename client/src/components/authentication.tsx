@@ -12,9 +12,9 @@ import { AIDisclosureCard } from './AIDisclosureCard';
 import AssessmentIframe from './AssessmentIframe';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import autumnRoadImage from '@assets/autumn-road.jpg';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+// RadioGroup removed - user type now pre-selected via gateway page
 import { Link, useLocation } from 'wouter';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, ArrowLeft } from 'lucide-react';
 import Header from '@/components/shared/Header';
 import AgentCarousel from '@/components/AgentCarousel';
 import { getApiUrl } from '@/lib/platform';
@@ -22,9 +22,11 @@ import DemoVoiceCard from './DemoVoiceCard';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
+  preSelectedUserType?: 'individual' | 'therapist' | 'client';
+  onBack?: () => void;
 }
 
-export default function Authentication({ setUserId }: AuthenticationProps) {
+export default function Authentication({ setUserId, preSelectedUserType, onBack }: AuthenticationProps) {
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,7 +38,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
-  const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>('individual');
+  const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>(preSelectedUserType || 'individual');
   const [showAssessment, setShowAssessment] = useState(false);
 
   // Lock body scroll when assessment modal is open
@@ -348,14 +350,46 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
         <div className="flex items-center justify-center p-4 md:p-6 pt-4 md:pt-8">
       <div className="w-full max-w-6xl mx-auto px-4">
+        {/* Back button */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+        )}
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-          
-          {/* LEFT COLUMN: Demo */}
+          {/* LEFT COLUMN: Value Proposition + Demo */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-4 max-w-lg">
-              {/* Demo Voice Card */}
-              <DemoVoiceCard />
+              {/* Context message based on selected user type */}
+              {preSelectedUserType === 'therapist' && (
+                <p className="text-amber-400 text-sm font-medium mb-2">Therapist Portal</p>
+              )}
+              {preSelectedUserType === 'individual' && (
+                <p className="text-purple-400 text-sm font-medium mb-2">AI Therapy</p>
+              )}
+              {preSelectedUserType === 'client' && (
+                <p className="text-blue-400 text-sm font-medium mb-2">Client Access</p>
+              )}
+              <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
+                Your future is a reflection of your past:
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground font-medium">
+                Reveal what you can't see alone, and change it!
+              </p>
+
+              {/* Demo Voice Card - only for individual users or when no type is pre-selected */}
+              {(!preSelectedUserType || preSelectedUserType === 'individual') && (
+                <DemoVoiceCard />
+              )}
+
+              <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground pt-2">
+                Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
+              </p>
             </div>
           </div>
 
@@ -475,38 +509,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   </div>
                 )}
 
-                {/* ============= MODIFIED: Hide user type selection for invitations ============= */}
-                {mode === 'signup' && !invitationMode && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Account Type</Label>
-                    <RadioGroup value={userType} onValueChange={(value: any) => setUserType(value)} className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="individual" id="individual" />
-                        <Label htmlFor="individual" className="cursor-pointer font-normal">
-                          Individual (Personal Use)
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="therapist" id="therapist" />
-                        <Label htmlFor="therapist" className="cursor-pointer font-normal">
-                          Therapist (Manage Clients)
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="client" id="client" />
-                        <Label htmlFor="client" className="cursor-pointer font-normal">
-                          Client (Invited by Therapist)
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                    <p className="text-xs text-muted-foreground">
-                      {userType === 'therapist' && "You'll be able to invite and manage clients"}
-                      {userType === 'client' && "You'll need an invitation code from your therapist"}
-                      {userType === 'individual' && "For personal therapeutic sessions"}
-                    </p>
-                  </div>
-                )}
-                {/* =============================================================================== */}
+                {/* User type is now pre-determined via gateway page or invitation link */}
 
                 <Button 
                   type="submit"
