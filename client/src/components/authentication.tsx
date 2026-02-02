@@ -335,7 +335,18 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
       <div className="min-h-screen gradient-bg">
         <Header hideSignInButton={true} />
-        <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
+
+        {/* Full-width Hero Banner */}
+        <div className="w-full py-8 md:py-12 px-4 text-center">
+          <h1 className="text-emerald-400 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3">
+            Human in the Loop — AI-Assisted Therapy
+          </h1>
+          <p className="text-emerald-400 text-lg md:text-xl lg:text-2xl font-medium max-w-3xl mx-auto">
+            Depth therapy with a licensed clinician, enhanced by AI that actually understands you.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center p-4 md:p-6 pt-4 md:pt-8">
       <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
@@ -343,14 +354,6 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
           {/* LEFT COLUMN: Value Proposition + Demo */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-4 max-w-lg">
-              <div className="mb-6">
-                <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight mb-2">
-                  Human in the Loop — AI-Assisted Therapy
-                </h1>
-                <p className="text-emerald-400 text-lg md:text-xl font-medium">
-                  Depth therapy with a licensed clinician, enhanced by AI that actually understands you.
-                </p>
-              </div>
               <h2 className="text-emerald-400 text-xl md:text-2xl lg:text-3xl font-bold leading-tight">
                 Your future is a reflection of your past:<br />
 
