@@ -3,7 +3,7 @@
 
 import { ExternalLink } from 'lucide-react';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
-// import phoneMockup from '@assets/phone-mockup.png'; // Add file to attached_assets/ then uncomment
+import phoneMockup from '@root-assets/phone-mockup.png';
 
 interface GatewayPageProps {
   onSelectPath: (userType: 'individual' | 'therapist') => void;
@@ -44,11 +44,7 @@ export default function GatewayPage({ onSelectPath, onTryDemo, onSignIn }: Gatew
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-center w-full max-w-6xl">
           {/* Left column - Phone mockup (hidden on mobile) */}
           <div className="hidden md:flex items-center justify-center">
-            {/* Add phone-mockup.png to attached_assets/ then uncomment below and remove placeholder */}
-            {/* <img src={phoneMockup} alt="iVASA App" className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl" /> */}
-            <div className="max-w-sm lg:max-w-md w-full h-[500px] rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <p className="text-muted-foreground text-sm">Phone mockup placeholder</p>
-            </div>
+            <img src={phoneMockup} alt="iVASA App" className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl" />
           </div>
 
           {/* Right column - Glass card with options */}
