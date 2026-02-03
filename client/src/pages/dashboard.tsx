@@ -18,6 +18,9 @@ import { supabase } from '@/lib/supabaseClient';
 import { handleLogout, withTimeout } from '@/lib/auth-helpers';
 import { isNativeApp, getApiUrl } from '@/lib/platform';
 import { NativeAuthScreen } from '@/components/NativeAuthScreen';
+import GatewayPage from '@/components/GatewayPage';
+import DemoVoiceCard from '@/components/DemoVoiceCard';
+import { ArrowLeft } from 'lucide-react';
 
 // Feature flag: Set VITE_REQUIRE_ASSESSMENT=false to skip assessment for new users
 const ASSESSMENT_REQUIRED = import.meta.env.VITE_REQUIRE_ASSESSMENT !== 'false';
@@ -35,10 +38,30 @@ export default function Dashboard() {
   // 🆕 NEW: Track invitation acceptance status
   const [invitationProcessing, setInvitationProcessing] = useState(false);
   const [invitationChecked, setInvitationChecked] = useState(false);
+  // Demo mode state for unauthenticated users
+  const [showDemo, setShowDemo] = useState(false);
   const authListenerRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
   const lastEventRef = useRef<string>('');
+
+  // Check URL params on mount — redirect invitation links to dedicated signup pages
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const therapist = urlParams.get('therapist');
+    const urlMode = urlParams.get('mode');
+
+    if (token && therapist) {
+      // Client invitation link — redirect to dedicated client signup page
+      window.location.href = `/signup/client?token=${encodeURIComponent(token)}&therapist=${encodeURIComponent(therapist)}`;
+      return;
+    } else if (urlMode === 'signup') {
+      // Direct signup link — redirect to individual signup page
+      window.location.href = '/signup/individual';
+      return;
+    }
+  }, []);
 
   // 🆕 NEW: Handle invitation acceptance FIRST, before any modals
   const handlePendingInvitation = async (token: string) => {
@@ -598,12 +621,41 @@ export default function Dashboard() {
   }
 
   // Show auth if no user
-  // Use NativeAuthScreen for native apps (iOS/Android), Authentication for web
+  // Use NativeAuthScreen for native apps (iOS/Android), Gateway/Authentication for web
   if (!userId) {
     if (isNativeApp) {
       return <NativeAuthScreen setUserId={setUserId} />;
     }
-    return <Authentication setUserId={setUserId} />;
+
+    // Demo mode - show DemoVoiceCard with back button
+    if (showDemo) {
+      return (
+        <div className="min-h-screen gradient-bg flex flex-col">
+          <div className="p-4">
+            <button
+              onClick={() => setShowDemo(false)}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center px-4">
+            <div className="w-full max-w-md">
+              <DemoVoiceCard />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Show gateway page for unauthenticated users
+    // Gateway buttons navigate to dedicated signup pages (/signup/individual, /signup/therapist, etc.)
+    return (
+      <GatewayPage
+        onTryDemo={() => setShowDemo(true)}
+      />
+    );
   }
 
   // 🆕 CRITICAL: Wait for invitation processing to complete BEFORE showing any modals

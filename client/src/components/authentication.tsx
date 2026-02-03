@@ -12,9 +12,9 @@ import { AIDisclosureCard } from './AIDisclosureCard';
 import AssessmentIframe from './AssessmentIframe';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import autumnRoadImage from '@assets/autumn-road.jpg';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+// RadioGroup removed - user type now pre-selected via gateway page
 import { Link, useLocation } from 'wouter';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, ArrowLeft } from 'lucide-react';
 import Header from '@/components/shared/Header';
 import AgentCarousel from '@/components/AgentCarousel';
 import { getApiUrl } from '@/lib/platform';
@@ -22,21 +22,25 @@ import DemoVoiceCard from './DemoVoiceCard';
 
 interface AuthenticationProps {
   setUserId: (id: string) => void;
+  preSelectedUserType?: 'individual' | 'therapist' | 'client';
+  onBack?: () => void;
+  formOnly?: boolean;
+  defaultMode?: 'signin' | 'signup';
 }
 
-export default function Authentication({ setUserId }: AuthenticationProps) {
+export default function Authentication({ setUserId, preSelectedUserType, onBack, formOnly, defaultMode }: AuthenticationProps) {
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup'>(defaultMode || 'signin');
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
-  const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>('individual');
+  const [userType, setUserType] = useState<'individual' | 'therapist' | 'client'>(preSelectedUserType || 'individual');
   const [showAssessment, setShowAssessment] = useState(false);
 
   // Lock body scroll when assessment modal is open
@@ -237,6 +241,50 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
   }
 
   if (verificationSent) {
+    // Verification sent view - simplified for formOnly mode
+    if (formOnly) {
+      return (
+        <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+              <i className="fas fa-envelope-circle-check text-3xl text-primary"></i>
+            </div>
+            <h2 className="text-xl font-semibold mb-3">Check Your Email</h2>
+
+            {invitationMode && (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-3">
+                <p className="text-xs font-semibold mb-1">Client Invitation</p>
+                <p className="text-xs text-muted-foreground">
+                  After verifying your email, you'll be connected to your therapist automatically.
+                </p>
+              </div>
+            )}
+
+            <p className="text-sm text-muted-foreground mb-1">
+              We've sent a verification link to:
+            </p>
+            <p className="font-semibold text-sm mb-4">{verificationEmail}</p>
+
+            <Button
+              onClick={() => {
+                setVerificationSent(false);
+                setMode('signin');
+                setEmail(verificationEmail);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              I've Verified My Email - Sign In
+            </Button>
+
+            <p className="text-xs text-muted-foreground mt-3">
+              Can't find the email? Check your spam folder.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen gradient-bg">
         <Header hideSignInButton={true} />
@@ -301,6 +349,164 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
     );
   }
 
+  // formOnly mode: render just the auth card without the full page layout
+  if (formOnly) {
+    return (
+      <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full">
+        {/* Free trial banner — only show on signup mode */}
+        {mode === 'signup' && (
+          <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-lg py-2 px-3 mb-6">
+            <p className="text-sm font-semibold text-amber-400">
+              30-Day Free Trial with 180 Minutes — No Credit Card Required
+            </p>
+          </div>
+        )}
+
+        {/* Welcome heading */}
+        <h2 className="text-xl font-bold text-white text-center">
+          {invitationMode ? 'Create Client Account' : (mode === 'signin' ? 'Welcome Back' : 'Create Your Account')}
+        </h2>
+        <p className="text-sm text-muted-foreground text-center mt-1 mb-6">
+          {mode === 'signin' ? 'Continue your therapeutic journey' : 'Start your 30-day free trial'}
+        </p>
+
+        {/* Invitation banner if present */}
+        {invitationMode && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
+            <div className="flex items-start gap-2">
+              <i className="fas fa-user-plus text-blue-500 mt-1 text-sm"></i>
+              <div>
+                <p className="font-semibold text-xs">Therapist Invitation</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Create your client account to connect with your therapist
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-500 text-sm mb-4">
+            {error}
+          </div>
+        )}
+
+        {/* Dual Auth Notice for Signup */}
+        {mode === 'signup' && !invitationMode && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-sm mb-4">
+            <i className="fas fa-shield-halved mr-2"></i>
+            Email verification required for account security
+          </div>
+        )}
+
+        {/* Main Form */}
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Email Address</Label>
+            <Input
+              type="email"
+              placeholder="sarah@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Password</Label>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-input border border-border pr-12"
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+              </button>
+            </div>
+            {mode === 'signin' && (
+              <button
+                type="button"
+                onClick={() => setShowPasswordReset(true)}
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
+
+          {mode === 'signup' && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">First Name (Optional)</Label>
+              <Input
+                type="text"
+                placeholder="Sarah"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+              />
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={loading || !email || !password}
+            className="w-full bg-gradient-to-r from-primary to-accent py-3 rounded-xl"
+          >
+            {loading ? 'Loading...' : (mode === 'signup' ? 'Create Account' : 'Sign In')}
+          </Button>
+        </form>
+
+        {/* Toggle between signin/signup */}
+        {!invitationMode && (
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (mode === 'signin') {
+                  // Go to gateway to choose path
+                  setLocation('/');
+                } else {
+                  setMode('signin');
+                  setError(null);
+                  setShowPassword(false);
+                }
+              }}
+              className="text-sm hover:opacity-80 transition-opacity"
+            >
+              {mode === 'signin' ? (
+                <>
+                  <span className="text-emerald-500">Don't have an account? </span>
+                  <span className="text-amber-500 font-semibold">Sign up</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-emerald-500">Already have an account? </span>
+                  <span className="text-amber-500 font-semibold">Sign in</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Privacy note */}
+        <p className="text-xs text-muted-foreground text-center mt-4">
+          Your conversations are private and secure
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Assessment Iframe */}
@@ -333,29 +539,50 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
         </div>
       )}
 
-      <div className="min-h-screen gradient-bg">
+      <div className="min-h-screen gradient-bg relative">
+        {/* Back button - absolute positioned */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="absolute top-4 left-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors z-20"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+        )}
         <Header hideSignInButton={true} />
-
-        {/* Full-width Hero Banner */}
-        <div className="w-full py-12 md:py-20 lg:py-24 px-4 text-center">
-          <h1 className="text-emerald-400 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3">
-            Human in the Loop — AI-Assisted Therapy
-          </h1>
-          <p className="text-emerald-400 text-lg md:text-xl lg:text-2xl font-medium max-w-3xl mx-auto">
-            Depth therapy with a licensed clinician, enhanced by AI that actually understands you.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-center p-4 md:p-6 pt-4 md:pt-8">
+        <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
       <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-          
-          {/* LEFT COLUMN: Demo */}
+          {/* LEFT COLUMN: Value Proposition + Demo */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-4 max-w-lg">
-              {/* Demo Voice Card */}
-              <DemoVoiceCard />
+              {/* Context message based on selected user type */}
+              {preSelectedUserType === 'therapist' && (
+                <p className="text-amber-400 text-sm font-medium mb-2">Therapist Portal</p>
+              )}
+              {preSelectedUserType === 'individual' && (
+                <p className="text-purple-400 text-sm font-medium mb-2">AI Therapy</p>
+              )}
+              {preSelectedUserType === 'client' && (
+                <p className="text-blue-400 text-sm font-medium mb-2">Client Access</p>
+              )}
+              <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
+                Your future is a reflection of your past:
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground font-medium">
+                Reveal what you can't see alone, and change it!
+              </p>
+
+              {/* Demo Voice Card - only for individual users or when no type is pre-selected */}
+              {(!preSelectedUserType || preSelectedUserType === 'individual') && (
+                <DemoVoiceCard />
+              )}
+
+              <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground pt-2">
+                Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
+              </p>
             </div>
           </div>
 
@@ -475,38 +702,7 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
                   </div>
                 )}
 
-                {/* ============= MODIFIED: Hide user type selection for invitations ============= */}
-                {mode === 'signup' && !invitationMode && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Account Type</Label>
-                    <RadioGroup value={userType} onValueChange={(value: any) => setUserType(value)} className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="individual" id="individual" />
-                        <Label htmlFor="individual" className="cursor-pointer font-normal">
-                          Individual (Personal Use)
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="therapist" id="therapist" />
-                        <Label htmlFor="therapist" className="cursor-pointer font-normal">
-                          Therapist (Manage Clients)
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="client" id="client" />
-                        <Label htmlFor="client" className="cursor-pointer font-normal">
-                          Client (Invited by Therapist)
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                    <p className="text-xs text-muted-foreground">
-                      {userType === 'therapist' && "You'll be able to invite and manage clients"}
-                      {userType === 'client' && "You'll need an invitation code from your therapist"}
-                      {userType === 'individual' && "For personal therapeutic sessions"}
-                    </p>
-                  </div>
-                )}
-                {/* =============================================================================== */}
+                {/* User type is now pre-determined via gateway page or invitation link */}
 
                 <Button 
                   type="submit"
