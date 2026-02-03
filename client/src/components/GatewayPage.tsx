@@ -59,7 +59,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
               {/* Question heading */}
               <h2 className="text-xl font-semibold text-white text-center mb-6">
-                Choose Your Path
+                Choose Your Path:
               </h2>
 
               {/* Three stacked option buttons */}
