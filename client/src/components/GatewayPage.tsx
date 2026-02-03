@@ -1,7 +1,6 @@
 // client/src/components/GatewayPage.tsx
 // Full-screen gateway page for user path selection - Two-column layout
 
-import { ExternalLink } from 'lucide-react';
 import { useLocation } from 'wouter';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import phoneMockup from '@root-assets/phone-mockup.png';
@@ -82,17 +81,14 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
                 {/* Button 2: AI-Assisted Therapy */}
                 <button
-                  onClick={() => window.open('https://www.uptowntherapympls.com', '_blank')}
+                  onClick={() => setLocation('/ai-assisted-therapy')}
                   className="w-full p-4 rounded-xl border border-emerald-400/40 hover:border-emerald-400 hover:bg-emerald-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-white">AI-Assisted Therapy</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        One-on-one with a licensed clinician, enhanced by AI
-                      </p>
-                    </div>
-                    <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
+                  <div>
+                    <p className="font-semibold text-white">AI-Assisted Therapy</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      One-on-one with a licensed clinician, enhanced by AI
+                    </p>
                   </div>
                 </button>
 
