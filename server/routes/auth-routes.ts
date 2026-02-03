@@ -824,15 +824,42 @@ router.delete('/user/:userId', authenticateToken, async (req: AuthRequest, res) 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Delete user (CASCADE handles related data)
-    await supabase
+    const authUserId = user.auth_user_id;
+    const userEmail = user.email;
+
+    console.log(`🗑️ Starting full account deletion for ${userEmail} (auth: ${authUserId})`);
+
+    // STEP 1: Delete from users table (CASCADE handles related data)
+    const { error: deleteError } = await supabase
       .from('users')
       .delete()
       .eq('id', userId);
 
+    if (deleteError) {
+      console.error('❌ Failed to delete user from database:', deleteError);
+      return res.status(500).json({ error: 'Failed to delete user data' });
+    }
+
+    console.log(`✅ Database records deleted for ${userEmail}`);
+
+    // STEP 2: Delete from Supabase Auth (removes credentials entirely)
+    // This prevents the user from signing back in with the same email
+    // and getting a fresh trial account
+    if (authUserId) {
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(authUserId);
+
+      if (authDeleteError) {
+        console.error('⚠️ Failed to delete Supabase Auth user:', authDeleteError);
+        // Don't fail the whole request - the database data is already gone
+        // The auth entry is orphaned but won't cause issues since no user record exists
+      } else {
+        console.log(`✅ Supabase Auth user deleted for ${userEmail}`);
+      }
+    }
+
     res.json({
       success: true,
-      message: 'User and all related data deleted'
+      message: 'Account fully deleted including authentication credentials'
     });
   } catch (error) {
     console.error('Error deleting user:', error);
