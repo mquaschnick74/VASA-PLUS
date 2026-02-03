@@ -548,6 +548,61 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     auditSizes['pca_context'] = memoryContext.length - prePcaLen;
 
     // ========================================
+    // USER-SUBMITTED CONTENT
+    // Query user's uploaded notes and documents
+    // ========================================
+    const preUserContentLen = memoryContext.length;
+    try {
+      // Look up user's auth_user_id from the users table
+      const { data: userData } = await supabase
+        .from('users')
+        .select('auth_user_id')
+        .eq('id', userId)
+        .single();
+
+      if (userData?.auth_user_id) {
+        // Query knowledge_chunks for user-submitted content (direct query, not RPC)
+        const { data: userChunks, error: userChunksError } = await supabase
+          .from('knowledge_chunks')
+          .select('content, metadata, created_at')
+          .eq('user_id', userData.auth_user_id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (userChunksError) {
+          console.warn('[Memory] Failed to fetch user content:', userChunksError.message);
+        } else if (userChunks && userChunks.length > 0) {
+          console.log(`[Memory] Retrieved ${userChunks.length} user content chunks`);
+
+          memoryContext += `\n\n===== BETWEEN-SESSION NOTES & UPLOADS =====\n`;
+          memoryContext += `The user shared the following content between sessions. This is part of their therapeutic record.\n`;
+          memoryContext += `Reference this content proactively when relevant — all items are symbolically important.\n\n`;
+
+          for (const chunk of userChunks) {
+            const source = chunk.metadata?.source || 'User content';
+            const contentType = chunk.metadata?.content_type || 'note';
+            const date = chunk.created_at
+              ? new Date(chunk.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : '';
+
+            if (contentType === 'note') {
+              memoryContext += `[Note from ${date}]: "${chunk.content.slice(0, 500)}${chunk.content.length > 500 ? '...' : ''}"\n\n`;
+            } else {
+              memoryContext += `[From uploaded document "${source}"]: "${chunk.content.slice(0, 500)}${chunk.content.length > 500 ? '...' : ''}"\n\n`;
+            }
+          }
+
+          memoryContext += `===== END BETWEEN-SESSION CONTENT =====\n`;
+        } else {
+          console.log('[Memory] No user-submitted content found');
+        }
+      }
+    } catch (userContentError) {
+      console.warn('[Memory] Error fetching user content:', userContentError);
+    }
+    auditSizes['user_content'] = memoryContext.length - preUserContentLen;
+
+    // ========================================
     // NEW: RAG - Retrieve PCA/PCP methodology guidance
     // Query the knowledge base for relevant therapeutic guidance
     // ========================================
@@ -621,6 +676,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     console.log(`📏 CSS patterns:         ${auditSizes['css_patterns'] || 0} chars (~${Math.ceil((auditSizes['css_patterns'] || 0) / 4)} tokens)`);
     console.log(`📏 CSS stage guidance:   ${auditSizes['css_stage_guidance'] || 0} chars (~${Math.ceil((auditSizes['css_stage_guidance'] || 0) / 4)} tokens)`);
     console.log(`📏 PCA context:          ${auditSizes['pca_context'] || 0} chars (~${Math.ceil((auditSizes['pca_context'] || 0) / 4)} tokens)`);
+    console.log(`📏 User content:         ${auditSizes['user_content'] || 0} chars (~${Math.ceil((auditSizes['user_content'] || 0) / 4)} tokens)`);
     console.log(`📏 RAG guidance:         ${auditSizes['rag_guidance'] || 0} chars (~${Math.ceil((auditSizes['rag_guidance'] || 0) / 4)} tokens)`);
     console.log(`📏 TOTAL memoryContext:  ${totalChars} chars (~${estimatedTokens} tokens)`);
     if (totalChars > MAX_CONTEXT_CHARS - 1000) {

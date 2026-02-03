@@ -20,6 +20,7 @@ import { isNativeApp, getApiUrl } from '@/lib/platform';
 import { NativeAuthScreen } from '@/components/NativeAuthScreen';
 import GatewayPage from '@/components/GatewayPage';
 import DemoVoiceCard from '@/components/DemoVoiceCard';
+import UserContentPanel from '@/components/UserContentPanel';
 import { ArrowLeft } from 'lucide-react';
 
 // Feature flag: Set VITE_REQUIRE_ASSESSMENT=false to skip assessment for new users
@@ -738,6 +739,7 @@ export default function Dashboard() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-8">
             <VoiceInterface userId={userId} setUserId={setUserId} />
             <SessionAnalysis userId={userId} />
+            <UserContentPanel userId={userId} />
           </div>
         </div>
       );

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import VoiceInterface from '@/components/voice-interface';
 import SessionAnalysis from '@/components/SessionAnalysis';
+import UserContentPanel from '@/components/UserContentPanel';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { getApiUrl } from '@/lib/platform';
@@ -180,6 +181,11 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
         {/* Session Analysis */}
         <div className="mt-8">
           <SessionAnalysis userId={userId} />
+        </div>
+
+        {/* User Content Panel */}
+        <div className="mt-8">
+          <UserContentPanel userId={userId} />
         </div>
       </div>
     </div>
