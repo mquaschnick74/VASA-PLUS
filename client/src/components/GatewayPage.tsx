@@ -27,19 +27,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
       {/* Main content area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center min-h-[calc(100vh-80px)] pt-8">
-        {/* Full-width heading section */}
-        <div className="text-center mb-12 mt-4">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white">
-            AI-Depth Therapy
-          </h1>
-          <p className="text-xl md:text-2xl text-emerald-400 italic mt-3">
-            Get to the core of the problem.
-          </p>
-          <p className="text-base md:text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
-            A licensed clinician, AI that actually understands you, or both — you choose.
-          </p>
-        </div>
-
         {/* Two-column section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-center w-full max-w-6xl">
           {/* Left column - Phone mockup (hidden on mobile) */}
@@ -50,10 +37,28 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           {/* Right column - Glass card with options */}
           <div className="flex justify-center">
             <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full max-w-md">
-              {/* Free trial banner */}
-              <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-lg py-2 px-3 mb-6">
-                <p className="text-sm font-semibold text-amber-400">
-                  30-Day Free Trial with 180 Minutes — No Credit Card Required
+              {/* Demo link — at the top of the card */}
+              <div className="mb-6 pb-5 border-b border-white/10">
+                <button
+                  onClick={onTryDemo}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-emerald-400 hover:bg-emerald-400/10 transition-colors"
+                >
+                  <Mic className="w-4 h-4" />
+                  <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
+                </button>
+                <p className="text-xs text-muted-foreground text-center mt-1">No Account or Credit Card required</p>
+              </div>
+
+              {/* Title section — above Choose Your Path */}
+              <div className="text-center mb-6">
+                <h1 className="text-3xl md:text-4xl font-bold text-white">
+                  AI-Depth Therapy
+                </h1>
+                <p className="text-lg md:text-xl text-emerald-400 italic mt-2">
+                  Get to the core of the problem.
+                </p>
+                <p className="text-sm text-muted-foreground mt-3">
+                  A licensed clinician, AI that actually understands you, or both — you choose.
                 </p>
               </div>
 
@@ -113,16 +118,11 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </button>
               </div>
 
-              {/* Demo link — inside the card, below the three buttons */}
-              <div className="mt-6 pt-5 border-t border-white/10">
-                <button
-                  onClick={onTryDemo}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-emerald-400 hover:bg-emerald-400/10 transition-colors"
-                >
-                  <Mic className="w-4 h-4" />
-                  <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
-                </button>
-                <p className="text-xs text-muted-foreground text-center mt-1">No account required</p>
+              {/* Free trial banner — at the bottom of the card */}
+              <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-lg py-2 px-3 mt-6">
+                <p className="text-sm font-semibold text-amber-400">
+                  30-Day Free Trial with 180 Minutes — No Credit Card Required
+                </p>
               </div>
             </div>
           </div>
