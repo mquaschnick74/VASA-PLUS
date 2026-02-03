@@ -2,7 +2,7 @@
 // Full-screen gateway page for user path selection - Two-column layout
 
 import { useLocation } from 'wouter';
-import { Mic } from 'lucide-react';
+import { Mic, BookOpen } from 'lucide-react';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
@@ -109,31 +109,35 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </button>
               </div>
 
-              {/* Footer text inside card */}
-              <p className="mt-6 text-center text-xs text-muted-foreground">
-                Your conversations are private and secure
-              </p>
+              {/* Demo link — inside the card, below the three buttons */}
+              <div className="mt-6 pt-5 border-t border-white/10">
+                <button
+                  onClick={onTryDemo}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-emerald-400 hover:bg-emerald-400/10 transition-colors"
+                >
+                  <Mic className="w-4 h-4" />
+                  <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
+                </button>
+                <p className="text-xs text-muted-foreground text-center mt-1">No account required</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Demo Section */}
-        <div className="w-full max-w-md mx-auto mt-10 px-4">
-          <div className="glass rounded-2xl border border-emerald-400/20 p-5 text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Mic className="w-5 h-5 text-emerald-400" />
-              <span className="text-white font-medium">Try Before You Sign Up</span>
+        {/* Explore Resources card — below the main card */}
+        <div className="max-w-md mx-auto mt-8 px-4">
+          <button
+            onClick={() => setLocation('/learn-more')}
+            className="w-full glass rounded-2xl border border-purple-400/20 hover:border-purple-400/40 p-5 text-center transition-all group"
+          >
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <BookOpen className="w-5 h-5 text-purple-400" />
+              <span className="text-white font-medium">Explore Resources</span>
             </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              5-minute voice session with an AI therapist — no account needed
+            <p className="text-sm text-muted-foreground">
+              Meditations, videos, blog articles, and more
             </p>
-            <button
-              onClick={onTryDemo}
-              className="px-6 py-2.5 border border-emerald-400/40 text-emerald-400 hover:bg-emerald-400/10 rounded-xl text-sm font-medium transition-colors cursor-pointer"
-            >
-              Try iVASA Free
-            </button>
-          </div>
+          </button>
         </div>
 
         {/* Page footer */}
