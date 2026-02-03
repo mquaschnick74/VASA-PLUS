@@ -1,8 +1,8 @@
 // client/src/components/GatewayPage.tsx
 // Full-screen gateway page for user path selection - Two-column layout
 
-import { useLocation } from 'wouter';
-import { Mic, BookOpen } from 'lucide-react';
+import { useLocation, Link } from 'wouter';
+import { Mic, Headphones, PenLine, Play, Sparkles } from 'lucide-react';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
@@ -125,20 +125,64 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
         </div>
 
         {/* Explore Resources card — below the main card */}
-        <div className="max-w-md mx-auto mt-8 px-4">
-          <button
-            onClick={() => setLocation('/learn-more')}
-            className="w-full glass rounded-2xl border border-purple-400/20 hover:border-purple-400/40 p-5 text-center transition-all group"
-          >
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <BookOpen className="w-5 h-5 text-purple-400" />
-              <span className="text-white font-medium">Explore Resources</span>
+        <Link href="/learn-more">
+          <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 max-w-3xl mx-auto mt-8 cursor-pointer hover:border-white/20 transition-all duration-300 group">
+
+            {/* Heading */}
+            <h3 className="text-lg sm:text-xl font-semibold text-center mb-6">Explore Resources</h3>
+
+            {/* Resource items — 2x2 grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                  <Headphones className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">Meditation Library</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Guided sessions for grounding and self-reflection</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <PenLine className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">Blog</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Articles on depth psychology, growth, and the therapeutic process</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <Play className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">Video Library</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Talks and explainers on how depth therapy works</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">Pricing</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Explore plans for individuals and therapists</p>
+                </div>
+              </div>
+
             </div>
-            <p className="text-sm text-muted-foreground">
-              Meditations, videos, blog articles, and more
+
+            {/* Subtle arrow hint */}
+            <p className="text-xs text-muted-foreground text-center mt-5 group-hover:text-white/60 transition-colors">
+              Tap to explore →
             </p>
-          </button>
-        </div>
+
+          </div>
+        </Link>
 
         {/* Page footer */}
         <div className="mt-8 pb-6 text-center">
