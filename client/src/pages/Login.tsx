@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import Authentication from '@/components/authentication';
-import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import { ArrowLeft } from 'lucide-react';
 
 export default function Login() {
@@ -23,7 +22,7 @@ export default function Login() {
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
-          <img src={vasaLogo} alt="iVASA" className="h-8" />
+          <img src="/apple-touch-icon.png" alt="iVASA" className="h-8" />
         </div>
       </div>
 

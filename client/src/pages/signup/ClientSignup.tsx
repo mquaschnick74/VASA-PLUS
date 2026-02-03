@@ -6,7 +6,6 @@ import { ArrowLeft, Check, Shield, Clock, Brain, UserPlus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Authentication from '@/components/authentication';
-import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 
 interface ClientSignupProps {
   setUserId: (id: string) => void;
@@ -47,7 +46,7 @@ export default function ClientSignup({ setUserId }: ClientSignupProps) {
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
-          <img src={vasaLogo} alt="iVASA" className="h-8 md:h-10" />
+          <img src="/apple-touch-icon.png" alt="iVASA" className="h-8 md:h-10" />
         </div>
         <button
           onClick={() => setLocation('/login')}

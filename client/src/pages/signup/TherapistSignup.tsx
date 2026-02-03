@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Authentication from '@/components/authentication';
-import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 
 interface TherapistSignupProps {
   setUserId: (id: string) => void;
@@ -86,7 +85,7 @@ export default function TherapistSignup({ setUserId }: TherapistSignupProps) {
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
-          <img src={vasaLogo} alt="iVASA" className="h-8 md:h-10" />
+          <img src="/apple-touch-icon.png" alt="iVASA" className="h-8 md:h-10" />
         </div>
         <button
           onClick={() => setLocation('/login')}

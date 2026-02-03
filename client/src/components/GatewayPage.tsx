@@ -3,7 +3,6 @@
 
 import { useLocation, Link } from 'wouter';
 import { Mic, Headphones, PenLine, Play, Sparkles } from 'lucide-react';
-import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
 interface GatewayPageProps {
@@ -17,7 +16,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
     <div className="min-h-screen gradient-bg">
       {/* Top bar */}
       <div className="sticky top-0 left-0 right-0 flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4 z-50">
-        <img src={vasaLogo} alt="iVASA" className="h-8 md:h-10" />
+        <img src="/apple-touch-icon.png" alt="iVASA" className="h-8 md:h-10" />
         <button
           onClick={() => setLocation('/login')}
           className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
