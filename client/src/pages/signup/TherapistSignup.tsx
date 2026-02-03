@@ -89,7 +89,7 @@ export default function TherapistSignup({ setUserId }: TherapistSignupProps) {
           <img src={vasaLogo} alt="iVASA" className="h-8 md:h-10" />
         </div>
         <button
-          onClick={() => setLocation('/')}
+          onClick={() => setLocation('/login')}
           className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
         >
           Log in
@@ -218,11 +218,14 @@ export default function TherapistSignup({ setUserId }: TherapistSignupProps) {
             <h2 className="text-3xl font-bold text-white mb-2">Start Your Therapist Account</h2>
             <p className="text-muted-foreground">Begin your 30-day free trial today</p>
           </div>
-          <Authentication
-            setUserId={setUserId}
-            preSelectedUserType="therapist"
-            onBack={() => setLocation('/')}
-          />
+          <div className="max-w-md mx-auto">
+            <Authentication
+              setUserId={setUserId}
+              preSelectedUserType="therapist"
+              formOnly={true}
+              defaultMode="signup"
+            />
+          </div>
         </div>
 
         {/* Section 5: Footer */}

@@ -24,6 +24,7 @@ import IndividualSignup from '@/pages/signup/IndividualSignup';
 import TherapistSignup from '@/pages/signup/TherapistSignup';
 import ClientSignup from '@/pages/signup/ClientSignup';
 import AIAssistedTherapy from '@/pages/AIAssistedTherapy';
+import Login from '@/pages/Login';
 
 // Wrapper components for signup pages that handle userId state and redirect
 function IndividualSignupWrapper() {
@@ -58,6 +59,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/login" component={Login} />
       <Route path="/signup/individual" component={IndividualSignupWrapper} />
       <Route path="/signup/therapist" component={TherapistSignupWrapper} />
       <Route path="/signup/client" component={ClientSignupWrapper} />

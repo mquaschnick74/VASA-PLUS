@@ -27,7 +27,7 @@ export default function AIAssistedTherapy() {
           </button>
           <img src={vasaLogo} alt="iVASA" className="h-8" />
         </div>
-        <button onClick={() => setLocation('/signup/individual')} className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors">
+        <button onClick={() => setLocation('/login')} className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors">
           Log in
         </button>
       </div>

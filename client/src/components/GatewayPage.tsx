@@ -2,6 +2,7 @@
 // Full-screen gateway page for user path selection - Two-column layout
 
 import { useLocation } from 'wouter';
+import { Mic } from 'lucide-react';
 import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
@@ -18,7 +19,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
       <div className="sticky top-0 left-0 right-0 flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4 z-50">
         <img src={vasaLogo} alt="iVASA" className="h-8 md:h-10" />
         <button
-          onClick={() => setLocation('/signup/individual')}
+          onClick={() => setLocation('/login')}
           className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
         >
           Log in
@@ -26,9 +27,9 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
       </div>
 
       {/* Main content area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center min-h-[calc(100vh-80px)] pt-8">
         {/* Full-width heading section */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-12 mt-4">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white">
             AI-Depth Therapy
           </h1>
@@ -108,17 +109,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </button>
               </div>
 
-              {/* Divider and demo section */}
-              <div className="mt-6 pt-6 border-t border-white/10 text-center">
-                <p className="text-sm text-muted-foreground">Want to try it first?</p>
-                <button
-                  onClick={onTryDemo}
-                  className="text-emerald-400 hover:text-emerald-300 text-sm font-medium cursor-pointer transition-colors mt-1 inline-block"
-                >
-                  Try a Free 5-Minute Demo
-                </button>
-              </div>
-
               {/* Footer text inside card */}
               <p className="mt-6 text-center text-xs text-muted-foreground">
                 Your conversations are private and secure
@@ -127,8 +117,27 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           </div>
         </div>
 
+        {/* Enhanced Demo Section */}
+        <div className="w-full max-w-md mx-auto mt-10 px-4">
+          <div className="glass rounded-2xl border border-emerald-400/20 p-5 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Mic className="w-5 h-5 text-emerald-400" />
+              <span className="text-white font-medium">Try Before You Sign Up</span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              5-minute voice session with an AI therapist — no account needed
+            </p>
+            <button
+              onClick={onTryDemo}
+              className="px-6 py-2.5 border border-emerald-400/40 text-emerald-400 hover:bg-emerald-400/10 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+            >
+              Try iVASA Free
+            </button>
+          </div>
+        </div>
+
         {/* Page footer */}
-        <div className="mt-12 pb-6 text-center">
+        <div className="mt-8 pb-6 text-center">
           <p className="text-xs text-muted-foreground">
             Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
           </p>

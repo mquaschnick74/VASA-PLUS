@@ -24,16 +24,18 @@ interface AuthenticationProps {
   setUserId: (id: string) => void;
   preSelectedUserType?: 'individual' | 'therapist' | 'client';
   onBack?: () => void;
+  formOnly?: boolean;
+  defaultMode?: 'signin' | 'signup';
 }
 
-export default function Authentication({ setUserId, preSelectedUserType, onBack }: AuthenticationProps) {
+export default function Authentication({ setUserId, preSelectedUserType, onBack, formOnly, defaultMode }: AuthenticationProps) {
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup'>(defaultMode || 'signin');
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
@@ -239,6 +241,50 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack 
   }
 
   if (verificationSent) {
+    // Verification sent view - simplified for formOnly mode
+    if (formOnly) {
+      return (
+        <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+              <i className="fas fa-envelope-circle-check text-3xl text-primary"></i>
+            </div>
+            <h2 className="text-xl font-semibold mb-3">Check Your Email</h2>
+
+            {invitationMode && (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-3">
+                <p className="text-xs font-semibold mb-1">Client Invitation</p>
+                <p className="text-xs text-muted-foreground">
+                  After verifying your email, you'll be connected to your therapist automatically.
+                </p>
+              </div>
+            )}
+
+            <p className="text-sm text-muted-foreground mb-1">
+              We've sent a verification link to:
+            </p>
+            <p className="font-semibold text-sm mb-4">{verificationEmail}</p>
+
+            <Button
+              onClick={() => {
+                setVerificationSent(false);
+                setMode('signin');
+                setEmail(verificationEmail);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              I've Verified My Email - Sign In
+            </Button>
+
+            <p className="text-xs text-muted-foreground mt-3">
+              Can't find the email? Check your spam folder.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen gradient-bg">
         <Header hideSignInButton={true} />
@@ -299,6 +345,164 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack 
           </Card>
         </div>
         </div>
+      </div>
+    );
+  }
+
+  // formOnly mode: render just the auth card without the full page layout
+  if (formOnly) {
+    return (
+      <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full">
+        {/* Free trial banner — only show on signup mode */}
+        {mode === 'signup' && (
+          <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-lg py-2 px-3 mb-6">
+            <p className="text-sm font-semibold text-amber-400">
+              30-Day Free Trial with 180 Minutes — No Credit Card Required
+            </p>
+          </div>
+        )}
+
+        {/* Welcome heading */}
+        <h2 className="text-xl font-bold text-white text-center">
+          {invitationMode ? 'Create Client Account' : (mode === 'signin' ? 'Welcome Back' : 'Create Your Account')}
+        </h2>
+        <p className="text-sm text-muted-foreground text-center mt-1 mb-6">
+          {mode === 'signin' ? 'Continue your therapeutic journey' : 'Start your 30-day free trial'}
+        </p>
+
+        {/* Invitation banner if present */}
+        {invitationMode && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
+            <div className="flex items-start gap-2">
+              <i className="fas fa-user-plus text-blue-500 mt-1 text-sm"></i>
+              <div>
+                <p className="font-semibold text-xs">Therapist Invitation</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Create your client account to connect with your therapist
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-500 text-sm mb-4">
+            {error}
+          </div>
+        )}
+
+        {/* Dual Auth Notice for Signup */}
+        {mode === 'signup' && !invitationMode && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-sm mb-4">
+            <i className="fas fa-shield-halved mr-2"></i>
+            Email verification required for account security
+          </div>
+        )}
+
+        {/* Main Form */}
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Email Address</Label>
+            <Input
+              type="email"
+              placeholder="sarah@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Password</Label>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-input border border-border pr-12"
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+              </button>
+            </div>
+            {mode === 'signin' && (
+              <button
+                type="button"
+                onClick={() => setShowPasswordReset(true)}
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
+
+          {mode === 'signup' && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">First Name (Optional)</Label>
+              <Input
+                type="text"
+                placeholder="Sarah"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-input border border-border"
+              />
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={loading || !email || !password}
+            className="w-full bg-gradient-to-r from-primary to-accent py-3 rounded-xl"
+          >
+            {loading ? 'Loading...' : (mode === 'signup' ? 'Create Account' : 'Sign In')}
+          </Button>
+        </form>
+
+        {/* Toggle between signin/signup */}
+        {!invitationMode && (
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (mode === 'signin') {
+                  // Go to gateway to choose path
+                  setLocation('/');
+                } else {
+                  setMode('signin');
+                  setError(null);
+                  setShowPassword(false);
+                }
+              }}
+              className="text-sm hover:opacity-80 transition-opacity"
+            >
+              {mode === 'signin' ? (
+                <>
+                  <span className="text-emerald-500">Don't have an account? </span>
+                  <span className="text-amber-500 font-semibold">Sign up</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-emerald-500">Already have an account? </span>
+                  <span className="text-amber-500 font-semibold">Sign in</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Privacy note */}
+        <p className="text-xs text-muted-foreground text-center mt-4">
+          Your conversations are private and secure
+        </p>
       </div>
     );
   }

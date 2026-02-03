@@ -50,7 +50,7 @@ export default function ClientSignup({ setUserId }: ClientSignupProps) {
           <img src={vasaLogo} alt="iVASA" className="h-8 md:h-10" />
         </div>
         <button
-          onClick={() => setLocation('/')}
+          onClick={() => setLocation('/login')}
           className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
         >
           Log in
@@ -106,11 +106,14 @@ export default function ClientSignup({ setUserId }: ClientSignupProps) {
             The Authentication component reads ?token and ?therapist from window.location.search
             These params are preserved in the URL when redirecting to /signup/client
           */}
-          <Authentication
-            setUserId={setUserId}
-            preSelectedUserType="client"
-            onBack={() => setLocation('/')}
-          />
+          <div className="max-w-md mx-auto">
+            <Authentication
+              setUserId={setUserId}
+              preSelectedUserType="client"
+              formOnly={true}
+              defaultMode="signup"
+            />
+          </div>
         </div>
 
         {/* Section 4: Footer */}
