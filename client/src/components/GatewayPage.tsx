@@ -2,7 +2,7 @@
 // Full-screen gateway page for user path selection - Two-column layout
 
 import { useLocation, Link } from 'wouter';
-import { Mic, Headphones, PenLine, Play, Sparkles } from 'lucide-react';
+import { Mic, Headphones, PenLine, Play, Sparkles, Brain, Users, Building2 } from 'lucide-react';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
 interface GatewayPageProps {
@@ -59,7 +59,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
               {/* Question heading */}
               <h2 className="text-xl font-semibold text-white text-center mb-6">
-                What are you looking for?
+                Choose Your Path
               </h2>
 
               {/* Three stacked option buttons */}
@@ -69,12 +69,13 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   onClick={() => setLocation('/signup/individual')}
                   className="w-full p-4 rounded-xl border border-purple-400/40 hover:border-purple-400 hover:bg-purple-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                      <Brain className="w-5 h-5 text-purple-400" />
+                    </div>
                     <div>
-                      <p className="font-semibold text-white">AI Therapy</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Depth therapy powered by AI, available anytime
-                      </p>
+                      <p className="font-semibold text-white">Connect with an AI Guide</p>
+                      <p className="text-sm text-muted-foreground mt-0.5"></p>
                     </div>
                   </div>
                 </button>
@@ -84,11 +85,14 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   onClick={() => setLocation('/ai-assisted-therapy')}
                   className="w-full p-4 rounded-xl border border-emerald-400/40 hover:border-emerald-400 hover:bg-emerald-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
                 >
-                  <div>
-                    <p className="font-semibold text-white">AI-Assisted Therapy</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      One-on-one with a licensed clinician, enhanced by AI
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                      <Users className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white">AI-Assisted Therapy: Real Human</p>
+                      <p className="text-sm text-muted-foreground mt-0.5"></p>
+                    </div>
                   </div>
                 </button>
 
@@ -97,12 +101,13 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   onClick={() => setLocation('/signup/therapist')}
                   className="w-full p-4 rounded-xl border border-amber-400/40 hover:border-amber-400 hover:bg-amber-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-5 h-5 text-amber-400" />
+                    </div>
                     <div>
-                      <p className="font-semibold text-white">I'm a Therapist or Clinic</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Augment your practice with AI, generate leads, track progress
-                      </p>
+                      <p className="font-semibold text-white">Therapist or Clinic</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Augment your practice with AI</p>
                     </div>
                   </div>
                 </button>
