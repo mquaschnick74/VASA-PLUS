@@ -16,13 +16,18 @@ import {
 
 const router = Router();
 
+// Extend AuthRequest to include multer's file property
+interface MulterAuthRequest extends AuthRequest {
+  file?: Express.Multer.File;
+}
+
 // Configure multer for file uploads (memory storage, 500KB limit)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 500 * 1024 // 500KB
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowedTypes = ['.txt', '.md', '.json', '.docx'];
     const ext = '.' + file.originalname.split('.').pop()?.toLowerCase();
     if (allowedTypes.includes(ext)) {
@@ -55,7 +60,7 @@ async function getUserIds(authUserId: string): Promise<{ vasaUserId: string; aut
  * POST /api/content/upload - Upload a file (multipart/form-data)
  * Accepts .txt, .md, .json, .docx files up to 500KB
  */
-router.post('/upload', requireAuth, upload.single('file'), async (req: AuthRequest, res) => {
+router.post('/upload', requireAuth, upload.single('file'), async (req: MulterAuthRequest, res) => {
   try {
     const authUserId = req.user.id;
     console.log('[Content] File upload request from auth user:', authUserId);
