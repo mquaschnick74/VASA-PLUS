@@ -604,6 +604,14 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       memoryContext = await buildMemoryContext(userId);
     }
 
+    // DEBUG: Log memory context size before sending to client
+    console.log(`🔍 [USER-CONTEXT] Memory context size being sent to client: ${memoryContext.length} chars`);
+    if (memoryContext.includes('BETWEEN-SESSION')) {
+      console.log(`🔍 [USER-CONTEXT] User content section FOUND in memory context`);
+    } else {
+      console.log(`🔍 [USER-CONTEXT] User content section NOT FOUND in memory context`);
+    }
+
     // NEW: Build simplified memory context for UI display
     const userDisplayInsights = await buildUserDisplayContext(userId);
 

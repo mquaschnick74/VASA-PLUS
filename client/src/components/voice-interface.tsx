@@ -452,6 +452,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
           setUserContext(data);
           console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
 
+          // DEBUG: Log received memory context size
+          console.log(`🔍 [VOICE-INTERFACE] Received memoryContext: ${data.memoryContext?.length || 0} chars`);
+          if (data.memoryContext?.includes('BETWEEN-SESSION')) {
+            console.log(`🔍 [VOICE-INTERFACE] User content section FOUND`);
+          } else {
+            console.log(`🔍 [VOICE-INTERFACE] User content section NOT FOUND`);
+          }
+
           // Log session continuity info if available
           if (data.shouldReferenceLastSession && data.lastSessionSummary) {
             console.log('📝 Session continuity enabled - will reference previous session');

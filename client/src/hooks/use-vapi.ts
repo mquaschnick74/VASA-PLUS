@@ -236,6 +236,14 @@ const useVapi = ({
         }
       }
 
+      // DEBUG: Log memory context received by useVapi
+      console.log(`🔍 [USE-VAPI] memoryContext received: ${memoryContext?.length || 0} chars`);
+      if (memoryContext?.includes('BETWEEN-SESSION')) {
+        console.log(`🔍 [USE-VAPI] User content section FOUND in memoryContext`);
+      } else {
+        console.log(`🔍 [USE-VAPI] User content section NOT FOUND in memoryContext`);
+      }
+
       // Build system prompt with agent-specific configuration
       const hasMemory = memoryContext && memoryContext.length > 50;
 
