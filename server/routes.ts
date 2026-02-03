@@ -20,6 +20,7 @@ import { supabase } from './services/supabase-service';
 import stripeWebhookRoutes from './routes/stripe-webhook';
 import stripeCheckoutRoutes from './routes/stripe-checkout';
 import blogRoutes from './routes/blog-routes';
+import contentRoutes from './routes/content-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Make supabase available to all routes via app.locals
@@ -50,6 +51,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/stripe-webhook', stripeWebhookRoutes); // Backwards compatibility for existing Stripe config
   apiRouter.use('/stripe', stripeCheckoutRoutes);
   apiRouter.use('/blog', blogRoutes);
+  apiRouter.use('/content', contentRoutes);
+  console.log('✅ Content routes mounted at /api/content');
 
   // Health check
   apiRouter.get('/health', (req, res) => {
@@ -69,6 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         assessment: 'Mounted at /api/assessment',  // NEW: Assessment integration
         emailPreferences: 'Mounted at /api/email-preferences',
         pushNotifications: 'Mounted at /api/push-notifications',
+        content: 'Mounted at /api/content',
         health: 'Mounted at /api/health'
       }
     });
