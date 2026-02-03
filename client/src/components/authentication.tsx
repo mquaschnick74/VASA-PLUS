@@ -10,7 +10,6 @@ import { supabase } from '@/lib/supabaseClient';
 import PasswordReset from './PasswordReset';
 import { AIDisclosureCard } from './AIDisclosureCard';
 import AssessmentIframe from './AssessmentIframe';
-import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import autumnRoadImage from '@assets/autumn-road.jpg';
 // RadioGroup removed - user type now pre-selected via gateway page
 import { Link, useLocation } from 'wouter';

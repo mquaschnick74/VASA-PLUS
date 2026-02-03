@@ -1,5 +1,4 @@
 import { useLocation } from 'wouter';
-import vasaLogo from '@assets/iVASA Dark Purple_1762353221689.png';
 import { ArrowLeft, UserCheck, Brain, TrendingUp, MapPin, ExternalLink } from 'lucide-react';
 
 const therapists = [
@@ -25,7 +24,7 @@ export default function AIAssistedTherapy() {
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
-          <img src={vasaLogo} alt="iVASA" className="h-8" />
+          <img src="/apple-touch-icon.png" alt="iVASA" className="h-8" />
         </div>
         <button onClick={() => setLocation('/login')} className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors">
           Log in
