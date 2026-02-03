@@ -8,41 +8,30 @@ import useDemoVapi from '@/hooks/use-demo-vapi';
 const DEMO_STORAGE_KEY = 'ivasa_demo_usage';
 const MAX_DEMOS_PER_DAY = 3;
 
-// Agent data with extended descriptions and audio
-const agents = [
-  {
-    id: 'sarah',
-    name: 'Sarah',
+// Extended agent data with longer descriptions and audio intros
+// These complement the base THERAPEUTIC_AGENTS config
+const agentExtras: Record<string, { tagline: string; longDescription: string; audioSrc: string }> = {
+  sarah: {
     tagline: 'Here for you.',
-    description: "A wise and empathic guide who meets you exactly where you are. Sarah creates a warm, safe space and gently helps you see what you've been carrying — without pushing you further than you're ready to go.",
-    image: '/agents/sarah.jpg',
+    longDescription: "A wise and empathic guide who meets you exactly where you are. Sarah creates a warm, safe space and gently helps you see what you've been carrying — without pushing you further than you're ready to go.",
     audioSrc: '/agents/sarah-intro.mp3',
   },
-  {
-    id: 'marcus',
-    name: 'Marcus',
+  marcus: {
     tagline: 'Energy+',
-    description: "A grounded, steady presence who brings calm energy to even the most difficult conversations. Marcus helps you find your footing and build momentum through clarity and direct engagement.",
-    image: '/agents/marcus.png',
+    longDescription: "A grounded, steady presence who brings calm energy to even the most difficult conversations. Marcus helps you find your footing and build momentum through clarity and direct engagement.",
     audioSrc: '/agents/marcus-intro.mp3',
   },
-  {
-    id: 'mathew',
-    name: 'Mathew',
+  mathew: {
     tagline: 'No holding back',
-    description: "Direct, perceptive, and unflinching. Mathew doesn't dance around the hard stuff — he helps you face what's real so you can stop avoiding and start changing. Built from 25+ years of actual clinical practice.",
-    image: '/agents/mathew.jpg',
+    longDescription: "Direct, perceptive, and unflinching. Mathew doesn't dance around the hard stuff — he helps you face what's real so you can stop avoiding and start changing. Built from 25+ years of actual clinical practice.",
     audioSrc: '/agents/mathew-intro.mp3',
   },
-  {
-    id: 'una',
-    name: 'UNA',
+  una: {
     tagline: 'Coherence Now',
-    description: "UNA works at the level of narrative — helping you understand the deeper story that's shaping your life. She finds the patterns connecting past and present, weaving them into a coherent whole you can finally see clearly.",
-    image: '/agents/una.jpg',
+    longDescription: "UNA works at the level of narrative — helping you understand the deeper story that's shaping your life. She finds the patterns connecting past and present, weaving them into a coherent whole you can finally see clearly.",
     audioSrc: '/agents/una-intro.mp3',
   },
-];
+};
 
 interface DemoUsage {
   count: number;
@@ -86,8 +75,9 @@ export default function DemoVoiceCard() {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Get the selected agent from our local agents array
-  const selectedAgent = selectedAgentId ? agents.find(a => a.id === selectedAgentId) : null;
+  // Get the selected agent from THERAPEUTIC_AGENTS
+  const selectedAgent = selectedAgentId ? getAgentById(selectedAgentId) : null;
+  const selectedExtras = selectedAgentId ? agentExtras[selectedAgentId] : null;
 
   // Get the therapeutic agent config for the demo session
   const therapeuticAgent = getAgentById(selectedAgentId || 'sarah') || THERAPEUTIC_AGENTS[0];
@@ -137,14 +127,17 @@ export default function DemoVoiceCard() {
   const hasReachedLimit = demoUsage.count >= MAX_DEMOS_PER_DAY;
   const demosRemaining = MAX_DEMOS_PER_DAY - demoUsage.count;
 
-  const playAudio = (agent: typeof agents[0]) => {
+  const playAudio = (agentId: string) => {
     // Stop any currently playing audio
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
 
-    const audio = new Audio(agent.audioSrc);
+    const extras = agentExtras[agentId];
+    if (!extras) return;
+
+    const audio = new Audio(extras.audioSrc);
     audioRef.current = audio;
     setIsPlaying(true);
 
@@ -159,9 +152,9 @@ export default function DemoVoiceCard() {
     };
   };
 
-  const handleSelectAgent = (agent: typeof agents[0]) => {
-    setSelectedAgentId(agent.id);
-    playAudio(agent);
+  const handleSelectAgent = (agentId: string) => {
+    setSelectedAgentId(agentId);
+    playAudio(agentId);
   };
 
   const handleStartDemo = () => {
@@ -320,37 +313,41 @@ export default function DemoVoiceCard() {
         <>
           <h3 className="text-center text-lg font-semibold text-white mb-6">Choose your guide:</h3>
 
-          {/* Agent grid — 2x2 on mobile, 4 across on desktop */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {agents.map((agent) => (
-              <button
-                key={agent.id}
-                onClick={() => handleSelectAgent(agent)}
-                className={`glass rounded-xl border p-4 text-center transition-all group cursor-pointer ${
-                  selectedAgent?.id === agent.id
-                    ? 'border-purple-400/60 bg-purple-400/10'
-                    : 'border-white/10 hover:border-purple-400/40'
-                }`}
-              >
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mx-auto mb-3 border-2 border-white/20 group-hover:border-purple-400/40 transition-colors">
-                  <img src={agent.image} alt={agent.name} className="w-full h-full object-cover" />
-                </div>
-                <p className="font-semibold text-white text-sm">{agent.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{agent.tagline}</p>
-              </button>
-            ))}
+          {/* Agent grid — uses same CSS classes as dashboard AgentSelector */}
+          {/* 2x2 on mobile (override default), 2x2 on desktop via agent-grid class */}
+          <div className="agent-grid !grid-cols-2">
+            {THERAPEUTIC_AGENTS.map((agent) => {
+              const extras = agentExtras[agent.id];
+              return (
+                <button
+                  key={agent.id}
+                  onClick={() => handleSelectAgent(agent.id)}
+                  className={`agent-card-with-image ${selectedAgentId === agent.id ? 'selected' : ''}`}
+                  style={{
+                    backgroundImage: `url(${agent.image})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
+                >
+                  <div className="agent-card-overlay">
+                    <h4 className="agent-name">{agent.name}</h4>
+                    <p className="agent-description">{agent.description}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           {/* Selected agent expanded section */}
-          {selectedAgent && (
+          {selectedAgent && selectedExtras && (
             <div className="mt-6 pt-6 border-t border-white/10">
               <div className="flex flex-col items-center text-center">
-                {/* Larger avatar */}
+                {/* Larger avatar with audio indicator */}
                 <div className="relative">
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-purple-400/60">
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-emerald-400/60">
                     <img src={selectedAgent.image} alt={selectedAgent.name} className="w-full h-full object-cover" />
                   </div>
-                  {/* Audio playing indicator — shows when audio is playing */}
+                  {/* Audio playing indicator */}
                   {isPlaying && (
                     <div className="absolute -bottom-1 -right-1 bg-emerald-500 rounded-full p-1.5 animate-pulse">
                       <Volume2 className="w-3.5 h-3.5 text-white" />
@@ -360,16 +357,16 @@ export default function DemoVoiceCard() {
 
                 {/* Name and tagline */}
                 <h4 className="text-xl font-semibold text-white mt-3">{selectedAgent.name}</h4>
-                <p className="text-sm text-purple-400 italic">{selectedAgent.tagline}</p>
+                <p className="text-sm text-emerald-400 italic">{selectedExtras.tagline}</p>
 
                 {/* Longer description */}
                 <p className="text-sm text-muted-foreground mt-3 max-w-md leading-relaxed">
-                  {selectedAgent.description}
+                  {selectedExtras.longDescription}
                 </p>
 
-                {/* Audio replay button — in case user wants to hear it again */}
+                {/* Audio replay button */}
                 <button
-                  onClick={() => playAudio(selectedAgent)}
+                  onClick={() => playAudio(selectedAgent.id)}
                   className="mt-3 flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
                 >
                   <Volume2 className="w-3.5 h-3.5" />
