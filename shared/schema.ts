@@ -1070,3 +1070,26 @@ export const DEVICE_PLATFORMS = {
 } as const;
 
 export type DevicePlatform = typeof DEVICE_PLATFORMS[keyof typeof DEVICE_PLATFORMS];
+
+// ============================================================================
+// USER CONTENT - Notes and uploaded documents for between-session context
+// ============================================================================
+export const userContent = pgTable('user_content', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull(),
+  contentType: text('content_type').notNull(), // 'note' | 'document'
+  source: text('source').notNull(), // 'web_upload' | 'quick_note' | 'siri' | 'share_extension'
+  title: text('title'), // User-provided or auto-generated title
+  originalFilename: text('original_filename'), // For uploaded files
+  rawText: text('raw_text'), // The original text content
+  fileType: text('file_type'), // 'txt' | 'md' | 'json' | 'docx'
+  fileSize: integer('file_size'), // Size in bytes
+  chunkCount: integer('chunk_count').default(0), // Number of knowledge_chunks created
+  processingStatus: text('processing_status').notNull().default('pending'), // 'pending' | 'processing' | 'completed' | 'failed'
+  processingError: text('processing_error'), // Error message if failed
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export type UserContent = typeof userContent.$inferSelect;
+export type InsertUserContent = typeof userContent.$inferInsert;
