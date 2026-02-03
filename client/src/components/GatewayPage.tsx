@@ -74,8 +74,8 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                       <Brain className="w-5 h-5 text-purple-400" />
                     </div>
                     <div>
-                      <p className="font-semibold text-white">AI Therapy</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">Depth therapy powered by AI, anytime</p>
+                      <p className="font-semibold text-white">AI Support</p>
+                      <p className="text-sm text-muted-foreground mt-0.5"></p>
                     </div>
                   </div>
                 </button>
@@ -91,7 +91,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                     </div>
                     <div>
                       <p className="font-semibold text-white">AI-Assisted Therapy</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">Licensed clinician, enhanced by AI</p>
+                      <p className="text-sm text-muted-foreground mt-0.5"></p>
                     </div>
                   </div>
                 </button>
