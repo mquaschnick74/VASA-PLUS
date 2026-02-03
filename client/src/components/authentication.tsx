@@ -335,28 +335,27 @@ export default function Authentication({ setUserId }: AuthenticationProps) {
 
       <div className="min-h-screen gradient-bg">
         <Header hideSignInButton={true} />
-        <div className="flex items-center justify-center p-4 md:p-6 pt-16 md:pt-20">
+
+        {/* Full-width Hero Banner */}
+        <div className="w-full py-12 md:py-20 lg:py-24 px-4 text-center">
+          <h1 className="text-emerald-400 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3">
+            Human in the Loop — AI-Assisted Therapy
+          </h1>
+          <p className="text-emerald-400 text-lg md:text-xl lg:text-2xl font-medium max-w-3xl mx-auto">
+            Depth therapy with a licensed clinician, enhanced by AI that actually understands you.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center p-4 md:p-6 pt-4 md:pt-8">
       <div className="w-full max-w-6xl mx-auto px-4">
         {/* Two-column layout: Logo/Phrases on left, Form on right */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
           
-          {/* LEFT COLUMN: Value Proposition + Demo */}
+          {/* LEFT COLUMN: Demo */}
           <div className="flex flex-col items-center justify-center">
             <div className="text-center space-y-4 max-w-lg">
-              <h1 className="text-emerald-400 text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
-                Your future is a reflection of your past:<br />
-                
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground font-medium">
-                Reveal what you can't see alone, and change it!
-              </p>
-
               {/* Demo Voice Card */}
               <DemoVoiceCard />
-
-              <p className="text-xs md:text-sm font-normal max-w-xl mx-auto text-muted-foreground pt-2">
-                Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
-              </p>
             </div>
           </div>
 
