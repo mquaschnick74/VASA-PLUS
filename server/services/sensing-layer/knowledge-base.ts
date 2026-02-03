@@ -23,6 +23,7 @@ export interface RagQueryOptions {
   tags?: string[];
   limit?: number;
   threshold?: number;
+  userId?: string; // Supabase auth user ID — when provided, includes user's personal content
 }
 
 /**
@@ -59,7 +60,7 @@ export async function queryKnowledgeBase(
   query: string,
   options: RagQueryOptions = {}
 ): Promise<KnowledgeChunk[]> {
-  const { types, tags, limit = 5, threshold = 0.7 } = options;
+  const { types, tags, limit = 5, threshold = 0.7, userId } = options;
   const startTime = Date.now();
 
   // Wrap in timeout to prevent hanging
@@ -80,7 +81,8 @@ export async function queryKnowledgeBase(
         match_threshold: threshold,
         match_count: limit,
         filter_types: types || null,
-        filter_tags: tags || null
+        filter_tags: tags || null,
+        filter_user_id: userId || null
       });
       console.log(`[RAG] Supabase RPC took ${Date.now() - rpcStart}ms`);
 
