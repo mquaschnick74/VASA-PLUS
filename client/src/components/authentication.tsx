@@ -486,7 +486,7 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack,
               {mode === 'signin' ? (
                 <>
                   <span className="text-emerald-500">Don't have an account? </span>
-                  <span className="text-amber-500 font-semibold">Sign up</span>
+                  <span className="text-amber-500 font-semibold">Choose a path/signup</span>
                 </>
               ) : (
                 <>
