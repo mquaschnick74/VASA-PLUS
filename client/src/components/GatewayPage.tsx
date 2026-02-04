@@ -60,11 +60,11 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 {/* Button 1: AI Therapy */}
                 <button
                   onClick={() => setLocation('/signup/individual')}
-                  className="w-full p-4 rounded-xl border border-purple-400/40 hover:border-purple-400 hover:bg-purple-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
+                  className="w-full p-4 rounded-xl border border-blue-400/40 hover:border-blue-400 hover:bg-blue-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                      <Brain className="w-5 h-5 text-purple-400" />
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                      <Brain className="w-5 h-5 text-blue-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-white">Connect with an AI Guide</p>
