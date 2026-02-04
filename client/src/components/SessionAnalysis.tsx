@@ -385,19 +385,19 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
             }}
             disabled={isAnalyzing}
           >
-            <SelectTrigger className="w-full bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100">
+            <SelectTrigger className="w-full bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-black dark:text-white">
               <SelectValue>
                 <div className="flex items-center gap-2">
                   {getIconForType(selectedType)}
-                  <span>{ANALYSIS_TYPES.find(t => t.value === selectedType)?.label}</span>
+                  <span className="text-black dark:text-white">{ANALYSIS_TYPES.find(t => t.value === selectedType)?.label}</span>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="inline-flex cursor-help" onClick={(e) => e.stopPropagation()}>
-                          <Info className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" />
+                          <Info className="h-3.5 w-3.5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200" />
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs text-sm">
+                      <TooltipContent side="right" className="max-w-xs text-sm bg-zinc-900 text-white dark:bg-white dark:text-black">
                         <p>{ANALYSIS_TYPES.find(t => t.value === selectedType)?.tooltip}</p>
                       </TooltipContent>
                     </Tooltip>
@@ -407,26 +407,26 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700">
               {ANALYSIS_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value} className="text-zinc-900 dark:text-zinc-100 focus:bg-zinc-100 dark:focus:bg-zinc-800">
+                <SelectItem key={type.value} value={type.value} className="text-black dark:text-white focus:bg-zinc-100 dark:focus:bg-zinc-800">
                   <div className="flex items-center gap-2">
                     {type.icon}
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium">{type.label}</span>
+                        <span className="font-medium text-black dark:text-white">{type.label}</span>
                         <TooltipProvider delayDuration={200}>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="inline-flex cursor-help" onClick={(e) => e.stopPropagation()}>
-                                <Info className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" />
+                                <Info className="h-3.5 w-3.5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200" />
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="max-w-xs text-sm">
+                            <TooltipContent side="right" className="max-w-xs text-sm bg-zinc-900 text-white dark:bg-white dark:text-black">
                               <p>{type.tooltip}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">{type.description}</div>
+                      <div className="text-xs text-zinc-600 dark:text-zinc-300">{type.description}</div>
                     </div>
                   </div>
                 </SelectItem>
