@@ -14,6 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Loader2,
   FileText,
   MessageSquare,
@@ -42,6 +48,7 @@ interface AnalysisTypeOption {
   value: AnalysisType;
   label: string;
   description: string;
+  tooltip: string;
   icon: React.ReactNode;
   sessionMode: 'count' | 'single';
 }
@@ -73,7 +80,8 @@ const ANALYSIS_TYPES: AnalysisTypeOption[] = [
   {
     value: 'session_summary',
     label: 'Session Summary',
-    description: 'Clinical-style summary of your recent sessions',
+    description: 'Clinical-style summary of recent sessions',
+    tooltip: 'Review notes from recent sessions. For therapist reference only — does not affect ongoing therapy.',
     icon: <FileText className="h-4 w-4" />,
     sessionMode: 'count'
   },
@@ -81,6 +89,7 @@ const ANALYSIS_TYPES: AnalysisTypeOption[] = [
     value: 'intent_analysis',
     label: 'Intent Analysis',
     description: 'Understand the communication dynamics of a session',
+    tooltip: 'Examine communication patterns in a single session. For therapist reference only — does not affect ongoing therapy.',
     icon: <MessageSquare className="h-4 w-4" />,
     sessionMode: 'single'
   },
@@ -88,6 +97,7 @@ const ANALYSIS_TYPES: AnalysisTypeOption[] = [
     value: 'concept_insights',
     label: 'Concept Insights',
     description: 'Extract the key concept or mental model from a session',
+    tooltip: 'Identify key mental models from a session. For therapist reference only — does not affect ongoing therapy.',
     icon: <Lightbulb className="h-4 w-4" />,
     sessionMode: 'single'
   },
@@ -95,6 +105,7 @@ const ANALYSIS_TYPES: AnalysisTypeOption[] = [
     value: 'pca_master',
     label: 'Advanced Analysis',
     description: 'Enhance future sessions with deep pattern analysis',
+    tooltip: 'Deep pattern analysis that directly enhances this client\'s future AI sessions. This is the only analysis type that feeds into ongoing therapy.',
     icon: <Brain className="h-4 w-4" />,
     sessionMode: 'count'
   }
@@ -379,6 +390,18 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                 <div className="flex items-center gap-2">
                   {getIconForType(selectedType)}
                   <span>{ANALYSIS_TYPES.find(t => t.value === selectedType)?.label}</span>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex cursor-help" onClick={(e) => e.stopPropagation()}>
+                          <Info className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs text-sm">
+                        <p>{ANALYSIS_TYPES.find(t => t.value === selectedType)?.tooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </SelectValue>
             </SelectTrigger>
@@ -387,8 +410,22 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                 <SelectItem key={type.value} value={type.value} className="text-zinc-900 dark:text-zinc-100 focus:bg-zinc-100 dark:focus:bg-zinc-800">
                   <div className="flex items-center gap-2">
                     {type.icon}
-                    <div>
-                      <div className="font-medium">{type.label}</div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium">{type.label}</span>
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex cursor-help" onClick={(e) => e.stopPropagation()}>
+                                <Info className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs text-sm">
+                              <p>{type.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400">{type.description}</div>
                     </div>
                   </div>
