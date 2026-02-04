@@ -452,6 +452,16 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
           setUserContext(data);
           console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
 
+          // DEBUG: Log memory context sizes received from API
+          console.log('\n📊 ===== FRONTEND RECEIVED USER CONTEXT DEBUG =====');
+          console.log(`📏 memoryContext length: ${data.memoryContext?.length || 0} chars`);
+          console.log(`📏 displayMemoryContext length: ${data.displayMemoryContext?.length || 0} chars`);
+          console.log(`📏 lastSessionSummary length: ${data.lastSessionSummary?.length || 0} chars`);
+          if (data.memoryContext && data.memoryContext.length > 0) {
+            console.log(`📝 memoryContext preview (first 200 chars): ${data.memoryContext.substring(0, 200)}...`);
+          }
+          console.log('===== END FRONTEND DEBUG =====\n');
+
           // Log session continuity info if available
           if (data.shouldReferenceLastSession && data.lastSessionSummary) {
             console.log('📝 Session continuity enabled - will reference previous session');

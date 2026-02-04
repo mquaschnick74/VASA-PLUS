@@ -646,6 +646,17 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       .limit(1)
       .maybeSingle();
 
+    // DEBUG: Log memory context sizes before sending response
+    console.log('\n📊 ===== USER CONTEXT API RESPONSE DEBUG =====');
+    console.log(`📏 memoryContext length: ${memoryContext?.length || 0} chars`);
+    console.log(`📏 displayMemoryContext length: ${displayMemoryContext?.length || 0} chars`);
+    console.log(`📏 lastSessionSummary length: ${lastSessionSummary?.length || 0} chars`);
+    console.log(`📏 shouldReferenceLastSession: ${shouldReferenceLastSession}`);
+    if (memoryContext && memoryContext.length > 0) {
+      console.log(`📝 memoryContext preview (first 200 chars): ${memoryContext.substring(0, 200)}...`);
+    }
+    console.log('===== END USER CONTEXT DEBUG =====\n');
+
     res.json({
       success: true,
       profile: user,
