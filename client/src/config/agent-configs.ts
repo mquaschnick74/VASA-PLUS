@@ -272,7 +272,7 @@ ${SESSION_CONTINUITY}`,
     model: { temperature: 0.9, model: 'gpt-4o' },
     voice: {
       provider: '11labs',
-      voiceId: 'hwJqPPQ618aTW29mptyoc',
+      voiceId: 'wJqPPQ618aTW29mptyoc',
       model: 'eleven_turbo_v2_5',
       stability: 0.5,
       similarityBoost: 0.75,
