@@ -36,15 +36,15 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
           {/* Right column - Title and Glass card with options */}
           <div className="flex flex-col items-center">
-            {/* Title section — above the card */}
-            <div className="text-center mb-6 max-w-md">
-              <h1 className="text-3xl md:text-4xl font-bold text-white">
+            {/* Title section — above the card, wider than card */}
+            <div className="text-center mb-8 w-full md:w-[140%] md:-ml-[20%]">
+              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white">
                 AI-Depth Therapy
               </h1>
-              <p className="text-lg md:text-xl text-emerald-400 italic mt-2">
+              <p className="text-xl sm:text-2xl md:text-3xl text-emerald-400 italic mt-3">
                 Get to the core of the problem.
               </p>
-              <p className="text-sm text-muted-foreground mt-3">
+              <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-lg mx-auto">
                 A licensed clinician, AI that actually understands you, or both — you choose.
               </p>
             </div>
