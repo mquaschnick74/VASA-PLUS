@@ -28,40 +28,28 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
       {/* Main content area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center min-h-[calc(100vh-80px)] pt-8">
         {/* Two-column section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-center w-full max-w-6xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-end w-full max-w-6xl">
           {/* Left column - Phone mockup (hidden on mobile) */}
-          <div className="hidden md:flex items-center justify-center">
+          <div className="hidden md:flex items-end justify-center">
             <img src={phoneMockup} alt="iVASA App" className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl" />
           </div>
 
-          {/* Right column - Glass card with options */}
-          <div className="flex justify-center">
+          {/* Right column - Title and Glass card with options */}
+          <div className="flex flex-col items-center">
+            {/* Title section — above the card, wider than card, centered */}
+            <div className="text-center mb-8 w-full md:w-[140%]">
+              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white">
+                AI-Depth Therapy
+              </h1>
+              <p className="text-xl sm:text-2xl md:text-3xl text-emerald-400 italic mt-3">
+                Get to the core of the problem.
+              </p>
+              <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-lg mx-auto">
+                A licensed clinician, AI that actually understands you, or both — you choose.
+              </p>
+            </div>
+
             <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full max-w-md">
-              {/* Demo link — at the top of the card */}
-              <div className="mb-6 pb-5 border-b border-white/10">
-                <button
-                  onClick={onTryDemo}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-emerald-400 hover:bg-emerald-400/10 transition-colors"
-                >
-                  <Mic className="w-4 h-4" />
-                  <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
-                </button>
-                <p className="text-xs text-muted-foreground text-center mt-1">No Account or Credit Card required</p>
-              </div>
-
-              {/* Title section — above Choose Your Path */}
-              <div className="text-center mb-6">
-                <h1 className="text-3xl md:text-4xl font-bold text-white">
-                  AI-Depth Therapy
-                </h1>
-                <p className="text-lg md:text-xl text-emerald-400 italic mt-2">
-                  Get to the core of the problem.
-                </p>
-                <p className="text-sm text-muted-foreground mt-3">
-                  A licensed clinician, AI that actually understands you, or both — you choose.
-                </p>
-              </div>
-
               {/* Question heading */}
               <h2 className="text-xl font-semibold text-white text-center mb-6">
                 Choose Your Path:
@@ -72,11 +60,11 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 {/* Button 1: AI Therapy */}
                 <button
                   onClick={() => setLocation('/signup/individual')}
-                  className="w-full p-4 rounded-xl border border-purple-400/40 hover:border-purple-400 hover:bg-purple-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
+                  className="w-full p-4 rounded-xl border border-blue-400/40 hover:border-blue-400 hover:bg-blue-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                      <Brain className="w-5 h-5 text-purple-400" />
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                      <Brain className="w-5 h-5 text-blue-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-white">Connect with an AI Guide</p>
@@ -116,6 +104,18 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                     </div>
                   </div>
                 </button>
+              </div>
+
+              {/* Demo link — above the free trial banner */}
+              <div className="mt-6 pt-5 border-t border-white/10">
+                <button
+                  onClick={onTryDemo}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-emerald-400 hover:bg-emerald-400/10 transition-colors"
+                >
+                  <Mic className="w-4 h-4" />
+                  <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
+                </button>
+                <p className="text-xs text-muted-foreground text-center mt-1">No Account or Credit Card required</p>
               </div>
 
               {/* Free trial banner — at the bottom of the card */}
