@@ -642,6 +642,13 @@ router.post('/webhook', async (req, res) => {
         }
         break;
 
+      case 'status-update':
+        // DEBUG: Check if status-update contains monitor URLs (controlUrl/listenUrl)
+        console.log(`📊 [DEBUG] status-update received for call: ${callId}`);
+        console.log(`📊 [DEBUG] message.call.monitor:`, JSON.stringify(message?.call?.monitor));
+        console.log(`📊 [DEBUG] message.call (first 500 chars):`, JSON.stringify(message?.call, null, 2)?.substring(0, 500));
+        break;
+
       default:
         console.log(`Unhandled event type: ${eventType}`);
     }
