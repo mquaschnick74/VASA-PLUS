@@ -31,12 +31,15 @@ interface ContentItem {
   title: string;
   content_type: 'note' | 'document';
   source: string;
-  processing_status: 'pending' | 'processing' | 'completed' | 'failed';
+  processing_status: 'pending' | 'processing' | 'completed' | 'failed' | 'analyzing';
   chunk_count: number;
   created_at: string;
   original_filename?: string;
   processing_error?: string;
+  analysis_mode?: 'analyze' | 'record';
 }
+
+type AnalysisMode = 'analyze' | 'record';
 
 export default function UserContentPanel({ userId }: UserContentPanelProps) {
   // Panel state
@@ -63,6 +66,10 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Analysis mode state - 'analyze' triggers PCA analysis, 'record' just stores content
+  const [noteAnalysisMode, setNoteAnalysisMode] = useState<AnalysisMode>('analyze');
+  const [fileAnalysisMode, setFileAnalysisMode] = useState<AnalysisMode>('record');
 
   // Polling for processing status
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -153,7 +160,8 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
         credentials: 'include',
         body: JSON.stringify({
           text: noteText.trim(),
-          title: noteTitle.trim() || undefined
+          title: noteTitle.trim() || undefined,
+          analysisMode: noteAnalysisMode
         })
       });
 
@@ -215,6 +223,7 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
 
       const formData = new FormData();
       formData.append('file', selectedFile);
+      formData.append('analysisMode', fileAnalysisMode);
 
       const response = await fetch(getApiUrl('/api/content/upload'), {
         method: 'POST',
@@ -294,6 +303,13 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
             Processing
           </span>
         );
+      case 'analyzing':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-900/30 text-purple-400">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Analyzing
+          </span>
+        );
       case 'completed':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-900/30 text-green-400">
@@ -312,6 +328,53 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
         return null;
     }
   };
+
+  // Analysis mode toggle component
+  const AnalysisModeToggle = ({
+    value,
+    onChange,
+    disabled = false
+  }: {
+    value: AnalysisMode;
+    onChange: (mode: AnalysisMode) => void;
+    disabled?: boolean;
+  }) => (
+    <div className="flex flex-col gap-2">
+      <div className="text-xs text-zinc-400">How should VASA use this content?</div>
+      <div className="flex rounded-lg overflow-hidden border border-zinc-600 bg-zinc-800/50">
+        <button
+          type="button"
+          onClick={() => onChange('analyze')}
+          disabled={disabled}
+          className={`flex-1 px-3 py-2 text-xs font-medium transition-all ${
+            value === 'analyze'
+              ? 'bg-purple-600/80 text-white'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
+          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <div className="flex flex-col items-center gap-0.5">
+            <span>Analyze</span>
+            <span className="text-[10px] opacity-70 font-normal">Discuss in session</span>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange('record')}
+          disabled={disabled}
+          className={`flex-1 px-3 py-2 text-xs font-medium transition-all ${
+            value === 'record'
+              ? 'bg-emerald-600/80 text-white'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
+          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <div className="flex flex-col items-center gap-0.5">
+            <span>Add to Record</span>
+            <span className="text-[10px] opacity-70 font-normal">Background info</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -384,6 +447,11 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
               className="w-full px-3 py-2 text-sm border rounded-lg bg-zinc-800 border-zinc-600 text-zinc-100 placeholder:text-zinc-400 resize-none"
               disabled={isSubmittingNote || contentCount >= CONTENT_LIMIT}
               maxLength={NOTE_MAX_LENGTH}
+            />
+            <AnalysisModeToggle
+              value={noteAnalysisMode}
+              onChange={setNoteAnalysisMode}
+              disabled={isSubmittingNote || contentCount >= CONTENT_LIMIT}
             />
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">
@@ -467,24 +535,31 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
               )}
             </div>
             {selectedFile && (
-              <Button
-                size="sm"
-                onClick={uploadFile}
-                disabled={isUploading}
-                className="w-full"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload {selectedFile.name}
-                  </>
-                )}
-              </Button>
+              <>
+                <AnalysisModeToggle
+                  value={fileAnalysisMode}
+                  onChange={setFileAnalysisMode}
+                  disabled={isUploading}
+                />
+                <Button
+                  size="sm"
+                  onClick={uploadFile}
+                  disabled={isUploading}
+                  className="w-full"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload {selectedFile.name}
+                    </>
+                  )}
+                </Button>
+              </>
             )}
             {uploadError && (
               <Alert variant="destructive" className="py-2">

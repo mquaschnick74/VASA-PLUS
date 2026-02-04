@@ -236,15 +236,6 @@ const useVapi = ({
         }
       }
 
-      // DEBUG: Log memoryContext prop value at VAPI session start
-      console.log('\n📊 ===== VAPI HOOK MEMORY CONTEXT DEBUG =====');
-      console.log(`📏 memoryContext prop length: ${memoryContext?.length || 0} chars`);
-      console.log(`📏 lastSessionSummary prop length: ${lastSessionSummary?.length || 0} chars`);
-      if (memoryContext && memoryContext.length > 0) {
-        console.log(`📝 memoryContext preview (first 200 chars): ${memoryContext.substring(0, 200)}...`);
-      }
-      console.log('===== END VAPI HOOK DEBUG =====\n');
-
       // Build system prompt with agent-specific configuration
       const hasMemory = memoryContext && memoryContext.length > 50;
 
