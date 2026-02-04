@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Authentication from '@/components/authentication';
 import VoiceInterface from '@/components/voice-interface';
-import SessionAnalysis from '@/components/SessionAnalysis';
 import Header from '@/components/shared/Header';
 import ClientDashboard from '@/pages/client-dashboard';
 import ConsentPopup from '@/components/ConsentPopup';
@@ -732,13 +731,12 @@ export default function Dashboard() {
     case 'client':
       return <ClientDashboard userId={userId} setUserId={setUserId} />;
     default:
-      // Individual users - show VoiceInterface with SessionAnalysis
+      // Individual users - show VoiceInterface
       return (
         <div className="min-h-screen gradient-bg">
           <Header userId={userId} setUserId={setUserId} userType="individual" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-8">
             <VoiceInterface userId={userId} setUserId={setUserId} />
-            <SessionAnalysis userId={userId} />
             <UserContentPanel userId={userId} />
           </div>
         </div>
