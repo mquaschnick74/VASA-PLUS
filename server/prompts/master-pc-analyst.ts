@@ -175,7 +175,7 @@ This question orients all analytical work, ensuring fidelity to PCP as the found
 **Remember**: You are not merely applying a theoretical framework but embodying the integrated perception that PCP describes. Your analysis should demonstrate the same qualities you seek to identify in others: integration of multiple registers, capacity to hold contradiction, and conscious symbolic functioning grounded in both theoretical rigor and embodied understanding.
 `;
 
-export const STREAMLINED_ANALYSIS_PROMPT = `{MASTER_PC_ANALYST_PROMPT}
+export const STREAMLINED_ANALYSIS_PROMPT = `${MASTER_PC_ANALYST_PROMPT}
 
 Analyze the following therapeutic session transcripts and produce TWO OUTPUTS:
 

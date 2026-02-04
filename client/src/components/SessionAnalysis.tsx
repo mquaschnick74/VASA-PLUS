@@ -1,5 +1,6 @@
 // client/src/components/SessionAnalysis.tsx
 // Session Analysis component with multiple analysis types
+// Supports therapist analyzing client sessions via targetUserId
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Loader2,
   FileText,
@@ -41,8 +48,9 @@ interface AnalysisTypeOption {
   value: AnalysisType;
   label: string;
   description: string;
+  tooltip: string;
   icon: React.ReactNode;
-  sessionMode: 'count' | 'single';  // count = 1-5 recent, single = pick one
+  sessionMode: 'count' | 'single';
 }
 
 interface SessionOption {
@@ -72,7 +80,8 @@ const ANALYSIS_TYPES: AnalysisTypeOption[] = [
   {
     value: 'session_summary',
     label: 'Session Summary',
-    description: 'Clinical-style summary of your recent sessions',
+    description: 'Clinical-style summary of recent sessions',
+    tooltip: 'Review notes from recent sessions. For therapist reference only — does not affect ongoing therapy.',
     icon: <FileText className="h-4 w-4" />,
     sessionMode: 'count'
   },
@@ -80,6 +89,7 @@ const ANALYSIS_TYPES: AnalysisTypeOption[] = [
     value: 'intent_analysis',
     label: 'Intent Analysis',
     description: 'Understand the communication dynamics of a session',
+    tooltip: 'Examine communication patterns in a single session. For therapist reference only — does not affect ongoing therapy.',
     icon: <MessageSquare className="h-4 w-4" />,
     sessionMode: 'single'
   },
@@ -87,6 +97,7 @@ const ANALYSIS_TYPES: AnalysisTypeOption[] = [
     value: 'concept_insights',
     label: 'Concept Insights',
     description: 'Extract the key concept or mental model from a session',
+    tooltip: 'Identify key mental models from a session. For therapist reference only — does not affect ongoing therapy.',
     icon: <Lightbulb className="h-4 w-4" />,
     sessionMode: 'single'
   },
@@ -94,6 +105,7 @@ const ANALYSIS_TYPES: AnalysisTypeOption[] = [
     value: 'pca_master',
     label: 'Advanced Analysis',
     description: 'Enhance future sessions with deep pattern analysis',
+    tooltip: 'Deep pattern analysis that directly enhances this client\'s future AI sessions. This is the only analysis type that feeds into ongoing therapy.',
     icon: <Brain className="h-4 w-4" />,
     sessionMode: 'count'
   }
@@ -117,6 +129,33 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [viewingHistoryItem, setViewingHistoryItem] = useState<HistoryItem | null>(null);
 
+  // Track the logged-in user's own ID to determine if we're analyzing someone else
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+
+  // On mount, determine the logged-in user's profile ID
+  useEffect(() => {
+    const getAuthUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.email) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('email', session.user.email)
+          .maybeSingle();
+        if (profile) {
+          setAuthUserId(profile.id);
+        }
+      }
+    };
+    getAuthUser();
+  }, []);
+
+  // True when the therapist is analyzing a client (userId prop differs from logged-in user)
+  const isViewingClient = authUserId !== null && userId !== authUserId;
+
+  // Build the targetUserId query param string (only when viewing a client)
+  const targetParam = isViewingClient ? `targetUserId=${userId}` : '';
+
   // Get current type config
   const currentTypeConfig = ANALYSIS_TYPES.find(t => t.value === selectedType)!;
 
@@ -125,7 +164,18 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
     if (currentTypeConfig.sessionMode === 'single') {
       loadAvailableSessions();
     }
-  }, [selectedType]);
+  }, [selectedType, userId]);
+
+  // Reset state when userId changes (switching between clients)
+  useEffect(() => {
+    setResult(null);
+    setError(null);
+    setHistory([]);
+    setShowHistory(false);
+    setViewingHistoryItem(null);
+    setSelectedSessionId('');
+    setAvailableSessions([]);
+  }, [userId]);
 
   const loadAvailableSessions = async () => {
     setIsLoadingSessions(true);
@@ -137,7 +187,11 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(getApiUrl('/api/analysis/sessions'), {
+      const url = targetParam
+        ? getApiUrl(`/api/analysis/sessions?${targetParam}`)
+        : getApiUrl('/api/analysis/sessions');
+
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -172,7 +226,11 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(getApiUrl('/api/analysis/history?limit=20'), {
+      const url = targetParam
+        ? getApiUrl(`/api/analysis/history?limit=20&${targetParam}`)
+        : getApiUrl('/api/analysis/history?limit=20');
+
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -197,11 +255,13 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       if (!token) return;
 
-      const response = await fetch(`/api/analysis/${analysisId}`, {
+      // Delete only works for own analyses — no targetUserId param
+      const response = await fetch(getApiUrl(`/api/analysis/${analysisId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -238,6 +298,11 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
         body.sessionIds = [selectedSessionId];
       } else {
         body.sessionCount = sessionCount;
+      }
+
+      // Include targetUserId when analyzing a client
+      if (isViewingClient) {
+        body.targetUserId = userId;
       }
 
       const response = await fetch(getApiUrl('/api/analysis/run'), {
@@ -300,7 +365,10 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
           <CardTitle>Session Analysis</CardTitle>
         </div>
         <CardDescription>
-          Get insights from your therapeutic sessions
+          {isViewingClient
+            ? 'Analyze this client\'s therapeutic sessions'
+            : 'Get insights from your therapeutic sessions'
+          }
         </CardDescription>
       </CardHeader>
 
@@ -312,27 +380,39 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
             value={selectedType}
             onValueChange={(value) => {
               setSelectedType(value as AnalysisType);
-              setResult(null);  // Clear previous results
+              setResult(null);
               setError(null);
             }}
             disabled={isAnalyzing}
           >
-            <SelectTrigger className="w-full bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100">
+            <SelectTrigger className="w-full bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-black dark:text-white">
               <SelectValue>
                 <div className="flex items-center gap-2">
                   {getIconForType(selectedType)}
-                  <span>{ANALYSIS_TYPES.find(t => t.value === selectedType)?.label}</span>
+                  <span className="text-black dark:text-white">{ANALYSIS_TYPES.find(t => t.value === selectedType)?.label}</span>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex cursor-help" onClick={(e) => e.stopPropagation()}>
+                          <Info className="h-3.5 w-3.5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-sm bg-zinc-900 text-white dark:bg-white dark:text-black z-[9999]">
+                        <p>{ANALYSIS_TYPES.find(t => t.value === selectedType)?.tooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </SelectValue>
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700">
               {ANALYSIS_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value} className="text-zinc-900 dark:text-zinc-100 focus:bg-zinc-100 dark:focus:bg-zinc-800">
+                <SelectItem key={type.value} value={type.value} className="text-black dark:text-white focus:bg-zinc-100 dark:focus:bg-zinc-800">
                   <div className="flex items-center gap-2">
                     {type.icon}
-                    <div>
-                      <div className="font-medium">{type.label}</div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">{type.description}</div>
+                    <div className="flex-1">
+                      <div className="font-medium text-black dark:text-white">{type.label}</div>
+                      <div className="text-xs text-zinc-600 dark:text-zinc-300">{type.description}</div>
                     </div>
                   </div>
                 </SelectItem>
@@ -343,7 +423,6 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
 
         {/* Session Selection - Conditional based on type */}
         {currentTypeConfig.sessionMode === 'count' ? (
-          // Session Count Selector (for summary, pca_master)
           <div className="space-y-2">
             <label className="text-sm font-medium">Sessions to analyze</label>
             <Select
@@ -364,7 +443,6 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
             </Select>
           </div>
         ) : (
-          // Single Session Selector (for intent, concept)
           <div className="space-y-2">
             <label className="text-sm font-medium">Select session</label>
             {isLoadingSessions ? (
@@ -376,7 +454,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  No sessions available for analysis. Complete a session first.
+                  No sessions available for analysis. {isViewingClient ? 'This client needs to complete a session first.' : 'Complete a session first.'}
                 </AlertDescription>
               </Alert>
             ) : (
@@ -405,7 +483,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
           </div>
         )}
 
-        {/* Saved Notice - analyses are now persistent */}
+        {/* Saved Notice */}
         {selectedType !== 'pca_master' && (
           <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700">
             <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -421,8 +499,8 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
             <Brain className="h-4 w-4 text-violet-600 dark:text-violet-400" />
             <AlertDescription className="text-violet-800 dark:text-violet-200 text-sm">
               <strong>Proprietary Analysis:</strong> This uses our advanced therapeutic
-              framework to enhance your future sessions. Results are processed internally
-              and improve your AI companion's understanding. The analysis is not displayed
+              framework to enhance future sessions. Results are processed internally
+              and improve {isViewingClient ? 'this client\'s' : 'your'} AI companion's understanding. The analysis is not displayed
               due to intellectual property considerations.
             </AlertDescription>
           </Alert>
@@ -470,7 +548,6 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
               )}
             </div>
 
-            {/* Content for user-visible types - HIGH CONTRAST */}
             {result.content && (
               <div className="border-2 border-zinc-300 dark:border-zinc-600 rounded-lg overflow-hidden">
                 <button
@@ -494,7 +571,6 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
               </div>
             )}
 
-            {/* Confirmation message for pca_master */}
             {result.message && !result.content && (
               <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
                 <CheckCircle className="h-4 w-4 text-green-600" />
@@ -506,12 +582,12 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
           </div>
         )}
 
-        {/* Help Text - Show when no analysis has been run */}
+        {/* Help Text */}
         {!result && !error && !isAnalyzing && !viewingHistoryItem && (
           <div className="text-sm text-muted-foreground pt-2">
             <p className="font-medium mb-2">Analysis Types:</p>
             <ul className="space-y-1 ml-2">
-              <li><strong>Session Summary:</strong> Clinical-style notes from your sessions</li>
+              <li><strong>Session Summary:</strong> Clinical-style notes from {isViewingClient ? 'client' : 'your'} sessions</li>
               <li><strong>Intent Analysis:</strong> Communication dynamics and patterns</li>
               <li><strong>Concept Insights:</strong> Key mental models and takeaways</li>
               <li><strong>Advanced Analysis:</strong> Deep pattern analysis (enhances future sessions)</li>
@@ -577,23 +653,26 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                       </div>
                       <div className="flex items-center gap-1">
                         {item.analysisType !== 'pca_master' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewingHistoryItem(item)}
+                        className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                        )}
+                        {/* Delete button: only show when viewing own analyses, not client's */}
+                        {!isViewingClient && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setViewingHistoryItem(item)}
-                            className="h-8 w-8 p-0"
+                            onClick={() => deleteHistoryItem(item.id)}
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteHistoryItem(item.id)}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   ))}
