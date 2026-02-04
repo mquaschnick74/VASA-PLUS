@@ -562,6 +562,10 @@ export async function buildMemoryContext(userId: string): Promise<string> {
         .order('created_at', { ascending: false })
         .limit(3);
 
+      // DEBUG: Log upload analysis query result
+      console.log('[DEBUG-UPLOAD] Query for userId:', userId);
+      console.log('[DEBUG-UPLOAD] Upload analyses query result:', uploadAnalyses?.length, 'rows, error:', uploadAnalysisError);
+
       if (uploadAnalysisError) {
         console.warn('[Memory] Failed to fetch upload analyses:', uploadAnalysisError.message);
       } else if (uploadAnalyses && uploadAnalyses.length > 0) {
@@ -606,6 +610,8 @@ export async function buildMemoryContext(userId: string): Promise<string> {
       console.warn('[Memory] Error fetching upload analyses:', uploadAnalysisError);
     }
     auditSizes['upload_analysis'] = memoryContext.length - preUploadAnalysisLen;
+    // DEBUG: Log memoryContext length before/after upload section
+    console.log('[DEBUG-UPLOAD] memoryContext length before upload section:', preUploadAnalysisLen, 'after:', memoryContext.length);
 
     // ========================================
     // BACKGROUND INFORMATION (from "Add to Record" mode uploads)
@@ -951,6 +957,8 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
     console.log(`   - Has last summary: ${!!processedSummary}`);
     console.log(`   - Should reference: ${shouldReference}`);
     console.log(`   - Has unaddressed upload: ${hasUnaddressedUpload}`);
+    // DEBUG: Log upload context details
+    console.log('[DEBUG-UPLOAD] hasUnaddressedUpload:', hasUnaddressedUpload, 'uploadContext:', uploadContext?.substring(0, 100));
 
     return {
       memoryContext: baseContext,
