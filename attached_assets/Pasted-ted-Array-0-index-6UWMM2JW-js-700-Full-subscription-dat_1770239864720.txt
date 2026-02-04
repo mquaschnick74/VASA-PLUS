@@ -1,0 +1,788 @@
+ted: Array(0)}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'started', role: 'assistant', turn: 10}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'started', role: 'assistant', turn: 10}
+index-6UWMM2JW.js:612 🎤 User stopped speaking
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'assistant', transcriptType: 'final', transcript: 'Yeah.'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'assistant', transcriptType: 'final', transcript: 'Yeah.'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(35), messages: Array(45), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(35), messages: Array(45), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 🎤 User started speaking
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'assistant', transcriptType: 'partial', transcript: "Sounds like there's more"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'assistant', transcriptType: 'partial', transcript: "Sounds like there's more"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'assistant', transcriptType: 'final', transcript: "Sounds like there's more there."}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'assistant', transcriptType: 'final', transcript: "Sounds like there's more there."}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(35), messages: Array(46), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(35), messages: Array(46), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(36), messages: Array(47), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(36), messages: Array(47), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'stopped', role: 'assistant', turn: 10}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'stopped', role: 'assistant', turn: 10}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'There you go.'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'There you go.'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'assistant', transcriptType: 'final', transcript: 'Go'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'assistant', transcriptType: 'final', transcript: 'Go'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(37), messages: Array(48), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(37), messages: Array(48), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(38), messages: Array(49), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(38), messages: Array(49), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'If I want.'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'If I want.'}
+index-6UWMM2JW.js:612 🎤 User stopped speaking
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'started', role: 'assistant', turn: 11}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'started', role: 'assistant', turn: 11}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(38), messages: Array(50), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(38), messages: Array(50), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'stopped', role: 'assistant', turn: 11}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'stopped', role: 'assistant', turn: 11}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'To go with them.'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'To go with them.'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 🎤 User started speaking
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(38), messages: Array(51), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(38), messages: Array(51), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'Know, and'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'Know, and'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 🎤 User stopped speaking
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'in that'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'in that'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'do that. And I was like, can I'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'do that. And I was like, can I'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "do that. No. It's okay. And I I think these things look"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "do that. No. It's okay. And I I think these things look"}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "do that. No. It's okay. And I I think these things will continue. Just things that"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "do that. No. It's okay. And I I think these things will continue. Just things that"}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(39), messages: Array(54), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(39), messages: Array(54), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'do that. And I was like, yeah. And I think these things will continue to'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'do that. And I was like, yeah. And I think these things will continue to'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "things that we're doing together"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "things that we're doing together"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(40), messages: Array(55), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(40), messages: Array(55), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: "things that we're doing together."}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: "things that we're doing together."}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(40), messages: Array(56), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(40), messages: Array(56), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'Right?'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'Right?'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'As a'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'As a'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'started', role: 'user', turn: 1}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'started', role: 'user', turn: 1}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'As a family or'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'As a family or'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(40), messages: Array(57), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(40), messages: Array(57), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'As a family or'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'As a family or'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'stopped', role: 'user', turn: 1}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'stopped', role: 'user', turn: 1}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(41), messages: Array(59), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(41), messages: Array(59), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'as a couple.'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'as a couple.'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(41), messages: Array(60), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(41), messages: Array(60), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'You know?'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'You know?'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'Right. Oh,'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'Right. Oh,'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(42), messages: Array(61), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(42), messages: Array(61), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'Right. Oh, yeah.'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: 'Right. Oh, yeah.'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'started', role: 'assistant', turn: 12}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'started', role: 'assistant', turn: 12}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'stopped', role: 'assistant', turn: 12}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'speech-update', status: 'stopped', role: 'assistant', turn: 12}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "And so it's"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "And so it's"}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(42), messages: Array(62), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'conversation-update', conversation: Array(42), messages: Array(62), messagesOpenAIFormatted: Array(0)}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: "And so it's it's sort of like"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'final', transcript: "And so it's it's sort of like"}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 🎤 User started speaking
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'but when'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: 'but when'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 🎤 User stopped speaking
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "but when you're unhappy or sort"}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'transcript', role: 'user', transcriptType: 'partial', transcript: "but when you're unhappy or sort"}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:700 📴 [VOICE] Voice session ended - cleaning up state for text session
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
+index-6UWMM2JW.js:612 📴 Call ended
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'status-update', status: 'ended', endedReason: 'customer-ended-call'}
+index-6UWMM2JW.js:612 📨 VAPI message: {type: 'status-update', status: 'ended', endedReason: 'customer-ended-call'}
+index-6UWMM2JW.js:700 Full subscription data: {
+  "limits": {
+    "can_use_voice": true,
+    "minutes_remaining": 168,
+    "minutes_used": 12,
+    "minutes_limit": 180,
+    "subscription_tier": "trial",
+    "subscription_status": "trialing",
+    "client_limit": 0,
+    "subscription_owner_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+    "subscription_owner_email": "mquaschnick@gmail.com",
+    "is_trial": true,
+    "trial_days_left": 30
+  },
+  "user_id": "64c9e00f-69be-4fc6-bb9a-6a320604a2bc",
+  "subscription_tier": "trial",
+  "subscription_status": "trialing",
+  "plan_type": "recurring",
+  "trial_ends_at": null,
+  "current_period_end": null,
+  "usage_minutes_limit": 180,
+  "usage_minutes_used": 12,
+  "client_limit": 0,
+  "clients_used": 0
+}
+index-6UWMM2JW.js:700 Subscription data: {limits: {…}, user_id: '64c9e00f-69be-4fc6-bb9a-6a320604a2bc', subscription_tier: 'trial', subscription_status: 'trialing', plan_type: 'recurring', …} Loading: false
