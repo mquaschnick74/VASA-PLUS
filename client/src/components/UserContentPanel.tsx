@@ -74,6 +74,10 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
   // Polling for processing status
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Track analysis start time for extended processing message
+  const [analysisStartTime, setAnalysisStartTime] = useState<number | null>(null);
+  const [showExtendedMessage, setShowExtendedMessage] = useState(false);
+
   // Load content list when panel is expanded
   useEffect(() => {
     if (isExpanded) {
@@ -81,11 +85,26 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
     }
   }, [isExpanded]);
 
-  // Start polling when there are pending/processing items
+  // Start polling when there are pending/processing/analyzing items
   useEffect(() => {
     const hasPendingItems = contentList.some(
-      item => item.processing_status === 'pending' || item.processing_status === 'processing'
+      item => item.processing_status === 'pending' ||
+              item.processing_status === 'processing' ||
+              item.processing_status === 'analyzing'
     );
+
+    const hasAnalyzingItems = contentList.some(
+      item => item.processing_status === 'analyzing'
+    );
+
+    // Track when analysis starts for extended message
+    if (hasAnalyzingItems && !analysisStartTime) {
+      setAnalysisStartTime(Date.now());
+      setShowExtendedMessage(false);
+    } else if (!hasAnalyzingItems && analysisStartTime) {
+      setAnalysisStartTime(null);
+      setShowExtendedMessage(false);
+    }
 
     if (hasPendingItems && isExpanded) {
       pollingRef.current = setInterval(() => {
@@ -99,7 +118,17 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
         pollingRef.current = null;
       }
     };
-  }, [contentList, isExpanded]);
+  }, [contentList, isExpanded, analysisStartTime]);
+
+  // Show extended message after 15 seconds of analysis
+  useEffect(() => {
+    if (analysisStartTime && !showExtendedMessage) {
+      const timer = setTimeout(() => {
+        setShowExtendedMessage(true);
+      }, 15000);
+      return () => clearTimeout(timer);
+    }
+  }, [analysisStartTime, showExtendedMessage]);
 
   const loadContentList = async (silent = false) => {
     if (!silent) setIsLoadingList(true);
@@ -383,6 +412,55 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
       hour: 'numeric',
       minute: '2-digit'
     });
+
+  // Check if there are items being analyzed
+  const hasAnalyzingItems = contentList.some(item => item.processing_status === 'analyzing');
+
+  // Processing indicator component with glassmorphic animation
+  const AnalysisIndicator = () => {
+    if (!hasAnalyzingItems) return null;
+
+    return (
+      <div className="relative overflow-hidden rounded-lg border border-purple-500/30 bg-purple-900/10 p-4">
+        {/* Animated gradient background */}
+        <div
+          className="absolute inset-0 opacity-30"
+          style={{
+            background: 'linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.3), transparent)',
+            animation: 'shimmer 2s infinite'
+          }}
+        />
+        <style>{`
+          @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
+          @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(147, 51, 234, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(147, 51, 234, 0.5); }
+          }
+        `}</style>
+
+        <div className="relative flex items-center gap-3">
+          {/* Pulsing orb */}
+          <div
+            className="w-3 h-3 rounded-full bg-purple-500"
+            style={{ animation: 'pulse-glow 2s ease-in-out infinite' }}
+          />
+
+          <div className="flex-1">
+            <p className="text-sm text-purple-200 font-medium">
+              Preparing your content for your next session...
+            </p>
+            {showExtendedMessage && (
+              <p className="text-xs text-purple-300/70 mt-1">
+                This is taking a moment — we're being thorough.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
