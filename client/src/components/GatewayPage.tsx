@@ -34,8 +34,21 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
             <img src={phoneMockup} alt="iVASA App" className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl" />
           </div>
 
-          {/* Right column - Glass card with options */}
-          <div className="flex justify-center">
+          {/* Right column - Title and Glass card with options */}
+          <div className="flex flex-col items-center">
+            {/* Title section — above the card */}
+            <div className="text-center mb-6 max-w-md">
+              <h1 className="text-3xl md:text-4xl font-bold text-white">
+                AI-Depth Therapy
+              </h1>
+              <p className="text-lg md:text-xl text-emerald-400 italic mt-2">
+                Get to the core of the problem.
+              </p>
+              <p className="text-sm text-muted-foreground mt-3">
+                A licensed clinician, AI that actually understands you, or both — you choose.
+              </p>
+            </div>
+
             <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full max-w-md">
               {/* Demo link — at the top of the card */}
               <div className="mb-6 pb-5 border-b border-white/10">
@@ -47,19 +60,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
                 </button>
                 <p className="text-xs text-muted-foreground text-center mt-1">No Account or Credit Card required</p>
-              </div>
-
-              {/* Title section — above Choose Your Path */}
-              <div className="text-center mb-6">
-                <h1 className="text-3xl md:text-4xl font-bold text-white">
-                  AI-Depth Therapy
-                </h1>
-                <p className="text-lg md:text-xl text-emerald-400 italic mt-2">
-                  Get to the core of the problem.
-                </p>
-                <p className="text-sm text-muted-foreground mt-3">
-                  A licensed clinician, AI that actually understands you, or both — you choose.
-                </p>
               </div>
 
               {/* Question heading */}
