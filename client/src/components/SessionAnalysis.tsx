@@ -397,7 +397,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                           <Info className="h-3.5 w-3.5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200" />
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs text-sm bg-zinc-900 text-white dark:bg-white dark:text-black">
+                      <TooltipContent side="top" className="max-w-xs text-sm bg-zinc-900 text-white dark:bg-white dark:text-black z-[9999]">
                         <p>{ANALYSIS_TYPES.find(t => t.value === selectedType)?.tooltip}</p>
                       </TooltipContent>
                     </Tooltip>
@@ -420,7 +420,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                                 <Info className="h-3.5 w-3.5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200" />
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="max-w-xs text-sm bg-zinc-900 text-white dark:bg-white dark:text-black">
+                            <TooltipContent side="top" className="max-w-xs text-sm bg-zinc-900 text-white dark:bg-white dark:text-black z-[9999]">
                               <p>{type.tooltip}</p>
                             </TooltipContent>
                           </Tooltip>
