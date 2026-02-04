@@ -1,0 +1,161 @@
+
+Time
+Deployment
+Source
+Log
+2026-02-03 16:28:38.08
+53c1cc28
+User
+"sentry-trace": "d9af8d180a834d48b91fb8346917f24a-9e889cdefd6df999",
+2026-02-03 17:10:08.66
+a6f5c26e
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:11:15.31
+a6f5c26e
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:11:15.32
+a6f5c26e
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:11:58.66
+a6f5c26e
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:11:58.66
+a6f5c26e
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:13:25.27
+b1544581
+System
+starting up user application
+2026-02-03 17:13:25.27
+b1544581
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-02-03 17:13:25.27
+b1544581
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-02-03 17:13:26.53
+b1544581
+User
+> NODE_ENV=production node dist/index.js
+2026-02-03 17:13:26.53
+b1544581
+User
+> rest-express@1.0.0 start
+2026-02-03 17:13:27.64
+b1544581
+User
+✅ Using service key from env variable
+2026-02-03 17:13:27.64
+b1544581
+User
+✅ Supabase service initialized with URL: https://sleknpdkazcbtpfzdwdp.supabase.co
+2026-02-03 17:13:27.66
+b1544581
+User
+🔑 Key length: 164
+2026-02-03 17:13:27.66
+b1544581
+User
+🔑 OpenAI API Key exists on startup: true
+2026-02-03 17:13:27.66
+b1544581
+User
+🔑 Key starts with sk-: true
+2026-02-03 17:13:27.66
+b1544581
+User
+🧠 [Sensing Layer] Service initialized
+2026-02-03 17:13:27.72
+b1544581
+User
+11:13:27 PM [express] ✅ All required environment variables present
+2026-02-03 17:13:27.73
+b1544581
+User
+11:13:27 PM [express] 🚀 Starting server initialization...
+2026-02-03 17:13:27.73
+b1544581
+User
+✅ Analysis routes mounted at /api/analysis
+2026-02-03 17:13:27.73
+b1544581
+User
+✅ Supabase client attached to app.locals
+2026-02-03 17:13:27.73
+b1544581
+User
+✅ Push notification routes mounted at /api/push-notifications
+2026-02-03 17:13:27.73
+b1544581
+User
+✅ Admin routes mounted at /api/admin
+2026-02-03 17:13:27.73
+b1544581
+User
+✅ Chat routes mounted at /api/chat
+2026-02-03 17:13:27.73
+b1544581
+User
+✅ Assessment routes mounted at /api/assessment
+2026-02-03 17:13:27.73
+b1544581
+User
+✅ Content routes mounted at /api/content
+2026-02-03 17:13:27.73
+b1544581
+User
+11:13:27 PM [express] ✅ Routes registered successfully
+2026-02-03 17:13:27.73
+b1544581
+User
+11:13:27 PM [express] ✅ Static file serving configured for production
+2026-02-03 17:13:27.73
+b1544581
+User
+11:13:27 PM [express] ✅ Server running on 0.0.0.0:5000 in production mode
+2026-02-03 17:13:41.56
+b1544581
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:13:41.57
+b1544581
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:13:47.43
+b1544581
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:13:47.44
+b1544581
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:17:01.28
+a6f5c26e
+System
+system: received signal terminated
+2026-02-03 17:17:53.76
+b1544581
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:17:53.79
+b1544581
+User
+⚠️ CORS request from origin: https://vasa-plus-mquaschnick.replit.app
+2026-02-03 17:20:05.88
+b1544581
+User
+🔀 Redirecting www.ivasa.ai to beta.ivasa.ai
+2026-02-03 17:26:30.68
+b1544581
+User
+🔀 Redirecting ivasa.ai to beta.ivasa.ai
+Wrap
+Colors
+Unsupported state: your index is currently locked. This can happen if multiple git processes are running operations at the same time.
+Please resolve the issue by ending those git operations. If you are sure you do not have git operations running, you can delete your .git/index.lock file.
