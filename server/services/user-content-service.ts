@@ -2,9 +2,12 @@
 // Service for processing user-uploaded content (notes, documents) into the RAG pipeline
 
 import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from './supabase-service';
+import { MASTER_PC_ANALYST_PROMPT } from '../prompts/master-pc-analyst';
 
 const openai = new OpenAI();
+const anthropic = new Anthropic();
 
 // Limits
 const MAX_CONTENT_PER_USER = 20;
@@ -132,11 +135,17 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
 /**
  * Process content: chunk, embed, and store in knowledge_chunks
+ * If analysisMode is 'analyze', also triggers PCA analysis and stores in therapeutic_context
  * @param contentId - The user_content record ID
  * @param authUserId - The user's Supabase auth ID (for knowledge_chunks.user_id)
+ * @param analysisMode - 'analyze' triggers PCA analysis, 'record' just stores chunks
  */
-export async function processContent(contentId: string, authUserId: string): Promise<ProcessingResult> {
-  console.log(`[UserContent] Processing content ${contentId} for user ${authUserId}`);
+export async function processContent(
+  contentId: string,
+  authUserId: string,
+  analysisMode: 'analyze' | 'record' = 'record'
+): Promise<ProcessingResult> {
+  console.log(`[UserContent] Processing content ${contentId} for user ${authUserId}, mode: ${analysisMode}`);
 
   try {
     // Update status to processing
@@ -216,17 +225,48 @@ export async function processContent(contentId: string, authUserId: string): Pro
       }
     }
 
-    // Update content record with success
+    // Update content record with chunking success
     await supabase
       .from('user_content')
       .update({
         chunk_count: insertedCount,
-        processing_status: 'completed',
+        processing_status: analysisMode === 'analyze' ? 'analyzing' : 'completed',
         updated_at: new Date().toISOString()
       })
       .eq('id', contentId);
 
     console.log(`[UserContent] Successfully processed ${insertedCount}/${chunks.length} chunks for content ${contentId}`);
+
+    // If analysis mode, trigger PCA analysis
+    if (analysisMode === 'analyze') {
+      try {
+        console.log(`[UserContent] Triggering PCA analysis for content ${contentId}`);
+        await triggerUploadAnalysis(contentId, content.user_id, textToProcess, title);
+
+        // Update status to completed after analysis
+        await supabase
+          .from('user_content')
+          .update({
+            processing_status: 'completed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', contentId);
+
+        console.log(`[UserContent] PCA analysis completed for content ${contentId}`);
+      } catch (analysisError: any) {
+        console.error(`[UserContent] PCA analysis failed for ${contentId}:`, analysisError.message);
+        // Don't fail the whole process - chunks were saved successfully
+        // Just mark as completed (analysis failure is logged but non-fatal)
+        await supabase
+          .from('user_content')
+          .update({
+            processing_status: 'completed',
+            processing_error: `Analysis failed: ${analysisError.message}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', contentId);
+      }
+    }
 
     return { success: true, chunkCount: insertedCount };
 
@@ -334,6 +374,7 @@ export async function createUserContent(params: {
   rawText: string;
   fileType?: string;
   fileSize?: number;
+  analysisMode?: 'analyze' | 'record';
 }): Promise<{ id: string } | null> {
   const { data, error } = await supabase
     .from('user_content')
@@ -346,7 +387,8 @@ export async function createUserContent(params: {
       raw_text: params.rawText,
       file_type: params.fileType,
       file_size: params.fileSize,
-      processing_status: 'pending'
+      processing_status: 'pending',
+      analysis_mode: params.analysisMode || 'record'
     })
     .select('id')
     .single();
@@ -357,6 +399,128 @@ export async function createUserContent(params: {
   }
 
   return data;
+}
+
+/**
+ * Trigger PCA analysis on uploaded content
+ * Uses the Master PC Analyst prompt adapted for uploaded content
+ * Stores result in therapeutic_context with context_type='upload_analysis'
+ */
+async function triggerUploadAnalysis(
+  contentId: string,
+  userId: string,
+  rawText: string,
+  title: string
+): Promise<void> {
+  console.log(`[UploadAnalysis] Starting PCA analysis for content ${contentId}`);
+
+  // Build the analysis prompt for uploaded content
+  const uploadAnalysisPrompt = `${MASTER_PC_ANALYST_PROMPT}
+
+You are analyzing content that a therapy client has shared for discussion with their VASA therapeutic agent.
+This is NOT a session transcript - it is content the user uploaded (a conversation, journal entry, or other personal content).
+
+Analyze the following uploaded content and produce:
+
+1. A clinical interpretation using the PCP/PCA framework:
+   - Perceptual Structure Assessment (Real/Symbolic/Imaginary dominance)
+   - CVDC patterns detected (contradictions the person is holding)
+   - Register analysis (which register dominates)
+   - CSS-relevant patterns (but do NOT assign or recommend CSS stage changes - only live sessions can progress CSS)
+   - Symbolic functioning assessment
+
+2. Extract 2-3 KEY VERBATIM QUOTES from the content that are therapeutically significant - quotes the agent should reference when discussing this material with the user.
+
+3. A brief summary of what the agent should proactively explore with the user regarding this content.
+
+IMPORTANT CONSTRAINTS:
+- This analysis is for the AGENT, not the user. The user will NEVER see this output.
+- Do NOT recommend CSS stage changes. Upload analysis cannot move CSS stage - only direct sessions can.
+- Focus on patterns the agent should explore in the next session.
+- Keep the analysis concise - under 1500 characters for the clinical interpretation.
+
+FORMAT YOUR RESPONSE EXACTLY AS FOLLOWS:
+
+===== UPLOAD ANALYSIS: ${title} =====
+
+## CLINICAL INTERPRETATION
+[Your PCP/PCA analysis here - be concise]
+
+## KEY QUOTES FOR SESSION
+1. "[Exact quote from the content]"
+2. "[Exact quote from the content]"
+3. "[Optional third quote if highly relevant]"
+
+## AGENT GUIDANCE
+[2-3 sentences on what the agent should explore with the user about this content]
+
+===== END ANALYSIS =====
+
+--- CONTENT TO ANALYZE ---
+${rawText.substring(0, 15000)}
+--- END CONTENT ---`;
+
+  try {
+    // Call Claude API for analysis
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [
+        {
+          role: 'user',
+          content: uploadAnalysisPrompt
+        }
+      ]
+    });
+
+    const analysisText = response.content[0].type === 'text'
+      ? response.content[0].text
+      : '';
+
+    if (!analysisText) {
+      throw new Error('Empty response from Claude API');
+    }
+
+    // Extract key quotes from the analysis
+    const quotesMatch = analysisText.match(/## KEY QUOTES FOR SESSION\n([\s\S]*?)(?=\n## |===== END)/);
+    const quotes: string[] = [];
+    if (quotesMatch) {
+      const quotesSection = quotesMatch[1];
+      const quoteMatches = quotesSection.matchAll(/\d+\.\s*"([^"]+)"/g);
+      for (const match of quoteMatches) {
+        quotes.push(match[1]);
+      }
+    }
+
+    // Store in therapeutic_context with proper metadata
+    const { error: insertError } = await supabase
+      .from('therapeutic_context')
+      .insert({
+        user_id: userId,
+        context_type: 'upload_analysis',
+        content: analysisText,
+        confidence: 0.85,
+        importance: 8,
+        metadata: {
+          source_content_id: contentId,
+          analysis_status: 'fresh',
+          addressed_in_session: false,
+          key_quotes: quotes,
+          title: title
+        }
+      });
+
+    if (insertError) {
+      console.error('[UploadAnalysis] Failed to store analysis:', insertError.message);
+      throw insertError;
+    }
+
+    console.log(`[UploadAnalysis] Successfully stored analysis for content ${contentId} with ${quotes.length} key quotes`);
+
+  } catch (error: any) {
+    console.error('[UploadAnalysis] Analysis failed:', error.message);
+    throw error;
+  }
 }
 
 // Export the docx extraction function for use in routes

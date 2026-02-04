@@ -63,7 +63,8 @@ async function getUserIds(authUserId: string): Promise<{ vasaUserId: string; aut
 router.post('/upload', requireAuth, upload.single('file'), async (req: MulterAuthRequest, res) => {
   try {
     const authUserId = req.user.id;
-    console.log('[Content] File upload request from auth user:', authUserId);
+    const analysisMode = req.body.analysisMode === 'analyze' ? 'analyze' : 'record';
+    console.log('[Content] File upload request from auth user:', authUserId, 'mode:', analysisMode);
 
     const userIds = await getUserIds(authUserId);
     if (!userIds) {
@@ -109,25 +110,29 @@ router.post('/upload', requireAuth, upload.single('file'), async (req: MulterAut
       originalFilename: file.originalname,
       rawText,
       fileType: ext.substring(1), // Remove leading dot
-      fileSize: file.size
+      fileSize: file.size,
+      analysisMode
     });
 
     if (!content) {
       return res.status(500).json({ error: 'Failed to create content record' });
     }
 
-    console.log(`[Content] Created document record ${content.id}, processing async...`);
+    console.log(`[Content] Created document record ${content.id}, processing async (${analysisMode})...`);
 
     // Process asynchronously - don't await
-    processContent(content.id, userIds.authUserId).catch(err => {
+    processContent(content.id, userIds.authUserId, analysisMode).catch(err => {
       console.error('[Content] Async processing failed:', err.message);
     });
 
     // Return 202 Accepted immediately
     res.status(202).json({
       id: content.id,
-      message: 'File uploaded and processing started',
-      status: 'pending'
+      message: analysisMode === 'analyze'
+        ? 'File uploaded and analysis started'
+        : 'File uploaded and processing started',
+      status: 'pending',
+      analysisMode
     });
 
   } catch (error: any) {
@@ -151,9 +156,10 @@ router.post('/upload', requireAuth, upload.single('file'), async (req: MulterAut
 router.post('/note', requireAuth, async (req: AuthRequest, res) => {
   try {
     const authUserId = req.user.id;
-    const { text, title } = req.body;
+    const { text, title, analysisMode: requestedMode } = req.body;
+    const analysisMode = requestedMode === 'analyze' ? 'analyze' : 'record';
 
-    console.log('[Content] Quick note request from auth user:', authUserId);
+    console.log('[Content] Quick note request from auth user:', authUserId, 'mode:', analysisMode);
 
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'Text is required' });
@@ -189,25 +195,29 @@ router.post('/note', requireAuth, async (req: AuthRequest, res) => {
       source: 'quick_note',
       title: noteTitle,
       rawText: text,
-      fileSize: text.length
+      fileSize: text.length,
+      analysisMode
     });
 
     if (!content) {
       return res.status(500).json({ error: 'Failed to create note' });
     }
 
-    console.log(`[Content] Created note record ${content.id}, processing async...`);
+    console.log(`[Content] Created note record ${content.id}, processing async (${analysisMode})...`);
 
     // Process asynchronously - don't await
-    processContent(content.id, userIds.authUserId).catch(err => {
+    processContent(content.id, userIds.authUserId, analysisMode).catch(err => {
       console.error('[Content] Async processing failed:', err.message);
     });
 
     // Return 202 Accepted immediately
     res.status(202).json({
       id: content.id,
-      message: 'Note saved and processing started',
-      status: 'pending'
+      message: analysisMode === 'analyze'
+        ? 'Note saved and analysis started'
+        : 'Note saved and processing started',
+      status: 'pending',
+      analysisMode
     });
 
   } catch (error: any) {

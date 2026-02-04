@@ -25,6 +25,8 @@ interface UseVapiProps {
   memoryContext: string;
   lastSessionSummary?: string | null;  // ADD: Session continuity
   shouldReferenceLastSession?: boolean; // ADD: Session continuity
+  hasUnaddressedUpload?: boolean;       // ADD: Upload analysis notification
+  uploadContext?: string | null;        // ADD: Brief context for greeting
   firstName: string;
   selectedAgent: TherapeuticAgent;
   sessionDurationLimit?: number;
@@ -48,6 +50,8 @@ const useVapi = ({
   memoryContext,
   lastSessionSummary,
   shouldReferenceLastSession,
+  hasUnaddressedUpload,
+  uploadContext,
   firstName,
   selectedAgent,
   sessionDurationLimit = 7200,
@@ -236,15 +240,6 @@ const useVapi = ({
         }
       }
 
-      // DEBUG: Log memoryContext prop value at VAPI session start
-      console.log('\n📊 ===== VAPI HOOK MEMORY CONTEXT DEBUG =====');
-      console.log(`📏 memoryContext prop length: ${memoryContext?.length || 0} chars`);
-      console.log(`📏 lastSessionSummary prop length: ${lastSessionSummary?.length || 0} chars`);
-      if (memoryContext && memoryContext.length > 0) {
-        console.log(`📝 memoryContext preview (first 200 chars): ${memoryContext.substring(0, 200)}...`);
-      }
-      console.log('===== END VAPI HOOK DEBUG =====\n');
-
       // Build system prompt with agent-specific configuration
       const hasMemory = memoryContext && memoryContext.length > 50;
 
@@ -306,6 +301,19 @@ ${lastSessionSummary}
 IMPORTANT: You've already referenced this in your greeting. Build naturally from there.
 Continue the therapeutic narrative without re-introducing the previous session.
 ===== END LAST SESSION =====\n`;
+      }
+
+      // NEW: Add upload context for unaddressed analyzed content
+      if (hasUnaddressedUpload && uploadContext) {
+        systemPrompt += `\n\n===== RECENT UPLOAD FOR DISCUSSION =====
+${uploadContext}
+
+INSTRUCTION: The user recently shared content they want to explore with you.
+After your greeting (and any reference to the previous session), naturally transition to acknowledging this upload:
+"I also had a chance to look at what you shared with me. I noticed some things I'd like to explore with you — but first, how are you feeling today?"
+Then guide the conversation toward discussing the uploaded content when appropriate.
+===== END UPLOAD CONTEXT =====\n`;
+        console.log('📤 [VAPI] Unaddressed upload detected - adding to greeting context');
       }
 
       // Add regular memory context if available
@@ -414,9 +422,10 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         },
         serverUrl: serverUrl,
         serverMessages: [
+          "call-started",
           "conversation-update",
           "end-of-call-report",
-          "status-update", 
+          "status-update",
           "speech-update",
           "transcript"
         ],
