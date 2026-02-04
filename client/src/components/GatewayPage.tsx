@@ -50,18 +50,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
             </div>
 
             <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full max-w-md">
-              {/* Demo link — at the top of the card */}
-              <div className="mb-6 pb-5 border-b border-white/10">
-                <button
-                  onClick={onTryDemo}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-emerald-400 hover:bg-emerald-400/10 transition-colors"
-                >
-                  <Mic className="w-4 h-4" />
-                  <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
-                </button>
-                <p className="text-xs text-muted-foreground text-center mt-1">No Account or Credit Card required</p>
-              </div>
-
               {/* Question heading */}
               <h2 className="text-xl font-semibold text-white text-center mb-6">
                 Choose Your Path:
@@ -116,6 +104,18 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                     </div>
                   </div>
                 </button>
+              </div>
+
+              {/* Demo link — above the free trial banner */}
+              <div className="mt-6 pt-5 border-t border-white/10">
+                <button
+                  onClick={onTryDemo}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-emerald-400 hover:bg-emerald-400/10 transition-colors"
+                >
+                  <Mic className="w-4 h-4" />
+                  <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
+                </button>
+                <p className="text-xs text-muted-foreground text-center mt-1">No Account or Credit Card required</p>
               </div>
 
               {/* Free trial banner — at the bottom of the card */}
