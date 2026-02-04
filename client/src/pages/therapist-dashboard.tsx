@@ -456,7 +456,7 @@ export default function TherapistDashboard({
         return;
       }
 
-      const response = await fetch(`/api/therapist/client/${clientId}/settings`, {
+      const response = await fetch(getApiUrl(`/api/therapist/client/${clientId}/settings`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
