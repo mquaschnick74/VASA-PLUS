@@ -630,14 +630,14 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                       </div>
                       <div className="flex items-center gap-1">
                         {item.analysisType !== 'pca_master' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setViewingHistoryItem(item)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewingHistoryItem(item)}
+                        className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                         )}
                         {/* Delete button: only show when viewing own analyses, not client's */}
                         {!isViewingClient && (
