@@ -412,6 +412,7 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
       hour: 'numeric',
       minute: '2-digit'
     });
+  };
 
   // Check if there are items being analyzed
   const hasAnalyzingItems = contentList.some(item => item.processing_status === 'analyzing');
