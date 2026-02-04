@@ -369,7 +369,10 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
     disabled?: boolean;
   }) => (
     <div className="flex flex-col gap-2">
-      <div className="text-xs text-zinc-400">How should VASA use this content?</div>
+      <div className="text-xs text-red-400 font-medium">How should VASA use this content?</div>
+      <div className="text-[10px] text-zinc-400 leading-relaxed">
+        Information uploaded via "Record" is NOT therapeutically analyzed but becomes a part of your record that can be accessed upon your request to your guide.
+      </div>
       <div className="flex rounded-lg overflow-hidden border border-zinc-600 bg-zinc-800/50">
         <button
           type="button"
