@@ -28,9 +28,9 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
       {/* Main content area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center min-h-[calc(100vh-80px)] pt-8">
         {/* Two-column section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-center w-full max-w-6xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-end w-full max-w-6xl">
           {/* Left column - Phone mockup (hidden on mobile) */}
-          <div className="hidden md:flex items-center justify-center">
+          <div className="hidden md:flex items-end justify-center">
             <img src={phoneMockup} alt="iVASA App" className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl" />
           </div>
 
