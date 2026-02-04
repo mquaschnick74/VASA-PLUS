@@ -411,21 +411,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
                   <div className="flex items-center gap-2">
                     {type.icon}
                     <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-black dark:text-white">{type.label}</span>
-                        <TooltipProvider delayDuration={200}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex cursor-help" onClick={(e) => e.stopPropagation()}>
-                                <Info className="h-3.5 w-3.5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200" />
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs text-sm bg-zinc-900 text-white dark:bg-white dark:text-black z-[9999]">
-                              <p>{type.tooltip}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
+                      <div className="font-medium text-black dark:text-white">{type.label}</div>
                       <div className="text-xs text-zinc-600 dark:text-zinc-300">{type.description}</div>
                     </div>
                   </div>
