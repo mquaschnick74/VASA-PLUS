@@ -36,8 +36,8 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
           {/* Right column - Title and Glass card with options */}
           <div className="flex flex-col items-center">
-            {/* Title section — above the card, wider than card */}
-            <div className="text-center mb-8 w-full md:w-[140%] md:-ml-[20%]">
+            {/* Title section — above the card, wider than card, centered */}
+            <div className="text-center mb-8 w-full md:w-[140%]">
               <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white">
                 AI-Depth Therapy
               </h1>
