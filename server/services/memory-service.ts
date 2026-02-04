@@ -548,8 +548,68 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     auditSizes['pca_context'] = memoryContext.length - prePcaLen;
 
     // ========================================
-    // USER-SUBMITTED CONTENT
-    // Query user's uploaded notes and documents
+    // UPLOAD ANALYSES (from "Analyze" mode uploads)
+    // Clinical interpretations, NOT raw content
+    // ========================================
+    const preUploadAnalysisLen = memoryContext.length;
+    try {
+      // Query upload analyses from therapeutic_context
+      const { data: uploadAnalyses, error: uploadAnalysisError } = await supabase
+        .from('therapeutic_context')
+        .select('content, metadata, created_at')
+        .eq('user_id', userId)
+        .eq('context_type', 'upload_analysis')
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (uploadAnalysisError) {
+        console.warn('[Memory] Failed to fetch upload analyses:', uploadAnalysisError.message);
+      } else if (uploadAnalyses && uploadAnalyses.length > 0) {
+        console.log(`[Memory] Retrieved ${uploadAnalyses.length} upload analyses`);
+
+        memoryContext += `\n\n===== CONTENT THE USER SHARED FOR DISCUSSION =====\n`;
+
+        for (const analysis of uploadAnalyses) {
+          const metadata = analysis.metadata || {};
+          const title = metadata.title || 'Uploaded content';
+          const ageDays = Math.floor((Date.now() - new Date(analysis.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          const addressed = metadata.addressed_in_session === true;
+          const quotes = metadata.key_quotes || [];
+
+          // Determine freshness for proactive vs passive reference
+          let freshness = 'historical';
+          if (ageDays <= 7) freshness = 'fresh';
+          else if (ageDays <= 30) freshness = 'active';
+
+          memoryContext += `\n[Upload from ${ageDays === 0 ? 'today' : ageDays === 1 ? 'yesterday' : `${ageDays} days ago`}: ${title}]\n`;
+          memoryContext += analysis.content;
+
+          if (quotes.length > 0) {
+            memoryContext += `\nKey quotes to reference:\n`;
+            quotes.slice(0, 3).forEach((q: string, i: number) => {
+              memoryContext += `  ${i + 1}. "${q}"\n`;
+            });
+          }
+
+          if (!addressed && freshness === 'fresh') {
+            memoryContext += `\n** This content has NOT been discussed in session yet. Proactively reference it. **\n`;
+          } else if (!addressed && freshness === 'active') {
+            memoryContext += `\n** This content hasn't been fully explored yet. Reference if relevant. **\n`;
+          }
+
+          memoryContext += `\n`;
+        }
+
+        memoryContext += `===== END SHARED CONTENT =====\n`;
+      }
+    } catch (uploadAnalysisError) {
+      console.warn('[Memory] Error fetching upload analyses:', uploadAnalysisError);
+    }
+    auditSizes['upload_analysis'] = memoryContext.length - preUploadAnalysisLen;
+
+    // ========================================
+    // BACKGROUND INFORMATION (from "Add to Record" mode uploads)
+    // Limited to 1-2 summary chunks only
     // ========================================
     const preUserContentLen = memoryContext.length;
     try {
@@ -561,44 +621,49 @@ export async function buildMemoryContext(userId: string): Promise<string> {
         .single();
 
       if (userData?.auth_user_id) {
-        // Query knowledge_chunks for user-submitted content (direct query, not RPC)
-        const { data: userChunks, error: userChunksError } = await supabase
-          .from('knowledge_chunks')
-          .select('content, metadata, created_at')
-          .eq('user_id', userData.auth_user_id)
+        // Get user_content items that are in 'record' mode
+        const { data: recordItems } = await supabase
+          .from('user_content')
+          .select('id, title')
+          .eq('user_id', userId)
+          .eq('analysis_mode', 'record')
+          .eq('processing_status', 'completed')
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(5);
 
-        if (userChunksError) {
-          console.warn('[Memory] Failed to fetch user content:', userChunksError.message);
-        } else if (userChunks && userChunks.length > 0) {
-          console.log(`[Memory] Retrieved ${userChunks.length} user content chunks`);
+        if (recordItems && recordItems.length > 0) {
+          const recordIds = recordItems.map(r => r.id);
 
-          memoryContext += `\n\n===== BETWEEN-SESSION NOTES & UPLOADS =====\n`;
-          memoryContext += `The user shared the following content between sessions. This is part of their therapeutic record.\n`;
-          memoryContext += `Reference this content proactively when relevant — all items are symbolically important.\n\n`;
+          // Query knowledge_chunks only for record-mode content (limit 2 chunks total)
+          const { data: userChunks, error: userChunksError } = await supabase
+            .from('knowledge_chunks')
+            .select('content, metadata, created_at, artifact_id')
+            .eq('user_id', userData.auth_user_id)
+            .in('artifact_id', recordIds)
+            .order('created_at', { ascending: false })
+            .limit(2);
 
-          for (const chunk of userChunks) {
-            const source = chunk.metadata?.source || 'User content';
-            const contentType = chunk.metadata?.content_type || 'note';
-            const date = chunk.created_at
-              ? new Date(chunk.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              : '';
+          if (userChunksError) {
+            console.warn('[Memory] Failed to fetch record-only content:', userChunksError.message);
+          } else if (userChunks && userChunks.length > 0) {
+            console.log(`[Memory] Retrieved ${userChunks.length} background info chunks`);
 
-            if (contentType === 'note') {
-              memoryContext += `[Note from ${date}]: "${chunk.content.slice(0, 500)}${chunk.content.length > 500 ? '...' : ''}"\n\n`;
-            } else {
-              memoryContext += `[From uploaded document "${source}"]: "${chunk.content.slice(0, 500)}${chunk.content.length > 500 ? '...' : ''}"\n\n`;
+            memoryContext += `\n\n===== BACKGROUND INFORMATION =====\n`;
+            memoryContext += `The user provided the following for background context:\n\n`;
+
+            for (const chunk of userChunks) {
+              const source = chunk.metadata?.source || 'Background document';
+              memoryContext += `[${source}]: "${chunk.content.slice(0, 300)}${chunk.content.length > 300 ? '...' : ''}"\n\n`;
             }
-          }
 
-          memoryContext += `===== END BETWEEN-SESSION CONTENT =====\n`;
-        } else {
-          console.log('[Memory] No user-submitted content found');
+            memoryContext += `===== END BACKGROUND =====\n`;
+          } else {
+            console.log('[Memory] No record-only content found');
+          }
         }
       }
     } catch (userContentError) {
-      console.warn('[Memory] Error fetching user content:', userContentError);
+      console.warn('[Memory] Error fetching background content:', userContentError);
     }
     auditSizes['user_content'] = memoryContext.length - preUserContentLen;
 
@@ -752,6 +817,8 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
   memoryContext: string;
   lastSessionSummary: string | null;
   shouldReferenceLastSession: boolean;
+  hasUnaddressedUpload: boolean;
+  uploadContext: string | null;
 }> {
   try {
     console.log(`📚 Building enhanced memory context for user: ${userId}`);
@@ -833,15 +900,64 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
       processedSummary = `Last session (${timeSinceLastSession}): ${processedSummary}`;
     }
 
+    // Check for unaddressed upload analyses
+    let hasUnaddressedUpload = false;
+    let uploadContext: string | null = null;
+
+    try {
+      const { data: unaddressedUploads } = await supabase
+        .from('therapeutic_context')
+        .select('content, metadata, created_at')
+        .eq('user_id', userId)
+        .eq('context_type', 'upload_analysis')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (unaddressedUploads && unaddressedUploads.length > 0) {
+        const upload = unaddressedUploads[0];
+        const metadata = upload.metadata || {};
+        const addressed = metadata.addressed_in_session === true;
+        const ageDays = Math.floor((Date.now() - new Date(upload.created_at).getTime()) / (1000 * 60 * 60 * 24));
+
+        // Only flag as unaddressed if it's fresh (within 7 days) and not yet discussed
+        if (!addressed && ageDays <= 7) {
+          hasUnaddressedUpload = true;
+          const title = metadata.title || 'content';
+          const quotes = metadata.key_quotes || [];
+
+          // Build a brief context for the greeting
+          let briefContext = `The user recently shared ${title} for analysis.`;
+
+          // Extract key finding from the analysis content
+          const guidanceMatch = upload.content.match(/## AGENT GUIDANCE\n([\s\S]*?)(?=\n===|$)/);
+          if (guidanceMatch) {
+            briefContext += ` ${guidanceMatch[1].trim().slice(0, 200)}`;
+          }
+
+          if (quotes.length > 0) {
+            briefContext += ` Key quote: "${quotes[0].slice(0, 100)}${quotes[0].length > 100 ? '...' : ''}"`;
+          }
+
+          uploadContext = briefContext;
+          console.log(`📤 Found unaddressed upload from ${ageDays === 0 ? 'today' : `${ageDays} days ago`}: ${title}`);
+        }
+      }
+    } catch (uploadError) {
+      console.warn('[Memory] Error checking for unaddressed uploads:', uploadError);
+    }
+
     console.log(`✅ Enhanced memory context built:`);
     console.log(`   - Has base context: ${baseContext.length > 0}`);
     console.log(`   - Has last summary: ${!!processedSummary}`);
     console.log(`   - Should reference: ${shouldReference}`);
+    console.log(`   - Has unaddressed upload: ${hasUnaddressedUpload}`);
 
     return {
       memoryContext: baseContext,
       lastSessionSummary: processedSummary,
-      shouldReferenceLastSession: shouldReference
+      shouldReferenceLastSession: shouldReference,
+      hasUnaddressedUpload,
+      uploadContext
     };
 
   } catch (error) {
@@ -852,7 +968,9 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
     return {
       memoryContext: basicContext,
       lastSessionSummary: null,
-      shouldReferenceLastSession: false
+      shouldReferenceLastSession: false,
+      hasUnaddressedUpload: false,
+      uploadContext: null
     };
   }
 }

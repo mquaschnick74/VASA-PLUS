@@ -590,6 +590,8 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
     let displayMemoryContext: string;  // NEW: Cleaner version for UI display
     let lastSessionSummary: string | null = null;
     let shouldReferenceLastSession: boolean = false;
+    let hasUnaddressedUpload: boolean = false;
+    let uploadContext: string | null = null;
 
     if (useEnhanced) {
       try {
@@ -597,6 +599,8 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
         memoryContext = enhanced.memoryContext;
         lastSessionSummary = enhanced.lastSessionSummary;
         shouldReferenceLastSession = enhanced.shouldReferenceLastSession;
+        hasUnaddressedUpload = enhanced.hasUnaddressedUpload;
+        uploadContext = enhanced.uploadContext;
       } catch (error) {
         memoryContext = await buildMemoryContext(userId);
       }
@@ -655,6 +659,8 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       displayMemoryContext,
       lastSessionSummary,
       shouldReferenceLastSession,
+      hasUnaddressedUpload,
+      uploadContext,
       sessions: sessions || [],
       firstName: user.first_name || 'there',
       sessionCount: sessions?.length || 0,
