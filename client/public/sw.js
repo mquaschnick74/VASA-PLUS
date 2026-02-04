@@ -1,5 +1,5 @@
 // VASA-Plus Service Worker
-const CACHE_NAME = 'vasa-cache-v1';
+const CACHE_NAME = 'vasa-cache-v2';
 
 // Static assets to cache on install (app shell)
 const STATIC_ASSETS = [
