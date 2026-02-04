@@ -398,7 +398,7 @@ export default function TherapistDashboard({
         return;
       }
 
-      const response = await fetch(`/api/therapist/invitation/${invitationId}`, {
+      const response = await fetch(getApiUrl(`/api/therapist/invitation/${invitationId}`), {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${session.access_token}`,

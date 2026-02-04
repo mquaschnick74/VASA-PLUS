@@ -197,7 +197,7 @@ export default function SessionAnalysis({ userId }: SessionAnalysisProps) {
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       if (!token) return;
 
-      const response = await fetch(`/api/analysis/${analysisId}`, {
+      const response = await fetch(getApiUrl(`/api/analysis/${analysisId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
