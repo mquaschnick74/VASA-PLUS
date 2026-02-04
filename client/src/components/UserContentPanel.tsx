@@ -659,6 +659,7 @@ export default function UserContentPanel({ userId }: UserContentPanelProps) {
           {/* Content List */}
           <div className="space-y-3 pt-4 border-t border-zinc-700">
             <h3 className="text-sm font-medium text-zinc-100">Your Content</h3>
+            <AnalysisIndicator />
             {isLoadingList ? (
               <div className="flex items-center gap-2 text-sm text-zinc-400 py-4">
                 <Loader2 className="w-4 h-4 animate-spin" />
