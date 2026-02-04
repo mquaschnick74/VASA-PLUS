@@ -642,12 +642,26 @@ router.post('/webhook', async (req, res) => {
         }
         break;
 
-      case 'status-update':
-        // DEBUG: Check if status-update contains monitor URLs (controlUrl/listenUrl)
-        console.log(`📊 [DEBUG] status-update received for call: ${callId}`);
-        console.log(`📊 [DEBUG] message.call.monitor:`, JSON.stringify(message?.call?.monitor));
-        console.log(`📊 [DEBUG] message.call (first 500 chars):`, JSON.stringify(message?.call, null, 2)?.substring(0, 500));
+      case 'status-update': {
+        // Extract and store controlUrl from status-update event
+        // This is critical for Sensing Layer guidance injection
+        console.log(`🔄 [STATUS-UPDATE] Processing status-update event for call: ${callId}`);
+
+        const controlUrl = message?.call?.monitor?.controlUrl;
+
+        if (controlUrl) {
+          console.log(`✅ [STATUS-UPDATE] Found controlUrl for call ${callId}`);
+          setControlUrl(callId, controlUrl, userId);
+          console.log(`💾 [STATUS-UPDATE] Stored controlUrl: ${controlUrl.substring(0, 60)}...`);
+        } else {
+          console.warn(`⚠️ [STATUS-UPDATE] No controlUrl found in monitor object for call ${callId}`);
+        }
+
+        // Ensure session exists for this call
+        await ensureSession(callId, userId, agentName);
+
         break;
+      }
 
       default:
         console.log(`Unhandled event type: ${eventType}`);
