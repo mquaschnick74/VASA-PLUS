@@ -447,6 +447,11 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           language: 'en'
         },
         recordingEnabled: true,
+        backgroundSpeechDenoisingPlan: {
+          smartDenoisingPlan: {
+            enabled: true
+          }
+        },
         maxDurationSeconds: sessionDurationLimit,  // ← ADD THIS LINE (Vapi will enforce this limit)
         metadata: {
           userId: userId,
