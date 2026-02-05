@@ -422,6 +422,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         },
         serverUrl: serverUrl,
         serverMessages: [
+          "call-started",
           "conversation-update",
           "end-of-call-report",
           "status-update",

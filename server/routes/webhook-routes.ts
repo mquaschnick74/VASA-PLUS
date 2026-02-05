@@ -351,6 +351,9 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
+    // Track if response was already sent (for early responders like call-started)
+    let responseSent = false;
+
     // PRESERVED: Enhanced debugging for production
     if (process.env.REPLIT_DEPLOYMENT === '1' || !userId || !callId) {
       console.log('📊 Webhook Debug Info:', {
@@ -402,49 +405,61 @@ router.post('/webhook', async (req, res) => {
 
     switch (eventType) {
       case 'call-started':
-        console.log(`🚀 CALL-STARTED event received for call: ${callId}`);
-        console.log(`   User ID: ${userId}`);
-        console.log(`   Agent Name: ${agentName}`);
+        // CRITICAL: Respond immediately to prevent VAPI timeout
+        // VAPI has a very short timeout for call-started events - must respond before any async work
+        res.status(200).json({ received: true });
+        responseSent = true;
 
-        // DEBUG: Log full call object structure to understand VAPI's format
-        console.log(`🔍 [DEBUG] message.call keys: ${message?.call ? Object.keys(message.call).join(', ') : 'undefined'}`);
-        console.log(`🔍 [DEBUG] message.call.monitor: ${JSON.stringify(message?.call?.monitor || 'undefined')}`);
+        // Process all call-started logic asynchronously after response is sent
+        setImmediate(async () => {
+          try {
+            console.log(`🚀 CALL-STARTED event received for call: ${callId}`);
+            console.log(`   User ID: ${userId}`);
+            console.log(`   Agent Name: ${agentName}`);
 
-        // PRESERVED: Monitor URL logging
-        if (message?.call?.monitor) {
-          console.log('🔍 MONITOR URLs FOR TESTING:');
-          console.log(`TEST_LISTEN_URL="${message.call.monitor.listenUrl}"`);
-          console.log(`TEST_CONTROL_URL="${message.call.monitor.controlUrl}"`);
-        } else {
-          console.warn(`⚠️ [DEBUG] No monitor object in call-started. Check VAPI assistant config.`);
-          console.warn(`   VAPI requires serverMessages: ["call-started"] AND the assistant must be configured for monitoring`);
-        }
+            // DEBUG: Log full call object structure to understand VAPI's format
+            console.log(`🔍 [DEBUG] message.call keys: ${message?.call ? Object.keys(message.call).join(', ') : 'undefined'}`);
+            console.log(`🔍 [DEBUG] message.call.monitor: ${JSON.stringify(message?.call?.monitor || 'undefined')}`);
 
-        // SENSING LAYER: Store controlUrl for real-time guidance injection
-        const controlUrl = message?.call?.monitor?.controlUrl;
-        if (controlUrl) {
-          setControlUrl(callId, controlUrl, userId);
-          console.log(`🧠 [SENSING] Stored controlUrl for call ${callId}: ${controlUrl.substring(0, 50)}...`);
-        } else {
-          console.warn(`⚠️ [SENSING] No controlUrl in call-started for ${callId}`);
-          console.warn(`   This usually means VAPI's monitor is not enabled for this assistant`);
-        }
+            // PRESERVED: Monitor URL logging
+            if (message?.call?.monitor) {
+              console.log('🔍 MONITOR URLs FOR TESTING:');
+              console.log(`TEST_LISTEN_URL="${message.call.monitor.listenUrl}"`);
+              console.log(`TEST_CONTROL_URL="${message.call.monitor.controlUrl}"`);
+            } else {
+              console.warn(`⚠️ [DEBUG] No monitor object in call-started. Check VAPI assistant config.`);
+              console.warn(`   VAPI requires serverMessages: ["call-started"] AND the assistant must be configured for monitoring`);
+            }
 
-        // Initialize call state for conversation tracking
-        updateCallState(callId, {
-          userId,
-          sessionId: callId,
-          exchangeCount: 0,
-          conversationHistory: []
+            // SENSING LAYER: Store controlUrl for real-time guidance injection
+            const controlUrl = message?.call?.monitor?.controlUrl;
+            if (controlUrl) {
+              setControlUrl(callId, controlUrl, userId);
+              console.log(`🧠 [SENSING] Stored controlUrl for call ${callId}: ${controlUrl.substring(0, 50)}...`);
+            } else {
+              console.warn(`⚠️ [SENSING] No controlUrl in call-started for ${callId}`);
+              console.warn(`   This usually means VAPI's monitor is not enabled for this assistant`);
+            }
+
+            // Initialize call state for conversation tracking
+            updateCallState(callId, {
+              userId,
+              sessionId: callId,
+              exchangeCount: 0,
+              conversationHistory: []
+            });
+
+            // SENSING LAYER: Initialize session state for in-memory accumulation
+            sensingLayer.initializeCallSession(callId, userId, callId);
+            console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
+
+            console.log(`📞 Initializing session for call-started event...`);
+            await initializeSession(userId, callId, agentName);
+            console.log(`✅ call-started event processed successfully`);
+          } catch (error) {
+            console.error(`❌ Error processing call-started asynchronously:`, error);
+          }
         });
-
-        // SENSING LAYER: Initialize session state for in-memory accumulation
-        sensingLayer.initializeCallSession(callId, userId, callId);
-        console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
-
-        console.log(`📞 Initializing session for call-started event...`);
-        await initializeSession(userId, callId, agentName);
-        console.log(`✅ call-started event processed successfully`);
         break;
 
       case 'conversation-update': {
@@ -670,7 +685,9 @@ router.post('/webhook', async (req, res) => {
     console.log('✅ Webhook processed successfully');
     console.log('═══════════════════════════════════════════');
     console.log('');
-    res.status(200).json({ received: true });
+    if (!responseSent) {
+      res.status(200).json({ received: true });
+    }
   } catch (error) {
     console.error('❌ Webhook processing error:', error);
     console.log('═══════════════════════════════════════════');
