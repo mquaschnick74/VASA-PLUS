@@ -573,11 +573,20 @@ export async function buildMemoryContext(userId: string): Promise<string> {
 
         memoryContext += `\n\n===== CONTENT THE USER SHARED FOR DISCUSSION =====\n`;
 
-        for (const analysis of uploadAnalyses) {
+        // Filter to only unaddressed uploads
+        const unaddressedUploads = uploadAnalyses.filter(analysis => {
+          const metadata = analysis.metadata || {};
+          return metadata.addressed_in_session !== true;
+        });
+
+        if (unaddressedUploads.length === 0) {
+          console.log('[Memory] All uploads already addressed in previous sessions');
+        }
+
+        for (const analysis of unaddressedUploads) {
           const metadata = analysis.metadata || {};
           const title = metadata.title || 'Uploaded content';
           const ageDays = Math.floor((Date.now() - new Date(analysis.created_at).getTime()) / (1000 * 60 * 60 * 24));
-          const addressed = metadata.addressed_in_session === true;
           const quotes = metadata.key_quotes || [];
 
           // Determine freshness for proactive vs passive reference
@@ -595,9 +604,9 @@ export async function buildMemoryContext(userId: string): Promise<string> {
             });
           }
 
-          if (!addressed && freshness === 'fresh') {
+          if (freshness === 'fresh') {
             memoryContext += `\n** This content has NOT been discussed in session yet. Proactively reference it. **\n`;
-          } else if (!addressed && freshness === 'active') {
+          } else if (freshness === 'active') {
             memoryContext += `\n** This content hasn't been fully explored yet. Reference if relevant. **\n`;
           }
 
