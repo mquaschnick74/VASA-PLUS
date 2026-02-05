@@ -444,8 +444,14 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
-          language: 'en'
+          language: 'en',
+          smartFormat: true,
+          endpointing: 400  // Longer silence before triggering transcription (helps avoid echo)
         },
+        // Enable background denoising to reduce echo/feedback
+        backgroundDenoisingEnabled: true,
+        // Model output audio is muted in transcriber to prevent feedback loop
+        modelOutputInBackgroundEnabled: false,
         recordingEnabled: true,
         maxDurationSeconds: sessionDurationLimit,  // ← ADD THIS LINE (Vapi will enforce this limit)
         metadata: {
