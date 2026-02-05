@@ -14,6 +14,7 @@ interface SessionState {
   processedTranscripts: Set<string>; // Track processed transcript hashes
   exchangeCount: number; // Track number of exchanges
   narrativePhase: 'narrative_collection' | 'css_entry_assessment' | 'css_active'; // Track narrative phase
+  uploadId?: string | null; // Track upload ID addressed in this session
 }
 
 // Two-tier cache system
@@ -222,6 +223,22 @@ export async function initializeSession(
       console.log(`   Session ID: ${data?.[0]?.id}`);
       console.log(`   Call ID: ${data?.[0]?.call_id}`);
       console.log(`   User: ${userExists.email}`);
+
+      // If we have an uploadId in memory, mark it as addressed now that session is saved
+      if (session.uploadId) {
+        console.log(`🏷️ Marking upload ${session.uploadId} as addressed for call ${callId}`);
+        await supabase
+          .from('therapeutic_context')
+          .update({ 
+            metadata: { 
+              ...(data?.[0]?.metadata || {}), 
+              addressed_in_session: true,
+              addressed_at: new Date().toISOString(),
+              addressed_call_id: callId
+            } 
+          })
+          .eq('id', session.uploadId);
+      }
     }
   } catch (dbError) {
     console.error(`❌ Database operation failed with exception:`, dbError);

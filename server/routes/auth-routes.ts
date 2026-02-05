@@ -592,6 +592,7 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
     let shouldReferenceLastSession: boolean = false;
     let hasUnaddressedUpload: boolean = false;
     let uploadContext: string | null = null;
+    let uploadId: string | null = null;
 
     if (useEnhanced) {
       try {
@@ -601,6 +602,17 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
         shouldReferenceLastSession = enhanced.shouldReferenceLastSession;
         hasUnaddressedUpload = enhanced.hasUnaddressedUpload;
         uploadContext = enhanced.uploadContext;
+        uploadId = (enhanced as any).uploadId;
+
+        // Initialize session in orchestration service if it doesn't exist
+        // and we have an uploadId to track
+        if (req.query.callId && typeof req.query.callId === 'string' && uploadId) {
+          const session = await ensureSession(req.query.callId, userId);
+          if (session) {
+            (session as any).uploadId = uploadId;
+            console.log(`🔗 [Session] Linked upload ${uploadId} to call ${req.query.callId}`);
+          }
+        }
       } catch (error) {
         memoryContext = await buildMemoryContext(userId);
       }

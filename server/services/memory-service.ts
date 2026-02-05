@@ -909,11 +909,12 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
     // Check for unaddressed upload analyses
     let hasUnaddressedUpload = false;
     let uploadContext: string | null = null;
+    let uploadId: string | null = null;
 
     try {
       const { data: unaddressedUploads } = await supabase
         .from('therapeutic_context')
-        .select('content, metadata, created_at')
+        .select('id, content, metadata, created_at')
         .eq('user_id', userId)
         .eq('context_type', 'upload_analysis')
         .order('created_at', { ascending: false })
@@ -921,13 +922,14 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
 
       if (unaddressedUploads && unaddressedUploads.length > 0) {
         const upload = unaddressedUploads[0];
-        const metadata = upload.metadata || {};
+        const metadata = (upload.metadata as any) || {};
         const addressed = metadata.addressed_in_session === true;
         const ageDays = Math.floor((Date.now() - new Date(upload.created_at).getTime()) / (1000 * 60 * 60 * 24));
 
         // Only flag as unaddressed if it's fresh (within 7 days) and not yet discussed
         if (!addressed && ageDays <= 7) {
           hasUnaddressedUpload = true;
+          uploadId = upload.id;
           const title = metadata.title || 'content';
           const quotes = metadata.key_quotes || [];
 
@@ -965,7 +967,8 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
       lastSessionSummary: processedSummary,
       shouldReferenceLastSession: shouldReference,
       hasUnaddressedUpload,
-      uploadContext
+      uploadContext,
+      uploadId: (uploadId as string | null)
     };
 
   } catch (error) {
