@@ -486,6 +486,36 @@ export async function processEndOfCall(
     }
   }
 
+  // Mark any recent unaddressed uploads as addressed (48 hour window to match memory-service)
+  try {
+    const cutoff = new Date();
+    cutoff.setHours(cutoff.getHours() - 48);
+    
+    const { data: unaddressedUploads } = await supabase
+      .from('therapeutic_context')
+      .select('id, metadata')
+      .eq('user_id', session.userId)
+      .eq('context_type', 'upload_analysis')
+      .gte('created_at', cutoff.toISOString());
+    
+    if (unaddressedUploads && unaddressedUploads.length > 0) {
+      for (const upload of unaddressedUploads) {
+        const metadata = upload.metadata as any;
+        if (metadata && metadata.addressed_in_session === false) {
+          await supabase
+            .from('therapeutic_context')
+            .update({
+              metadata: { ...metadata, addressed_in_session: true, addressed_call_id: callId }
+            })
+            .eq('id', upload.id);
+          console.log(`🏷️ Marked upload ${upload.id} as addressed in session ${callId}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to mark uploads as addressed:', err);
+  }
+
   // Cleanup from both caches
   activeSessions.delete(callId);
   checkedSessions.delete(callId);
