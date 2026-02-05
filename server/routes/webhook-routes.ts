@@ -613,7 +613,41 @@ router.post('/webhook', async (req, res) => {
           console.error('❌ Failed to track usage:', error);
         }
       }
-        
+
+      // Mark any unaddressed upload analyses as addressed for this user
+      // This prevents the same upload from being discussed in every session
+      if (userId) {
+        try {
+          // Get all unaddressed uploads for this user
+          const { data: uploads, error: fetchError } = await supabase
+            .from('therapeutic_context')
+            .select('id, metadata')
+            .eq('user_id', userId)
+            .eq('context_type', 'upload_analysis');
+
+          if (!fetchError && uploads && uploads.length > 0) {
+            let markedCount = 0;
+            for (const upload of uploads) {
+              const currentMetadata = upload.metadata || {};
+              if (!currentMetadata.addressed_in_session) {
+                await supabase
+                  .from('therapeutic_context')
+                  .update({
+                    metadata: { ...currentMetadata, addressed_in_session: true }
+                  })
+                  .eq('id', upload.id);
+                markedCount++;
+              }
+            }
+            if (markedCount > 0) {
+              console.log(`✅ Marked ${markedCount} upload analyses as addressed for user ${userId}`);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Failed to mark uploads as addressed:', error);
+        }
+      }
+
         // PRESERVED: Your transcript extraction logic
         const transcript = message.transcript || message.fullTranscript;
         const summary = message.summary;
