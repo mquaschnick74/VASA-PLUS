@@ -179,7 +179,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     model: { temperature: 0.7, model: 'gpt-4o' },
     voice: {
       provider: '11labs',
-      voiceId: 'nf4MCGNSdM0hxM95ZBQR',
+      voiceId: '3cb1kceDIYlJwnoZWqaw',
       model: 'eleven_flash_v2_5',
       stability: 0.9,
       similarityBoost: 0.85,
