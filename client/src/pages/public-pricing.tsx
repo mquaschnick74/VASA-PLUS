@@ -228,6 +228,26 @@ export default function PublicPricing() {
           </Card>
         </div>
 
+        {/* Account Required Notice */}
+        <div className="max-w-4xl mx-auto mb-12">
+          <Card className="glass border-amber-500/50 border">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Account Required to Subscribe</h3>
+                  <p className="text-sm text-muted-foreground">
+                    You'll need to create a free account before purchasing a subscription.
+                    Sign up takes less than a minute — no credit card required to get started.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Individual Plans */}
         <div className="mb-20">
           <div className="text-center mb-8">
@@ -278,7 +298,7 @@ export default function PublicPricing() {
                     onClick={() => setLocation('/?mode=signup')}
                     variant={plan.popular ? 'default' : 'outline'}
                   >
-                    Get Started
+                    Sign Up to Subscribe
                   </Button>
                 </CardContent>
               </Card>
@@ -356,7 +376,7 @@ export default function PublicPricing() {
                       onClick={() => setLocation('/?mode=signup')}
                       variant={plan.popular ? 'default' : 'outline'}
                     >
-                      Get Started
+                      Sign Up to Subscribe
                     </Button>
                   )}
                 </CardContent>

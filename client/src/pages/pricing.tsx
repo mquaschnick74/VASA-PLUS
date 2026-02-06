@@ -410,15 +410,23 @@ export default function Pricing() {
                 ) : scriptLoaded && (!userId || !userEmail) ? (
                   // NON-LOGGED-IN USERS: Show static pricing cards with signup redirect
                   <div>
-                    {/* Banner */}
-                    <div className="text-center mb-8 p-4 glass rounded-xl">
-                      <p className="text-lg text-purple-200 mb-2">
-                        Create a free account to subscribe
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Sign up takes less than a minute
-                      </p>
-                    </div>
+                    {/* Account Required Banner */}
+                    <Card className="mb-8 glass border-amber-500/50 border">
+                      <CardContent className="pt-6">
+                        <div className="flex items-start gap-4">
+                          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold mb-2">Account Required to Subscribe</h3>
+                            <p className="text-sm text-muted-foreground">
+                              You'll need to create a free account before purchasing a subscription.
+                              Sign up takes less than a minute — no credit card required to get started.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
 
                     {/* Category Tabs: Individual / Therapist */}
                     <div className="flex justify-center mb-6">
@@ -573,7 +581,7 @@ export default function Pricing() {
                                 onClick={() => setLocation(`/?mode=signup&redirect=/pricing&type=${planCategory}`)}
                                 variant={plan.popular ? 'default' : 'outline'}
                               >
-                                Get Started
+                                Sign Up to Subscribe
                               </Button>
                             )}
                           </CardContent>
