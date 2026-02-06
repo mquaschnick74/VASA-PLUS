@@ -29,6 +29,7 @@ import {
   getExchangeCount,
   updateCallState
 } from '../services/sensing-layer/call-state';
+import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor } from '../services/sensing-layer/silence-monitor';
 
 const router = Router();
 
@@ -442,6 +443,9 @@ router.post('/webhook', async (req, res) => {
         sensingLayer.initializeCallSession(callId, userId, callId);
         console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
 
+        // SILENCE MONITOR: Start monitoring (timer won't arm until first user utterance)
+        startSilenceMonitor(callId);
+
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
         console.log(`✅ call-started event processed successfully`);
@@ -491,6 +495,12 @@ router.post('/webhook', async (req, res) => {
               if (msg.role && msg.content) {
                 addToConversationHistory(callId, msg.role, msg.content);
               }
+            }
+
+            // SILENCE MONITOR: Reset timer on user speech
+            const hasUserMessage = formattedConversation.some((m: any) => m.role === 'user');
+            if (hasUserMessage) {
+              resetSilenceTimer(callId);
             }
 
             // Process through sensing layer asynchronously (don't block webhook response)
@@ -549,6 +559,9 @@ router.post('/webhook', async (req, res) => {
       } else {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
       }
+
+      // SILENCE MONITOR: Stop monitoring before cleanup
+      stopSilenceMonitor(callId);
 
       // SENSING LAYER: Clean up call state and caches
       clearControlUrl(callId);

@@ -23,7 +23,8 @@ const POSTURE_DESCRIPTIONS: Record<TherapeuticPosture, string> = {
  */
 export async function injectGuidance(
   callId: string,
-  guidance: TherapeuticGuidance | EnhancedTherapeuticGuidance
+  guidance: TherapeuticGuidance | EnhancedTherapeuticGuidance,
+  triggerResponse: boolean = false
 ): Promise<boolean> {
   const controlUrl = getControlUrl(callId);
 
@@ -60,7 +61,7 @@ export async function injectGuidance(
           role: 'system',
           content: systemMessage
         },
-        triggerResponseEnabled: false // Don't trigger immediate response
+        triggerResponseEnabled: triggerResponse
       })
     });
 

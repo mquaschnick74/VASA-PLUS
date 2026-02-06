@@ -11,6 +11,8 @@ interface CallState {
     content: string;
     timestamp: Date;
   }>;
+  lastUserUtteranceAt: Date | null;
+  lastAgentUtteranceAt: Date | null;
   createdAt: Date;
 }
 
@@ -36,6 +38,8 @@ export function setControlUrl(callId: string, url: string, userId?: string): voi
       sessionId: callId,
       exchangeCount: 0,
       conversationHistory: [],
+      lastUserUtteranceAt: null,
+      lastAgentUtteranceAt: null,
       createdAt: new Date()
     });
   }
@@ -76,6 +80,8 @@ export function updateCallState(
       sessionId: updates.sessionId || callId,
       exchangeCount: updates.exchangeCount || 0,
       conversationHistory: updates.conversationHistory || [],
+      lastUserUtteranceAt: null,
+      lastAgentUtteranceAt: null,
       createdAt: new Date()
     });
   }
@@ -92,15 +98,19 @@ export function addToConversationHistory(
   const state = callStates.get(callId);
 
   if (state) {
+    const now = new Date();
     state.conversationHistory.push({
       role,
       content,
-      timestamp: new Date()
+      timestamp: now
     });
 
-    // Increment exchange count for user messages
+    // Update role-specific timestamps
     if (role === 'user') {
+      state.lastUserUtteranceAt = now;
       state.exchangeCount++;
+    } else if (role === 'assistant') {
+      state.lastAgentUtteranceAt = now;
     }
 
     // Keep only last 50 messages to prevent memory bloat
@@ -153,6 +163,18 @@ export function cleanupStaleStates(): void {
 
 // Run cleanup every 30 minutes
 setInterval(cleanupStaleStates, 30 * 60 * 1000);
+
+/**
+ * Get the content of the last user message for a call
+ */
+export function getLastUserMessage(callId: string): string | undefined {
+  const history = callStates.get(callId)?.conversationHistory;
+  if (!history) return undefined;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role === 'user') return history[i].content;
+  }
+  return undefined;
+}
 
 /**
  * Get stats about current call states (for debugging)
