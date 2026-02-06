@@ -100,6 +100,28 @@ export default function PublicPricing() {
         '30-Day Free Trial'
       ],
       popular: true
+    },
+    {
+      name: 'Enterprise',
+      price: 'Contact for Pricing',
+      period: '',
+      description: 'For organizations & health systems',
+      features: [
+        'Unlimited client accounts',
+        'Unlimited voice time/month',
+        'Insurance & EAP integration',
+        'White-label options',
+        'Dedicated account manager',
+        'Custom agent development',
+        'API access',
+        'Advanced reporting & analytics',
+        'SSO/SAML integration',
+        'Priority 24/7 support',
+        'Custom BAA terms'
+      ],
+      popular: false,
+      isEnterprise: true,
+      badge: 'Custom Solutions'
     }
   ];
 
@@ -270,7 +292,7 @@ export default function PublicPricing() {
             <h2 className="text-3xl font-bold mb-2">Therapist Plans</h2>
             <p className="text-muted-foreground">Empower your practice with AI-assisted support</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {therapistPlans.map((plan) => (
               <Card
                 key={plan.name}
@@ -283,13 +305,26 @@ export default function PublicPricing() {
                     </Badge>
                   </div>
                 )}
+                {plan.isEnterprise && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-purple-500 text-white">
+                      {plan.badge}
+                    </Badge>
+                  </div>
+                )}
 
                 <CardHeader>
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground ml-1">{plan.period}</span>
+                    {plan.isEnterprise ? (
+                      <span className="text-2xl font-bold">Contact for Pricing</span>
+                    ) : (
+                      <>
+                        <span className="text-4xl font-bold">{plan.price}</span>
+                        <span className="text-muted-foreground ml-1">{plan.period}</span>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
 
@@ -303,14 +338,27 @@ export default function PublicPricing() {
                     ))}
                   </ul>
 
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={() => setLocation('/?mode=signup')}
-                    variant={plan.popular ? 'default' : 'outline'}
-                  >
-                    Get Started
-                  </Button>
+                  {plan.isEnterprise ? (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      variant="outline"
+                      asChild
+                    >
+                      <a href="mailto:mathew@ivasa.ai?subject=Enterprise%20Plan%20Inquiry">
+                        Contact Sales
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={() => setLocation('/?mode=signup')}
+                      variant={plan.popular ? 'default' : 'outline'}
+                    >
+                      Get Started
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}

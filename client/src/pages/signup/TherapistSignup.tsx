@@ -52,6 +52,27 @@ export default function TherapistSignup({ setUserId }: TherapistSignupProps) {
       ],
       popular: true,
     },
+    {
+      name: 'Enterprise',
+      price: 'Contact for Pricing',
+      description: 'For organizations & health systems',
+      features: [
+        'Unlimited client accounts',
+        'Unlimited voice time/month',
+        'Insurance & EAP integration',
+        'White-label options',
+        'Dedicated account manager',
+        'Custom agent development',
+        'API access',
+        'Advanced reporting & analytics',
+        'SSO/SAML integration',
+        'Priority 24/7 support',
+        'Custom BAA terms',
+      ],
+      popular: false,
+      isEnterprise: true,
+      badge: 'Custom Solutions',
+    },
   ];
 
   // Value proposition cards
@@ -177,7 +198,7 @@ export default function TherapistSignup({ setUserId }: TherapistSignupProps) {
             <h2 className="text-3xl font-bold text-white mb-2">Therapist Plans</h2>
             <p className="text-muted-foreground">After your free trial, choose the plan that fits your practice</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {therapistPlans.map((plan) => (
               <Card
                 key={plan.name}
@@ -188,12 +209,23 @@ export default function TherapistSignup({ setUserId }: TherapistSignupProps) {
                     <Badge className="bg-amber-500 text-white">Most Popular</Badge>
                   </div>
                 )}
+                {plan.isEnterprise && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-amber-500 text-white">{plan.badge}</Badge>
+                  </div>
+                )}
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl">{plan.name}</CardTitle>
                   <CardDescription className="text-sm">{plan.description}</CardDescription>
                   <div className="mt-3">
-                    <span className="text-3xl font-bold text-white">{plan.price}</span>
-                    <span className="text-muted-foreground text-sm">/month</span>
+                    {plan.isEnterprise ? (
+                      <span className="text-xl font-bold text-white">Contact for Pricing</span>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-bold text-white">{plan.price}</span>
+                        <span className="text-muted-foreground text-sm">/month</span>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -205,6 +237,20 @@ export default function TherapistSignup({ setUserId }: TherapistSignupProps) {
                       </li>
                     ))}
                   </ul>
+                  {plan.isEnterprise && (
+                    <div className="mt-4">
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        variant="outline"
+                        asChild
+                      >
+                        <a href="mailto:mathew@ivasa.ai?subject=Enterprise%20Plan%20Inquiry">
+                          Contact Sales
+                        </a>
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
