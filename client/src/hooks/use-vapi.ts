@@ -43,6 +43,7 @@ interface UseVapiReturn {
   onSpeechUpdate: (callback: (message: SpeechUpdateMessage) => void) => void;
   error: string | null;
   clearError: () => void;
+  retryInitialization: () => void;
 }
 
 const useVapi = ({
@@ -62,6 +63,7 @@ const useVapi = ({
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [error, setError] = useState<string | null>(null);
+  const [initRetryCount, setInitRetryCount] = useState(0);
   const vapiRef = useRef<any>(null);
   const transcriptCallbackRef = useRef<((message: TranscriptMessage) => void) | null>(null);
   const speechUpdateCallbackRef = useRef<((message: SpeechUpdateMessage) => void) | null>(null);
@@ -76,10 +78,24 @@ const useVapi = ({
       return;
     }
 
-    // Dynamically import VAPI when needed
+    // Dynamically import VAPI with retry logic for chunk loading failures
+    const importVapiWithRetry = async (maxRetries = 3): Promise<any> => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const { default: Vapi } = await import('@vapi-ai/web');
+          return Vapi;
+        } catch (err) {
+          console.warn(`VAPI import attempt ${attempt}/${maxRetries} failed:`, err);
+          if (attempt === maxRetries) throw err;
+          // Exponential backoff: 1s, 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+        }
+      }
+    };
+
     const initializeVapi = async () => {
       try {
-        const { default: Vapi } = await import('@vapi-ai/web');
+        const Vapi = await importVapiWithRetry();
         const vapiInstance = new Vapi(publicKey);
         vapiRef.current = vapiInstance;
         setVapi(vapiInstance);
@@ -194,14 +210,24 @@ const useVapi = ({
     return () => {
       if (vapiRef.current) {
         vapiRef.current.stop();
+        vapiRef.current = null;
       }
     };
+  }, [initRetryCount]);
+
+  const retryInitialization = useCallback(() => {
+    setError(null);
+    setVapi(null);
+    vapiRef.current = null;
+    setInitRetryCount(c => c + 1);
   }, []);
 
   const startSession = useCallback(async () => {
     if (!vapi || isLoading || !selectedAgent) {
       if (!vapi) {
-        setError('Voice assistant is not initialized. Please refresh the page.');
+        console.warn('VAPI not initialized when startSession called, attempting re-initialization...');
+        setError('Voice assistant is initializing. Please wait a moment and try again.');
+        retryInitialization();
       }
       return;
     }
@@ -501,7 +527,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       setConnectionStatus('disconnected');
       setIsSessionActive(false);
     }
-  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
+  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit, retryInitialization]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {
@@ -532,7 +558,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
     onTranscript,
     onSpeechUpdate,
     error,
-    clearError
+    clearError,
+    retryInitialization
   };
 };
 

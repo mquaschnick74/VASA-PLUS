@@ -97,6 +97,8 @@ const useDemoVapi = ({
     };
   }, [isSessionActive, connectionStatus]);
 
+  const [initRetryCount, setInitRetryCount] = useState(0);
+
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
 
@@ -107,9 +109,23 @@ const useDemoVapi = ({
       return;
     }
 
+    // Dynamic import with retry logic for chunk loading failures
+    const importVapiWithRetry = async (maxRetries = 3): Promise<any> => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const { default: Vapi } = await import('@vapi-ai/web');
+          return Vapi;
+        } catch (err) {
+          console.warn(`[Demo] VAPI import attempt ${attempt}/${maxRetries} failed:`, err);
+          if (attempt === maxRetries) throw err;
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+        }
+      }
+    };
+
     const initializeVapi = async () => {
       try {
-        const { default: Vapi } = await import('@vapi-ai/web');
+        const Vapi = await importVapiWithRetry();
         const vapiInstance = new Vapi(publicKey);
         vapiRef.current = vapiInstance;
         setVapi(vapiInstance);
@@ -166,14 +182,24 @@ const useDemoVapi = ({
     return () => {
       if (vapiRef.current) {
         vapiRef.current.stop();
+        vapiRef.current = null;
       }
     };
+  }, [initRetryCount]);
+
+  const retryInitialization = useCallback(() => {
+    setError(null);
+    setVapi(null);
+    vapiRef.current = null;
+    setInitRetryCount(c => c + 1);
   }, []);
 
   const startSession = useCallback(async () => {
     if (!vapi || isLoading || !selectedAgent) {
       if (!vapi) {
-        setError('Voice demo is not ready. Please refresh the page.');
+        console.warn('[Demo] VAPI not initialized, attempting re-initialization...');
+        setError('Voice demo is initializing. Please wait a moment and try again.');
+        retryInitialization();
       }
       return;
     }

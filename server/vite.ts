@@ -113,7 +113,14 @@ export function serveStatic(app: Express) {
     await blogSocialMetaMiddleware(req, res, next, getProdHtmlTemplate);
   });
 
-  // fall through to index.html if the file doesn't exist
+  // For asset requests (JS, CSS, etc.), return 404 if not found by express.static
+  // This prevents the SPA catch-all from returning index.html with text/html MIME type
+  // for missing chunk files (e.g., vapi-*.js), which causes dynamic import failures
+  app.use("/assets/*", (_req, res) => {
+    res.status(404).send("Not found");
+  });
+
+  // fall through to index.html if the file doesn't exist (SPA routing)
   app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });

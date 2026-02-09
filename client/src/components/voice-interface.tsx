@@ -119,7 +119,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     endSession,
     connectionStatus: _connectionStatus,
     error: vapiError,
-    clearError
+    clearError,
+    retryInitialization
   } = useVapi({
     userId,
     memoryContext: userContext?.memoryContext || '',
@@ -1075,14 +1076,24 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                     <div>
                       <strong>Session Error:</strong> {vapiError}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearError}
-                      className="ml-2 h-6 px-2"
-                    >
-                      Dismiss
-                    </Button>
+                    <div className="flex gap-1 ml-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={retryInitialization}
+                        className="h-6 px-2"
+                      >
+                        Retry
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearError}
+                        className="h-6 px-2"
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
                   </div>
                 </AlertDescription>
               </Alert>

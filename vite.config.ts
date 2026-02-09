@@ -30,7 +30,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   optimizeDeps: {
-    include: ['@capacitor/core'],
+    include: ['@capacitor/core', '@vapi-ai/web'],
     exclude: ['@capacitor/push-notifications'],
   },
   ssr: {
