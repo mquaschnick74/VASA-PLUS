@@ -137,11 +137,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   // ADD subscription hook
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription(userId);
 
-  // Add this to voice-interface.tsx right after useSubscription
-  console.log('Full subscription data:', JSON.stringify(subscription, null, 2));
-
-  // Debug logging for subscription
-  console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
+  // Subscription data available via `subscription` - debug logs removed to reduce render noise
 
   // Clean up state when voice session ends to ensure text sessions work properly
   const prevSessionActive = useRef(isSessionActive);
@@ -619,7 +615,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
         body: JSON.stringify({
           message: {
             type: 'end-of-call-report',
-            call: { id: currentCallId },
+            call: {
+              id: currentCallId,
+              metadata: {
+                userId: userId,
+                agentName: selectedAgent?.name,
+                agentId: selectedAgent?.id
+              }
+            },
             endedReason: 'user-ended'
           }
         })

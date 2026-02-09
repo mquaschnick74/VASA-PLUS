@@ -115,29 +115,8 @@ const useVapi = ({
           setConnectionStatus('disconnected');
         });
 
-        // Add more event listeners for debugging
-        vapiInstance.on('speech-start', () => {
-          console.log('🎤 User started speaking');
-        });
-
-        vapiInstance.on('speech-end', () => {
-          console.log('🎤 User stopped speaking');
-        });
-
-        vapiInstance.on('message', (message: any) => {
-          console.log('📨 VAPI message:', message);
-        });
-
         vapiInstance.on('error', (error: any) => {
-          console.error('🔴 VAPI ERROR EVENT:', error);
-          console.error('🔍 Error type:', typeof error);
-          console.error('🔍 Error keys:', Object.keys(error || {}));
-          console.error('🔍 Error message paths:', {
-            'error.error.message': error?.error?.message,
-            'error.message': error?.message,
-            'error.error': error?.error,
-            'error.toString()': error?.toString?.()
-          });
+          console.error('🔴 VAPI ERROR:', error);
 
           // Try to extract the most useful error message
           let errorMessage = 'An unknown error occurred with VAPI';
@@ -169,8 +148,6 @@ const useVapi = ({
 
         // Listen for transcript messages and speech updates
         vapiInstance.on('message', (message: any) => {
-          console.log('📨 VAPI message:', message);
-
           // Handle transcript events
           if (message.type === 'transcript' && message.transcriptType === 'final') {
             const transcriptMessage: TranscriptMessage = {
@@ -362,49 +339,16 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
 
       // CHANGE 2: REMOVED the firstMessageTemplate call - no more hardcoded greetings
 
-      // === PHASE 1C AUDIT: Log systemPrompt size breakdown ===
-      const basePromptLen = selectedAgent.systemPrompt.length;
-      const greetingInstructionsLen = systemPrompt.indexOf(selectedAgent.systemPrompt) > 0
-        ? systemPrompt.indexOf(selectedAgent.systemPrompt)
-        : 250; // Approximate greeting instructions length
-      const onboardingLen = hasOnboardingContent
-        ? (onboarding?.voice?.length || 0) + (onboarding?.journey?.length || 0) + 300
-        : 0;
-      const lastSessionLen = (shouldReferenceLastSession && lastSessionSummary)
-        ? lastSessionSummary.length + 150
-        : 0;
-      const memoryLen = (memoryContext && memoryContext.length > 50)
-        ? memoryContext.length + 150
-        : 0;
-      const totalPromptLen = systemPrompt.length;
-      const estimatedTokens = Math.ceil(totalPromptLen / 4);
-
-      console.log('\n📊 ===== VAPI SYSTEM PROMPT SIZE AUDIT =====');
-      console.log(`📏 Base agent prompt:       ${basePromptLen} chars (~${Math.ceil(basePromptLen / 4)} tokens)`);
-      console.log(`📏 Greeting instructions:   ~${greetingInstructionsLen} chars (~${Math.ceil(greetingInstructionsLen / 4)} tokens)`);
-      console.log(`📏 Onboarding context:      ${onboardingLen} chars (~${Math.ceil(onboardingLen / 4)} tokens)`);
-      console.log(`📏 Last session summary:    ${lastSessionLen} chars (~${Math.ceil(lastSessionLen / 4)} tokens)`);
-      console.log(`📏 Memory context:          ${memoryLen} chars (~${Math.ceil(memoryLen / 4)} tokens)`);
-      console.log(`📏 TOTAL systemPrompt:      ${totalPromptLen} chars (~${estimatedTokens} tokens)`);
-      console.log('===== END PROMPT SIZE AUDIT =====\n');
-
       // Get the current server URL for webhook configuration
-      // VAPI webhook must always use the full HTTPS URL because VAPI's servers need to reach it
-      // getAbsoluteUrl() always returns an absolute URL (with origin) for external services
       const serverUrl = getAbsoluteUrl('/api/vapi/webhook');
 
-      console.log('');
-      console.log('╔══════════════════════════════════════════════════════════════╗');
-      console.log('║ VAPI SESSION CONFIGURATION                                    ║');
-      console.log('╚══════════════════════════════════════════════════════════════╝');
-      console.log('📍 Webhook URL:', serverUrl);
-      console.log('   ├─ Is Native App:', isNativeApp);
-      console.log('   └─ Using getAbsoluteUrl() for proper HTTPS URL');
-      console.log('👤 User ID:', userId);
-      console.log('🤖 Agent:', selectedAgent.name);
-      console.log('📝 Session continuity:', shouldReferenceLastSession ? 'Enabled' : 'Disabled');
-      console.log('════════════════════════════════════════════════════════════════');
-      console.log('');
+      console.log('🚀 VAPI Session:', {
+        agent: selectedAgent.name,
+        userId,
+        webhook: serverUrl,
+        promptSize: `${systemPrompt.length} chars (~${Math.ceil(systemPrompt.length / 4)} tokens)`,
+        continuity: shouldReferenceLastSession ? 'enabled' : 'disabled'
+      });
 
       // VAPI configuration with dynamic agent settings
       // Session duration is controlled by maxDurationSeconds property
@@ -434,17 +378,16 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           speed: selectedAgent.voice.speed || 1.0,
           useSpeakerBoost: selectedAgent.voice.useSpeakerBoost ?? true
         },
-        // 🎯 Therapeutic Speech Configuration (simplified for compatibility)
-        // These settings make VASA more patient and harder to interrupt accidentally
+        // Therapeutic Speech Configuration
+        // Balance between natural pauses and responsive feel
         startSpeakingPlan: {
-          waitSeconds: 1.2,  // Wait 1.2s after user stops (vs 0.4s default)
-          smartEndpointingEnabled: true  // Enable AI detection of incomplete thoughts
+          waitSeconds: 0.8,  // Wait 0.8s after user stops (vs 0.4s default, was 1.2s)
+          smartEndpointingEnabled: true  // AI detection of incomplete thoughts
         },
-        // Make user harder to interrupt - requires deliberate speech
         stopSpeakingPlan: {
-          numWords: 3,         // Requires 3 words to interrupt (vs 1 word default)
-          voiceSeconds: 0.5,   // Requires 0.5s of voice activity (vs 0.2s default)
-          backoffSeconds: 1.5  // After interruption, wait 1.5s before VASA can resume
+          numWords: 2,         // Requires 2 words to interrupt (vs 1 word default)
+          voiceSeconds: 0.3,   // Requires 0.3s of voice activity (vs 0.2s default)
+          backoffSeconds: 1.0  // After interruption, wait 1s before VASA can resume
         },
         serverUrl: serverUrl,
         serverMessages: [
@@ -488,26 +431,9 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         }
       };
 
-      console.log('🔍 VAPI START - Config Details:', {
-        maxDurationSeconds: assistantConfig.maxDurationSeconds,
-        sessionDurationLimit: sessionDurationLimit,
-        name: assistantConfig.name,
-        hasMaxDuration: 'maxDurationSeconds' in assistantConfig
-      });
-
-      console.log('🔍 FULL ASSISTANT CONFIG:', JSON.stringify(assistantConfig, null, 2));
-
-      // Warn about potential configuration issues
-      console.log('⚠️ Configuration checks:');
-      console.log('  - VAPI Public Key:', import.meta.env.VITE_VAPI_PUBLIC_KEY ? '✅ Set' : '❌ Missing');
-      console.log('  - Webhook URL:', serverUrl);
-      console.log('  - First Message Mode:', assistantConfig.firstMessageMode);
-      console.log('  - Model:', assistantConfig.model.model);
-
       try {
-        console.log('🚀 Calling vapi.start()...');
         await vapi.start(assistantConfig);
-        console.log('✅ vapi.start() completed successfully');
+        console.log('✅ VAPI session started');
         // Since VAPI.start() succeeded, consider the session active
         setIsSessionActive(true);
         setConnectionStatus('connected');
