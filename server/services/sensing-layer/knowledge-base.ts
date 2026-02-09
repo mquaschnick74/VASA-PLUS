@@ -271,7 +271,7 @@ export async function getRelevantGuidance(osr: OrientationStateRegister): Promis
     types,
     tags,
     limit: 4,
-    threshold: 0.65
+    threshold: 0.4
   });
 
   const context = buildRetrievedContext(chunks);
