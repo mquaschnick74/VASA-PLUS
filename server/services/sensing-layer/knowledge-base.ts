@@ -160,7 +160,17 @@ export function buildRagQuery(osr: OrientationStateRegister): string {
 
   // CSS stage
   if (osr.movement?.cssStage) {
-    parts.push(`CSS stage: ${osr.movement.cssStage}`);
+    // Convert snake_case to Title Case to match knowledge base content
+    const stageMap: Record<string, string> = {
+      'pointed_origin': 'Pointed Origin',
+      'focus_bind': 'Focus Bind',
+      'suspension': 'Suspension',
+      'gesture_toward': 'Gesture Toward',
+      'completion': 'Completion',
+      'terminal': 'Terminal Symbol'
+    };
+    const stageName = stageMap[osr.movement.cssStage] || osr.movement.cssStage;
+    parts.push(`CSS stage: ${stageName}`);
   }
 
   // Anticipation/timing

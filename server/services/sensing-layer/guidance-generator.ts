@@ -161,13 +161,13 @@ function generateSymbolicContext(osr: OrientationStateRegister): EnhancedTherape
  */
 function isComplexSituation(osr: OrientationStateRegister): boolean {
   // Complex if:
-  // 1. Multiple active patterns
+  // 1. Multiple active patterns (including LLM-detected)
   if (osr.patterns.activePatterns.length >= 2) return true;
 
   // 2. Active symbolic mappings
   if (osr.symbolic.activeMappings.length > 0) return true;
 
-  // 3. User showing awareness shift
+  // 3. User showing awareness shift (including LLM-detected)
   if (osr.symbolic.awarenessShift) return true;
 
   // 4. High stuckness
@@ -179,6 +179,16 @@ function isComplexSituation(osr: OrientationStateRegister): boolean {
 
   // 6. Late stage CSS
   if (['gesture_toward', 'completion', 'terminal'].includes(osr.movement.cssStage)) return true;
+
+  // 7. High symbolic weight from LLM detection (metaphorical/symbolic language)
+  if (osr.symbolic.generativeInsight?.currentElaboration?.symbolicWeight > 0.5) return true;
+
+  // 8. Any active pattern detected (even just 1 from LLM means therapeutically rich content)
+  if (osr.patterns.activePatterns.length >= 1 && osr.patterns.emergingPatterns.length >= 1) return true;
+
+  // 9. Potential symbolic connection identified by LLM
+  if (osr.symbolic.generativeInsight?.potentialConnection?.confidence &&
+      osr.symbolic.generativeInsight.potentialConnection.confidence > 0.5) return true;
 
   return false;
 }
