@@ -189,6 +189,12 @@ async function processSensingLayerAsync(
   utterance: string,
   conversationHistory: Array<{ role: string; content: string }>
 ): Promise<void> {
+  // Entry-point diagnostic log BEFORE try block to confirm function is called
+  console.log(`🔵 [SENSING-ENTRY] processSensingLayerAsync called for ${callId}`);
+  console.log(`   Utterance: "${utterance?.substring(0, 80)}${utterance?.length > 80 ? '...' : ''}"`);
+  console.log(`   History length: ${conversationHistory?.length ?? 'undefined'}`);
+  console.log(`   UserId: ${userId}`);
+
   try {
     const startTime = Date.now();
 
@@ -272,7 +278,11 @@ async function processSensingLayerAsync(
 
   } catch (error) {
     // Log but don't throw - we don't want to break the conversation
-    console.error(`❌ [SENSING] Error processing utterance for call ${callId}:`, error);
+    console.error(`❌ [SENSING] FATAL ERROR in processSensingLayerAsync for call ${callId}:`, error);
+    if (error instanceof Error) {
+      console.error(`   Message: ${error.message}`);
+      console.error(`   Stack: ${error.stack}`);
+    }
   }
 }
 
@@ -485,9 +495,19 @@ router.post('/webhook', async (req, res) => {
 
           // SENSING LAYER: Process latest user utterance for real-time guidance
           // Find the latest user message in the conversation
+          console.log(`🔍 [SENSING-PRE] Looking for latest user message in ${formattedConversation.length} conversation items`);
+          const userMessages = formattedConversation.filter((m: any) => m.role === 'user');
+          console.log(`🔍 [SENSING-PRE] Found ${userMessages.length} user messages in conversation`);
+
           const latestUserMessage = [...formattedConversation]
             .reverse()
             .find((m: any) => m.role === 'user');
+
+          if (latestUserMessage) {
+            console.log(`🔍 [SENSING-PRE] Latest user message found - content length: ${latestUserMessage.content?.length ?? 'undefined'}, trimmed: "${latestUserMessage.content?.trim()?.substring(0, 60) || 'EMPTY'}"`);
+          } else {
+            console.warn(`⚠️ [SENSING-PRE] No user message found in conversation - sensing layer will NOT run`);
+          }
 
           if (latestUserMessage?.content && latestUserMessage.content.trim().length > 0) {
             // Update conversation history in call state
@@ -504,7 +524,10 @@ router.post('/webhook', async (req, res) => {
             }
 
             // Process through sensing layer asynchronously (don't block webhook response)
+            console.log(`🚀 [SENSING-PRE] Dispatching processSensingLayerAsync for call ${callId}`);
             processSensingLayerAsync(callId, userId, latestUserMessage.content, formattedConversation);
+          } else if (latestUserMessage) {
+            console.warn(`⚠️ [SENSING-PRE] User message found but content is empty/whitespace - sensing layer will NOT run`);
           }
         }
 

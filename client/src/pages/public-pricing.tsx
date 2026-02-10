@@ -100,6 +100,28 @@ export default function PublicPricing() {
         '30-Day Free Trial'
       ],
       popular: true
+    },
+    {
+      name: 'Enterprise',
+      price: 'Contact for Pricing',
+      period: '',
+      description: 'For organizations & health systems',
+      features: [
+        'Unlimited client accounts',
+        'Unlimited voice time/month',
+        'Insurance & EAP integration',
+        'White-label options',
+        'Dedicated account manager',
+        'Custom agent development',
+        'API access',
+        'Advanced reporting & analytics',
+        'SSO/SAML integration',
+        'Priority 24/7 support',
+        'Custom BAA terms'
+      ],
+      popular: false,
+      isEnterprise: true,
+      badge: 'Custom Solutions'
     }
   ];
 
@@ -206,6 +228,26 @@ export default function PublicPricing() {
           </Card>
         </div>
 
+        {/* Account Required Notice */}
+        <div className="max-w-4xl mx-auto mb-12">
+          <Card className="glass border-amber-500/50 border">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Account Required to Subscribe</h3>
+                  <p className="text-sm text-muted-foreground">
+                    You'll need to create a free account before purchasing a subscription.
+                    Sign up takes less than a minute — no credit card required to get started.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Individual Plans */}
         <div className="mb-20">
           <div className="text-center mb-8">
@@ -256,7 +298,7 @@ export default function PublicPricing() {
                     onClick={() => setLocation('/?mode=signup')}
                     variant={plan.popular ? 'default' : 'outline'}
                   >
-                    Get Started
+                    Sign Up to Subscribe
                   </Button>
                 </CardContent>
               </Card>
@@ -270,7 +312,7 @@ export default function PublicPricing() {
             <h2 className="text-3xl font-bold mb-2">Therapist Plans</h2>
             <p className="text-muted-foreground">Empower your practice with AI-assisted support</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {therapistPlans.map((plan) => (
               <Card
                 key={plan.name}
@@ -283,13 +325,26 @@ export default function PublicPricing() {
                     </Badge>
                   </div>
                 )}
+                {plan.isEnterprise && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-purple-500 text-white">
+                      {plan.badge}
+                    </Badge>
+                  </div>
+                )}
 
                 <CardHeader>
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground ml-1">{plan.period}</span>
+                    {plan.isEnterprise ? (
+                      <span className="text-2xl font-bold">Contact for Pricing</span>
+                    ) : (
+                      <>
+                        <span className="text-4xl font-bold">{plan.price}</span>
+                        <span className="text-muted-foreground ml-1">{plan.period}</span>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
 
@@ -303,14 +358,27 @@ export default function PublicPricing() {
                     ))}
                   </ul>
 
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={() => setLocation('/?mode=signup')}
-                    variant={plan.popular ? 'default' : 'outline'}
-                  >
-                    Get Started
-                  </Button>
+                  {plan.isEnterprise ? (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      variant="outline"
+                      asChild
+                    >
+                      <a href="mailto:mathew@ivasa.ai?subject=Enterprise%20Plan%20Inquiry">
+                        Contact Sales
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={() => setLocation('/?mode=signup')}
+                      variant={plan.popular ? 'default' : 'outline'}
+                    >
+                      Sign Up to Subscribe
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}

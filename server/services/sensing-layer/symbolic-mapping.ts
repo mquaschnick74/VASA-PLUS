@@ -23,8 +23,103 @@ const anthropic = new Anthropic({
 });
 
 /**
+ * Detect symbolic content and awareness shifts semantically using LLM
+ * Works even without historical material
+ */
+async function detectSymbolicContentWithLLM(
+  input: TurnInput
+): Promise<{
+  awarenessShift: boolean;
+  symbolicWeight: number;
+  themes: string[];
+  potentialConnection: GenerativeSymbolicInsight['potentialConnection'];
+}> {
+  if (input.utterance.length < 30 || !process.env.ANTHROPIC_API_KEY) {
+    return {
+      awarenessShift: false,
+      symbolicWeight: 0.3,
+      themes: [],
+      potentialConnection: undefined
+    };
+  }
+
+  const recentContext = input.conversationHistory
+    .slice(-4)
+    .map(m => `${m.role}: ${m.content.slice(0, 100)}`)
+    .join('\n');
+
+  const prompt = `Analyze this utterance for symbolic/metaphorical content and awareness shifts.
+
+CURRENT: "${input.utterance}"
+
+CONTEXT:
+${recentContext || 'First utterance'}
+
+Identify:
+1. Metaphors, symbolic language (e.g., "precipice", "vastness", "empty hall")
+2. Awareness shifts (realizations, insights, "I see now", connections being made)
+3. Existential themes (identity, meaning, choice, freedom, death, isolation)
+4. CVDC contradictions (wanting X but feeling/doing Y)
+
+JSON response:
+{
+  "awarenessShift": true/false,
+  "symbolicWeight": 0.0-1.0 (how symbolic/metaphorical is this),
+  "themes": ["theme1", "theme2"],
+  "potentialConnection": {
+    "insight": "what the metaphor/awareness might connect to",
+    "intervention": "question to deepen exploration",
+    "timing": "not_ready|approaching|ready",
+    "confidence": 0.0-1.0
+  } OR null
+}
+
+Be concise.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      return { awarenessShift: false, symbolicWeight: 0.3, themes: [], potentialConnection: undefined };
+    }
+
+    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return { awarenessShift: false, symbolicWeight: 0.3, themes: [], potentialConnection: undefined };
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    console.log(`🔗 [LLM Symbolic Detection] Weight: ${parsed.symbolicWeight}, Shift: ${parsed.awarenessShift}, Themes: ${(parsed.themes || []).join(', ')}`);
+
+    return {
+      awarenessShift: parsed.awarenessShift || false,
+      symbolicWeight: Math.min(1, Math.max(0, parsed.symbolicWeight || 0.3)),
+      themes: parsed.themes || [],
+      potentialConnection: parsed.potentialConnection ? {
+        fromCurrent: input.utterance.slice(0, 50),
+        toPotential: parsed.potentialConnection.insight || '',
+        connectionInsight: parsed.potentialConnection.insight || '',
+        confidence: Math.min(1, Math.max(0, parsed.potentialConnection.confidence || 0.5)),
+        suggestedIntervention: parsed.potentialConnection.intervention,
+        interventionTiming: validateInterventionTiming(parsed.potentialConnection.timing)
+      } : undefined
+    };
+  } catch (error) {
+    console.error('🔗 [LLM Symbolic Detection] Error:', error);
+    return { awarenessShift: false, symbolicWeight: 0.3, themes: [], potentialConnection: undefined };
+  }
+}
+
+/**
  * Map symbolic connections between present patterns and historical material
  * OPTIMIZED: Consolidated from 2 Claude calls to 1
+ * ENHANCED: LLM-based detection works even without historical material
  */
 export async function mapSymbolic(
   input: TurnInput,
@@ -34,44 +129,70 @@ export async function mapSymbolic(
 
   const startTime = Date.now();
 
-  // 1. Get active mappings that may be relevant to current utterance
-  const activeMappings = assessActiveMappings(input, profile.symbolicMappings, profile.historicalMaterial);
+  // 1. LLM-based symbolic content detection (works without profile)
+  const llmSymbolic = await detectSymbolicContentWithLLM(input);
 
-  // 2. Check for potential new connections using heuristics first
-  const heuristicConnections = detectHeuristicConnections(input, profile);
+  // 2. Get active mappings (only if profile has mappings)
+  const activeMappings = profile.symbolicMappings.length > 0
+    ? assessActiveMappings(input, profile.symbolicMappings, profile.historicalMaterial)
+    : [];
 
-  // 3. Check for awareness shifts
-  const awarenessShift = detectAwarenessShift(input, profile.symbolicMappings);
+  // 3. Check for potential new connections using heuristics (only if has historical material)
+  const heuristicConnections = profile.historicalMaterial.length > 0
+    ? detectHeuristicConnections(input, profile)
+    : [];
 
-  // 4. CONSOLIDATED: Single Claude call for both connections and generative insight
-  let potentialConnections: PotentialConnection[] = heuristicConnections;
+  // 4. Check for awareness shifts (keyword-based, only if has mappings)
+  const keywordAwarenessShift = profile.symbolicMappings.length > 0
+    ? detectAwarenessShift(input, profile.symbolicMappings)
+    : null;
+
+  // Merge awareness shift detection
+  const awarenessShift = llmSymbolic.awarenessShift ? {
+    mappingId: 'llm-detected',
+    fromLevel: 'unconscious' as AwarenessLevel,
+    toLevel: 'emerging' as AwarenessLevel,
+    evidenceStatement: input.utterance.substring(0, 100)
+  } : keywordAwarenessShift;
+
+  // 5. Build generative insight from LLM results
   let generativeInsight: GenerativeSymbolicInsight = {
     currentElaboration: {
       topic: input.utterance.slice(0, 50),
-      symbolicWeight: 0.3,
-      connectedThemes: []
-    }
+      symbolicWeight: llmSymbolic.symbolicWeight,
+      connectedThemes: llmSymbolic.themes
+    },
+    potentialConnection: llmSymbolic.potentialConnection
   };
 
-  // Only use Claude if we have substantial content AND historical material
+  // 6. If we have historical material, enhance with full Claude analysis
+  let potentialConnections: PotentialConnection[] = heuristicConnections;
+
   if (profile.historicalMaterial.length > 0 && input.utterance.length > 50 && process.env.ANTHROPIC_API_KEY) {
     try {
       const claudeResult = await analyzeSymbolicWithClaude(input, profile);
       potentialConnections = mergeConnections(heuristicConnections, claudeResult.connections);
-      generativeInsight = claudeResult.insight;
+      // Merge insights (Claude full analysis takes priority if it has one)
+      if (claudeResult.insight.potentialConnection) {
+        generativeInsight.potentialConnection = claudeResult.insight.potentialConnection;
+      }
+      // Use higher symbolic weight between LLM detection and full analysis
+      if (claudeResult.insight.currentElaboration.symbolicWeight > generativeInsight.currentElaboration.symbolicWeight) {
+        generativeInsight.currentElaboration = claudeResult.insight.currentElaboration;
+      }
     } catch (error) {
-      console.error('🔗 [Symbolic Mapping] Claude analysis failed, using heuristics only:', error);
+      console.error('🔗 [Symbolic Mapping] Claude full analysis failed:', error);
     }
   }
 
-  // 5. Assess what's ready to surface
+  // 7. Assess readiness to surface
   const readyToSurface = assessReadinessToSurface(
     activeMappings.length > 0 ? activeMappings[0] : undefined,
     generativeInsight,
     profile
   );
 
-  console.log(`🔗 [Symbolic Mapping] Found ${activeMappings.length} active, ${potentialConnections.length} potential, generative: ${generativeInsight.potentialConnection ? 'yes' : 'no'} (${Date.now() - startTime}ms)`);
+  console.log(`🔗 [Symbolic Mapping] Found ${activeMappings.length} active, ${potentialConnections.length} potential, symbolic weight: ${llmSymbolic.symbolicWeight.toFixed(2)}, awareness shift: ${!!awarenessShift} (${Date.now() - startTime}ms)`);
 
   return {
     activeMappings,
