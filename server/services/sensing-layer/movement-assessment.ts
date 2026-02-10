@@ -560,6 +560,81 @@ function assessAnticipationHeuristic(
 }
 
 /**
+ * Attempt to extract and parse JSON from a text response.
+ * Uses a balanced-brace approach to find the outermost JSON object,
+ * then attempts repair if initial parsing fails.
+ */
+function extractAndParseJSON(text: string): Record<string, unknown> | null {
+  // Find the first '{' and extract a balanced JSON object
+  const startIdx = text.indexOf('{');
+  if (startIdx === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let endIdx = -1;
+
+  for (let i = startIdx; i < text.length; i++) {
+    const ch = text[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (ch === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        endIdx = i;
+        break;
+      }
+    }
+  }
+
+  if (endIdx === -1) return null;
+
+  const jsonStr = text.substring(startIdx, endIdx + 1);
+
+  // Attempt 1: Direct parse
+  try {
+    return JSON.parse(jsonStr) as Record<string, unknown>;
+  } catch (directError) {
+    console.warn('📈 [Movement Assessment] Direct JSON parse failed, attempting repair:', (directError as Error).message);
+  }
+
+  // Attempt 2: Repair common issues
+  const repaired = jsonStr
+    .replace(/,\s*([}\]])/g, '$1')              // Remove trailing commas
+    .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')  // Quote unquoted keys
+    .replace(/:\s*'([^']*)'/g, ': "$1"')         // Single quotes to double quotes
+    .replace(/\btrue\b/g, 'true')                // Normalize booleans (no-op but explicit)
+    .replace(/\bfalse\b/g, 'false')
+    .replace(/[\x00-\x1F\x7F]/g, ' ');           // Remove control characters
+
+  try {
+    return JSON.parse(repaired) as Record<string, unknown>;
+  } catch (repairError) {
+    console.warn('📈 [Movement Assessment] Repaired JSON parse also failed:', (repairError as Error).message);
+    console.warn('📈 [Movement Assessment] Raw extracted JSON:', jsonStr.substring(0, 500));
+  }
+
+  return null;
+}
+
+/**
  * Claude-based anticipation assessment (more sophisticated)
  */
 async function assessAnticipationWithClaude(
@@ -590,40 +665,38 @@ ${recentUserTurns}
 
 ## Task
 
-Assess the user's trajectory and optimal intervention timing:
+Assess the user's trajectory and optimal intervention timing.
 
-1. **Building Toward**: What is the user building toward? What insight or connection might they be approaching?
+CRITICAL: Your response must be ONLY a single valid JSON object. No text before or after it. No markdown code fences. No explanation. Just the JSON object.
 
-2. **Current Phase**:
-   - early_elaboration: User is just starting to explore, needs space
-   - building: User is developing material, accumulating symbolic content
-   - approaching_readiness: User is getting close to a potential insight
-   - ready: User has built enough material, intervention could land
-   - moment_passed: Optimal moment was missed, regroup
-
-3. **Should Wait?**: Should the therapist hold back and let the user continue building? What are they waiting for?
-
-4. **Risk Assessment**: What's the risk of intervening too early?
-
-Respond in JSON:
+Required JSON structure:
 {
   "trajectory": {
-    "buildingToward": "string",
-    "trajectoryConfidence": 0.0-1.0,
-    "evidencePoints": ["evidence1", "evidence2"]
+    "buildingToward": "description of what user is building toward",
+    "trajectoryConfidence": 0.5,
+    "evidencePoints": ["evidence 1", "evidence 2"]
   },
   "timing": {
-    "phase": "early_elaboration|building|approaching_readiness|ready|moment_passed",
-    "waitReasons": ["reason1"],
-    "readyIndicators": ["indicator1"],
-    "estimatedTurnsToReady": number
+    "phase": "building",
+    "waitReasons": ["reason 1"],
+    "readyIndicators": ["indicator 1"],
+    "estimatedTurnsToReady": 3
   },
   "patience": {
-    "shouldWait": true/false,
+    "shouldWait": true,
     "waitingFor": "what to wait for",
     "riskOfPrematureIntervention": "what could go wrong"
   }
-}`;
+}
+
+Rules:
+- phase must be one of: "early_elaboration", "building", "approaching_readiness", "ready", "moment_passed"
+- trajectoryConfidence must be a number between 0.0 and 1.0
+- estimatedTurnsToReady must be an integer
+- shouldWait must be true or false (not quoted)
+- All string values must use double quotes with special characters escaped
+- No trailing commas
+- Output ONLY the JSON object, nothing else`;
 
   const response = await anthropic.messages.create({
     model: 'claude-3-haiku-20240307',
@@ -632,33 +705,43 @@ Respond in JSON:
   });
 
   const content = response.content[0];
-  if (content.type === 'text') {
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        trajectory: {
-          buildingToward: parsed.trajectory?.buildingToward || 'unclear',
-          trajectoryConfidence: Math.min(1, Math.max(0, parsed.trajectory?.trajectoryConfidence || 0.3)),
-          evidencePoints: Array.isArray(parsed.trajectory?.evidencePoints) ? parsed.trajectory.evidencePoints : []
-        },
-        timing: {
-          phase: validatePhase(parsed.timing?.phase),
-          waitReasons: Array.isArray(parsed.timing?.waitReasons) ? parsed.timing.waitReasons : [],
-          readyIndicators: Array.isArray(parsed.timing?.readyIndicators) ? parsed.timing.readyIndicators : [],
-          estimatedTurnsToReady: typeof parsed.timing?.estimatedTurnsToReady === 'number' ? parsed.timing.estimatedTurnsToReady : 3
-        },
-        patience: {
-          shouldWait: parsed.patience?.shouldWait ?? true,
-          waitingFor: parsed.patience?.waitingFor || 'more elaboration',
-          riskOfPrematureIntervention: parsed.patience?.riskOfPrematureIntervention || 'may short-circuit discovery'
-        }
-      };
-    }
+  if (content.type !== 'text') {
+    console.warn('📈 [Movement Assessment] Non-text response from Claude, falling back to heuristics');
+    return assessAnticipationHeuristic(input, profile);
   }
 
-  // Fallback to heuristic if parsing fails
-  return assessAnticipationHeuristic(input, profile);
+  const rawText = content.text;
+  const parsed = extractAndParseJSON(rawText);
+
+  if (!parsed) {
+    console.error('📈 [Movement Assessment] Failed to extract JSON from Claude response.');
+    console.error('📈 [Movement Assessment] Raw response (first 800 chars):', rawText.substring(0, 800));
+    return assessAnticipationHeuristic(input, profile);
+  }
+
+  // Safely destructure with defaults - handles partial/malformed structures
+  const trajectory = (parsed.trajectory ?? {}) as Record<string, unknown>;
+  const timing = (parsed.timing ?? {}) as Record<string, unknown>;
+  const patience = (parsed.patience ?? {}) as Record<string, unknown>;
+
+  return {
+    trajectory: {
+      buildingToward: typeof trajectory.buildingToward === 'string' ? trajectory.buildingToward : 'unclear',
+      trajectoryConfidence: Math.min(1, Math.max(0, typeof trajectory.trajectoryConfidence === 'number' ? trajectory.trajectoryConfidence : 0.3)),
+      evidencePoints: Array.isArray(trajectory.evidencePoints) ? trajectory.evidencePoints : []
+    },
+    timing: {
+      phase: validatePhase(typeof timing.phase === 'string' ? timing.phase : 'building'),
+      waitReasons: Array.isArray(timing.waitReasons) ? timing.waitReasons : [],
+      readyIndicators: Array.isArray(timing.readyIndicators) ? timing.readyIndicators : [],
+      estimatedTurnsToReady: typeof timing.estimatedTurnsToReady === 'number' ? timing.estimatedTurnsToReady : 3
+    },
+    patience: {
+      shouldWait: typeof patience.shouldWait === 'boolean' ? patience.shouldWait : true,
+      waitingFor: typeof patience.waitingFor === 'string' ? patience.waitingFor : 'more elaboration',
+      riskOfPrematureIntervention: typeof patience.riskOfPrematureIntervention === 'string' ? patience.riskOfPrematureIntervention : 'may short-circuit discovery'
+    }
+  };
 }
 
 /**
