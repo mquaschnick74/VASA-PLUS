@@ -232,6 +232,12 @@ const useDemoVapi = ({
           voiceSeconds: 0.4,
           backoffSeconds: 1.0
         },
+        recordingEnabled: true,
+        backgroundSpeechDenoisingPlan: {
+          smartDenoisingPlan: {
+            enabled: true
+          }
+        },
         metadata: {
           isDemo: true,
           agentName: selectedAgent.name,
