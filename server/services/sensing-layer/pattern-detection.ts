@@ -14,6 +14,129 @@ import {
 } from './types';
 
 /**
+ * Detect patterns semantically using LLM
+ * Works even without existing profile patterns
+ */
+async function detectSemanticPatternsWithLLM(
+  input: TurnInput
+): Promise<{
+  patterns: DetectedPattern[];
+  emerging: EmergingPattern[];
+  explicitIdentification: UserExplicitPattern | null;
+}> {
+  // Only run for substantial utterances
+  if (input.utterance.length < 30 || !process.env.ANTHROPIC_API_KEY) {
+    return { patterns: [], emerging: [], explicitIdentification: null };
+  }
+
+  const recentContext = input.conversationHistory
+    .slice(-4)
+    .map(m => `${m.role}: ${m.content.slice(0, 100)}`)
+    .join('\n');
+
+  const prompt = `Analyze this therapeutic conversation for psychological patterns.
+
+CURRENT UTTERANCE: "${input.utterance}"
+
+RECENT CONTEXT:
+${recentContext || 'First utterance'}
+
+Identify:
+1. CVDC Contradictions (wanting X but doing Y, saying one thing but feeling another)
+2. Emotional patterns (recurring feelings, reactions)
+3. Behavioral patterns (repeated actions, choices)
+4. Relational patterns (dynamics with others)
+5. Self-awareness statements ("I notice I...", "I always...", pattern recognition)
+
+Respond in JSON:
+{
+  "explicitPattern": {
+    "statement": "exact quote where they recognize a pattern",
+    "inferredPattern": "the pattern they're recognizing",
+    "confidence": 0.0-1.0
+  } OR null,
+  "detectedPatterns": [
+    {
+      "description": "concise pattern description",
+      "type": "behavioral|cognitive|relational|emotional|avoidance|protective",
+      "confidence": 0.0-1.0,
+      "evidence": "quote supporting this"
+    }
+  ],
+  "emergingPatterns": [
+    {
+      "description": "pattern appearing but not fully formed",
+      "type": "behavioral|cognitive|relational|emotional|avoidance|protective",
+      "significance": "why this matters therapeutically"
+    }
+  ]
+}
+
+Be concise. Only include patterns with confidence > 0.4. Focus on depth psychology, not surface observations.`;
+
+  try {
+    const anthropic = await import('@anthropic-ai/sdk');
+    const client = new anthropic.default({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+
+    const response = await client.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      return { patterns: [], emerging: [], explicitIdentification: null };
+    }
+
+    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return { patterns: [], emerging: [], explicitIdentification: null };
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const patterns: DetectedPattern[] = (parsed.detectedPatterns || []).map((p: any, idx: number) => ({
+      patternId: `llm-detected-${Date.now()}-${idx}`,
+      description: p.description || '',
+      patternType: validatePatternType(p.type),
+      matchConfidence: Math.min(1, Math.max(0, p.confidence || 0.5)),
+      utteranceEvidence: p.evidence || input.utterance.slice(0, 100),
+      occurrenceCount: 1
+    }));
+
+    const emerging: EmergingPattern[] = (parsed.emergingPatterns || []).map((p: any) => ({
+      description: p.description || '',
+      patternType: validatePatternType(p.type),
+      occurrenceCount: 1,
+      examples: [input.utterance.slice(0, 100)],
+      potentialSignificance: p.significance || 'Emerging pattern detected'
+    }));
+
+    const explicitIdentification = parsed.explicitPattern ? {
+      statement: parsed.explicitPattern.statement || '',
+      inferredPattern: parsed.explicitPattern.inferredPattern || '',
+      confidence: Math.min(1, Math.max(0, parsed.explicitPattern.confidence || 0.7))
+    } : null;
+
+    console.log(`🔍 [LLM Pattern Detection] Found ${patterns.length} patterns, ${emerging.length} emerging`);
+
+    return { patterns, emerging, explicitIdentification };
+  } catch (error) {
+    console.error('🔍 [LLM Pattern Detection] Error:', error);
+    return { patterns: [], emerging: [], explicitIdentification: null };
+  }
+}
+
+function validatePatternType(type: string): PatternType {
+  const valid: PatternType[] = ['behavioral', 'cognitive', 'relational', 'emotional', 'avoidance', 'protective'];
+  const normalized = type?.toLowerCase() as PatternType;
+  return valid.includes(normalized) ? normalized : 'emotional';
+}
+
+/**
  * Detect patterns in the current utterance against the user's therapeutic profile
  */
 export async function detectPatterns(
@@ -24,19 +147,31 @@ export async function detectPatterns(
 
   const utteranceLower = input.utterance.toLowerCase();
 
-  // 1. Check for user explicitly identifying a pattern
-  const userExplicitIdentification = detectUserExplicitPattern(input.utterance);
+  // 1. LLM-based semantic detection (works without existing profile)
+  const llmResults = await detectSemanticPatternsWithLLM(input);
 
-  // 2. Match against existing patterns
-  const activePatterns = matchExistingPatterns(input, profile.patterns);
+  // 2. Check for user explicitly identifying a pattern (keyword-based)
+  const keywordExplicitIdentification = detectUserExplicitPattern(input.utterance);
 
-  // 3. Detect emerging patterns from conversation history
-  const emergingPatterns = detectEmergingPatterns(input, profile.patterns);
+  // Merge explicit identifications (LLM takes priority if both exist)
+  const userExplicitIdentification = llmResults.explicitIdentification || keywordExplicitIdentification;
 
-  // 4. Calculate pattern resonance
+  // 3. Match against existing patterns (only if profile has patterns)
+  const profileMatches = profile.patterns.length > 0
+    ? matchExistingPatterns(input, profile.patterns)
+    : [];
+
+  // 4. Detect emerging patterns from conversation history (keyword-based)
+  const keywordEmerging = detectEmergingPatterns(input, profile.patterns);
+
+  // 5. Merge LLM and keyword-based results (remove duplicates)
+  const activePatterns = mergePatternsDedup([...llmResults.patterns, ...profileMatches]);
+  const emergingPatterns = mergePatternsDedup([...llmResults.emerging, ...keywordEmerging]);
+
+  // 6. Calculate pattern resonance
   const patternResonance = calculatePatternResonance(input, profile.patterns);
 
-  console.log(`🔍 [Pattern Detection] Found: ${activePatterns.length} active, ${emergingPatterns.length} emerging`);
+  console.log(`🔍 [Pattern Detection] Found: ${activePatterns.length} active (${llmResults.patterns.length} from LLM), ${emergingPatterns.length} emerging`);
 
   return {
     activePatterns,
@@ -44,6 +179,29 @@ export async function detectPatterns(
     patternResonance,
     userExplicitIdentification
   };
+}
+
+/**
+ * Merge and deduplicate patterns based on description similarity
+ */
+function mergePatternsDedup<T extends { description: string }>(patterns: T[]): T[] {
+  const merged: T[] = [];
+
+  for (const pattern of patterns) {
+    const isDuplicate = merged.some(existing => {
+      const similarity = calculateSimilarity(
+        pattern.description.toLowerCase(),
+        existing.description.toLowerCase()
+      );
+      return similarity > 0.6; // 60% similar = duplicate
+    });
+
+    if (!isDuplicate) {
+      merged.push(pattern);
+    }
+  }
+
+  return merged;
 }
 
 /**
