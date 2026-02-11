@@ -101,22 +101,7 @@ export function serveStatic(app: Express) {
     );
   }
 
-  // Serve static files with proper MIME types and caching
-  app.use(express.static(distPath, {
-    maxAge: '1y',
-    etag: true,
-    lastModified: true,
-    setHeaders: (res, filePath) => {
-      // Set correct MIME types for JavaScript modules
-      if (filePath.endsWith('.js')) {
-        res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-      } else if (filePath.endsWith('.mjs')) {
-        res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-      } else if (filePath.endsWith('.css')) {
-        res.setHeader('Content-Type', 'text/css; charset=UTF-8');
-      }
-    }
-  }));
+  app.use(express.static(distPath));
 
   // Helper function to get the HTML template for production
   const getProdHtmlTemplate = async () => {
@@ -125,22 +110,11 @@ export function serveStatic(app: Express) {
 
   // Handle blog post social meta tags before the catch-all route
   app.use("*", async (req, res, next) => {
-    // Skip asset files - don't process them for social meta
-    if (req.originalUrl.startsWith('/assets/')) {
-      return next();
-    }
     await blogSocialMetaMiddleware(req, res, next, getProdHtmlTemplate);
   });
 
   // fall through to index.html if the file doesn't exist
-  // BUT skip this for asset requests to prevent serving HTML as JavaScript
-  app.use("*", (req, res, next) => {
-    // If request is for an asset file, let it 404 instead of serving index.html
-    if (req.originalUrl.startsWith('/assets/')) {
-      return next();
-    }
-
-    // For all other routes, serve index.html (SPA behavior)
+  app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
