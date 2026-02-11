@@ -411,14 +411,14 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         // 🎯 Therapeutic Speech Configuration (simplified for compatibility)
         // These settings make VASA more patient and harder to interrupt accidentally
         startSpeakingPlan: {
-          waitSeconds: 1.2,  // Wait 1.2s after user stops (vs 0.4s default)
-          smartEndpointingEnabled: true  // Enable AI detection of incomplete thoughts
+          waitSeconds: 2,  // Wait 1.2s after user stops (vs 0.4s default)
+          smartEndpointingEnabled: false  // Enable AI detection of incomplete thoughts
         },
         // Make user harder to interrupt - requires deliberate speech
         stopSpeakingPlan: {
-          numWords: 3,         // Requires 3 words to interrupt (vs 1 word default)
-          voiceSeconds: 0.5,   // Requires 0.5s of voice activity (vs 0.2s default)
-          backoffSeconds: 1.5  // After interruption, wait 1.5s before VASA can resume
+          numWords: 5,         // Requires 3 words to interrupt (vs 1 word default)
+          voiceSeconds: .5,   // Requires 0.5s of voice activity (vs 0.2s default)
+          backoffSeconds: 2  // After interruption, wait 1.5s before VASA can resume
         },
         serverUrl: serverUrl,
         serverMessages: [

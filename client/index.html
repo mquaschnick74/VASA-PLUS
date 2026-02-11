@@ -94,15 +94,17 @@
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Cleanup - removes old caching service worker -->
     <script>
-//       if ('serviceWorker' in navigator) {
-//         window.addEventListener('load', () => {
-//           navigator.serviceWorker.register('/sw.js')
-//             .then(reg => console.log('SW registered:', reg.scope))
-//             .catch(err => console.log('SW registration failed:', err));
-//         });
-//       }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (var registration of registrations) {
+            registration.unregister().then(function() {
+              console.log('Service worker unregistered successfully');
+            });
+          }
+        });
+      }
     </script>
   </body>
 </html>

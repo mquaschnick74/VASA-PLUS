@@ -19,7 +19,7 @@ import { supabase } from '../services/supabase-service';
 
 // SENSING LAYER IMPORTS - Real-time therapeutic guidance
 import { sensingLayer } from '../services/sensing-layer';
-import { injectGuidance } from '../services/sensing-layer/guidance-injector';
+import { injectGuidance, flushPendingGuidance, clearPendingGuidance } from '../services/sensing-layer/guidance-injector';
 import {
   setControlUrl,
   getControlUrl,
@@ -27,8 +27,10 @@ import {
   addToConversationHistory,
   getConversationHistory,
   getExchangeCount,
-  updateCallState
+  updateCallState,
+  setAgentSpeakingState
 } from '../services/sensing-layer/call-state';
+import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor } from '../services/sensing-layer/silence-monitor';
 
 const router = Router();
 
@@ -166,6 +168,9 @@ export { trackInfluencerConversion };
 
 // Rate limiting: track last processing time per call
 const lastProcessingTime = new Map<string, number>();
+
+// Track processed message count per call to prevent duplicate history entries
+const lastProcessedMessageIndex = new Map<string, number>();
 const RATE_LIMIT_MS = 5000; // Minimum 5 seconds between sensing layer calls
 
 // Guidance cache: reuse similar guidance
@@ -452,6 +457,9 @@ router.post('/webhook', async (req, res) => {
         sensingLayer.initializeCallSession(callId, userId, callId);
         console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
 
+        // SILENCE MONITOR: Start monitoring (timer won't arm until first user utterance)
+        startSilenceMonitor(callId);
+
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
         console.log(`✅ call-started event processed successfully`);
@@ -506,11 +514,20 @@ router.post('/webhook', async (req, res) => {
           }
 
           if (latestUserMessage?.content && latestUserMessage.content.trim().length > 0) {
-            // Update conversation history in call state
-            for (const msg of formattedConversation) {
+            // Update conversation history in call state (only process NEW messages)
+            const lastIndex = lastProcessedMessageIndex.get(callId) || 0;
+            const newMessages = formattedConversation.slice(lastIndex);
+            for (const msg of newMessages) {
               if (msg.role && msg.content) {
                 addToConversationHistory(callId, msg.role, msg.content);
               }
+            }
+            lastProcessedMessageIndex.set(callId, formattedConversation.length);
+
+            // SILENCE MONITOR: Reset timer on user speech
+            const hasUserMessage = formattedConversation.some((m: any) => m.role === 'user');
+            if (hasUserMessage) {
+              resetSilenceTimer(callId);
             }
 
             // Process through sensing layer asynchronously (don't block webhook response)
@@ -572,6 +589,15 @@ router.post('/webhook', async (req, res) => {
       } else {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
       }
+
+      // SILENCE MONITOR: Stop monitoring before cleanup
+      stopSilenceMonitor(callId);
+
+      // GUIDANCE GATE: Clear any pending guidance
+      clearPendingGuidance(callId);
+
+      // DUPLICATE HISTORY: Clean up message index tracker
+      lastProcessedMessageIndex.delete(callId);
 
       // SENSING LAYER: Clean up call state and caches
       clearControlUrl(callId);
@@ -683,6 +709,22 @@ router.post('/webhook', async (req, res) => {
         // Ensure session exists for this call
         await ensureSession(callId, userId, agentName);
 
+        break;
+      }
+
+      case 'speech-update': {
+        const speechStatus = message?.status;
+        const speechRole = message?.role;
+        if (speechRole === 'assistant') {
+          const isSpeaking = speechStatus === 'started';
+          setAgentSpeakingState(callId, isSpeaking);
+          console.log(`🎙️ [SPEECH] Agent speaking state: ${speechStatus} for call ${callId}`);
+
+          // When agent stops speaking, flush any queued guidance
+          if (speechStatus === 'stopped') {
+            flushPendingGuidance(callId);
+          }
+        }
         break;
       }
 

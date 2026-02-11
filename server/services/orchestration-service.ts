@@ -486,31 +486,38 @@ export async function processEndOfCall(
     }
   }
 
-  // Mark any recent unaddressed uploads as addressed (48 hour window to match memory-service)
+  // Mark ALL unaddressed upload analyses for this user as addressed
   try {
-    const cutoff = new Date();
-    cutoff.setHours(cutoff.getHours() - 48);
-    
     const { data: unaddressedUploads } = await supabase
       .from('therapeutic_context')
       .select('id, metadata')
       .eq('user_id', session.userId)
-      .eq('context_type', 'upload_analysis')
-      .gte('created_at', cutoff.toISOString());
-    
+      .eq('context_type', 'upload_analysis');
+
     if (unaddressedUploads && unaddressedUploads.length > 0) {
+      let markedCount = 0;
       for (const upload of unaddressedUploads) {
-        const metadata = upload.metadata as any;
-        if (metadata && metadata.addressed_in_session === false) {
+        if (upload.metadata?.addressed_in_session !== true) {
+          const updatedMetadata = {
+            ...upload.metadata,
+            addressed_in_session: true,
+            addressed_at: new Date().toISOString(),
+            addressed_call_id: callId
+          };
           await supabase
             .from('therapeutic_context')
-            .update({
-              metadata: { ...metadata, addressed_in_session: true, addressed_call_id: callId }
-            })
+            .update({ metadata: updatedMetadata })
             .eq('id', upload.id);
-          console.log(`🏷️ Marked upload ${upload.id} as addressed in session ${callId}`);
+
+          console.log(`📋 [Upload] Marked upload analysis ${upload.id} as addressed for call ${callId}`);
+          markedCount++;
         }
       }
+      if (markedCount === 0) {
+        console.log(`📋 [Upload] All ${unaddressedUploads.length} uploads already addressed for user ${session.userId}`);
+      }
+    } else {
+      console.log(`📋 [Upload] No unaddressed uploads to mark for user ${session.userId}`);
     }
   } catch (err) {
     console.error('Failed to mark uploads as addressed:', err);

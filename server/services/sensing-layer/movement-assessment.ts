@@ -606,7 +606,10 @@ function extractAndParseJSON(text: string): Record<string, unknown> | null {
 
   if (endIdx === -1) return null;
 
-  const jsonStr = text.substring(startIdx, endIdx + 1);
+  let jsonStr = text.substring(startIdx, endIdx + 1);
+
+  // Fix invalid JSON escaping: \' is not valid JSON (single quotes don't need escaping)
+  jsonStr = jsonStr.replace(/\\'/g, "'");
 
   // Attempt 1: Direct parse
   try {
@@ -616,13 +619,15 @@ function extractAndParseJSON(text: string): Record<string, unknown> | null {
   }
 
   // Attempt 2: Repair common issues
-  const repaired = jsonStr
+  let repaired = jsonStr
     .replace(/,\s*([}\]])/g, '$1')              // Remove trailing commas
     .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')  // Quote unquoted keys
     .replace(/:\s*'([^']*)'/g, ': "$1"')         // Single quotes to double quotes
     .replace(/\btrue\b/g, 'true')                // Normalize booleans (no-op but explicit)
     .replace(/\bfalse\b/g, 'false')
     .replace(/[\x00-\x1F\x7F]/g, ' ');           // Remove control characters
+  // Re-apply \' fix in case repair steps reintroduced it
+  repaired = repaired.replace(/\\'/g, "'");
 
   try {
     return JSON.parse(repaired) as Record<string, unknown>;
