@@ -289,7 +289,6 @@ export class TherapistDataService {
       sessions_by_month: Object.entries(sessionsByMonth).map(([month, count]) => ({ month, count }))
     };
   }
-}
 
   // ============================================================================
   // DISCONNECT & ARCHIVE METHODS
