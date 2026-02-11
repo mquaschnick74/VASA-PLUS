@@ -13,6 +13,7 @@ interface CallState {
   }>;
   lastUserUtteranceAt: Date | null;
   lastAgentUtteranceAt: Date | null;
+  isAgentCurrentlySpeaking: boolean;
   createdAt: Date;
 }
 
@@ -40,6 +41,7 @@ export function setControlUrl(callId: string, url: string, userId?: string): voi
       conversationHistory: [],
       lastUserUtteranceAt: null,
       lastAgentUtteranceAt: null,
+      isAgentCurrentlySpeaking: false,
       createdAt: new Date()
     });
   }
@@ -82,6 +84,7 @@ export function updateCallState(
       conversationHistory: updates.conversationHistory || [],
       lastUserUtteranceAt: null,
       lastAgentUtteranceAt: null,
+      isAgentCurrentlySpeaking: false,
       createdAt: new Date()
     });
   }
@@ -174,6 +177,23 @@ export function getLastUserMessage(callId: string): string | undefined {
     if (history[i].role === 'user') return history[i].content;
   }
   return undefined;
+}
+
+/**
+ * Set the agent's current speaking state for a call
+ */
+export function setAgentSpeakingState(callId: string, isSpeaking: boolean): void {
+  const state = callStates.get(callId);
+  if (state) {
+    state.isAgentCurrentlySpeaking = isSpeaking;
+  }
+}
+
+/**
+ * Get the agent's current speaking state for a call
+ */
+export function getAgentSpeakingState(callId: string): boolean {
+  return callStates.get(callId)?.isAgentCurrentlySpeaking ?? false;
 }
 
 /**

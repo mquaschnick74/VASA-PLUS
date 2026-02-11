@@ -2,7 +2,11 @@
 // Injects therapeutic guidance into VAPI conversations via controlUrl
 
 import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance } from './types';
-import { getControlUrl } from './call-state';
+import { getControlUrl, getAgentSpeakingState } from './call-state';
+
+// Pending guidance queue: holds guidance deferred while agent is speaking
+const pendingGuidance = new Map<string, TherapeuticGuidance | EnhancedTherapeuticGuidance>();
+const pendingTriggerResponse = new Map<string, boolean>();
 
 /**
  * Posture descriptions for the voice model
@@ -31,6 +35,15 @@ export async function injectGuidance(
   if (!controlUrl) {
     console.warn(`⚠️ [GuidanceInjector] No controlUrl for call ${callId}`);
     return false;
+  }
+
+  // Gate: Don't inject while agent is actively speaking (unless triggerResponse forces it)
+  // Queue the guidance and deliver when agent stops speaking
+  if (getAgentSpeakingState(callId) && !triggerResponse) {
+    console.log(`🚦 [GATE] Agent is speaking for call ${callId}, queuing guidance (posture: ${guidance.posture})`);
+    pendingGuidance.set(callId, guidance);
+    pendingTriggerResponse.set(callId, triggerResponse);
+    return false; // Signal that injection was deferred, not failed
   }
 
   // Check if this is enhanced guidance
@@ -348,4 +361,30 @@ export async function injectSystemMessage(
     console.error(`❌ [GuidanceInjector] Error injecting system message:`, error);
     return false;
   }
+}
+
+/**
+ * Flush pending guidance that was queued while agent was speaking
+ * Called when agent stops speaking (speech-update: stopped)
+ */
+export async function flushPendingGuidance(callId: string): Promise<void> {
+  const pending = pendingGuidance.get(callId);
+  if (!pending) return;
+
+  const triggerResponse = pendingTriggerResponse.get(callId) ?? false;
+
+  // Clear from queue BEFORE injecting to prevent loops
+  pendingGuidance.delete(callId);
+  pendingTriggerResponse.delete(callId);
+
+  console.log(`🚦 [GATE] Flushing pending guidance for call ${callId} (posture: ${pending.posture})`);
+  await injectGuidance(callId, pending, triggerResponse);
+}
+
+/**
+ * Clear pending guidance for a call (cleanup on call end)
+ */
+export function clearPendingGuidance(callId: string): void {
+  pendingGuidance.delete(callId);
+  pendingTriggerResponse.delete(callId);
 }
