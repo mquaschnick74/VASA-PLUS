@@ -942,20 +942,22 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
           const title = metadata.title || 'content';
           const quotes = metadata.key_quotes || [];
 
-          // Build a brief context for the greeting
-          let briefContext = `The user recently shared ${title} for analysis.`;
+          // Pass the full analysis content so the agent can engage substantively
+          // The analysis includes: Clinical Interpretation, Key Quotes, and Agent Guidance
+          let fullContext = `TITLE: ${title}\n\n`;
 
-          // Extract key finding from the analysis content
-          const guidanceMatch = upload.content.match(/## AGENT GUIDANCE\n([\s\S]*?)(?=\n===|$)/);
-          if (guidanceMatch) {
-            briefContext += ` ${guidanceMatch[1].trim().slice(0, 200)}`;
-          }
+          // Include the full analysis content (clinical interpretation + agent guidance)
+          fullContext += upload.content;
 
+          // Ensure key quotes are explicitly available even if not parsed from content
           if (quotes.length > 0) {
-            briefContext += ` Key quote: "${quotes[0].slice(0, 100)}${quotes[0].length > 100 ? '...' : ''}"`;
+            fullContext += `\n\nKEY QUOTES FROM THE UPLOAD:\n`;
+            quotes.forEach((quote: string, i: number) => {
+              fullContext += `${i + 1}. "${quote}"\n`;
+            });
           }
 
-          uploadContext = briefContext;
+          uploadContext = fullContext;
           console.log(`📤 Found unaddressed upload from ${ageDays === 0 ? 'today' : `${ageDays} days ago`}: ${title}`);
         }
       }

@@ -305,14 +305,24 @@ Continue the therapeutic narrative without re-introducing the previous session.
 
       // NEW: Add upload context for unaddressed analyzed content
       if (hasUnaddressedUpload && uploadContext) {
-        systemPrompt += `\n\n===== RECENT UPLOAD FOR DISCUSSION =====
+        systemPrompt += `\n\n===== CONTENT THE USER SHARED FOR DISCUSSION =====
 ${uploadContext}
+===== END SHARED CONTENT =====
 
-INSTRUCTION: The user recently shared content they want to explore with you.
-After your greeting (and any reference to the previous session), naturally transition to acknowledging this upload:
-"I also had a chance to look at what you shared with me. I noticed some things I'd like to explore with you — but first, how are you feeling today?"
-Then guide the conversation toward discussing the uploaded content when appropriate.
-===== END UPLOAD CONTEXT =====\n`;
+===== UPLOAD ENGAGEMENT INSTRUCTIONS =====
+The user uploaded this content and chose to have it analyzed. They want to explore it with you.
+
+YOUR OPENING: After greeting the user by name, move directly into the upload. Do NOT ask "how are you feeling today" first. Instead, share a specific observation from the CLINICAL INTERPRETATION above. For example:
+- Reference a specific pattern you noticed (like a CVDC or tension between registers)
+- Quote one of their own lines back to them and share what struck you about it
+- Name something the analysis revealed that feels worth exploring together
+
+YOUR STANCE: Be a thoughtful reader who has genuinely engaged with their work, not a generic therapist deferring to the client. You have clinical observations — share them. Be direct about what you see while remaining curious about whether your reading lands.
+
+WHEN THE USER WANTS TO DISCUSS THE UPLOAD: Use the KEY QUOTES and CLINICAL INTERPRETATION to ground your responses in their actual words and the specific patterns identified. Do not give generic reflections — reference concrete elements from their writing.
+
+IMPORTANT: Do NOT use the scripted phrase "I noticed some things I'd like to explore with you." Speak naturally and specifically about what you actually found in the analysis.
+===== END UPLOAD INSTRUCTIONS =====\n`;
         console.log('📤 [VAPI] Unaddressed upload detected - adding to greeting context');
       }
 
