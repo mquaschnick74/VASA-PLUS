@@ -289,6 +289,132 @@ export class TherapistDataService {
       sessions_by_month: Object.entries(sessionsByMonth).map(([month, count]) => ({ month, count }))
     };
   }
+
+  // ============================================================================
+  // DISCONNECT & ARCHIVE METHODS
+  // ============================================================================
+
+  /**
+   * Snapshot all client sessions into archived_client_sessions table.
+   * This creates a permanent record owned by the therapist, independent of live data.
+   */
+  async snapshotClientSessions(
+    therapistId: string,
+    clientId: string,
+    relationshipId: string,
+    clientEmail: string,
+    clientFullName: string
+  ): Promise<number> {
+    console.log(`📦 [THERAPIST-DATA] Snapshotting sessions for client=${clientId}, therapist=${therapistId}`);
+
+    // Get all usage_sessions for the client
+    const { data: usageSessions, error: usageError } = await supabase
+      .from('usage_sessions')
+      .select('*')
+      .eq('user_id', clientId)
+      .order('session_date', { ascending: true });
+
+    if (usageError) {
+      console.error('❌ [THERAPIST-DATA] Error fetching usage sessions for snapshot:', usageError);
+      throw new Error('Failed to fetch sessions for archival');
+    }
+
+    if (!usageSessions || usageSessions.length === 0) {
+      console.log('ℹ️ [THERAPIST-DATA] No sessions to archive for client:', clientId);
+      return 0;
+    }
+
+    let archivedCount = 0;
+
+    for (const usageSession of usageSessions) {
+      const callId = usageSession.vapi_call_id;
+
+      // Get therapeutic session metadata
+      const { data: therapeuticSession } = await supabase
+        .from('therapeutic_sessions')
+        .select('*')
+        .eq('call_id', callId)
+        .maybeSingle();
+
+      // Get transcript
+      const { data: transcript } = await supabase
+        .from('session_transcripts')
+        .select('text')
+        .eq('call_id', callId)
+        .eq('role', 'complete')
+        .maybeSingle();
+
+      // Get summary from therapeutic_context
+      const { data: summary } = await supabase
+        .from('therapeutic_context')
+        .select('content')
+        .eq('call_id', callId)
+        .eq('context_type', 'call_summary')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Insert archived session
+      const { error: insertError } = await supabase
+        .from('archived_client_sessions')
+        .insert({
+          therapist_id: therapistId,
+          relationship_id: relationshipId,
+          original_client_id: clientId,
+          client_email: clientEmail,
+          client_full_name: clientFullName,
+          call_id: callId,
+          session_date: usageSession.session_date,
+          duration_minutes: usageSession.duration_minutes || 0,
+          agent_name: therapeuticSession?.agent_name || 'Unknown',
+          summary_content: summary?.content || null,
+          transcript_text: transcript?.text || null,
+        });
+
+      if (insertError) {
+        console.error(`❌ [THERAPIST-DATA] Error archiving session ${callId}:`, insertError);
+      } else {
+        archivedCount++;
+      }
+    }
+
+    console.log(`✅ [THERAPIST-DATA] Archived ${archivedCount}/${usageSessions.length} sessions`);
+    return archivedCount;
+  }
+
+  /**
+   * Check if therapist has a terminated (archived) relationship with a client.
+   */
+  async verifyTherapistArchivedAccess(therapistId: string, clientId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('therapist_client_relationships')
+      .select('id')
+      .eq('therapist_id', therapistId)
+      .eq('client_id', clientId)
+      .in('status', ['terminated_by_therapist', 'terminated_by_client_request'])
+      .maybeSingle();
+
+    return !error && !!data;
+  }
+
+  /**
+   * Get archived session data for a former client.
+   */
+  async getArchivedClientSessions(therapistId: string, originalClientId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('archived_client_sessions')
+      .select('*')
+      .eq('therapist_id', therapistId)
+      .eq('original_client_id', originalClientId)
+      .order('session_date', { ascending: false });
+
+    if (error) {
+      console.error('❌ [THERAPIST-DATA] Error fetching archived sessions:', error);
+      throw new Error('Failed to fetch archived sessions');
+    }
+
+    return data || [];
+  }
 }
 
 export const therapistDataService = new TherapistDataService();

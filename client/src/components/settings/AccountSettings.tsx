@@ -4,9 +4,12 @@
 import { useState, useEffect } from 'react';
 import { DeleteAccount } from '../DeleteAccount';
 import { supabase } from '@/lib/supabaseClient';
-import { User, Mail, Calendar, Shield } from 'lucide-react';
+import { getApiUrl } from '@/lib/platform';
+import { User, Mail, Calendar, Shield, Archive, Info } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface AccountSettingsProps {
   userId: string;
@@ -26,6 +29,8 @@ export default function AccountSettings({ userId, setUserId, userType }: Account
   const [profile, setProfile] = useState<UserProfile>({});
   const [sessionCount, setSessionCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [archiving, setArchiving] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -181,41 +186,132 @@ export default function AccountSettings({ userId, setUserId, userType }: Account
         </CardContent>
       </Card>
 
-      {/* Account Management Card */}
-      <Card className="glass border-white/10 border-red-500/20">
-        <CardHeader>
-          <CardTitle className="text-red-400">Danger Zone</CardTitle>
-          <CardDescription>
-            Irreversible account actions
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert className="bg-red-500/10 border-red-500/30">
-            <AlertDescription className="text-sm">
-              Deleting your account is permanent and cannot be undone. All your data, including {sessionCount} session(s), will be permanently deleted.
-            </AlertDescription>
-          </Alert>
+      {/* Account Management Card — Conditional on userType */}
+      {userType === 'client' ? (
+        /* Client users cannot delete their account */
+        <Card className="glass border-white/10 border-blue-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-400">
+              <Info className="h-5 w-5" />
+              Account Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Alert className="bg-blue-500/10 border-blue-500/30">
+              <AlertDescription className="text-sm">
+                As a client linked to a therapist, your account cannot be deleted directly.
+                If you wish to end your therapeutic relationship, please discuss this with
+                your therapist. Once disconnected, you will become an individual user and
+                can manage your account independently.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      ) : userType === 'therapist' ? (
+        /* Therapist users see Archive instead of Delete */
+        <Card className="glass border-white/10 border-orange-500/20">
+          <CardHeader>
+            <CardTitle className="text-orange-400">Account Management</CardTitle>
+            <CardDescription>
+              Clinical record retention
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert className="bg-orange-500/10 border-orange-500/30">
+              <AlertDescription className="text-sm">
+                Therapist accounts cannot be deleted per clinical record retention requirements.
+                You can archive your account, which preserves all clinical records for 7 years.
+                You can reopen an archived account anytime by logging back in.
+              </AlertDescription>
+            </Alert>
 
-          <div className="flex items-center justify-between pt-2">
-            <div>
-              <p className="font-medium text-sm">Delete Account</p>
-              <p className="text-xs text-muted-foreground">
-                Permanently delete your account and all associated data
-              </p>
+            <div className="flex items-center justify-between pt-2">
+              <div>
+                <p className="font-medium text-sm">Archive Account</p>
+                <p className="text-xs text-muted-foreground">
+                  Archive your account and retain clinical records for 7 years
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+                disabled={archiving}
+                onClick={async () => {
+                  setArchiving(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) {
+                      toast({ title: "Session Expired", description: "Please refresh and try again", variant: "destructive" });
+                      return;
+                    }
+                    const response = await fetch(getApiUrl('/api/therapist/archive-account'), {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                      },
+                      credentials: 'include',
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                      toast({
+                        title: "Account Archived",
+                        description: "Your account has been archived. You can reopen it anytime within 7 years by logging back in.",
+                      });
+                    } else {
+                      toast({
+                        title: "Cannot Archive",
+                        description: result.error || "Failed to archive account",
+                        variant: "destructive",
+                      });
+                    }
+                  } catch (error) {
+                    toast({ title: "Error", description: "Failed to archive account", variant: "destructive" });
+                  } finally {
+                    setArchiving(false);
+                  }
+                }}
+              >
+                <Archive className="w-4 h-4 mr-2" />
+                {archiving ? 'Archiving...' : 'Archive Account'}
+              </Button>
             </div>
-            <DeleteAccount
-              userId={userId}
-              userEmail={profile.email}
-              sessionCount={sessionCount}
-              onAccountDeleted={() => setUserId(null)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        /* Individual users (including former clients) see Delete */
+        <Card className="glass border-white/10 border-red-500/20">
+          <CardHeader>
+            <CardTitle className="text-red-400">Danger Zone</CardTitle>
+            <CardDescription>
+              Irreversible account actions
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert className="bg-red-500/10 border-red-500/30">
+              <AlertDescription className="text-sm">
+                Deleting your account is permanent and cannot be undone. All your data, including {sessionCount} session(s), will be permanently deleted.
+                If you were previously connected to a therapist, your session records during that period are retained as part of your therapist's clinical record.
+              </AlertDescription>
+            </Alert>
 
-      {/* Future: Add password change section */}
-      {/* Future: Add email change section */}
-      {/* Future: Add notification preferences */}
+            <div className="flex items-center justify-between pt-2">
+              <div>
+                <p className="font-medium text-sm">Delete Account</p>
+                <p className="text-xs text-muted-foreground">
+                  Permanently delete your account and all associated data
+                </p>
+              </div>
+              <DeleteAccount
+                userId={userId}
+                userEmail={profile.email}
+                sessionCount={sessionCount}
+                onAccountDeleted={() => setUserId(null)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

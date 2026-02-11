@@ -18,7 +18,9 @@ import { supabase } from "@/lib/supabaseClient";
 import { handleLogout } from "@/lib/auth-helpers";
 import { getApiUrl } from "@/lib/platform";
 import { useSubscription } from "@/hooks/use-subscription";
-import { Users, Clock, TrendingUp, UserPlus, HelpCircle, Brain } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Users, Clock, TrendingUp, UserPlus, HelpCircle, Brain, Archive, UserMinus, FileText, X } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/shared/Header";
@@ -61,6 +63,19 @@ export default function TherapistDashboard({
   const [error, setError] = useState<string | null>(null);
   const [selectedClientForAnalysis, setSelectedClientForAnalysis] = useState<ClientData | null>(null);
   const [clientAnalysisStatus, setClientAnalysisStatus] = useState<Record<string, boolean>>({});
+  // Tab management
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
+  const [archivedClients, setArchivedClients] = useState<any[]>([]);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  // Disconnect dialog
+  const [disconnectClient, setDisconnectClient] = useState<ClientData | null>(null);
+  const [disconnectType, setDisconnectType] = useState<'therapist_initiated' | 'client_requested'>('therapist_initiated');
+  const [disconnectReason, setDisconnectReason] = useState('');
+  const [disconnecting, setDisconnecting] = useState(false);
+  // Archived session viewer
+  const [viewingArchivedSessions, setViewingArchivedSessions] = useState<any | null>(null);
+  const [archivedSessions, setArchivedSessions] = useState<any[]>([]);
+  const [archivedSessionsLoading, setArchivedSessionsLoading] = useState(false);
   const mountedRef = useRef(true);
   const loadAttemptRef = useRef(0);
   const [, setLocation] = useLocation();
@@ -495,6 +510,96 @@ export default function TherapistDashboard({
     }
   };
 
+  const loadArchivedClients = async () => {
+    setArchivedLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(getApiUrl('/api/therapist/archived-clients'), {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const { archivedClients: clients } = await response.json();
+        setArchivedClients(clients || []);
+      }
+    } catch (error) {
+      console.error('Failed to load archived clients:', error);
+    } finally {
+      setArchivedLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!disconnectClient || !disconnectReason.trim()) return;
+
+    setDisconnecting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ title: "Session Expired", description: "Please refresh and try again", variant: "destructive" });
+        return;
+      }
+
+      const response = await fetch(getApiUrl(`/api/therapist/client/${disconnectClient.id}/disconnect`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          termination_type: disconnectType,
+          termination_reason: disconnectReason.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast({
+          title: "Client Disconnected",
+          description: `${disconnectClient.full_name} has been disconnected. ${result.archived_session_count} sessions archived.`,
+        });
+        setDisconnectClient(null);
+        setDisconnectReason('');
+        setDisconnectType('therapist_initiated');
+        await loadDashboardData();
+      } else {
+        const errorData = await response.json();
+        toast({ title: "Disconnect Failed", description: errorData.error || "Failed to disconnect client", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Error disconnecting client:', error);
+      toast({ title: "Error", description: "Failed to disconnect client", variant: "destructive" });
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const loadArchivedSessions = async (clientId: string) => {
+    setArchivedSessionsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(getApiUrl(`/api/therapist/archived-client/${clientId}/sessions`), {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const { sessions } = await response.json();
+        setArchivedSessions(sessions || []);
+      }
+    } catch (error) {
+      console.error('Failed to load archived sessions:', error);
+    } finally {
+      setArchivedSessionsLoading(false);
+    }
+  };
+
   const totalClientsMinutes = clients.reduce(
     (sum, c) => sum + c.total_minutes,
     0,
@@ -610,143 +715,251 @@ export default function TherapistDashboard({
         {/* Clients Section */}
         <Card className="glass">
           <CardHeader>
-            <CardTitle>Your Clients</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Your Clients</CardTitle>
+              {/* Tab Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  variant={activeTab === 'active' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab('active')}
+                  className="flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Active
+                </Button>
+                <Button
+                  variant={activeTab === 'archived' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setActiveTab('archived');
+                    loadArchivedClients();
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Archive className="h-4 w-4" />
+                  Archived
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Invite Form */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="email"
-                placeholder="Client email address"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg glass border border-white/10"
-                disabled={inviting}
-              />
-              <Button
-                onClick={inviteClient}
-                disabled={inviting || !inviteEmail}
-                className="px-6 w-full sm:w-auto"
-              >
-                {inviting ? "Sending..." : "Invite Client"}
-              </Button>
-            </div>
-
-            {/* Pending Invitations */}
-            {(invitationsLoading || pendingInvitations.length > 0) && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  Pending Invitations {invitationsLoading && <span className="ml-2 text-xs">(Loading...)</span>}
-                </h3>
-                {invitationsLoading ? (
-                  <div className="p-3 rounded-lg glass-subtle">
-                    <p className="text-sm text-muted-foreground">Loading invitations...</p>
-                  </div>
-                ) : pendingInvitations.map((invite) => (
-                  <div
-                    key={invite.id}
-                    className="flex items-center justify-between p-3 rounded-lg glass-subtle border border-yellow-500/20"
-                    data-testid={`pending-invite-${invite.id}`}
+            {activeTab === 'active' ? (
+              <>
+                {/* Invite Form */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    placeholder="Client email address"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg glass border border-white/10"
+                    disabled={inviting}
+                  />
+                  <Button
+                    onClick={inviteClient}
+                    disabled={inviting || !inviteEmail}
+                    className="px-6 w-full sm:w-auto"
                   >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{invite.client_email}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Sent {new Date(invite.sent_at).toLocaleDateString()} • 
-                        Expires {new Date(invite.expires_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => cancelInvitation(invite.id, invite.client_email)}
-                      disabled={cancelingId === invite.id}
-                      className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                      data-testid={`button-cancel-invite-${invite.id}`}
-                    >
-                      {cancelingId === invite.id ? "Canceling..." : "Cancel"}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+                    {inviting ? "Sending..." : "Invite Client"}
+                  </Button>
+                </div>
 
-            {/* Clients List */}
-            {clients.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No clients yet. Invite your first client above.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {clients.map((client) => (
-                  <div
-                    key={client.id}
-                    className="p-4 rounded-lg glass-subtle border border-white/10"
-                    data-testid={`card-client-${client.id}`}
-                  >
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                        <div
-                          className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
-                        >
-                          <p className="font-medium">{client.full_name}</p>
-                          <p className="text-sm text-muted-foreground">{client.email}</p>
-                          {client.last_session && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Last session: {new Date(client.last_session).toLocaleDateString()}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {client.total_sessions} sessions • {client.total_minutes} minutes
+                {/* Pending Invitations */}
+                {(invitationsLoading || pendingInvitations.length > 0) && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Pending Invitations {invitationsLoading && <span className="ml-2 text-xs">(Loading...)</span>}
+                    </h3>
+                    {invitationsLoading ? (
+                      <div className="p-3 rounded-lg glass-subtle">
+                        <p className="text-sm text-muted-foreground">Loading invitations...</p>
+                      </div>
+                    ) : pendingInvitations.map((invite) => (
+                      <div
+                        key={invite.id}
+                        className="flex items-center justify-between p-3 rounded-lg glass-subtle border border-yellow-500/20"
+                        data-testid={`pending-invite-${invite.id}`}
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{invite.client_email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Sent {new Date(invite.sent_at).toLocaleDateString()} •
+                            Expires {new Date(invite.expires_at).toLocaleDateString()}
                           </p>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => cancelInvitation(invite.id, invite.client_email)}
+                          disabled={cancelingId === invite.id}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                          data-testid={`button-cancel-invite-${invite.id}`}
+                        >
+                          {cancelingId === invite.id ? "Canceling..." : "Cancel"}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                        {/* Time Limit Control */}
-                        <div className="flex items-center gap-2 min-w-[200px]">
-                          <label className="text-xs text-muted-foreground whitespace-nowrap">
-                            Session limit:
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="120"
-                            defaultValue={Math.floor(client.session_duration_limit / 60)}
-                            className="w-16 px-2 py-1 text-sm rounded bg-white/5 border border-white/10"
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              const minutes = parseInt(e.target.value);
-                              if (minutes >= 1 && minutes <= 120) {
-                                updateClientTimeLimit(client.id, minutes);
-                              }
-                            }}
-                          />
-                          <span className="text-xs text-muted-foreground">min</span>
+                {/* Clients List */}
+                {clients.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No clients yet. Invite your first client above.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {clients.map((client) => (
+                      <div
+                        key={client.id}
+                        className="p-4 rounded-lg glass-subtle border border-white/10"
+                        data-testid={`card-client-${client.id}`}
+                      >
+                        <div className="flex flex-col gap-4">
+                          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                            <div
+                              className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
+                            >
+                              <p className="font-medium">{client.full_name}</p>
+                              <p className="text-sm text-muted-foreground">{client.email}</p>
+                              {client.last_session && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Last session: {new Date(client.last_session).toLocaleDateString()}
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {client.total_sessions} sessions • {client.total_minutes} minutes
+                              </p>
+                            </div>
+
+                            {/* Time Limit Control */}
+                            <div className="flex items-center gap-2 min-w-[200px]">
+                              <label className="text-xs text-muted-foreground whitespace-nowrap">
+                                Session limit:
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="120"
+                                defaultValue={Math.floor(client.session_duration_limit / 60)}
+                                className="w-16 px-2 py-1 text-sm rounded bg-white/5 border border-white/10"
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                  const minutes = parseInt(e.target.value);
+                                  if (minutes >= 1 && minutes <= 120) {
+                                    updateClientTimeLimit(client.id, minutes);
+                                  }
+                                }}
+                              />
+                              <span className="text-xs text-muted-foreground">min</span>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2 flex-wrap">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedClientForAnalysis(client)}
+                              className="flex items-center gap-2"
+                            >
+                              <Brain className="h-4 w-4" />
+                              Session Analysis
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
+                              className="flex items-center gap-2"
+                            >
+                              View Sessions
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDisconnectClient(client)}
+                              className="flex items-center gap-2 text-red-400 hover:text-red-300 border-red-500/30 hover:bg-red-500/10"
+                            >
+                              <UserMinus className="h-4 w-4" />
+                              Disconnect
+                            </Button>
+                          </div>
                         </div>
                       </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2">
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Archived Clients Tab */
+              <div className="space-y-3">
+                {archivedLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading archived clients...</p>
+                  </div>
+                ) : archivedClients.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No archived clients yet.
+                  </div>
+                ) : (
+                  archivedClients.map((client) => (
+                    <div
+                      key={client.id}
+                      className="p-4 rounded-lg glass-subtle border border-white/10 opacity-75"
+                    >
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Archive className="h-4 w-4 text-muted-foreground" />
+                              <p className="font-medium">{client.client_full_name}</p>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{client.client_email}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {client.archived_session_count} archived sessions
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              client.status === 'terminated_by_therapist'
+                                ? 'bg-orange-500/20 text-orange-400'
+                                : 'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {client.status === 'terminated_by_therapist'
+                                ? 'Therapist Decision'
+                                : 'Client Requested'}
+                            </span>
+                            {client.terminated_at && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(client.terminated_at).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {client.termination_reason && (
+                          <p className="text-xs text-muted-foreground italic">
+                            Reason: {client.termination_reason}
+                          </p>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedClientForAnalysis(client)}
-                          className="flex items-center gap-2"
+                          onClick={() => {
+                            setViewingArchivedSessions(client);
+                            loadArchivedSessions(client.original_client_id);
+                          }}
+                          className="flex items-center gap-2 w-fit"
                         >
-                          <Brain className="h-4 w-4" />
-                          Session Analysis
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setLocation(`/therapist/client/${client.id}/sessions`)}
-                          className="flex items-center gap-2"
-                        >
-                          View Sessions
+                          <FileText className="h-4 w-4" />
+                          View Archived Sessions
                         </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             )}
           </CardContent>
@@ -789,6 +1002,154 @@ export default function TherapistDashboard({
               <SessionAnalysis userId={selectedClientForAnalysis.id} />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Disconnect Client Dialog */}
+      <Dialog
+        open={disconnectClient !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDisconnectClient(null);
+            setDisconnectReason('');
+            setDisconnectType('therapist_initiated');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <UserMinus className="h-5 w-5" />
+              Disconnect Client
+            </DialogTitle>
+            <DialogDescription>
+              This will end your therapeutic relationship with{' '}
+              <strong>{disconnectClient?.full_name}</strong>. All session data will be
+              archived for your records. The client will become an individual user.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Termination Type</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={disconnectType === 'therapist_initiated' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDisconnectType('therapist_initiated')}
+                >
+                  Therapist Decision
+                </Button>
+                <Button
+                  variant={disconnectType === 'client_requested' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDisconnectType('client_requested')}
+                >
+                  Client Requested
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason (required for HIPAA compliance)</Label>
+              <Textarea
+                value={disconnectReason}
+                onChange={(e) => setDisconnectReason(e.target.value)}
+                placeholder="Enter the reason for disconnecting this client..."
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDisconnectClient(null);
+                  setDisconnectReason('');
+                }}
+                disabled={disconnecting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDisconnect}
+                disabled={disconnecting || !disconnectReason.trim()}
+              >
+                {disconnecting ? 'Disconnecting...' : 'Confirm Disconnect'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archived Sessions Viewer Dialog */}
+      <Dialog
+        open={viewingArchivedSessions !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewingArchivedSessions(null);
+            setArchivedSessions([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-muted-foreground" />
+              Archived Sessions — {viewingArchivedSessions?.client_full_name}
+            </DialogTitle>
+            <DialogDescription>
+              Read-only archive of session records for {viewingArchivedSessions?.client_email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            {archivedSessionsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading archived sessions...</p>
+              </div>
+            ) : archivedSessions.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">
+                No archived sessions found.
+              </p>
+            ) : (
+              archivedSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="p-4 rounded-lg glass-subtle border border-white/10 space-y-3"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium">
+                        {session.session_date
+                          ? new Date(session.session_date).toLocaleDateString('en-US', {
+                              year: 'numeric', month: 'long', day: 'numeric'
+                            })
+                          : 'Unknown date'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {session.duration_minutes} min • Agent: {session.agent_name || 'Unknown'}
+                      </p>
+                    </div>
+                  </div>
+                  {session.summary_content && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Summary</p>
+                      <p className="text-sm whitespace-pre-wrap">{session.summary_content}</p>
+                    </div>
+                  )}
+                  {session.transcript_text && (
+                    <details className="cursor-pointer">
+                      <summary className="text-xs font-medium text-muted-foreground">
+                        View Transcript
+                      </summary>
+                      <pre className="mt-2 text-xs whitespace-pre-wrap max-h-60 overflow-y-auto p-3 rounded bg-black/20">
+                        {session.transcript_text}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

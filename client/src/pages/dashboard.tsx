@@ -196,6 +196,12 @@ export default function Dashboard() {
             } else {
               console.log('✅ [DASHBOARD] Consent already accepted');
               setConsentChecked(true);
+
+              // Also resolve assessment check to prevent "Preparing your experience..." deadlock
+              if (!ASSESSMENT_REQUIRED || profile.assessment_completed_at) {
+                console.log('✅ [DASHBOARD] Assessment also resolved in ensureUserProfile');
+                setAssessmentChecked(true);
+              }
             }
           }
         }
@@ -484,24 +490,36 @@ export default function Dashboard() {
     setShowConsent(false);
     setConsentChecked(true);
 
-    // Check if user has completed assessment using user_profiles.assessment_completed_at
-    // Note: We check user_profiles instead of assessment_results to avoid RLS issues
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('assessment_completed_at')
-      .eq('id', userId)
-      .single();
+    try {
+      // Check if user has completed assessment using user_profiles.assessment_completed_at
+      // Note: We check user_profiles instead of assessment_results to avoid RLS issues
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('assessment_completed_at')
+        .eq('id', userId)
+        .single();
 
-    // If assessment required and not completed, show modal
-    // Feature flag: VITE_REQUIRE_ASSESSMENT controls whether assessment is mandatory
-    if (ASSESSMENT_REQUIRED && !profile?.assessment_completed_at) {
-      console.log('📋 [DASHBOARD] Assessment required, showing assessment iframe');
-      setShowAssessmentModal(true);
-    } else {
-      // Assessment completed or not required - proceed to dashboard
-      console.log('✅ [DASHBOARD] Proceeding to dashboard:',
-        ASSESSMENT_REQUIRED ? `assessment completed at ${profile?.assessment_completed_at}` : 'assessment not required');
-      setAssessmentChecked(true);
+      if (profileError) {
+        console.error('⚠️ [DASHBOARD] Error fetching profile for assessment check:', profileError);
+        // Don't block the user — proceed to dashboard
+        setAssessmentChecked(true);
+        return;
+      }
+
+      // If assessment required and not completed, show modal
+      // Feature flag: VITE_REQUIRE_ASSESSMENT controls whether assessment is mandatory
+      if (ASSESSMENT_REQUIRED && !profile?.assessment_completed_at) {
+        console.log('📋 [DASHBOARD] Assessment required, showing assessment iframe');
+        setShowAssessmentModal(true);
+      } else {
+        // Assessment completed or not required - proceed to dashboard
+        console.log('✅ [DASHBOARD] Proceeding to dashboard:',
+          ASSESSMENT_REQUIRED ? `assessment completed at ${profile?.assessment_completed_at}` : 'assessment not required');
+        setAssessmentChecked(true);
+      }
+    } catch (error) {
+      console.error('❌ [DASHBOARD] Assessment check failed, proceeding to dashboard:', error);
+      setAssessmentChecked(true); // Don't block the user
     }
   };
 

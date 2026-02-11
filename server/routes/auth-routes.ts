@@ -845,6 +845,27 @@ router.delete('/user/:userId', authenticateToken, async (req: AuthRequest, res) 
     const authUserId = user.auth_user_id;
     const userEmail = user.email;
 
+    // Check user_type from user_profiles for deletion restrictions
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('user_type')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const userType = userProfile?.user_type || 'individual';
+
+    if (userType === 'client') {
+      return res.status(403).json({
+        error: 'Client accounts cannot be deleted directly. Please ask your therapist to disconnect you first, then you can delete your individual account.'
+      });
+    }
+
+    if (userType === 'therapist') {
+      return res.status(403).json({
+        error: 'Therapist accounts cannot be deleted. Please use the Archive Account option in your dashboard settings. Your account will be retained for 7 years per clinical record requirements.'
+      });
+    }
+
     console.log(`🗑️ Starting full account deletion for ${userEmail} (auth: ${authUserId})`);
 
     // STEP 1: Delete from users table (CASCADE handles related data)
