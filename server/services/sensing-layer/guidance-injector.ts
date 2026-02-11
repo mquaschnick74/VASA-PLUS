@@ -2,7 +2,7 @@
 // Injects therapeutic guidance into VAPI conversations via controlUrl
 
 import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance } from './types';
-import { getControlUrl, getAgentSpeakingState } from './call-state';
+import { getControlUrl, getCallState, getAgentSpeakingState } from './call-state';
 
 // Pending guidance queue: holds guidance deferred while agent is speaking
 const pendingGuidance = new Map<string, TherapeuticGuidance | EnhancedTherapeuticGuidance>();
@@ -34,6 +34,13 @@ export async function injectGuidance(
 
   if (!controlUrl) {
     console.warn(`⚠️ [GuidanceInjector] No controlUrl for call ${callId}`);
+    return false;
+  }
+
+  // Gate: Skip injection if call is no longer active (ended while pipeline was processing)
+  const callState = getCallState(callId);
+  if (!callState) {
+    console.log(`🚦 [GATE] Call ${callId} no longer active, skipping injection`);
     return false;
   }
 
