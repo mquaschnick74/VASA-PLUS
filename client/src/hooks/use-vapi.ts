@@ -413,10 +413,10 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           provider: selectedAgent.voice.provider,
           voiceId: selectedAgent.voice.voiceId,
           model: selectedAgent.voice.model || 'eleven_flash_v2_5',
-          stability: selectedAgent.voice.stability || 0.9,
-          similarityBoost: selectedAgent.voice.similarityBoost || 0.85,
+          stability: selectedAgent.voice.stability || 0.7,
+          similarityBoost: selectedAgent.voice.similarityBoost || 0.75,
           speed: selectedAgent.voice.speed || 1.0,
-          useSpeakerBoost: selectedAgent.voice.useSpeakerBoost ?? true
+          useSpeakerBoost: false
         },
         // 🎯 Therapeutic Speech Configuration (simplified for compatibility)
         // These settings make VASA more patient and harder to interrupt accidentally
