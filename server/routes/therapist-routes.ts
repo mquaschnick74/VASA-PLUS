@@ -1093,4 +1093,360 @@ router.patch('/client/:clientId/settings', authenticateToken, async (req: AuthRe
   }
 });
 
+// ============================================================================
+// DISCONNECT & ARCHIVE ENDPOINTS
+// ============================================================================
+
+// Disconnect a client (therapist-initiated action)
+router.post('/client/:clientId/disconnect', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { clientId } = req.params;
+    const { termination_type, termination_reason } = req.body;
+
+    // Validate input
+    if (!termination_type || !['therapist_initiated', 'client_requested'].includes(termination_type)) {
+      return res.status(400).json({ error: 'termination_type must be "therapist_initiated" or "client_requested"' });
+    }
+    if (!termination_reason || termination_reason.trim().length === 0) {
+      return res.status(400).json({ error: 'termination_reason is required for HIPAA audit compliance' });
+    }
+
+    // Get therapist profile
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type, email, full_name')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can disconnect clients' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Verify active relationship exists
+    const { data: relationship, error: relError } = await supabase
+      .from('therapist_client_relationships')
+      .select('*')
+      .eq('therapist_id', therapistId)
+      .eq('client_id', clientId)
+      .eq('status', 'active')
+      .single();
+
+    if (relError || !relationship) {
+      return res.status(404).json({ error: 'No active relationship found with this client' });
+    }
+
+    // Get client profile info for the snapshot
+    const { data: clientProfile } = await supabase
+      .from('user_profiles')
+      .select('email, full_name')
+      .eq('id', clientId)
+      .single();
+
+    if (!clientProfile) {
+      return res.status(404).json({ error: 'Client profile not found' });
+    }
+
+    // Snapshot all session data
+    const archivedCount = await therapistDataService.snapshotClientSessions(
+      therapistId,
+      clientId,
+      relationship.id,
+      clientProfile.email,
+      clientProfile.full_name || clientProfile.email.split('@')[0]
+    );
+
+    // Determine new status based on termination type
+    const newStatus = termination_type === 'therapist_initiated'
+      ? 'terminated_by_therapist'
+      : 'terminated_by_client_request';
+
+    const now = new Date().toISOString();
+
+    // Update relationship
+    const { error: updateRelError } = await supabase
+      .from('therapist_client_relationships')
+      .update({
+        status: newStatus,
+        terminated_at: now,
+        terminated_by: termination_type,
+        termination_reason: termination_reason.trim(),
+        relationship_end_date: now,
+      })
+      .eq('id', relationship.id);
+
+    if (updateRelError) {
+      console.error('❌ Error updating relationship:', updateRelError);
+      return res.status(500).json({ error: 'Failed to update relationship status' });
+    }
+
+    // Update client's user_type to 'individual'
+    await supabase
+      .from('user_profiles')
+      .update({ user_type: 'individual' })
+      .eq('id', clientId);
+
+    // Update client's role in users table
+    await supabase
+      .from('users')
+      .update({ role: 'individual' })
+      .eq('id', clientId);
+
+    // Log to therapist_access_logs for HIPAA compliance
+    await therapistDataService.logAccess(
+      therapistId,
+      clientId,
+      'client_disconnected' as any,
+      undefined,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    // Send notification email to former client (best effort)
+    try {
+      if (isEmailConfigured()) {
+        await resend.emails.send({
+          from: 'iVASA <notifications@ivasa.ai>',
+          to: clientProfile.email,
+          subject: 'Your iVASA therapeutic relationship has been updated',
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #4F46E5;">iVASA Account Update</h2>
+              <p>Hi ${clientProfile.full_name || 'there'},</p>
+              <p>Your therapeutic relationship on iVASA has been updated. You are now an individual user.</p>
+              <p>To continue using voice sessions, you will need to set up your own subscription.
+              Your previous session history remains accessible in your account.</p>
+              <p>If you have questions, please contact your former therapist directly.</p>
+              <p style="color: #9CA3AF; font-size: 12px; margin-top: 30px;">&copy; 2025 iVASA. All rights reserved.</p>
+            </div>
+          `,
+          text: `Hi ${clientProfile.full_name || 'there'},\n\nYour therapeutic relationship on iVASA has been updated. You are now an individual user. To continue using voice sessions, you will need to set up your own subscription. Your previous session history remains accessible in your account.\n\nIf you have questions, please contact your former therapist directly.`
+        });
+        console.log(`✅ Disconnect notification email sent to ${clientProfile.email}`);
+      }
+    } catch (emailError) {
+      console.error('⚠️ Failed to send disconnect notification email:', emailError);
+      // Non-blocking — don't fail the disconnect
+    }
+
+    console.log(`✅ Client ${clientId} disconnected by therapist ${therapistId}. ${archivedCount} sessions archived.`);
+
+    res.json({
+      success: true,
+      message: 'Client disconnected successfully',
+      archived_session_count: archivedCount,
+    });
+
+  } catch (error) {
+    console.error('Error disconnecting client:', error);
+    res.status(500).json({ error: 'Failed to disconnect client' });
+  }
+});
+
+// Get all archived (terminated) clients for a therapist
+router.get('/archived-clients', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    // Get therapist profile
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can access this endpoint' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Get terminated relationships
+    const { data: relationships, error } = await supabase
+      .from('therapist_client_relationships')
+      .select('*')
+      .eq('therapist_id', therapistId)
+      .in('status', ['terminated_by_therapist', 'terminated_by_client_request'])
+      .order('terminated_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching archived clients:', error);
+      return res.status(500).json({ error: 'Failed to fetch archived clients' });
+    }
+
+    if (!relationships || relationships.length === 0) {
+      return res.json({ archivedClients: [] });
+    }
+
+    // Enrich with client info and archived session counts
+    const archivedClients = await Promise.all(
+      relationships.map(async (rel) => {
+        // Try to get client profile (may still exist)
+        const { data: clientProfile } = await supabase
+          .from('user_profiles')
+          .select('email, full_name')
+          .eq('id', rel.client_id)
+          .maybeSingle();
+
+        // Get archived session count
+        const { count } = await supabase
+          .from('archived_client_sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('relationship_id', rel.id);
+
+        // Fall back to archived data if client profile is deleted
+        let clientEmail = clientProfile?.email;
+        let clientFullName = clientProfile?.full_name;
+
+        if (!clientEmail) {
+          const { data: archivedSession } = await supabase
+            .from('archived_client_sessions')
+            .select('client_email, client_full_name')
+            .eq('relationship_id', rel.id)
+            .limit(1)
+            .maybeSingle();
+
+          clientEmail = archivedSession?.client_email || 'Unknown';
+          clientFullName = archivedSession?.client_full_name || 'Former Client';
+        }
+
+        return {
+          id: rel.id,
+          client_email: clientEmail,
+          client_full_name: clientFullName || clientEmail?.split('@')[0] || 'Unknown',
+          original_client_id: rel.client_id,
+          status: rel.status,
+          terminated_at: rel.terminated_at,
+          terminated_by: rel.terminated_by,
+          termination_reason: rel.termination_reason,
+          archived_session_count: count || 0,
+        };
+      })
+    );
+
+    res.json({ archivedClients });
+  } catch (error) {
+    console.error('Error fetching archived clients:', error);
+    res.status(500).json({ error: 'Failed to fetch archived clients' });
+  }
+});
+
+// Get archived sessions for a specific former client
+router.get('/archived-client/:clientId/sessions', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { clientId } = req.params;
+
+    // Get therapist profile
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can access this endpoint' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Verify archived access
+    const hasAccess = await therapistDataService.verifyTherapistArchivedAccess(therapistId, clientId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied: No archived relationship with this client' });
+    }
+
+    // Get archived sessions
+    const sessions = await therapistDataService.getArchivedClientSessions(therapistId, clientId);
+
+    // Log access
+    await therapistDataService.logAccess(
+      therapistId,
+      clientId,
+      'session_list' as any,
+      undefined,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.json({ sessions });
+  } catch (error) {
+    console.error('Error fetching archived sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch archived sessions' });
+  }
+});
+
+// Archive therapist account (self-service)
+router.post('/archive-account', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    // Get therapist profile
+    const { data: therapistProfile } = await supabase
+      .from('user_profiles')
+      .select('id, user_type')
+      .eq('email', req.user?.email)
+      .single();
+
+    if (!therapistProfile || therapistProfile.user_type !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can archive their account' });
+    }
+
+    const therapistId = therapistProfile.id;
+
+    // Check for active client relationships
+    const { data: activeRelationships, error: relError } = await supabase
+      .from('therapist_client_relationships')
+      .select('client_id')
+      .eq('therapist_id', therapistId)
+      .eq('status', 'active');
+
+    if (relError) {
+      return res.status(500).json({ error: 'Failed to check active relationships' });
+    }
+
+    if (activeRelationships && activeRelationships.length > 0) {
+      const clientIds = activeRelationships.map(r => r.client_id);
+      const { data: clientProfiles } = await supabase
+        .from('user_profiles')
+        .select('email, full_name')
+        .in('id', clientIds);
+
+      const clientNames = (clientProfiles || []).map(p => p.full_name || p.email).join(', ');
+
+      return res.status(400).json({
+        error: 'Cannot archive account with active clients. Please disconnect all clients first.',
+        active_clients: clientNames,
+        active_client_count: activeRelationships.length,
+      });
+    }
+
+    // Archive the account
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setFullYear(expiresAt.getFullYear() + 7);
+
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update({
+        account_status: 'archived',
+        archived_at: now.toISOString(),
+        archive_expires_at: expiresAt.toISOString(),
+      })
+      .eq('id', therapistId);
+
+    if (updateError) {
+      console.error('Error archiving account:', updateError);
+      return res.status(500).json({ error: 'Failed to archive account' });
+    }
+
+    console.log(`✅ Therapist account ${therapistId} archived. Expires: ${expiresAt.toISOString()}`);
+
+    res.json({
+      success: true,
+      message: 'Account archived successfully. You can reopen it anytime within 7 years by logging back in.',
+      archive_expires_at: expiresAt.toISOString(),
+    });
+  } catch (error) {
+    console.error('Error archiving account:', error);
+    res.status(500).json({ error: 'Failed to archive account' });
+  }
+});
+
 export default router;

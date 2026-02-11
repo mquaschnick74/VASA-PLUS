@@ -131,6 +131,11 @@ export const DeleteAccount: React.FC<DeleteAccountProps> = ({
               <li>All transcripts and conversations</li>
               <li>All therapeutic insights</li>
             </ul>
+            <p className="text-sm mt-2 text-white/50">
+              Note: If you were previously connected to a therapist, archived session records
+              from that period are retained as part of your therapist's clinical record and
+              are not affected by this deletion.
+            </p>
             <p className="font-semibold text-red-400 mt-4">
               This action CANNOT be undone.
             </p>

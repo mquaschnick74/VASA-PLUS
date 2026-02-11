@@ -47,6 +47,10 @@ export const userProfiles = pgTable("user_profiles", {
   assessment_version: varchar("assessment_version", { length: 10 }), // 'v1' = old, 'v2' = new
   gender: varchar("gender", { length: 20 }), // 'male', 'female', 'non-binary', 'not_provided'
   register_type: varchar("register_type", { length: 20 }), // 'symbolic', 'imaginary', 'real'
+  // Account archival fields
+  account_status: varchar("account_status", { length: 20 }).default('active'), // 'active' or 'archived'
+  archived_at: timestamp("archived_at", { withTimezone: true }),
+  archive_expires_at: timestamp("archive_expires_at", { withTimezone: true }), // 7 years from archived_at
 });
 
 // User onboarding responses table
@@ -145,6 +149,11 @@ export const therapistClientRelationships = pgTable("therapist_client_relationsh
   status: varchar("status").default('active'),
   session_duration_limit: integer("session_duration_limit").default(900), // ADD THIS LINE (900 = 15 minutes)
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  // Termination fields
+  terminated_at: timestamp("terminated_at", { withTimezone: true }),
+  terminated_by: varchar("terminated_by", { length: 50 }), // 'therapist_initiated' or 'client_requested'
+  termination_reason: text("termination_reason"),
+  relationship_end_date: timestamp("relationship_end_date", { withTimezone: true }),
 });
 
 // Therapist invitations - FIXED to reference users.id
@@ -172,6 +181,28 @@ export const therapistAccessLogs = pgTable("therapist_access_logs", {
   accessed_at: timestamp("accessed_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
   ip_address: varchar("ip_address", { length: 45 }),
   user_agent: varchar("user_agent", { length: 255 }),
+});
+
+// Archived client sessions - snapshots preserved for therapist's clinical record
+export const archivedClientSessions = pgTable("archived_client_sessions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Ownership
+  therapist_id: uuid("therapist_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  relationship_id: uuid("relationship_id").notNull().references(() => therapistClientRelationships.id),
+  // Client identity snapshot (no FK — client may be deleted later)
+  original_client_id: uuid("original_client_id").notNull(),
+  client_email: varchar("client_email", { length: 255 }).notNull(),
+  client_full_name: varchar("client_full_name", { length: 255 }),
+  // Session data snapshot
+  call_id: text("call_id"),
+  session_date: timestamp("session_date", { withTimezone: true }),
+  duration_minutes: integer("duration_minutes").default(0),
+  agent_name: varchar("agent_name", { length: 50 }),
+  summary_content: text("summary_content"),
+  transcript_text: text("transcript_text"),
+  // Metadata
+  archived_at: timestamp("archived_at", { withTimezone: true }).default(sql`NOW()`),
+  created_at: timestamp("created_at", { withTimezone: true }).default(sql`NOW()`),
 });
 
 // Therapeutic sessions table - NO CHANGES
@@ -537,6 +568,7 @@ export type CssStage = typeof CSS_STAGES[keyof typeof CSS_STAGES];
 export type PatternType = typeof PATTERN_TYPES[keyof typeof PATTERN_TYPES];
 export type MovementType = typeof MOVEMENT_TYPES[keyof typeof MOVEMENT_TYPES];
 export type TherapistAccessLog = typeof therapistAccessLogs.$inferSelect;
+export type ArchivedClientSession = typeof archivedClientSessions.$inferSelect;
 
 
 // ============================================================================
