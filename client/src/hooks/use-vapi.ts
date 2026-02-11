@@ -417,7 +417,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         // Make user harder to interrupt - requires deliberate speech
         stopSpeakingPlan: {
           numWords: 5,         // Requires 3 words to interrupt (vs 1 word default)
-          voiceSeconds: 1,   // Requires 0.5s of voice activity (vs 0.2s default)
+          voiceSeconds: .5,   // Requires 0.5s of voice activity (vs 0.2s default)
           backoffSeconds: 2  // After interruption, wait 1.5s before VASA can resume
         },
         serverUrl: serverUrl,
