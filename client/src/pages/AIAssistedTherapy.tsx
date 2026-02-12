@@ -210,7 +210,7 @@ export default function AIAssistedTherapy() {
         </p>
 
         {therapists.map((therapist, index) => (
-          <div key={index} className="glass rounded-2xl border border-emerald-400/30 p-6 md:p-8">
+          <div key={index} className="glass rounded-2xl border-2 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.15)] p-6 md:p-8">
             {therapist.featured && (
               <span className="inline-block text-xs font-medium text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full mb-4">Featured</span>
             )}
