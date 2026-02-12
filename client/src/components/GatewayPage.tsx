@@ -2,7 +2,7 @@
 // Full-screen gateway page for user path selection - Two-column layout
 
 import { useLocation, Link } from 'wouter';
-import { Mic, Headphones, PenLine, Play, Sparkles, Brain, Users, Building2 } from 'lucide-react';
+import { Mic, Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
 interface GatewayPageProps {
@@ -125,6 +125,73 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Testimonials section — auto-scrolling carousel */}
+        <div
+          className="w-full max-w-5xl mx-auto mt-12 overflow-hidden"
+          style={{
+            maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+            WebkitMaskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+          }}
+        >
+          <p className="text-sm text-muted-foreground text-center mb-5 tracking-wide uppercase">
+            What people are saying
+          </p>
+          <style>{`
+            @keyframes testimonial-scroll {
+              0% { transform: translateX(0); }
+              100% { transform: translateX(-50%); }
+            }
+            .testimonial-track {
+              animation: testimonial-scroll 35s linear infinite;
+            }
+            .testimonial-track:hover {
+              animation-play-state: paused;
+            }
+          `}</style>
+          <div className="testimonial-track flex gap-4" style={{ width: 'max-content' }}>
+            {/* Two identical sets for seamless infinite loop */}
+            {[0, 1].map((setIndex) => (
+              <div key={setIndex} className="flex gap-4">
+                {/* Daniel — individual user */}
+                <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
+                  <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
+                    "I went in skeptical — another chatbot, right? But within the first session it asked me something no one had ever asked before. I actually sat there in silence for a minute. That's when I knew this was different."
+                  </p>
+                  <p className="text-sm font-semibold text-white mt-4">Daniel</p>
+                </div>
+
+                {/* Mathew — therapist perspective */}
+                <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
+                  <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
+                    "Some of my clients used to spiral between sessions with nowhere to turn. Now they have iVASA as a bridge — it picks up where we left off and holds the thread until our next appointment. It's extended my practice in ways I couldn't have imagined."
+                  </p>
+                  <p className="text-sm font-semibold text-white mt-4">Mathew</p>
+                </div>
+
+                {/* Chris — technical/professional user */}
+                <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
+                  <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
+                    "I've built AI products. I know what's out there. iVASA isn't just pattern matching on keywords — there's a real therapeutic framework underneath. The way it tracks themes across conversations and surfaces connections is genuinely sophisticated."
+                  </p>
+                  <p className="text-sm font-semibold text-white mt-4">Chris</p>
+                </div>
+
+                {/* Terri — personal user perspective */}
+                <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
+                  <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
+                    "I never thought I'd open up to an AI, but iVASA doesn't feel like talking to a machine. It remembered something I mentioned three weeks ago and connected it to what I was struggling with today. That kind of continuity changed everything for me."
+                  </p>
+                  <p className="text-sm font-semibold text-white mt-4">Terri</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
