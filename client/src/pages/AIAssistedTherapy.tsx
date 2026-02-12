@@ -34,7 +34,7 @@ export default function AIAssistedTherapy() {
     document.title = 'AI-Assisted Therapy | iVASA — Clinical Depth, 24/7 Access';
 
     const metaDescription = document.querySelector('meta[name="description"]');
-    const descriptionContent = 'Our partners and iVASA translate what you say into what you mean — revealing patterns you can\'t see alone. Voice-first AI therapeutic support built by licensed therapists. $7.99–$37.99/month. 30-day free trial.';
+    const descriptionContent = 'iVASA translates what you say into what you mean — revealing patterns you can\'t see alone. Voice-first AI therapeutic support built by licensed therapists. $7.99–$37.99/month. 30-day free trial.';
     if (metaDescription) {
       metaDescription.setAttribute('content', descriptionContent);
     } else {
@@ -84,7 +84,7 @@ export default function AIAssistedTherapy() {
           The therapeutic support that didn't exist until now
         </h1>
         <p className="text-lg md:text-xl text-emerald-400 italic mt-4 max-w-2xl mx-auto">
-          iVASA translates what you say into what you mean — revealing patterns you can't see alone.
+          Our therapists and iVASA translate what you say into what you mean — revealing patterns you can't see alone.
         </p>
 
         {/* Three concrete outcome cards */}
