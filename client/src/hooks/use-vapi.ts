@@ -318,15 +318,15 @@ ${uploadContext}
 The user uploaded this content and chose to have it analyzed. They want to explore it with you.
 
 YOUR OPENING: After greeting the user by name, move directly into the upload. Do NOT ask "how are you feeling today" first. Instead, share a specific observation from the CLINICAL ANALYSIS above. For example:
-- Reference a specific pattern you noticed (like a CVDC or tension between registers)
-- Quote one of their own lines back to them and share what struck you about it
-- Name something the analysis revealed that feels worth exploring together
+- Reference a specific pattern identified in the analysis (like a tension or contradiction)
+- Quote one of their actual lines back to them and share what it reveals
+- Name a specific concept or argument from their writing that feels worth exploring
 
-YOUR STANCE: Be a thoughtful reader who has genuinely engaged with their work, not a generic therapist deferring to the client. You have clinical observations — share them. Be direct about what you see while remaining curious about whether your reading lands.
+YOUR STANCE: Engage with the content on its own terms. If it is theoretical writing, engage with the arguments, concepts, and structure of reasoning. If it is personal writing, engage with the emotional texture and what it reveals. If it is a practical document like a script or plan, engage with the intentions, dynamics, and underlying needs at work. Let the nature of the document guide your language — never call text passages "images" or use language that misrepresents the form of what the user shared.
 
-WHEN THE USER WANTS TO DISCUSS THE UPLOAD: You have both the clinical analysis AND the full document text above. Use specific passages, arguments, and concepts from their actual writing to ground your responses. Reference concrete elements — section arguments, specific formulations, the structure of their reasoning — not just the clinical interpretation.
+WHEN THE USER WANTS TO DISCUSS THE UPLOAD: You have both the clinical analysis AND the full document text above. Use specific passages, arguments, and concepts from their actual writing. Reference concrete elements — quote their exact words, engage their specific formulations, discuss the structure of their reasoning. Do NOT fabricate or infer content that is not present in the document text above. If the user asks about something you cannot find in the provided text, say so honestly rather than improvising.
 
-IMPORTANT: Do NOT use the scripted phrase "I noticed some things I'd like to explore with you." Speak naturally and specifically about what you actually found.
+IMPORTANT: Do NOT use the scripted phrase "I noticed some things I'd like to explore with you." Speak naturally and specifically about what you actually found in the text.
 ===== END UPLOAD INSTRUCTIONS =====\n`;
           console.log('📤 [VAPI] Unaddressed upload detected - adding proactive engagement context');
         } else {
@@ -337,7 +337,8 @@ This content was previously discussed in an earlier session but remains fully av
 - Engage substantively using BOTH the clinical analysis AND the full document text above
 - Reference specific passages, arguments, concepts, and quotes from their actual writing
 - Do NOT deflect with "what would you like to discuss?" — you have the full content, use it
-- Share observations, ask about specific formulations, explore their reasoning with them
+- Engage with the content on its own terms — match your language to the nature of the document
+- Do NOT fabricate or infer content that is not in the document text above. If you cannot find what the user is asking about, say so honestly
 ===== END PREVIOUSLY SHARED CONTENT INSTRUCTIONS =====\n`;
           console.log('📤 [VAPI] Addressed upload available for revisit - adding to context');
         }
@@ -438,8 +439,8 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         // 🎯 Therapeutic Speech Configuration (simplified for compatibility)
         // These settings make VASA more patient and harder to interrupt accidentally
         startSpeakingPlan: {
-          waitSeconds: 2,  // Wait 1.2s after user stops (vs 0.4s default)
-          smartEndpointingEnabled: false  // Enable AI detection of incomplete thoughts
+          waitSeconds: 3,
+          smartEndpointingEnabled: true
         },
         // Make user harder to interrupt - requires deliberate speech
         stopSpeakingPlan: {
