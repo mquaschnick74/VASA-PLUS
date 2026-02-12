@@ -293,6 +293,74 @@ export async function auditRedundancy(userId: string): Promise<void> {
 }
 
 /**
+ * Fetch the actual document text for an uploaded artifact
+ * Retrieves knowledge_chunks by artifact_id, ordered by creation time (reading order)
+ * Applies a character budget - small docs get included in full, large docs naturally
+ * trim from the end (bibliography, references tend to be last and shortest)
+ */
+async function getUploadDocumentText(
+  sourceContentId: string,
+  appUserId: string,
+  charBudget: number = 20000
+): Promise<string | null> {
+  try {
+    // Look up auth_user_id from app user ID
+    const { data: userData } = await supabase
+      .from('users')
+      .select('auth_user_id')
+      .eq('id', appUserId)
+      .single();
+
+    if (!userData?.auth_user_id) {
+      console.log('[Upload-Doc] No auth_user_id found for user');
+      return null;
+    }
+
+    // Query knowledge_chunks by artifact_id in reading order
+    const { data: chunks, error } = await supabase
+      .from('knowledge_chunks')
+      .select('content, created_at')
+      .eq('artifact_id', sourceContentId)
+      .eq('user_id', userData.auth_user_id)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.warn('[Upload-Doc] Error fetching document chunks:', error.message);
+      return null;
+    }
+
+    if (!chunks || chunks.length === 0) {
+      console.log('[Upload-Doc] No document chunks found for artifact:', sourceContentId);
+      return null;
+    }
+
+    // Concatenate chunks in reading order until we hit the character budget
+    let documentText = '';
+    let includedCount = 0;
+
+    for (const chunk of chunks) {
+      if (documentText.length + chunk.content.length > charBudget) {
+        // If we haven't included anything yet, include at least a truncated first chunk
+        if (includedCount === 0) {
+          documentText = chunk.content.slice(0, charBudget);
+          includedCount = 1;
+        }
+        break;
+      }
+      documentText += chunk.content + '\n\n';
+      includedCount++;
+    }
+
+    console.log(`[Upload-Doc] Included ${includedCount}/${chunks.length} chunks (${documentText.length} chars) for artifact ${sourceContentId}`);
+
+    return documentText.trim();
+  } catch (error) {
+    console.warn('[Upload-Doc] Error fetching document text:', error);
+    return null;
+  }
+}
+
+/**
  * Builds memory context for display to users AND AI agents
  * Now filters insights to only show user-friendly content
  */
@@ -906,13 +974,15 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
       processedSummary = `Last session (${timeSinceLastSession}): ${processedSummary}`;
     }
 
-    // Check for unaddressed upload analyses
+    // Check for upload analyses (both addressed and unaddressed)
     let hasUnaddressedUpload = false;
+    let uploadAddressed = false;
     let uploadContext: string | null = null;
     let uploadId: string | null = null;
 
     try {
-      const { data: unaddressedUploads } = await supabase
+      // Fetch the most recent upload analysis regardless of addressed status
+      const { data: uploadAnalyses } = await supabase
         .from('therapeutic_context')
         .select('id, content, metadata, created_at')
         .eq('user_id', userId)
@@ -920,40 +990,62 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (unaddressedUploads && unaddressedUploads.length > 0) {
-        const upload = unaddressedUploads[0];
+      if (uploadAnalyses && uploadAnalyses.length > 0) {
+        const upload = uploadAnalyses[0];
         const metadata = (upload.metadata as any) || {};
         const addressed = metadata.addressed_in_session === true;
         const ageDays = Math.floor((Date.now() - new Date(upload.created_at).getTime()) / (1000 * 60 * 60 * 24));
+        const title = metadata.title || 'content';
+        const quotes = metadata.key_quotes || [];
+        const sourceContentId = metadata.source_content_id;
 
-        // Only flag as unaddressed if it's fresh (within 7 days) and not yet discussed
+        uploadId = upload.id;
+        uploadAddressed = addressed;
+
+        // Flag as unaddressed only if fresh and not yet discussed (for proactive greeting)
         if (!addressed && ageDays <= 7) {
           hasUnaddressedUpload = true;
-          uploadId = upload.id;
-          const title = metadata.title || 'content';
-          const quotes = metadata.key_quotes || [];
+        }
 
-          // Pass the full analysis content so the agent can engage substantively
-          // The analysis includes: Clinical Interpretation, Key Quotes, and Agent Guidance
-          let fullContext = `TITLE: ${title}\n\n`;
+        // Build upload context with BOTH analysis AND document text
+        let fullContext = `TITLE: ${title}\n\n`;
 
-          // Include the full analysis content (clinical interpretation + agent guidance)
-          fullContext += upload.content;
+        // Part 1: Include the clinical analysis
+        fullContext += `--- CLINICAL ANALYSIS ---\n`;
+        fullContext += upload.content;
 
-          // Ensure key quotes are explicitly available even if not parsed from content
-          if (quotes.length > 0) {
-            fullContext += `\n\nKEY QUOTES FROM THE UPLOAD:\n`;
-            quotes.forEach((quote: string, i: number) => {
-              fullContext += `${i + 1}. "${quote}"\n`;
-            });
+        if (quotes.length > 0) {
+          fullContext += `\n\nKEY QUOTES FROM THE UPLOAD:\n`;
+          quotes.forEach((quote: string, i: number) => {
+            fullContext += `${i + 1}. "${quote}"\n`;
+          });
+        }
+
+        // Part 2: Fetch and include the actual document text
+        if (sourceContentId) {
+          const documentText = await getUploadDocumentText(sourceContentId, userId);
+          if (documentText) {
+            fullContext += `\n\n--- FULL DOCUMENT TEXT ---\n`;
+            fullContext += documentText;
+            fullContext += `\n--- END DOCUMENT TEXT ---\n`;
+            console.log(`📤 [Upload] Included document text for: ${title}`);
+          } else {
+            console.log(`📤 [Upload] No document text found for: ${title}`);
           }
+        } else {
+          console.log(`📤 [Upload] No source_content_id in metadata for: ${title}`);
+        }
 
-          uploadContext = fullContext;
-          console.log(`📤 Found unaddressed upload from ${ageDays === 0 ? 'today' : `${ageDays} days ago`}: ${title}`);
+        uploadContext = fullContext;
+
+        if (hasUnaddressedUpload) {
+          console.log(`📤 Found UNADDRESSED upload from ${ageDays === 0 ? 'today' : `${ageDays} days ago`}: ${title}`);
+        } else {
+          console.log(`📤 Found ADDRESSED upload (available for revisit): ${title}`);
         }
       }
     } catch (uploadError) {
-      console.warn('[Memory] Error checking for unaddressed uploads:', uploadError);
+      console.warn('[Memory] Error checking for uploads:', uploadError);
     }
 
     console.log(`✅ Enhanced memory context built:`);
@@ -969,6 +1061,7 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
       lastSessionSummary: processedSummary,
       shouldReferenceLastSession: shouldReference,
       hasUnaddressedUpload,
+      uploadAddressed,
       uploadContext,
       uploadId: (uploadId as string | null)
     };
@@ -983,6 +1076,7 @@ export async function buildMemoryContextWithSummary(userId: string): Promise<{
       lastSessionSummary: null,
       shouldReferenceLastSession: false,
       hasUnaddressedUpload: false,
+      uploadAddressed: false,
       uploadContext: null
     };
   }

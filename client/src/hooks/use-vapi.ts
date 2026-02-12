@@ -25,8 +25,9 @@ interface UseVapiProps {
   memoryContext: string;
   lastSessionSummary?: string | null;  // ADD: Session continuity
   shouldReferenceLastSession?: boolean; // ADD: Session continuity
-  hasUnaddressedUpload?: boolean;       // ADD: Upload analysis notification
-  uploadContext?: string | null;        // ADD: Brief context for greeting
+  hasUnaddressedUpload?: boolean;       // Upload is new and unaddressed
+  uploadAddressed?: boolean;            // Upload was previously discussed
+  uploadContext?: string | null;        // Full analysis + document text
   firstName: string;
   selectedAgent: TherapeuticAgent;
   sessionDurationLimit?: number;
@@ -51,6 +52,7 @@ const useVapi = ({
   lastSessionSummary,
   shouldReferenceLastSession,
   hasUnaddressedUpload,
+  uploadAddressed,
   uploadContext,
   firstName,
   selectedAgent,
@@ -303,27 +305,42 @@ Continue the therapeutic narrative without re-introducing the previous session.
 ===== END LAST SESSION =====\n`;
       }
 
-      // NEW: Add upload context for unaddressed analyzed content
-      if (hasUnaddressedUpload && uploadContext) {
+      // Add upload context - either for proactive engagement (unaddressed) or available for revisit (addressed)
+      if (uploadContext && (hasUnaddressedUpload || uploadAddressed)) {
         systemPrompt += `\n\n===== CONTENT THE USER SHARED FOR DISCUSSION =====
 ${uploadContext}
-===== END SHARED CONTENT =====
+===== END SHARED CONTENT =====\n`;
 
+        if (hasUnaddressedUpload) {
+          // UNADDRESSED: Agent should proactively engage with the upload
+          systemPrompt += `
 ===== UPLOAD ENGAGEMENT INSTRUCTIONS =====
 The user uploaded this content and chose to have it analyzed. They want to explore it with you.
 
-YOUR OPENING: After greeting the user by name, move directly into the upload. Do NOT ask "how are you feeling today" first. Instead, share a specific observation from the CLINICAL INTERPRETATION above. For example:
+YOUR OPENING: After greeting the user by name, move directly into the upload. Do NOT ask "how are you feeling today" first. Instead, share a specific observation from the CLINICAL ANALYSIS above. For example:
 - Reference a specific pattern you noticed (like a CVDC or tension between registers)
 - Quote one of their own lines back to them and share what struck you about it
 - Name something the analysis revealed that feels worth exploring together
 
 YOUR STANCE: Be a thoughtful reader who has genuinely engaged with their work, not a generic therapist deferring to the client. You have clinical observations — share them. Be direct about what you see while remaining curious about whether your reading lands.
 
-WHEN THE USER WANTS TO DISCUSS THE UPLOAD: Use the KEY QUOTES and CLINICAL INTERPRETATION to ground your responses in their actual words and the specific patterns identified. Do not give generic reflections — reference concrete elements from their writing.
+WHEN THE USER WANTS TO DISCUSS THE UPLOAD: You have both the clinical analysis AND the full document text above. Use specific passages, arguments, and concepts from their actual writing to ground your responses. Reference concrete elements — section arguments, specific formulations, the structure of their reasoning — not just the clinical interpretation.
 
-IMPORTANT: Do NOT use the scripted phrase "I noticed some things I'd like to explore with you." Speak naturally and specifically about what you actually found in the analysis.
+IMPORTANT: Do NOT use the scripted phrase "I noticed some things I'd like to explore with you." Speak naturally and specifically about what you actually found.
 ===== END UPLOAD INSTRUCTIONS =====\n`;
-        console.log('📤 [VAPI] Unaddressed upload detected - adding to greeting context');
+          console.log('📤 [VAPI] Unaddressed upload detected - adding proactive engagement context');
+        } else {
+          // ADDRESSED: Upload was previously discussed but available for revisit
+          systemPrompt += `
+===== PREVIOUSLY SHARED CONTENT — AVAILABLE FOR DISCUSSION =====
+This content was previously discussed in an earlier session but remains fully available. Do NOT proactively bring it up in your greeting. However, if the user references this material, asks about it, or wants to revisit it:
+- Engage substantively using BOTH the clinical analysis AND the full document text above
+- Reference specific passages, arguments, concepts, and quotes from their actual writing
+- Do NOT deflect with "what would you like to discuss?" — you have the full content, use it
+- Share observations, ask about specific formulations, explore their reasoning with them
+===== END PREVIOUSLY SHARED CONTENT INSTRUCTIONS =====\n`;
+          console.log('📤 [VAPI] Addressed upload available for revisit - adding to context');
+        }
       }
 
       // Add regular memory context if available
@@ -511,7 +528,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       setConnectionStatus('disconnected');
       setIsSessionActive(false);
     }
-  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
+  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, hasUnaddressedUpload, uploadAddressed, uploadContext, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {
