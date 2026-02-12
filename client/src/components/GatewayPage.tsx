@@ -2,7 +2,7 @@
 // Full-screen gateway page for user path selection - Two-column layout
 
 import { useLocation, Link } from 'wouter';
-import { Mic, Headphones, PenLine, Play, Sparkles, Brain, Users, Building2 } from 'lucide-react';
+import { Mic, Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
 interface GatewayPageProps {
@@ -124,6 +124,41 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   30-Day Free Trial with 180 Minutes — No Credit Card Required
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Testimonials section */}
+        <div className="w-full max-w-4xl mx-auto mt-12 px-2">
+          <p className="text-sm text-muted-foreground text-center mb-5 tracking-wide uppercase">
+            What people are saying
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Daniel — individual user */}
+            <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col">
+              <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
+              <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
+                "I went in skeptical — another chatbot, right? But within the first session it asked me something no one had ever asked before. I actually sat there in silence for a minute. That's when I knew this was different."
+              </p>
+              <p className="text-sm font-semibold text-white mt-4">Daniel</p>
+            </div>
+
+            {/* Terri — therapist */}
+            <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col">
+              <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
+              <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
+                "My clients used to spiral between sessions with nowhere to turn. Now they have iVASA as a bridge — it picks up where we left off and holds the thread until our next appointment. It's extended my practice in ways I couldn't have imagined."
+              </p>
+              <p className="text-sm font-semibold text-white mt-4">Terri</p>
+            </div>
+
+            {/* Chris — technical/professional user */}
+            <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col">
+              <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
+              <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
+                "I've built AI products. I know what's out there. iVASA isn't just pattern matching on keywords — there's a real therapeutic framework underneath. The way it tracks themes across conversations and surfaces connections is genuinely sophisticated."
+              </p>
+              <p className="text-sm font-semibold text-white mt-4">Chris</p>
             </div>
           </div>
         </div>
