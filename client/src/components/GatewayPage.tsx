@@ -164,13 +164,13 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   <p className="text-sm font-semibold text-white mt-4">Daniel</p>
                 </div>
 
-                {/* Terri — therapist perspective */}
+                {/* Mathew — therapist perspective */}
                 <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
                   <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
-                    "My clients used to spiral between sessions with nowhere to turn. Now they have iVASA as a bridge — it picks up where we left off and holds the thread until our next appointment. It's extended my practice in ways I couldn't have imagined."
+                    "Some of my clients used to spiral between sessions with nowhere to turn. Now they have iVASA as a bridge — it picks up where we left off and holds the thread until our next appointment. It's extended my practice in ways I couldn't have imagined."
                   </p>
-                  <p className="text-sm font-semibold text-white mt-4">Terri</p>
+                  <p className="text-sm font-semibold text-white mt-4">Mathew</p>
                 </div>
 
                 {/* Chris — technical/professional user */}
