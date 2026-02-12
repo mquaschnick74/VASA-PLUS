@@ -1,5 +1,20 @@
+import { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowLeft, UserCheck, Brain, TrendingUp, MapPin, ExternalLink } from 'lucide-react';
+import {
+  ArrowLeft,
+  Mic,
+  Brain,
+  TrendingUp,
+  MapPin,
+  ExternalLink,
+  BookOpen,
+  Shield,
+  Heart,
+  MessageCircle,
+  Building2,
+  Sparkles,
+  Phone,
+} from 'lucide-react';
 
 const therapists = [
   {
@@ -14,6 +29,38 @@ const therapists = [
 
 export default function AIAssistedTherapy() {
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    document.title = 'AI-Assisted Therapy | iVASA — Clinical Depth, 24/7 Access';
+
+    const metaDescription = document.querySelector('meta[name="description"]');
+    const descriptionContent = 'iVASA translates what you say into what you mean — revealing patterns you can\'t see alone. Voice-first AI therapeutic support built by licensed therapists. $7.99–$37.99/month. 30-day free trial.';
+    if (metaDescription) {
+      metaDescription.setAttribute('content', descriptionContent);
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = descriptionContent;
+      document.head.appendChild(meta);
+    }
+
+    const ogTags = [
+      { property: 'og:title', content: 'AI-Assisted Therapy | iVASA — Clinical Depth, 24/7 Access' },
+      { property: 'og:description', content: descriptionContent },
+      { property: 'og:type', content: 'website' },
+    ];
+    ogTags.forEach(({ property, content }) => {
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (tag) {
+        tag.setAttribute('content', content);
+      } else {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        tag.setAttribute('content', content);
+        document.head.appendChild(tag);
+      }
+    });
+  }, []);
 
   return (
     <div className="min-h-screen gradient-bg">
@@ -31,47 +78,136 @@ export default function AIAssistedTherapy() {
         </button>
       </div>
 
-      {/* Section 1: Hero */}
-      <section className="text-center pt-12 pb-8 px-4">
-        <h1 className="text-4xl md:text-5xl font-bold text-white">AI-Assisted Therapy</h1>
-        <p className="text-xl md:text-2xl text-emerald-400 italic mt-3">The best of both worlds.</p>
-        <p className="text-base md:text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
-          One-on-one with a licensed clinician, enhanced by AI that tracks your progress and supports you between sessions.
+      {/* SECTION 1: HERO */}
+      <section className="text-center pt-16 pb-12 px-4">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white max-w-4xl mx-auto leading-tight">
+          The therapeutic support that didn't exist until now
+        </h1>
+        <p className="text-lg md:text-xl text-emerald-400 italic mt-4 max-w-2xl mx-auto">
+          iVASA translates what you say into what you mean — revealing patterns you can't see alone.
         </p>
-      </section>
 
-      {/* Section 2: How It Works */}
-      <section className="max-w-4xl mx-auto px-4 mb-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="glass rounded-2xl border border-white/10 p-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-emerald-400/10 flex items-center justify-center mx-auto mb-4">
-              <UserCheck className="w-6 h-6 text-emerald-400" />
+        {/* Three concrete outcome cards */}
+        <div className="max-w-5xl mx-auto mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="glass rounded-2xl border border-white/10 p-6 text-left">
+            <div className="w-12 h-12 rounded-full bg-emerald-400/10 flex items-center justify-center mb-4">
+              <Mic className="w-6 h-6 text-emerald-400" />
             </div>
-            <h3 className="font-semibold text-white mb-2">Meet Your Therapist</h3>
-            <p className="text-sm text-muted-foreground">Work one-on-one with a licensed clinician who understands depth psychology.</p>
+            <h3 className="font-semibold text-white text-lg mb-2">Speak, and be heard with depth</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              iVASA listens for what's beneath your words, not just what's on the surface. Voice-first conversations with AI therapeutic guides, available 24/7.
+            </p>
           </div>
 
-          <div className="glass rounded-2xl border border-white/10 p-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-purple-400/10 flex items-center justify-center mx-auto mb-4">
-              <Brain className="w-6 h-6 text-purple-400" />
+          <div className="glass rounded-2xl border border-white/10 p-6 text-left">
+            <div className="w-12 h-12 rounded-full bg-purple-400/10 flex items-center justify-center mb-4">
+              <TrendingUp className="w-6 h-6 text-purple-400" />
             </div>
-            <h3 className="font-semibold text-white mb-2">AI Between Sessions</h3>
-            <p className="text-sm text-muted-foreground">iVASA tracks your patterns and supports your growth between appointments.</p>
+            <h3 className="font-semibold text-white text-lg mb-2">Patterns revealed across sessions</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              iVASA tracks contradictions between what you say and what you do, recurring themes you can't see yourself, and the moments where real shifts happen.
+            </p>
           </div>
 
-          <div className="glass rounded-2xl border border-white/10 p-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-amber-400/10 flex items-center justify-center mx-auto mb-4">
-              <TrendingUp className="w-6 h-6 text-amber-400" />
+          <div className="glass rounded-2xl border border-white/10 p-6 text-left">
+            <div className="w-12 h-12 rounded-full bg-blue-400/10 flex items-center justify-center mb-4">
+              <BookOpen className="w-6 h-6 text-blue-400" />
             </div>
-            <h3 className="font-semibold text-white mb-2">Accelerated Progress</h3>
-            <p className="text-sm text-muted-foreground">The combination of human insight and AI continuity drives deeper, faster results.</p>
+            <h3 className="font-semibold text-white text-lg mb-2">Your story remembered, your growth tracked</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Every session builds on the last. No starting over. No repeating yourself. A continuous therapeutic relationship that deepens over time.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Section 3: Therapist Listings */}
-      <section className="max-w-2xl mx-auto px-4 mb-8">
-        <h2 className="text-2xl font-bold text-white text-center mb-8">Our Therapists</h2>
+      {/* SECTION 2: HOW iVASA IS DIFFERENT — "The Gap Between Chatbots and Therapy" */}
+      <section className="max-w-5xl mx-auto px-4 py-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-3">
+          The Gap Between Chatbots and Therapy
+        </h2>
+        <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+          Most people fall into a gap: apps are too shallow, therapy is too expensive or inaccessible. iVASA fills that space.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Self-help apps */}
+          <div className="glass rounded-2xl border border-white/10 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-gray-500/20 flex items-center justify-center flex-shrink-0">
+                <MessageCircle className="w-5 h-5 text-gray-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Self-help apps & chatbots</h3>
+                <span className="text-xs text-muted-foreground">$0–15/month</span>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Scripted exercises. No memory. Surface-level coping tips. Like a self-help book that talks back.
+            </p>
+          </div>
+
+          {/* Teletherapy */}
+          <div className="glass rounded-2xl border border-white/10 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <Phone className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Teletherapy platforms</h3>
+                <span className="text-xs text-muted-foreground">$260–400/month</span>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Real therapists, but scheduled appointments, weeks to start, limited between-session support.
+            </p>
+          </div>
+
+          {/* Traditional therapy */}
+          <div className="glass rounded-2xl border border-white/10 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                <Heart className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Traditional therapy</h3>
+                <span className="text-xs text-muted-foreground">$600–1,200/month</span>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Deep and effective, but expensive, limited hours, geographic barriers, long waitlists.
+            </p>
+          </div>
+
+          {/* iVASA */}
+          <div className="glass rounded-2xl border-2 border-emerald-400/40 p-6 relative">
+            <div className="absolute -top-3 right-4">
+              <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 border border-emerald-400/30 px-3 py-1 rounded-full">
+                iVASA
+              </span>
+            </div>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-emerald-400">iVASA</h3>
+                <span className="text-xs text-emerald-400/70">$7.99–37.99/month</span>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Clinical depth meets 24/7 voice access. Pattern recognition across every conversation. Built on 25+ years of therapeutic methodology. 30-day free trial.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3: OUR THERAPISTS */}
+      <section className="max-w-3xl mx-auto px-4 py-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-3">Our Therapists</h2>
+        <p className="text-muted-foreground text-center mb-10 max-w-xl mx-auto">
+          Real licensed clinicians built iVASA's therapeutic methodology. This isn't chatbot therapy — it's grounded in decades of clinical practice.
+        </p>
 
         {therapists.map((therapist, index) => (
           <div key={index} className="glass rounded-2xl border border-emerald-400/30 p-6 md:p-8">
@@ -104,41 +240,105 @@ export default function AIAssistedTherapy() {
             </div>
           </div>
         ))}
-      </section>
 
-      {/* Section 4: More Coming Soon */}
-      <div className="text-center mt-4 mb-12 px-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground text-center mt-6">
           More AI-assisted therapy providers joining soon.
         </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Are you a therapist?{' '}
-          <button onClick={() => setLocation('/signup/therapist')} className="text-amber-400 hover:text-amber-300 transition-colors">
-            Partner with iVASA →
-          </button>
-        </p>
-      </div>
+      </section>
 
-      {/* Section 5: AI-only CTA */}
-      <section className="max-w-lg mx-auto px-4 mb-12">
-        <div className="glass rounded-2xl border border-purple-400/20 p-6 text-center">
-          <p className="text-white font-medium">Prefer AI-only therapy?</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Try iVASA's AI therapy — available anytime, no appointment needed.
-          </p>
-          <button
-            onClick={() => setLocation('/signup/individual')}
-            className="mt-4 px-6 py-2.5 border border-purple-400/40 text-purple-400 hover:bg-purple-400/10 rounded-xl text-sm font-medium transition-colors"
-          >
-            Explore AI Therapy
-          </button>
+      {/* SECTION 4: WHO IT'S FOR */}
+      <section className="max-w-4xl mx-auto px-4 py-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-10">Who is iVASA for?</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* For Individuals */}
+          <div className="glass rounded-2xl border border-emerald-400/30 p-6 md:p-8">
+            <div className="w-12 h-12 rounded-full bg-emerald-400/10 flex items-center justify-center mb-4">
+              <Brain className="w-6 h-6 text-emerald-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-emerald-400 mb-3">For Individuals</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+              For people who want more than an app but can't access weekly therapy. For those between sessions who need support now. For anyone curious about therapy but not ready for a human therapist. iVASA meets you where you are.
+            </p>
+            <button
+              onClick={() => setLocation('/signup/individual')}
+              className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm transition-colors"
+            >
+              Start Your Free Trial
+            </button>
+          </div>
+
+          {/* For Therapists */}
+          <div className="glass rounded-2xl border border-amber-400/30 p-6 md:p-8">
+            <div className="w-12 h-12 rounded-full bg-amber-400/10 flex items-center justify-center mb-4">
+              <Building2 className="w-6 h-6 text-amber-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-amber-400 mb-3">For Therapists</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+              Your EHR handles your notes. iVASA handles your clients' growth between sessions. Extend your therapeutic reach without extending your hours. Give clients 24/7 AI support that works alongside your treatment plan.
+            </p>
+            <button
+              onClick={() => setLocation('/signup/therapist')}
+              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm transition-colors"
+            >
+              Explore Therapist Plans
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* Section 6: Footer */}
+      {/* SECTION 5: TRUST & PRIVACY */}
+      <section className="max-w-3xl mx-auto px-4 py-16">
+        <div className="glass rounded-2xl border border-white/10 p-6 md:p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-full bg-emerald-400/10 flex items-center justify-center flex-shrink-0">
+              <Shield className="w-5 h-5 text-emerald-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-white">Trust & Privacy</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 flex-shrink-0"></div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Built by a licensed therapist with 25+ years of clinical experience.
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 flex-shrink-0"></div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Your conversations are encrypted and private — never sold, never used to train AI models.
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 flex-shrink-0"></div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                iVASA is not a replacement for human therapy — it fills the gap where human therapy isn't available or accessible.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 rounded-xl bg-red-500/5 border border-red-500/20">
+            <p className="text-xs text-red-400/80 leading-relaxed">
+              <strong>Important:</strong> iVASA is not a crisis service. If you are in immediate danger or experiencing a mental health crisis, please call 988 (Suicide & Crisis Lifeline) or text HOME to 741741 (Crisis Text Line), or call 911.
+            </p>
+          </div>
+
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => setLocation('/signup/individual')}
+              className="px-8 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm transition-colors"
+            >
+              Start Your Free Trial — 30 Days Free
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
       <div className="text-center pb-8 px-4">
         <p className="text-xs text-muted-foreground">
-          Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.™
+          Built by a THERAPIST, with a TEAM of EXPERTS, for those SEEKING to become their own EXPERT.<sup className="text-[0.6em]">TM</sup>
         </p>
       </div>
     </div>
