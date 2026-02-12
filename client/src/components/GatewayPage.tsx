@@ -129,7 +129,13 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
         </div>
 
         {/* Testimonials section — auto-scrolling carousel */}
-        <div className="w-full max-w-5xl mx-auto mt-12 overflow-hidden">
+        <div
+          className="w-full max-w-5xl mx-auto mt-12 overflow-hidden"
+          style={{
+            maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+            WebkitMaskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+          }}
+        >
           <p className="text-sm text-muted-foreground text-center mb-5 tracking-wide uppercase">
             What people are saying
           </p>
@@ -180,7 +186,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
                   <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
-                    "I'm a therapist, so I figured I had my own stuff handled. Turns out I had blind spots just like everyone else. iVASA caught a pattern in how I talk about my mother that I'd been deflecting for years. Humbling — and exactly what I needed."
+                    "I never thought I'd open up to an AI, but iVASA doesn't feel like talking to a machine. It remembered something I mentioned three weeks ago and connected it to what I was struggling with today. That kind of continuity changed everything for me."
                   </p>
                   <p className="text-sm font-semibold text-white mt-4">Terri</p>
                 </div>
