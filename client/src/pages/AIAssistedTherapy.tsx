@@ -121,88 +121,7 @@ export default function AIAssistedTherapy() {
         </div>
       </section>
 
-      {/* SECTION 2: HOW iVASA IS DIFFERENT — "The Gap Between Chatbots and Therapy" */}
-      <section className="max-w-5xl mx-auto px-4 py-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-3">
-          The Gap Between Chatbots and Therapy
-        </h2>
-        <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-          Most people fall into a gap: apps are too shallow, therapy is too expensive or inaccessible. iVASA fills that space.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Self-help apps */}
-          <div className="glass rounded-2xl border border-white/10 p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-gray-500/20 flex items-center justify-center flex-shrink-0">
-                <MessageCircle className="w-5 h-5 text-gray-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-white">Self-help apps & chatbots</h3>
-                <span className="text-xs text-muted-foreground">$0–15/month</span>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Scripted exercises. No memory. Surface-level coping tips. Like a self-help book that talks back.
-            </p>
-          </div>
-
-          {/* Teletherapy */}
-          <div className="glass rounded-2xl border border-white/10 p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <Phone className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-white">Teletherapy platforms</h3>
-                <span className="text-xs text-muted-foreground">$260–400/month</span>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Real therapists, but scheduled appointments, weeks to start, limited between-session support.
-            </p>
-          </div>
-
-          {/* Traditional therapy */}
-          <div className="glass rounded-2xl border border-white/10 p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                <Heart className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-white">Traditional therapy</h3>
-                <span className="text-xs text-muted-foreground">$600–1,200/month</span>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Deep and effective, but expensive, limited hours, geographic barriers, long waitlists.
-            </p>
-          </div>
-
-          {/* iVASA */}
-          <div className="glass rounded-2xl border-2 border-emerald-400/40 p-6 relative">
-            <div className="absolute -top-3 right-4">
-              <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 border border-emerald-400/30 px-3 py-1 rounded-full">
-                iVASA
-              </span>
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-emerald-400">iVASA</h3>
-                <span className="text-xs text-emerald-400/70">$7.99–37.99/month</span>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Clinical depth meets 24/7 voice access. Pattern recognition across every conversation. Built on 25+ years of therapeutic methodology. 30-day free trial.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 3: OUR THERAPISTS */}
+      {/* SECTION 2: OUR THERAPISTS (moved up — credibility before positioning) */}
       <section className="max-w-3xl mx-auto px-4 py-16">
         <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-3">Our Therapists</h2>
         <p className="text-muted-foreground text-center mb-10 max-w-xl mx-auto">
@@ -244,6 +163,100 @@ export default function AIAssistedTherapy() {
         <p className="text-sm text-muted-foreground text-center mt-6">
           More AI-assisted therapy providers joining soon.
         </p>
+      </section>
+
+      {/* SECTION 3: HOW iVASA IS DIFFERENT — "The Gap Between Chatbots and Therapy" */}
+      <section className="relative py-20 mt-4 mb-4">
+        {/* Subtle background shift for the entire section */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] via-white/[0.04] to-white/[0.02] pointer-events-none"></div>
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+
+        <div className="relative max-w-5xl mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-3">
+            The Gap Between Chatbots and Therapy
+          </h2>
+          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+            Most people fall into a gap: apps are too shallow, therapy is too expensive or inaccessible. iVASA fills that space.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Self-help apps — muted competitor card */}
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-gray-500/20 flex items-center justify-center flex-shrink-0">
+                  <MessageCircle className="w-5 h-5 text-gray-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white/70 text-[15px]">Self-help apps & chatbots</h3>
+                  <span className="text-xs text-muted-foreground/70">$0–15/month</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground/70 leading-relaxed">
+                Scripted exercises. No memory. Surface-level coping tips. Like a self-help book that talks back.
+              </p>
+            </div>
+
+            {/* Teletherapy — muted competitor card */}
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <Phone className="w-5 h-5 text-blue-400/60" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white/70 text-[15px]">Teletherapy platforms</h3>
+                  <span className="text-xs text-muted-foreground/70">$260–400/month</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground/70 leading-relaxed">
+                Real therapists, but scheduled appointments, weeks to start, limited between-session support.
+              </p>
+            </div>
+
+            {/* Traditional therapy — muted competitor card */}
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                  <Heart className="w-5 h-5 text-purple-400/60" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white/70 text-[15px]">Traditional therapy</h3>
+                  <span className="text-xs text-muted-foreground/70">$600–1,200/month</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground/70 leading-relaxed">
+                Deep and effective, but expensive, limited hours, geographic barriers, long waitlists.
+              </p>
+            </div>
+
+            {/* iVASA — standout winner card */}
+            <div
+              className="rounded-2xl border-2 border-emerald-400 p-7 relative"
+              style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(52, 211, 153, 0.04) 100%)',
+                boxShadow: '0 0 25px rgba(52, 211, 153, 0.3), 0 0 50px rgba(52, 211, 153, 0.1)',
+              }}
+            >
+              <div className="absolute -top-3.5 left-1/2 transform -translate-x-1/2">
+                <span className="text-xs font-semibold text-emerald-300 bg-emerald-400/15 border border-emerald-400/40 px-4 py-1.5 rounded-full whitespace-nowrap">
+                  Clinical Depth + 24/7 Access
+                </span>
+              </div>
+              <div className="flex items-center gap-3 mb-3 mt-1">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-emerald-400">iVASA</h3>
+                  <span className="text-xs text-emerald-400/70">$7.99–37.99/month</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Clinical depth meets 24/7 voice access. Pattern recognition across every conversation. Built on 25+ years of therapeutic methodology. 30-day free trial.
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* SECTION 4: WHO IT'S FOR */}
