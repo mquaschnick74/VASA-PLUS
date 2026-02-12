@@ -14,11 +14,23 @@ import {
   Stethoscope,
   ArrowLeft,
   ArrowRight,
-  Check,
   Sparkles,
   Users,
   MessageCircle,
+  MapPin,
+  ExternalLink,
 } from 'lucide-react';
+
+const therapists = [
+  {
+    name: 'Uptown Therapy MPLS',
+    location: 'Minneapolis, MN',
+    description: 'Uptown Therapy MPLS specializes in depth psychology and integrative therapeutic approaches. With over 25 years of clinical experience, our practice combines traditional one-on-one therapy with cutting-edge AI-assisted tools to help you get to the core of what\'s holding you back.',
+    specialties: ['Depth Psychology', 'Trauma', 'Anxiety', 'Relationships', 'Personal Growth'],
+    website: 'https://www.uptowntherapympls.com',
+    featured: true
+  }
+];
 
 export default function AIAssistedTherapy() {
   const [, setLocation] = useLocation();
@@ -85,7 +97,7 @@ export default function AIAssistedTherapy() {
             <Button
               size="lg"
               className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-6 text-lg"
-              onClick={() => setLocation('/?mode=signup')}
+              onClick={() => setLocation('/signup/individual')}
             >
               Start Your Free Trial
               <ArrowRight className="w-5 h-5 ml-2" />
@@ -242,7 +254,60 @@ export default function AIAssistedTherapy() {
       </section>
 
       {/* ============================================================
-          SECTION 3: WHO IT'S FOR — Two Audiences
+          SECTION 3: OUR THERAPISTS — Clinical Credibility
+          ============================================================ */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-white/5">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-3xl font-bold text-white text-center mb-8">Our Therapists</h2>
+
+          {therapists.map((therapist, index) => (
+            <div key={index} className="glass rounded-2xl border border-emerald-400/30 p-6 md:p-8">
+              {therapist.featured && (
+                <span className="inline-block text-xs font-medium text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full mb-4">Featured</span>
+              )}
+              <h3 className="text-xl font-semibold text-white">{therapist.name}</h3>
+              <div className="flex items-center gap-1.5 mt-1">
+                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{therapist.location}</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-4 leading-relaxed">{therapist.description}</p>
+              <div className="flex flex-wrap gap-2 mt-4">
+                {therapist.specialties.map((specialty, i) => (
+                  <span key={i} className="bg-white/10 text-xs px-3 py-1 rounded-full text-purple-300">
+                    {specialty}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-6">
+                <a
+                  href={therapist.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 border border-emerald-400/40 text-emerald-400 hover:bg-emerald-400/10 rounded-xl px-6 py-2.5 text-sm font-medium transition-colors"
+                >
+                  Visit Website
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          ))}
+
+          <div className="text-center mt-6">
+            <p className="text-sm text-muted-foreground">
+              More AI-assisted therapy providers joining soon.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Are you a therapist?{' '}
+              <button onClick={() => setLocation('/signup/therapist')} className="text-amber-400 hover:text-amber-300 transition-colors">
+                Partner with iVASA →
+              </button>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          SECTION 4: WHO IT'S FOR — Two Audiences (brief CTAs)
           ============================================================ */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-white/5">
         <div className="max-w-5xl mx-auto">
@@ -258,36 +323,18 @@ export default function AIAssistedTherapy() {
                   <h3 className="text-2xl font-bold text-white">For You</h3>
                 </div>
 
-                <ul className="space-y-4 mb-8">
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">You want more than an app but can't access or afford weekly therapy</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">You're between therapy sessions and need support right now</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">You're curious about therapy but not ready for a human therapist</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">You keep hitting the same walls and want to understand why</span>
-                  </li>
-                </ul>
+                <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                  You want more than an app but can't access or afford weekly therapy. iVASA gives you clinical-depth support — available 24/7, starting with a free trial.
+                </p>
 
                 <Button
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
                   size="lg"
-                  onClick={() => setLocation('/?mode=signup')}
+                  onClick={() => setLocation('/signup/individual')}
                 >
                   Start Your Free Trial
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
-                <p className="text-xs text-muted-foreground text-center mt-3">
-                  Plans from $7.99/month after trial
-                </p>
               </CardContent>
             </Card>
 
@@ -302,35 +349,17 @@ export default function AIAssistedTherapy() {
                 </div>
 
                 <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                  Your EHR handles your notes. iVASA handles your clients' growth between sessions.
+                  Extend your therapeutic reach without extending your hours. Your clients get 24/7 AI-guided support that builds on your clinical work.
                 </p>
-
-                <ul className="space-y-4 mb-8">
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">Extend your therapeutic reach without extending your hours</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">Clients get 24/7 AI-guided support that builds on your clinical work</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">Plans starting at $99/month for 3 client accounts</span>
-                  </li>
-                </ul>
 
                 <Button
                   className="w-full bg-purple-500 hover:bg-purple-600 text-white"
                   size="lg"
-                  onClick={() => setLocation('/public-pricing')}
+                  onClick={() => setLocation('/signup/therapist')}
                 >
                   Learn About Therapist Plans
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
-                <p className="text-xs text-muted-foreground text-center mt-3">
-                  30-day free trial for all plans
-                </p>
               </CardContent>
             </Card>
 
@@ -339,7 +368,7 @@ export default function AIAssistedTherapy() {
       </section>
 
       {/* ============================================================
-          SECTION 4: TRUST & PRIVACY
+          SECTION 5: TRUST & PRIVACY
           ============================================================ */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
@@ -391,7 +420,7 @@ export default function AIAssistedTherapy() {
               <Button
                 size="lg"
                 className="bg-emerald-500 hover:bg-emerald-600 text-white px-10 py-6 text-lg"
-                onClick={() => setLocation('/?mode=signup')}
+                onClick={() => setLocation('/signup/individual')}
               >
                 Get Started Free
                 <ArrowRight className="w-5 h-5 ml-2" />
