@@ -182,7 +182,7 @@ export default function AIAssistedTherapy() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Self-help apps — muted competitor card */}
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+            <div className="rounded-2xl border border-white/[0.08] bg-slate-800/50 p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg bg-gray-500/20 flex items-center justify-center flex-shrink-0">
                   <MessageCircle className="w-5 h-5 text-gray-400" />
@@ -198,7 +198,7 @@ export default function AIAssistedTherapy() {
             </div>
 
             {/* Teletherapy — muted competitor card */}
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+            <div className="rounded-2xl border border-white/[0.08] bg-slate-800/50 p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                   <Phone className="w-5 h-5 text-blue-400/60" />
@@ -214,7 +214,7 @@ export default function AIAssistedTherapy() {
             </div>
 
             {/* Traditional therapy — muted competitor card */}
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+            <div className="rounded-2xl border border-white/[0.08] bg-slate-800/50 p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
                   <Heart className="w-5 h-5 text-purple-400/60" />
@@ -237,7 +237,8 @@ export default function AIAssistedTherapy() {
                 boxShadow: '0 0 25px rgba(52, 211, 153, 0.3), 0 0 50px rgba(52, 211, 153, 0.1)',
               }}
             >
-              <div className="absolute -top-3.5 left-1/2 transform -translate-x-1/2">
+              <div className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 z-10">
+                <div className="absolute -inset-0 bg-[hsl(240,15%,6%)] rounded-full -z-10"></div>
                 <span className="text-xs font-semibold text-emerald-300 bg-emerald-400/15 border border-emerald-400/40 px-4 py-1.5 rounded-full whitespace-nowrap">
                   Clinical Depth + 24/7 Access
                 </span>
