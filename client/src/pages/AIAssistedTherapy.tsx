@@ -34,7 +34,7 @@ export default function AIAssistedTherapy() {
     document.title = 'AI-Assisted Therapy | iVASA — Clinical Depth, 24/7 Access';
 
     const metaDescription = document.querySelector('meta[name="description"]');
-    const descriptionContent = 'iVASA translates what you say into what you mean — revealing patterns you can\'t see alone. Voice-first AI therapeutic support built by licensed therapists. $7.99–$37.99/month. 30-day free trial.';
+    const descriptionContent = 'Our partners and iVASA translate what you say into what you mean — revealing patterns you can\'t see alone. Voice-first AI therapeutic support built by licensed therapists. $7.99–$37.99/month. 30-day free trial.';
     if (metaDescription) {
       metaDescription.setAttribute('content', descriptionContent);
     } else {
