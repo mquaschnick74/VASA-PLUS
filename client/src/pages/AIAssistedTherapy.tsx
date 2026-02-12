@@ -3,7 +3,6 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import Header from '@/components/shared/Header';
 import {
   Mic,
   Brain,
@@ -13,6 +12,7 @@ import {
   Lock,
   Heart,
   Stethoscope,
+  ArrowLeft,
   ArrowRight,
   Check,
   Sparkles,
@@ -50,7 +50,19 @@ export default function AIAssistedTherapy() {
 
   return (
     <div className="min-h-screen gradient-bg">
-      <Header showDashboardLink={true} />
+      {/* Sticky top bar — Back + Logo left, Log in right */}
+      <div className="sticky top-0 z-50 w-full flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4 bg-black/20 backdrop-blur-sm">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setLocation('/')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <img src="/apple-touch-icon.png" alt="iVASA" className="h-8" />
+        </div>
+        <button onClick={() => setLocation('/login')} className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors">
+          Log in
+        </button>
+      </div>
 
       {/* ============================================================
           SECTION 1: HERO — What iVASA Actually Does
