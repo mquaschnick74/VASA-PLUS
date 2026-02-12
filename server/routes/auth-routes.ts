@@ -591,6 +591,7 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
     let lastSessionSummary: string | null = null;
     let shouldReferenceLastSession: boolean = false;
     let hasUnaddressedUpload: boolean = false;
+    let uploadAddressed: boolean = false;
     let uploadContext: string | null = null;
     let uploadId: string | null = null;
 
@@ -601,6 +602,7 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
         lastSessionSummary = enhanced.lastSessionSummary;
         shouldReferenceLastSession = enhanced.shouldReferenceLastSession;
         hasUnaddressedUpload = enhanced.hasUnaddressedUpload;
+        uploadAddressed = enhanced.uploadAddressed;
         uploadContext = enhanced.uploadContext;
         uploadId = (enhanced as any).uploadId;
 
@@ -672,6 +674,7 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       lastSessionSummary,
       shouldReferenceLastSession,
       hasUnaddressedUpload,
+      uploadAddressed,
       uploadContext,
       sessions: sessions || [],
       firstName: user.first_name || 'there',

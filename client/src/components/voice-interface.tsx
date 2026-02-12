@@ -126,6 +126,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     lastSessionSummary: userContext?.lastSessionSummary || null,
     shouldReferenceLastSession: userContext?.shouldReferenceLastSession || false,
     hasUnaddressedUpload: userContext?.hasUnaddressedUpload || false,
+    uploadAddressed: userContext?.uploadAddressed || false,
     uploadContext: userContext?.uploadContext || null,
     firstName: userContext?.firstName || 'there',
     selectedAgent: selectedAgent!,

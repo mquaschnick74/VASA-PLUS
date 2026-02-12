@@ -25,8 +25,9 @@ interface UseVapiProps {
   memoryContext: string;
   lastSessionSummary?: string | null;  // ADD: Session continuity
   shouldReferenceLastSession?: boolean; // ADD: Session continuity
-  hasUnaddressedUpload?: boolean;       // ADD: Upload analysis notification
-  uploadContext?: string | null;        // ADD: Brief context for greeting
+  hasUnaddressedUpload?: boolean;       // Upload is new and unaddressed
+  uploadAddressed?: boolean;            // Upload was previously discussed
+  uploadContext?: string | null;        // Full analysis + document text
   firstName: string;
   selectedAgent: TherapeuticAgent;
   sessionDurationLimit?: number;
@@ -51,6 +52,7 @@ const useVapi = ({
   lastSessionSummary,
   shouldReferenceLastSession,
   hasUnaddressedUpload,
+  uploadAddressed,
   uploadContext,
   firstName,
   selectedAgent,
@@ -303,17 +305,43 @@ Continue the therapeutic narrative without re-introducing the previous session.
 ===== END LAST SESSION =====\n`;
       }
 
-      // NEW: Add upload context for unaddressed analyzed content
-      if (hasUnaddressedUpload && uploadContext) {
-        systemPrompt += `\n\n===== RECENT UPLOAD FOR DISCUSSION =====
+      // Add upload context - either for proactive engagement (unaddressed) or available for revisit (addressed)
+      if (uploadContext && (hasUnaddressedUpload || uploadAddressed)) {
+        systemPrompt += `\n\n===== CONTENT THE USER SHARED FOR DISCUSSION =====
 ${uploadContext}
+===== END SHARED CONTENT =====\n`;
 
-INSTRUCTION: The user recently shared content they want to explore with you.
-After your greeting (and any reference to the previous session), naturally transition to acknowledging this upload:
-"I also had a chance to look at what you shared with me. I noticed some things I'd like to explore with you — but first, how are you feeling today?"
-Then guide the conversation toward discussing the uploaded content when appropriate.
-===== END UPLOAD CONTEXT =====\n`;
-        console.log('📤 [VAPI] Unaddressed upload detected - adding to greeting context');
+        if (hasUnaddressedUpload) {
+          // UNADDRESSED: Agent should proactively engage with the upload
+          systemPrompt += `
+===== UPLOAD ENGAGEMENT INSTRUCTIONS =====
+The user uploaded this content and chose to have it analyzed. They want to explore it with you.
+
+YOUR OPENING: After greeting the user by name, move directly into the upload. Do NOT ask "how are you feeling today" first. Instead, share a specific observation from the CLINICAL ANALYSIS above. For example:
+- Reference a specific pattern identified in the analysis (like a tension or contradiction)
+- Quote one of their actual lines back to them and share what it reveals
+- Name a specific concept or argument from their writing that feels worth exploring
+
+YOUR STANCE: Engage with the content on its own terms. If it is theoretical writing, engage with the arguments, concepts, and structure of reasoning. If it is personal writing, engage with the emotional texture and what it reveals. If it is a practical document like a script or plan, engage with the intentions, dynamics, and underlying needs at work. Let the nature of the document guide your language — never call text passages "images" or use language that misrepresents the form of what the user shared.
+
+WHEN THE USER WANTS TO DISCUSS THE UPLOAD: You have both the clinical analysis AND the full document text above. Use specific passages, arguments, and concepts from their actual writing. Reference concrete elements — quote their exact words, engage their specific formulations, discuss the structure of their reasoning. Do NOT fabricate or infer content that is not present in the document text above. If the user asks about something you cannot find in the provided text, say so honestly rather than improvising.
+
+IMPORTANT: Do NOT use the scripted phrase "I noticed some things I'd like to explore with you." Speak naturally and specifically about what you actually found in the text.
+===== END UPLOAD INSTRUCTIONS =====\n`;
+          console.log('📤 [VAPI] Unaddressed upload detected - adding proactive engagement context');
+        } else {
+          // ADDRESSED: Upload was previously discussed but available for revisit
+          systemPrompt += `
+===== PREVIOUSLY SHARED CONTENT — AVAILABLE FOR DISCUSSION =====
+This content was previously discussed in an earlier session but remains fully available. Do NOT proactively bring it up in your greeting. However, if the user references this material, asks about it, or wants to revisit it:
+- Engage substantively using BOTH the clinical analysis AND the full document text above
+- Reference specific passages, arguments, concepts, and quotes from their actual writing
+- Do NOT deflect with "what would you like to discuss?" — you have the full content, use it
+- Engage with the content on its own terms — match your language to the nature of the document
+- Do NOT fabricate or infer content that is not in the document text above. If you cannot find what the user is asking about, say so honestly
+===== END PREVIOUSLY SHARED CONTENT INSTRUCTIONS =====\n`;
+          console.log('📤 [VAPI] Addressed upload available for revisit - adding to context');
+        }
       }
 
       // Add regular memory context if available
@@ -403,16 +431,16 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
           provider: selectedAgent.voice.provider,
           voiceId: selectedAgent.voice.voiceId,
           model: selectedAgent.voice.model || 'eleven_flash_v2_5',
-          stability: selectedAgent.voice.stability || 0.9,
-          similarityBoost: selectedAgent.voice.similarityBoost || 0.85,
+          stability: selectedAgent.voice.stability || 0.7,
+          similarityBoost: selectedAgent.voice.similarityBoost || 0.75,
           speed: selectedAgent.voice.speed || 1.0,
-          useSpeakerBoost: selectedAgent.voice.useSpeakerBoost ?? true
+          useSpeakerBoost: false
         },
         // 🎯 Therapeutic Speech Configuration (simplified for compatibility)
         // These settings make VASA more patient and harder to interrupt accidentally
         startSpeakingPlan: {
-          waitSeconds: 2,  // Wait 1.2s after user stops (vs 0.4s default)
-          smartEndpointingEnabled: false  // Enable AI detection of incomplete thoughts
+          waitSeconds: 3,
+          smartEndpointingEnabled: true
         },
         // Make user harder to interrupt - requires deliberate speech
         stopSpeakingPlan: {
@@ -501,7 +529,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       setConnectionStatus('disconnected');
       setIsSessionActive(false);
     }
-  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
+  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, hasUnaddressedUpload, uploadAddressed, uploadContext, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {
