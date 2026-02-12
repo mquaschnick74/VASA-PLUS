@@ -10,10 +10,11 @@ import { getApiUrl } from '@/lib/platform';
 interface ConsentPopupProps {
   userId: string;
   userEmail: string;
+  userType?: string;
   onConsentAccepted: () => void;
 }
 
-export default function ConsentPopup({ userId, userEmail, onConsentAccepted }: ConsentPopupProps) {
+export default function ConsentPopup({ userId, userEmail, userType = 'individual', onConsentAccepted }: ConsentPopupProps) {
   const [aiLimitationsChecked, setAiLimitationsChecked] = useState(false);
   const [dataSecurityChecked, setDataSecurityChecked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -129,16 +130,59 @@ export default function ConsentPopup({ userId, userEmail, onConsentAccepted }: C
                       <strong className="text-foreground">Your conversations are stored securely.</strong> We take your privacy seriously and implement industry-standard security measures:
                     </p>
 
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>All data is encrypted in transit and at rest</li>
-                      <li>Conversations are used only for therapeutic purposes</li>
-                      <li>We do not share your data with third parties without consent</li>
-                      <li>You have the right to access, export, or delete your data at any time</li>
-                    </ul>
+                    {userType === 'client' ? (
+                      <>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>All data is encrypted in transit and at rest</li>
+                          <li>Conversations are used only for therapeutic purposes</li>
+                          <li>We do not share your data with third parties without consent</li>
+                          <li>Your assigned therapist has read access to your session summaries, transcripts, and therapeutic patterns</li>
+                          <li>You may request disconnection from your therapist at any time by speaking with them directly</li>
+                        </ul>
 
-                    <p>
-                      <strong className="text-foreground">Your rights:</strong> You maintain ownership of your therapeutic content and can request data deletion at any time through your account settings.
-                    </p>
+                        <p>
+                          <strong className="text-foreground">Clinical record retention:</strong> If your therapeutic relationship ends, your therapist retains a read-only archive of session records from the period of your relationship, consistent with clinical record-keeping requirements. This archived data remains part of your therapist's clinical record and is not affected by subsequent changes to your account.
+                        </p>
+
+                        <p>
+                          <strong className="text-foreground">Your rights:</strong> You retain full access to your own session history. To end your therapeutic relationship, speak with your therapist directly. Once disconnected, you become an individual user with independent account management.
+                        </p>
+                      </>
+                    ) : userType === 'therapist' ? (
+                      <>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>All data is encrypted in transit and at rest</li>
+                          <li>Your personal therapy sessions are private and separate from client data</li>
+                          <li>Client session data you access is logged for HIPAA compliance</li>
+                          <li>We do not share your data with third parties without consent</li>
+                        </ul>
+
+                        <p>
+                          <strong className="text-foreground">Clinical record obligations:</strong> When you disconnect a client, their session records from the relationship period are archived and retained as part of your clinical record. You maintain read-only access to these archives. Client data from after the disconnection is not accessible to you.
+                        </p>
+
+                        <p>
+                          <strong className="text-foreground">Account retention:</strong> Therapist accounts are subject to a 7-year clinical record retention period. You may archive your account at any time, but it cannot be permanently deleted until the retention period expires. You may reopen an archived account at any point during this period.
+                        </p>
+
+                        <p>
+                          <strong className="text-foreground">Your rights:</strong> You maintain ownership of your personal therapeutic content. Your account and client archives are retained per clinical record-keeping requirements.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>All data is encrypted in transit and at rest</li>
+                          <li>Conversations are used only for therapeutic purposes</li>
+                          <li>We do not share your data with third parties without consent</li>
+                          <li>You have the right to access, export, or delete your data at any time</li>
+                        </ul>
+
+                        <p>
+                          <strong className="text-foreground">Your rights:</strong> You maintain full ownership of your therapeutic content and can request account deletion at any time through your account settings.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

@@ -118,7 +118,7 @@ export default function FAQPage() {
       },
       {
         q: "How do I delete my account?",
-        a: "Account deletion can be requested through Settings > Delete Account in your dashboard. Note: This action is irreversible and will delete all session data, therapeutic context, and progress history."
+        a: "Account management depends on your user type. Individual users can permanently delete their account through Settings > Account. Client users must first speak with their therapist to end the therapeutic relationship; once disconnected, they become individual users and can then manage their account independently. Therapist accounts cannot be permanently deleted due to clinical record retention requirements — instead, therapists can archive their account for up to 7 years, with the option to reopen at any time. Note: When a therapeutic relationship ends, session records from that period are archived as part of the therapist's clinical record."
       },
       {
         q: "How do I manage my data sharing preferences?",

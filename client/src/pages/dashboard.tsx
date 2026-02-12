@@ -692,7 +692,7 @@ export default function Dashboard() {
 
   // Show consent popup if not yet accepted (only after invitation is processed)
   if (showConsent) {
-    return <ConsentPopup userId={userId} userEmail={userEmail} onConsentAccepted={handleConsentAccepted} />;
+    return <ConsentPopup userId={userId} userEmail={userEmail} userType={userType} onConsentAccepted={handleConsentAccepted} />;
   }
 
   // Show assessment iframe modal if not yet completed (only after consent and invitation)
