@@ -573,26 +573,12 @@ export async function buildMemoryContext(userId: string): Promise<string> {
 
         memoryContext += `\n\n===== CONTENT THE USER SHARED FOR DISCUSSION =====\n`;
 
-        // Filter to only unaddressed uploads
-        const unaddressedUploads = uploadAnalyses.filter(analysis => {
+        for (const analysis of uploadAnalyses) {
           const metadata = analysis.metadata || {};
-          return metadata.addressed_in_session !== true;
-        });
-
-        if (unaddressedUploads.length === 0) {
-          console.log('[Memory] All uploads already addressed in previous sessions');
-        }
-
-        for (const analysis of unaddressedUploads) {
-          const metadata = analysis.metadata || {};
+          const addressed = metadata.addressed_in_session === true;
           const title = metadata.title || 'Uploaded content';
           const ageDays = Math.floor((Date.now() - new Date(analysis.created_at).getTime()) / (1000 * 60 * 60 * 24));
           const quotes = metadata.key_quotes || [];
-
-          // Determine freshness for proactive vs passive reference
-          let freshness = 'historical';
-          if (ageDays <= 7) freshness = 'fresh';
-          else if (ageDays <= 30) freshness = 'active';
 
           memoryContext += `\n[Upload from ${ageDays === 0 ? 'today' : ageDays === 1 ? 'yesterday' : `${ageDays} days ago`}: ${title}]\n`;
           memoryContext += analysis.content;
@@ -604,10 +590,15 @@ export async function buildMemoryContext(userId: string): Promise<string> {
             });
           }
 
-          if (freshness === 'fresh') {
-            memoryContext += `\n** This content has NOT been discussed in session yet. Proactively reference it. **\n`;
-          } else if (freshness === 'active') {
-            memoryContext += `\n** This content hasn't been fully explored yet. Reference if relevant. **\n`;
+          if (!addressed) {
+            // Determine freshness for proactive vs passive reference
+            if (ageDays <= 7) {
+              memoryContext += `\n** This content has NOT been discussed in session yet. Proactively reference it. **\n`;
+            } else if (ageDays <= 30) {
+              memoryContext += `\n** This content hasn't been fully explored yet. Reference if relevant. **\n`;
+            }
+          } else {
+            memoryContext += `\n** This content was previously discussed but remains available for deeper exploration if the user wants to revisit it. Engage substantively using the analysis and quotes above when the user references this material. **\n`;
           }
 
           memoryContext += `\n`;
