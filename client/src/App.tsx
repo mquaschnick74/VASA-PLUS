@@ -54,12 +54,23 @@ function ClientSignupWrapper() {
   return <ClientSignup setUserId={handleSetUserId} />;
 }
 
+// Redirect /signup to /signup/individual, preserving query params
+function SignupRedirect() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    const queryString = window.location.search;
+    setLocation(`/signup/individual${queryString}`, { replace: true });
+  }, [setLocation]);
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/login" component={Login} />
+      <Route path="/signup" component={SignupRedirect} />
       <Route path="/signup/individual" component={IndividualSignupWrapper} />
       <Route path="/signup/therapist" component={TherapistSignupWrapper} />
       <Route path="/signup/client" component={ClientSignupWrapper} />
