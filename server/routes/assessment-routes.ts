@@ -676,7 +676,7 @@ function generateAssessmentEmail(assessmentData: any, version: 'v1' | 'v2'): str
           <h3>Ready to continue?</h3>
           <p>Sign in to iVASA to explore your complete therapeutic profile and begin AI-powered therapy sessions.</p>
 
-          <a href="https://beta.ivasa.ai/signup?source=email${assessmentData.encoded ? `&profile=${assessmentData.encoded}` : ''}" class="button">
+          <a href="https://beta.ivasa.ai/signup/individual?source=email${assessmentData.encoded ? `&profile=${assessmentData.encoded}` : ''}" class="button">
             Sign in to iVASA
           </a>
         </div>
@@ -704,7 +704,7 @@ function generateAssessmentEmail(assessmentData: any, version: 'v1' | 'v2'): str
           <h3>Ready to start your therapeutic journey?</h3>
           <p>Create your free account to see your complete therapeutic profile and begin AI-powered therapy sessions.</p>
 
-          <a href="https://beta.ivasa.ai/signup?source=email&profile=${assessmentData.encoded}" class="button">
+          <a href="https://beta.ivasa.ai/signup/individual?source=email&profile=${assessmentData.encoded}" class="button">
             Create Your Free Account
           </a>
         </div>

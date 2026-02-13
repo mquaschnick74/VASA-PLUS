@@ -63,7 +63,7 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack,
     sessionStorage.setItem('assessmentData', JSON.stringify(data));
     // Navigate to signup with encoded profile
     setTimeout(() => {
-      setLocation(`/signup?source=assessment&profile=${data.encoded}`);
+      setLocation(`/signup/individual?source=assessment&profile=${data.encoded}`);
     }, 100);
   };
 

@@ -112,7 +112,7 @@ export default function AssessmentIframe({ onComplete, className, dashboardMode 
         sessionStorage.setItem('assessmentData', JSON.stringify(data));
 
         // Navigate to signup with encoded profile
-        setLocation(`/signup?source=assessment&profile=${data.encoded}`);
+        setLocation(`/signup/individual?source=assessment&profile=${data.encoded}`);
 
         toast({
           title: 'Assessment Complete!',
