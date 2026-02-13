@@ -174,7 +174,7 @@ body {
 
 /* Opaque card backgrounds — must be OUTSIDE @layer to override Tailwind's bg-card */
 .glass {
-  background: hsl(271, 60%, 40%);
+  background: hsl(271, 60%, 40%) !important;
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.2),
@@ -182,7 +182,7 @@ body {
 }
 
 .glass-strong {
-  background: hsl(271, 60%, 44%);
+  background: hsl(271, 60%, 44%) !important;
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.25),
@@ -190,7 +190,7 @@ body {
 }
 
 .glass-card {
-  background: hsl(271, 60%, 38%);
+  background: hsl(271, 60%, 38%) !important;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
     0 4px 24px rgba(0, 0, 0, 0.15),
@@ -198,7 +198,7 @@ body {
 }
 
 .glass-subtle {
-  background: hsl(271, 60%, 35%);
+  background: hsl(271, 60%, 35%) !important;
 }
 
 @layer utilities {
@@ -248,6 +248,7 @@ body {
 
   .gradient-bg {
     position: relative;
+    isolation: isolate;
     background: linear-gradient(
       165deg,
       hsl(276, 87%, 28%) 0%,      /* Lighter purple top */
