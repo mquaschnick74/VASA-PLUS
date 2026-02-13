@@ -661,7 +661,7 @@ export default function TherapistDashboard({
             <SubscriptionStatus userId={userId} />
           </div>
 
-          <Card className="glass">
+          <Card className="glass" style={{ backgroundColor: 'hsl(271, 60%, 40%)' }}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <Users className="w-8 h-8 text-primary" />
@@ -675,7 +675,7 @@ export default function TherapistDashboard({
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card className="glass" style={{ backgroundColor: 'hsl(271, 60%, 40%)' }}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <Clock className="w-8 h-8 text-accent" />
@@ -687,7 +687,7 @@ export default function TherapistDashboard({
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card className="glass" style={{ backgroundColor: 'hsl(271, 60%, 40%)' }}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <TrendingUp className="w-8 h-8 text-green-500" />
@@ -699,7 +699,7 @@ export default function TherapistDashboard({
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card className="glass" style={{ backgroundColor: 'hsl(271, 60%, 40%)' }}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <UserPlus className="w-8 h-8 text-blue-500" />
@@ -713,7 +713,7 @@ export default function TherapistDashboard({
         </div>
 
         {/* Clients Section */}
-        <Card className="glass">
+        <Card className="glass" style={{ backgroundColor: 'hsl(271, 60%, 40%)' }}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Your Clients</CardTitle>
@@ -772,13 +772,14 @@ export default function TherapistDashboard({
                       Pending Invitations {invitationsLoading && <span className="ml-2 text-xs">(Loading...)</span>}
                     </h3>
                     {invitationsLoading ? (
-                      <div className="p-3 rounded-lg glass-subtle">
+                      <div className="p-3 rounded-lg glass-subtle" style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}>
                         <p className="text-sm text-muted-foreground">Loading invitations...</p>
                       </div>
                     ) : pendingInvitations.map((invite) => (
                       <div
                         key={invite.id}
                         className="flex items-center justify-between p-3 rounded-lg glass-subtle border border-yellow-500/20"
+                        style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                         data-testid={`pending-invite-${invite.id}`}
                       >
                         <div className="flex-1">
@@ -814,6 +815,7 @@ export default function TherapistDashboard({
                       <div
                         key={client.id}
                         className="p-4 rounded-lg glass-subtle border border-white/10"
+                        style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                         data-testid={`card-client-${client.id}`}
                       >
                         <div className="flex flex-col gap-4">
@@ -909,6 +911,7 @@ export default function TherapistDashboard({
                     <div
                       key={client.id}
                       className="p-4 rounded-lg glass-subtle border border-white/10 opacity-75"
+                      style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                     >
                       <div className="flex flex-col gap-3">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
@@ -1115,6 +1118,7 @@ export default function TherapistDashboard({
                 <div
                   key={session.id}
                   className="p-4 rounded-lg glass-subtle border border-white/10 space-y-3"
+                  style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                 >
                   <div className="flex justify-between items-start">
                     <div>
