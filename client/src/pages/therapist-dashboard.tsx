@@ -639,7 +639,10 @@ export default function TherapistDashboard({
   );
 
   return (
-    <div className="min-h-screen gradient-bg">
+    <div className="min-h-screen" style={{
+      position: 'relative',
+      background: 'linear-gradient(165deg, hsl(276, 87%, 28%) 0%, hsl(276, 87%, 22%) 35%, hsl(276, 90%, 18%) 70%, hsl(280, 85%, 15%) 100%)',
+    }}>
       <Header userId={userId} setUserId={setUserId} userType="therapist" />
       <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-6">
         {/* Dashboard Title */}
@@ -753,7 +756,8 @@ export default function TherapistDashboard({
                     placeholder="Client email address"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-lg glass border border-white/10"
+                    className="flex-1 px-3 py-2 rounded-lg border border-white/10"
+                    style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                     disabled={inviting}
                   />
                   <Button
@@ -772,13 +776,14 @@ export default function TherapistDashboard({
                       Pending Invitations {invitationsLoading && <span className="ml-2 text-xs">(Loading...)</span>}
                     </h3>
                     {invitationsLoading ? (
-                      <div className="p-3 rounded-lg glass-subtle">
+                      <div className="p-3 rounded-lg glass-subtle" style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}>
                         <p className="text-sm text-muted-foreground">Loading invitations...</p>
                       </div>
                     ) : pendingInvitations.map((invite) => (
                       <div
                         key={invite.id}
                         className="flex items-center justify-between p-3 rounded-lg glass-subtle border border-yellow-500/20"
+                        style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                         data-testid={`pending-invite-${invite.id}`}
                       >
                         <div className="flex-1">
@@ -814,6 +819,7 @@ export default function TherapistDashboard({
                       <div
                         key={client.id}
                         className="p-4 rounded-lg glass-subtle border border-white/10"
+                        style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                         data-testid={`card-client-${client.id}`}
                       >
                         <div className="flex flex-col gap-4">
@@ -909,6 +915,7 @@ export default function TherapistDashboard({
                     <div
                       key={client.id}
                       className="p-4 rounded-lg glass-subtle border border-white/10 opacity-75"
+                      style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                     >
                       <div className="flex flex-col gap-3">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
@@ -1115,6 +1122,7 @@ export default function TherapistDashboard({
                 <div
                   key={session.id}
                   className="p-4 rounded-lg glass-subtle border border-white/10 space-y-3"
+                  style={{ backgroundColor: 'hsl(271, 60%, 35%)' }}
                 >
                   <div className="flex justify-between items-start">
                     <div>

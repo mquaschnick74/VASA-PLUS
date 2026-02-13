@@ -86,7 +86,7 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
 
   if (loading) {
     return (
-      <Card className="glass">
+      <Card style={{ background: 'hsl(271, 60%, 40%)', border: '1px solid rgba(255,255,255,0.18)' }}>
         <CardContent className="pt-6">
           <div className="animate-pulse space-y-3">
             <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
@@ -211,7 +211,7 @@ export default function SubscriptionStatus({ userId }: SubscriptionStatusProps) 
   const hasPaidSubscription = limits && !limits.is_trial && limits.subscription_active;
 
   return (
-    <Card className="glass">
+    <Card style={{ background: 'hsl(271, 60%, 40%)', border: '1px solid rgba(255,255,255,0.18)' }}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Subscription Status</CardTitle>
