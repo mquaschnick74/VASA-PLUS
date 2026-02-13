@@ -661,7 +661,7 @@ export default function TherapistDashboard({
             <SubscriptionStatus userId={userId} />
           </div>
 
-          <Card className="glass">
+          <Card style={{ background: 'hsl(271, 60%, 40%)', border: '1px solid rgba(255,255,255,0.18)' }}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <Users className="w-8 h-8 text-primary" />
@@ -675,7 +675,7 @@ export default function TherapistDashboard({
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card style={{ background: 'hsl(271, 60%, 40%)', border: '1px solid rgba(255,255,255,0.18)' }}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <Clock className="w-8 h-8 text-accent" />
@@ -687,7 +687,7 @@ export default function TherapistDashboard({
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card style={{ background: 'hsl(271, 60%, 40%)', border: '1px solid rgba(255,255,255,0.18)' }}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <TrendingUp className="w-8 h-8 text-green-500" />
@@ -699,7 +699,7 @@ export default function TherapistDashboard({
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card style={{ background: 'hsl(271, 60%, 40%)', border: '1px solid rgba(255,255,255,0.18)' }}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
                 <UserPlus className="w-8 h-8 text-blue-500" />
@@ -713,7 +713,7 @@ export default function TherapistDashboard({
         </div>
 
         {/* Clients Section */}
-        <Card className="glass">
+        <Card style={{ background: 'hsl(271, 60%, 40%)', border: '1px solid rgba(255,255,255,0.18)' }}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Your Clients</CardTitle>
