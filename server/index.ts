@@ -55,6 +55,7 @@ app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 // CORS configuration for web and mobile apps
 const allowedOrigins = [
   'https://beta.ivasa.ai',
+  'https://www.beta.ivasa.ai',
   'https://start.ivasa.ai',
   'https://ivasa.ai',
   'https://www.ivasa.ai',
@@ -96,9 +97,10 @@ app.use((req, res, next) => {
     return next();
   }
 
-  // Check if request is coming to ivasa.ai or ivasa-ai.com (with or without www)
+  // Check if request is coming to ivasa.ai, ivasa-ai.com, or www.beta.ivasa.ai
   if (host === 'ivasa.ai' || host === 'www.ivasa.ai' ||
-      host === 'ivasa-ai.com' || host === 'www.ivasa-ai.com') {
+      host === 'ivasa-ai.com' || host === 'www.ivasa-ai.com' ||
+      host === 'www.beta.ivasa.ai') {
 
     // Social media crawlers do NOT follow redirects - they need the HTML served directly
     // so they can read the Open Graph meta tags for link previews
