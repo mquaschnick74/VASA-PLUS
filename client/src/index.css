@@ -172,35 +172,44 @@ body {
   }
 }
 
+/* Opaque card backgrounds — must be OUTSIDE @layer to override Tailwind's bg-card */
+.glass {
+  background: hsl(276, 70%, 28%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  position: relative;
+  z-index: 1;
+}
+
+.glass-strong {
+  background: hsl(276, 70%, 32%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 1;
+}
+
+.glass-card {
+  background: hsl(276, 70%, 26%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 1;
+}
+
+.glass-subtle {
+  background: hsl(276, 70%, 24%);
+  position: relative;
+  z-index: 1;
+}
+
 @layer utilities {
-  .glass {
-    background: hsl(276, 70%, 28%);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  }
-
-  .glass-strong {
-    background: hsl(276, 70%, 32%);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow:
-      0 12px 40px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-
-  .glass-card {
-    background: hsl(276, 70%, 26%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow:
-      0 4px 24px rgba(0, 0, 0, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  }
-
-  .glass-subtle {
-    background: hsl(276, 70%, 24%);
-  }
-
   /* Emerald glow effects - maximum visibility */
   .glow-emerald {
     box-shadow: 0 0 25px rgba(0, 208, 98, 0.7),
