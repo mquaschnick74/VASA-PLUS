@@ -639,9 +639,9 @@ export default function TherapistDashboard({
   );
 
   return (
-    <div className="min-h-screen gradient-bg">
+    <div className="min-h-screen gradient-bg" style={{ isolation: 'isolate' }}>
       <Header userId={userId} setUserId={setUserId} userType="therapist" />
-      <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-6" style={{ position: 'relative', zIndex: 2 }}>
         {/* Dashboard Title */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">
