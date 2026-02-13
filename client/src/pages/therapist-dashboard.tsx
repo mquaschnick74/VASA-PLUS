@@ -645,7 +645,7 @@ export default function TherapistDashboard({
         {/* Dashboard Title */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">
-            Therapist Dashboard
+            Therapist Dashboard TEST123
           </h1>
           {profile && (
             <p className="text-sm text-muted-foreground mt-1">
