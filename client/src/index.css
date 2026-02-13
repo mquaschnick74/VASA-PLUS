@@ -49,7 +49,7 @@ body {
   --border: 276 60% 35%;                  /* Purple-tinted border */
 
   /* Cards - frosted glass on purple */
-  --card: 276 70% 28%;                    /* Slightly lighter purple */
+  --card: 271 60% 40%;                    /* Slightly lighter purple */
   --card-foreground: 0 0% 98%;
   --card-border: 276 50% 40%;
 
@@ -135,7 +135,7 @@ body {
   --background: 276 87% 12%;
   --foreground: 0 0% 98%;
   --border: 276 60% 25%;
-  --card: 276 70% 18%;
+  --card: 271 60% 35%;
   --card-foreground: 0 0% 98%;
   --card-border: 276 50% 28%;
   --popover: 276 75% 15%;
