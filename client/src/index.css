@@ -174,9 +174,7 @@ body {
 
 @layer utilities {
   .glass {
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    background: rgba(255, 255, 255, 0.1);
+    background: hsl(276, 70%, 28%);
     border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.2),
@@ -184,9 +182,7 @@ body {
   }
 
   .glass-strong {
-    backdrop-filter: blur(24px) saturate(200%);
-    -webkit-backdrop-filter: blur(24px) saturate(200%);
-    background: rgba(255, 255, 255, 0.15);
+    background: hsl(276, 70%, 32%);
     border: 1px solid rgba(255, 255, 255, 0.25);
     box-shadow:
       0 12px 40px rgba(0, 0, 0, 0.25),
@@ -194,13 +190,15 @@ body {
   }
 
   .glass-card {
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    background: rgba(255, 255, 255, 0.08);
+    background: hsl(276, 70%, 26%);
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow:
       0 4px 24px rgba(0, 0, 0, 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-subtle {
+    background: hsl(276, 70%, 24%);
   }
 
   /* Emerald glow effects - maximum visibility */
