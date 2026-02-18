@@ -417,6 +417,7 @@ router.post('/webhook', async (req, res) => {
 
     switch (eventType) {
       case 'call-started':
+      case 'assistant.started':
         console.log(`🚀 CALL-STARTED event received for call: ${callId}`);
         console.log(`   User ID: ${userId}`);
         console.log(`   Agent Name: ${agentName}`);
