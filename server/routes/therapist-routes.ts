@@ -990,9 +990,33 @@ router.get('/client/:clientId/stats', requireAuth, async (req: AuthRequest, res)
 
 // Get client settings (session duration limit)
 // This endpoint is called by voice-interface.tsx to check if user is a therapist's client
-router.get('/client-settings/:clientId', async (req, res) => {
+router.get('/client-settings/:clientId', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { clientId } = req.params;
+    const authenticatedUserId = req.internalUserId;
+    const authenticatedUserType = req.internalUserType;
+
+    if (!authenticatedUserId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (authenticatedUserId !== clientId && authenticatedUserType !== 'admin') {
+      if (authenticatedUserType !== 'therapist') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const { data: relationship, error: relationshipError } = await supabase
+        .from('therapist_client_relationships')
+        .select('id')
+        .eq('therapist_id', authenticatedUserId)
+        .eq('client_id', clientId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (relationshipError || !relationship) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
 
     console.log(`🔍 Fetching session limit for client: ${clientId}`);
 

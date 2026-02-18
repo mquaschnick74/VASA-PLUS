@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, requireAuth } from '../middleware/auth';
 import { Resend } from 'resend';
 
 const router = Router();
@@ -86,7 +86,6 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
     // Check if v2 data is directly on object or needs to be parsed from encoded
     let v2Data = data;
 
-    console.log('📋 normalizeAssessmentData input:', JSON.stringify(data, null, 2));
     console.log('📋 data.cvdc_score:', data.cvdc_score);
     console.log('📋 data.encoded:', data.encoded ? 'exists' : 'missing');
 
@@ -99,13 +98,11 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
         if (typeof data.encoded === 'string' && data.encoded.startsWith('eyJ')) {
           console.log('📋 Detected Base64-encoded data, decoding...');
           jsonString = Buffer.from(data.encoded, 'base64').toString('utf-8');
-          console.log('📋 Decoded string:', jsonString.substring(0, 200) + '...');
+          console.log('📋 Decoded payload length:', jsonString.length);
         }
 
         const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
         console.log('📋 Parsed encoded field keys:', Object.keys(parsed));
-        console.log('📋 Parsed encoded field:', JSON.stringify(parsed, null, 2));
-
         if (parsed.cvdc_score !== undefined) {
           console.log('📋 Merging parsed data with original data');
           v2Data = { ...data, ...parsed };
@@ -117,7 +114,7 @@ function normalizeAssessmentData(data: any, version: 'v1' | 'v2') {
 
     // Log all available fields for debugging
     console.log('📋 v2Data keys:', Object.keys(v2Data));
-    console.log('📋 Full v2Data:', JSON.stringify(v2Data, null, 2));
+    console.log('📋 v2Data key count:', Object.keys(v2Data).length);
 
     // Handle both snake_case and camelCase field names from quiz
     // Scores - try snake_case first, then camelCase
@@ -251,7 +248,7 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
       });
     }
 
-    console.log('📧 Saving assessment for email delivery:', email);
+    console.log('📧 Saving assessment for email delivery');
 
     // Import supabase from your app context
     const { supabase } = req.app.locals;
@@ -335,15 +332,15 @@ router.post('/save-for-later', async (req: Request, res: Response) => {
  * This endpoint is for users completing the assessment while logged in
  * Supports both v1 (metaphor-based) and v2 (CVDC/IBM/Thend) formats
  */
-router.post('/save', async (req: Request, res: Response) => {
+router.post('/save', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { userId, email, assessmentData } = req.body as {
-      userId: string;
+    const { email, assessmentData } = req.body as {
       email: string;
       assessmentData: any;
     };
+    const userId = req.internalUserId;
 
-    if (!userId || !assessmentData) {
+    if (!assessmentData || !userId) {
       return res.status(400).json({
         error: 'User ID and assessment data are required'
       });
@@ -482,13 +479,15 @@ router.get('/:id', async (req: Request, res: Response) => {
  * POST /api/assessment/link-to-user
  * Link an assessment to a user account after signup
  */
-router.post('/link-to-user', async (req: Request, res: Response) => {
+router.post('/link-to-user', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { assessmentId, userId, email } = req.body;
+    const { assessmentId, email } = req.body;
     const { supabase } = req.app.locals;
+    const userId = req.internalUserId;
+    const authEmail = req.user?.email?.toLowerCase();
 
     if (!userId) {
-      return res.status(400).json({ 
+      return res.status(401).json({
         error: 'User ID is required' 
       });
     }
@@ -500,34 +499,80 @@ router.post('/link-to-user', async (req: Request, res: Response) => {
       linked_at: new Date().toISOString()
     };
 
-    let result;
+    let assessmentToLinkId: string | undefined;
 
     if (assessmentId) {
-      // Link by assessment ID
-      result = await supabase
+      const { data: assessment, error: fetchError } = await supabase
         .from('assessment_results')
-        .update(updateData)
+        .select('id, user_id, email, status')
         .eq('id', assessmentId)
-        .select()
-        .single();
-    } else if (email) {
-      // Link by email (get the most recent pending assessment)
-      result = await supabase
+        .maybeSingle();
+
+      if (fetchError) {
+        return res.status(500).json({
+          error: 'Failed to validate assessment',
+          details: fetchError.message
+        });
+      }
+
+      if (!assessment) {
+        return res.status(404).json({ error: 'Assessment not found' });
+      }
+
+      if (assessment.user_id && assessment.user_id !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      if (
+        assessment.status === 'pending_email' &&
+        assessment.email &&
+        authEmail &&
+        assessment.email.toLowerCase() !== authEmail
+      ) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      assessmentToLinkId = assessment.id;
+    } else {
+      const normalizedEmail = (email || authEmail || '').toLowerCase();
+      if (!normalizedEmail || (authEmail && normalizedEmail !== authEmail)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const { data: pendingAssessment, error: pendingError } = await supabase
         .from('assessment_results')
-        .update(updateData)
-        .eq('email', email)
+        .select('id')
+        .eq('email', normalizedEmail)
         .eq('status', 'pending_email')
+        .is('user_id', null)
         .order('created_at', { ascending: false })
         .limit(1)
-        .select()
-        .single();
-    } else {
-      return res.status(400).json({ 
-        error: 'Assessment ID or email is required' 
-      });
+        .maybeSingle();
+
+      if (pendingError) {
+        return res.status(500).json({
+          error: 'Failed to find pending assessment',
+          details: pendingError.message
+        });
+      }
+
+      if (!pendingAssessment?.id) {
+        return res.status(404).json({ error: 'No pending assessment found' });
+      }
+
+      assessmentToLinkId = pendingAssessment.id;
     }
 
-    const { data, error } = result;
+    if (!assessmentToLinkId) {
+      return res.status(400).json({ error: 'Assessment ID or email is required' });
+    }
+
+    const { data, error } = await supabase
+      .from('assessment_results')
+      .update(updateData)
+      .eq('id', assessmentToLinkId)
+      .select()
+      .single();
 
     if (error) {
       console.error('❌ Error linking assessment:', error);
@@ -557,15 +602,37 @@ router.post('/link-to-user', async (req: Request, res: Response) => {
  * GET /api/assessment/user/:userId
  * Get all assessments for a specific user
  */
-router.get('/user/:userId', async (req: Request, res: Response) => {
+router.get('/user/:userId', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { userId } = req.params;
+    const requestedUserId = req.params.userId;
+    const authUserId = req.internalUserId;
+    const authUserType = req.internalUserType;
     const { supabase } = req.app.locals;
+
+    if (!authUserId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    let canAccess = requestedUserId === authUserId || authUserType === 'admin';
+    if (!canAccess && authUserType === 'therapist') {
+      const { data: relationship } = await supabase
+        .from('therapist_client_relationships')
+        .select('id')
+        .eq('therapist_id', authUserId)
+        .eq('client_id', requestedUserId)
+        .eq('status', 'active')
+        .maybeSingle();
+      canAccess = !!relationship;
+    }
+
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     const { data, error } = await supabase
       .from('assessment_results')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', requestedUserId)
       .order('created_at', { ascending: false });
 
     if (error) {

@@ -1,24 +1,46 @@
 // Location: server/routes/subscription-routes.ts
 import { Router } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { requireAuth, AuthRequest } from '../middleware/auth';
 import { subscriptionService } from '../services/subscription-service';
 import { supabase } from '../services/supabase-service';
 
 const router = Router();
 
 // NEW ROUTE: Get subscription status and limits for a user (handles therapist-client relationships)
-router.get('/status/:userId', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/status/:userId', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { userId } = req.params;
+    const { userId: requestedUserId } = req.params;
+    const authUserId = req.internalUserId;
+    const authUserType = req.internalUserType;
+
+    if (!authUserId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    let canAccess = requestedUserId === authUserId || authUserType === 'admin';
+    if (!canAccess && authUserType === 'therapist') {
+      const { data: relationship } = await supabase
+        .from('therapist_client_relationships')
+        .select('id')
+        .eq('therapist_id', authUserId)
+        .eq('client_id', requestedUserId)
+        .eq('status', 'active')
+        .maybeSingle();
+      canAccess = !!relationship;
+    }
+
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     console.log('📊 Subscription status request:', {
-      reqUserId: req.user?.id,
-      paramUserId: userId,
-      match: req.user?.id === userId
+      reqUserId: authUserId,
+      paramUserId: requestedUserId,
+      match: authUserId === requestedUserId
     });
 
     // Get subscription status using the service (which handles therapist-client relationships)
-    const status = await subscriptionService.getSubscriptionStatus(userId);
+    const status = await subscriptionService.getSubscriptionStatus(requestedUserId);
 
     console.log('✅ Subscription status response:', JSON.stringify(status, null, 2));
 
@@ -108,12 +130,12 @@ router.get('/limits', async (req, res) => {
 });
 
 // Check if user can start a voice session
-router.get('/can-start-session/:userId', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/can-start-session/:userId', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { userId } = req.params;
 
     // Verify the request is for the authenticated user
-    if (req.user?.id !== userId) {
+    if (req.internalUserId !== userId) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -131,12 +153,12 @@ router.get('/can-start-session/:userId', authenticateToken, async (req: AuthRequ
 });
 
 // Track usage (backup endpoint if webhook fails)
-router.post('/track-usage', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/track-usage', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { userId, duration, sessionId, callId } = req.body;
 
     // Verify the request is for the authenticated user
-    if (req.user?.id !== userId) {
+    if (req.internalUserId !== userId) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
