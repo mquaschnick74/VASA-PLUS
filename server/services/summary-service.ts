@@ -163,7 +163,7 @@ Clinical notes (2-3 sentences):`;
     // Generate both summaries in parallel
     const [greetingResponse, clinicalResponse] = await Promise.all([
       openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5.1',
         messages: [
           {
             role: 'system',
@@ -178,7 +178,7 @@ Clinical notes (2-3 sentences):`;
         max_tokens: 200
       }),
       openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5.1',
         messages: [
           {
             role: 'system',
