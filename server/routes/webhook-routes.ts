@@ -303,7 +303,7 @@ router.post('/webhook', async (req, res) => {
   console.log('📥 VAPI WEBHOOK RECEIVED');
   console.log('═══════════════════════════════════════════');
   console.log('Timestamp:', new Date().toISOString());
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Has VAPI signature header:', !!req.headers['x-vapi-signature']);
   console.log('Body type:', typeof req.body);
   console.log('Body is Buffer:', Buffer.isBuffer(req.body));
 
@@ -382,11 +382,10 @@ router.post('/webhook', async (req, res) => {
     if (!userId || !callId) {
       console.error('❌ CRITICAL: Missing critical data - userId:', userId, 'callId:', callId);
       console.error('Event Type:', eventType);
-      console.error('Full message metadata:', JSON.stringify(message?.call?.metadata || message?.metadata || {}));
+      console.error('Message metadata keys:', Object.keys(message?.call?.metadata || message?.metadata || {}));
       console.error('All message keys:', Object.keys(message || {}));
       console.error('Call object keys:', message?.call ? Object.keys(message.call) : 'N/A');
       console.error('Assistant object keys:', message?.assistant ? Object.keys(message.assistant) : 'N/A');
-      console.error('Full message structure (first 500 chars):', JSON.stringify(message, null, 2).substring(0, 500));
       console.log('═══════════════════════════════════════════');
       console.log('');
 
@@ -406,15 +405,6 @@ router.post('/webhook', async (req, res) => {
     console.log('✅ Extracted: userId =', userId, ', callId =', callId, ', agent =', agentName);
 
     // DEBUGGING: Log specific user
-    const PROBLEM_USER_ID = '64a60006-1cea-44c3-bdce-0ce01ecc6536';
-    if (userId === PROBLEM_USER_ID) {
-      console.log('🔍🔍🔍 TRACKED USER DETECTED: arttay1090@gmail.com');
-      console.log('   Event Type:', eventType);
-      console.log('   Call ID:', callId);
-      console.log('   Agent:', agentName);
-      console.log('   Full metadata:', JSON.stringify(message?.call?.metadata || message?.metadata || {}, null, 2));
-    }
-
     switch (eventType) {
       case 'call-started':
       case 'assistant.started':
@@ -424,7 +414,7 @@ router.post('/webhook', async (req, res) => {
 
         // DEBUG: Log full call object structure to understand VAPI's format
         console.log(`🔍 [DEBUG] message.call keys: ${message?.call ? Object.keys(message.call).join(', ') : 'undefined'}`);
-        console.log(`🔍 [DEBUG] message.call.monitor: ${JSON.stringify(message?.call?.monitor || 'undefined')}`);
+        console.log(`🔍 [DEBUG] monitor present: ${!!message?.call?.monitor}`);
 
         // PRESERVED: Monitor URL logging
         if (message?.call?.monitor) {
@@ -866,7 +856,9 @@ function extractUserId(message: any): string | null {
     'customer.userId': message?.customer?.userId,
   };
 
-  console.log('🔍 [extractUserId] Checked locations:', JSON.stringify(locations, null, 2));
+  console.log('🔍 [extractUserId] Checked locations (presence only):', Object.fromEntries(
+    Object.entries(locations).map(([key, value]) => [key, !!value])
+  ));
 
   // Try multiple locations for userId
   const userId = message?.call?.metadata?.userId ||
@@ -888,19 +880,19 @@ function extractUserId(message: any): string | null {
 
     // Check if metadata exists but userId is under a different key
     if (callObj.metadata) {
-      console.log('🔍 [extractUserId] call.metadata contents:', JSON.stringify(callObj.metadata, null, 2));
+      console.log('🔍 [extractUserId] call.metadata keys:', Object.keys(callObj.metadata));
     }
   }
 
   // Also check assistant metadata at root level
   if (!userId && message?.assistant?.metadata) {
-    console.log('🔍 [extractUserId] assistant.metadata contents:', JSON.stringify(message.assistant.metadata, null, 2));
+    console.log('🔍 [extractUserId] assistant.metadata keys:', Object.keys(message.assistant.metadata));
   }
 
   if (!userId) {
     console.log('⚠️ Could not extract userId directly from webhook message');
     console.log('Event type:', message?.type || 'unknown');
-    console.log('Full message structure (truncated):', JSON.stringify(message, null, 2).substring(0, 2000));
+    console.log('Message top-level keys:', Object.keys(message || {}));
   } else {
     console.log(`✅ Extracted userId: ${userId}`);
   }

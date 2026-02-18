@@ -71,12 +71,11 @@ app.use(cors({
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      // Log blocked origins for debugging but still allow (be permissive for now)
-      console.log('⚠️ CORS request from origin:', origin);
-      callback(null, true);
+      return callback(null, true);
     }
+
+    console.warn('🚫 CORS blocked origin:', origin);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -137,8 +136,6 @@ app.use((req, res, next) => {
     console.log('🔍 MALFORMED AUTH DETECTED:', {
       path: req.path,
       method: req.method,
-      authHeaderLength: authHeader.length,
-      authPreview: authHeader.substring(0, 50) + '...',
       userAgent: req.headers['user-agent']?.substring(0, 100)
     });
   }
@@ -198,12 +195,20 @@ app.use('/api', (req, res, next) => {
     const server = await registerRoutes(app);
     log('✅ Routes registered successfully');
 
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      console.error('Unhandled application error:', err);
+      if (res.headersSent) {
+        return next(err);
+      }
+
       const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
+      const message =
+        status >= 500 && process.env.NODE_ENV !== 'development'
+          ? "Internal Server Error"
+          : (err.message || "Internal Server Error");
 
       res.status(status).json({ message });
-      throw err;
+      return;
     });
 
     // importantly only setup vite in development and after

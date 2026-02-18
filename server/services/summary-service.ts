@@ -6,17 +6,13 @@ import OpenAI from 'openai';
 // Replit makes secrets available as process.env variables
 const apiKey = process.env.OPENAI_API_KEY;
 
-console.log('🔑 OpenAI API Key exists on startup:', !!apiKey);
-console.log('🔑 Key starts with sk-:', apiKey?.startsWith('sk-'));
-console.log('🔑 Key length:', apiKey?.length);
-
 if (!apiKey) {
   console.error('❌ OPENAI_API_KEY not found in environment!');
-  console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('OPEN') || k.includes('API')));
+  throw new Error('OPENAI_API_KEY environment variable is required');
 }
 
 const openai = new OpenAI({
-  apiKey: apiKey || 'sk-dummy-key-for-fallback'
+  apiKey
 });
 
 interface SessionSummaryData {
@@ -36,7 +32,6 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
   const { userId, callId, transcript, cssPatterns, agentName, duration } = data;
 
   console.log(`🎯 Generating AI-powered summary for call ${callId}`);
-  console.log('🔑 API Key available in function?', !!apiKey);
   console.log('🔑 Transcript length:', transcript?.length);
 
   // Fetch user's actual name
@@ -67,7 +62,7 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
     // Store both summaries
     await storeSummaries(userId, callId, clinicalNotes, greetingContext, agentName, userName);
 
-    console.log('✅ AI summaries generated and stored successfully');
+    console.log(`✅ AI summaries generated and stored successfully for call ${callId}`);
     return greetingContext;
 
   } catch (error) {
@@ -104,11 +99,8 @@ async function generateAISummaries(
   userName: string
 ): Promise<{ greetingContext: string; clinicalNotes: string }> {
 
-  console.log('🤖 Starting AI summary generation...');
-
   // Check API key one more time
   if (!apiKey) {
-    console.error('❌ No API key found!');
     throw new Error('OpenAI API key not configured');
   }
 
@@ -168,8 +160,6 @@ ${transcript.substring(0, 4000)} ${transcript.length > 4000 ? '...[transcript co
 Clinical notes (2-3 sentences):`;
 
   try {
-    console.log('📡 Calling OpenAI API...');
-
     // Generate both summaries in parallel
     const [greetingResponse, clinicalResponse] = await Promise.all([
       openai.chat.completions.create({
@@ -207,8 +197,7 @@ Clinical notes (2-3 sentences):`;
     const greetingContext = greetingResponse.choices[0]?.message?.content || '';
     const clinicalNotes = clinicalResponse.choices[0]?.message?.content || '';
 
-    console.log('📝 AI Greeting Context:', greetingContext.substring(0, 100) + '...');
-    console.log('📝 AI Clinical Notes:', clinicalNotes.substring(0, 100) + '...');
+    console.log(`📝 AI summaries generated (greeting chars=${greetingContext.length}, clinical chars=${clinicalNotes.length})`);
 
     return {
       greetingContext: greetingContext.trim(),
@@ -217,13 +206,6 @@ Clinical notes (2-3 sentences):`;
 
   } catch (error: any) {
     console.error('❌ OpenAI API error:', error);
-    console.error('❌ API Key exists?', !!apiKey);
-    console.error('❌ API Key first 10 chars:', apiKey?.substring(0, 10));
-    console.error('❌ Error message:', error?.message);
-    console.error('❌ Error type:', error?.type);
-    console.error('❌ Error code:', error?.code);
-    console.error('❌ Error status:', error?.status);
-    console.error('❌ Full error object:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
