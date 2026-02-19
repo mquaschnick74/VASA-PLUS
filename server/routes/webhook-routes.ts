@@ -366,7 +366,7 @@ router.post('/tools', async (req, res) => {
               .from('therapeutic_context')
               .select('content, context_type, created_at')
               .eq('user_id', userId)
-              .in('context_type', ['call_summary', 'session_insight'])
+              .in('context_type', ['call_summary', 'session_insight', 'conversational_summary'])
               .order('created_at', { ascending: false })
               .limit(3);
 
