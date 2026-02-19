@@ -82,7 +82,10 @@ export async function queryKnowledgeBase(
         match_count: limit,
         filter_types: types || null,
         filter_tags: tags || null,
-        filter_user_id: userId || null
+        // Only pass filter_user_id when explicitly querying per-user chunks.
+        // Passing null here causes SQL `kc.user_id = NULL` which is always false,
+        // excluding global rows (user_id IS NULL). Omit to skip user filtering entirely.
+        ...(userId ? { filter_user_id: userId } : {})
       });
       console.log(`[RAG] Supabase RPC took ${Date.now() - rpcStart}ms`);
 

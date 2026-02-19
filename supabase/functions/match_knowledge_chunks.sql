@@ -7,16 +7,18 @@
 -- IMPORTANT: Run this SQL in your Supabase SQL Editor (Dashboard > SQL Editor)
 -- ============================================================================
 
--- Drop existing function if it exists (allows re-running this script)
+-- Drop ALL existing overloads so we have a single canonical function
 DROP FUNCTION IF EXISTS match_knowledge_chunks(vector(1536), float, int, text[], text[]);
+DROP FUNCTION IF EXISTS match_knowledge_chunks(vector(1536), float, int, text[], text[], uuid);
 
--- Create the vector similarity search function
+-- Create the vector similarity search function (with optional user_id filtering)
 CREATE OR REPLACE FUNCTION match_knowledge_chunks(
   query_embedding vector(1536),
   match_threshold float DEFAULT 0.7,
   match_count int DEFAULT 5,
   filter_types text[] DEFAULT NULL,
-  filter_tags text[] DEFAULT NULL
+  filter_tags text[] DEFAULT NULL,
+  filter_user_id uuid DEFAULT NULL
 )
 RETURNS TABLE (
   id uuid,
@@ -54,6 +56,13 @@ BEGIN
         WHERE tag = ANY(filter_tags)
       )
     )
+    -- Filter by user_id: NULL means return ALL rows (global + any user),
+    -- non-NULL means return global rows (user_id IS NULL) PLUS that user's rows.
+    AND (
+      filter_user_id IS NULL
+      OR kc.user_id IS NULL
+      OR kc.user_id = filter_user_id
+    )
   ORDER BY
     kc.embedding <=> query_embedding ASC  -- Most similar first (lowest distance)
   LIMIT
@@ -62,8 +71,8 @@ END;
 $$;
 
 -- Grant execute permission to authenticated users and service role
-GRANT EXECUTE ON FUNCTION match_knowledge_chunks(vector(1536), float, int, text[], text[]) TO authenticated;
-GRANT EXECUTE ON FUNCTION match_knowledge_chunks(vector(1536), float, int, text[], text[]) TO service_role;
+GRANT EXECUTE ON FUNCTION match_knowledge_chunks(vector(1536), float, int, text[], text[], uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION match_knowledge_chunks(vector(1536), float, int, text[], text[], uuid) TO service_role;
 
 -- ============================================================================
 -- VERIFICATION QUERY (run after creating the function)
