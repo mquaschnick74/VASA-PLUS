@@ -3,218 +3,120 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { authenticateToken } from "./middleware/auth";
+import { createRequestId, error as logError, info as logInfo } from "./utils/logger";
+import { validateEnvironment } from "./utils/env";
 
-// Environment variable validation for production
-function validateEnvironment() {
-  const requiredEnvVars = [
-    'SUPABASE_URL',
-    'SUPABASE_ANON_KEY', 
-    'SUPABASE_SERVICE_ROLE_KEY'
-  ];
-  
-  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-  
-  if (missingVars.length > 0) {
-    console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`);
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    } else {
-      console.warn('⚠️ Running in development mode with missing environment variables');
-    }
-  } else {
-    log('✅ All required environment variables present');
-  }
+try {
+  validateEnvironment();
+  log('✅ Environment validation passed');
+} catch (err) {
+  console.error((err as Error).message);
+  process.exit(1);
 }
-
-// Validate environment on startup
-validateEnvironment();
 
 const app = express();
 
-// IMPORTANT: Raw body parsers for webhooks MUST come BEFORE global JSON parser
-// This allows webhook signature validation to work properly
+// Webhook raw bodies must be mounted before global parsers
+app.use('/api/vapi/webhook', express.raw({ type: 'application/json', limit: '10mb' }));
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json', limit: '10mb' }));
+app.use('/api/stripe-webhook', express.raw({ type: 'application/json', limit: '10mb' }));
 
-// NOTE: VAPI webhook does NOT need raw body - signature validation is optional
-// Let express.json() handle VAPI requests normally
-
-// Special handling for Stripe webhook endpoint with raw body for signature validation
-// Support both /api/stripe/webhook and /api/stripe-webhook (for backwards compatibility)
-app.use('/api/stripe/webhook', express.raw({
-  type: 'application/json',
-  limit: '10mb'
-}));
-app.use('/api/stripe-webhook', express.raw({
-  type: 'application/json',
-  limit: '10mb'
-}));
-
-// INCREASED LIMITS for VAPI webhooks with large transcripts
-app.use(express.json({ limit: '10mb' }));  // Increased from default 100kb
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// CORS configuration for web and mobile apps
 const allowedOrigins = [
   'https://beta.ivasa.ai',
-  'https://www.beta.ivasa.ai',
   'https://start.ivasa.ai',
   'https://ivasa.ai',
   'https://www.ivasa.ai',
   'http://localhost:5173',
   'http://localhost:3000',
-  'capacitor://localhost',  // iOS Capacitor app
-  'http://localhost',       // Android Capacitor app
+  'capacitor://localhost',
+  'http://localhost',
 ];
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
+  origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    console.warn('🚫 CORS blocked origin:', origin);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-Id'],
 }));
 
-// Redirect ivasa.ai to beta.ivasa.ai
-// IMPORTANT: Skip redirects for webhook endpoints and social media crawlers
+app.use((req, _res, next) => {
+  const rid = (req.headers['x-request-id'] as string) || createRequestId();
+  req.headers['x-request-id'] = rid;
+  next();
+});
+
+// Redirect ivasa.ai to beta.ivasa.ai, excluding webhooks
 app.use((req, res, next) => {
   const host = req.get('host');
   const path = req.path;
 
-  // NEVER redirect webhook endpoints - external services like Stripe don't follow redirects
-  if (path.includes('/stripe-webhook') ||
-      path.includes('/stripe/webhook') ||
-      path.includes('/vapi/webhook')) {
-    console.log(`🔓 Webhook request detected at ${path} - skipping redirect`);
+  if (path.includes('/stripe-webhook') || path.includes('/stripe/webhook') || path.includes('/vapi/webhook')) {
     return next();
   }
 
-  // Check if request is coming to ivasa.ai, ivasa-ai.com, or www.beta.ivasa.ai
-  if (host === 'ivasa.ai' || host === 'www.ivasa.ai' ||
-      host === 'ivasa-ai.com' || host === 'www.ivasa-ai.com' ||
-      host === 'www.beta.ivasa.ai') {
-
-    // Social media crawlers do NOT follow redirects - they need the HTML served directly
-    // so they can read the Open Graph meta tags for link previews
-    const userAgent = (req.headers['user-agent'] || '').toLowerCase();
-    const isCrawler = userAgent.includes('twitterbot') ||
-                      userAgent.includes('facebookexternalhit') ||
-                      userAgent.includes('linkedinbot') ||
-                      userAgent.includes('slackbot') ||
-                      userAgent.includes('discordbot') ||
-                      userAgent.includes('whatsapp') ||
-                      userAgent.includes('telegrambot') ||
-                      userAgent.includes('googlebot') ||
-                      userAgent.includes('bingbot') ||
-                      userAgent.includes('applebot');
-
-    if (isCrawler) {
-      console.log(`🤖 Social crawler detected on ${host} (${userAgent.substring(0, 50)}) - serving page directly`);
-      return next();
-    }
-
-    const redirectUrl = `https://beta.ivasa.ai${req.originalUrl}`;
-    console.log(`🔀 Redirecting ${host} to beta.ivasa.ai`);
-    return res.redirect(301, redirectUrl);
+  if (host === 'ivasa.ai' || host === 'www.ivasa.ai' || host === 'ivasa-ai.com' || host === 'www.ivasa-ai.com') {
+    return res.redirect(301, `https://beta.ivasa.ai${req.originalUrl}`);
   }
 
   next();
 });
 
-// Diagnostic logging for malformed auth headers (temporary - helps identify polling source)
-app.use((req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  // Only log if there's a malformed Bearer token
-  if (authHeader && authHeader.startsWith('Bearer ') && authHeader.split(' ').length !== 2) {
-    console.log('🔍 MALFORMED AUTH DETECTED:', {
-      path: req.path,
-      method: req.method,
-      userAgent: req.headers['user-agent']?.substring(0, 100)
-    });
-  }
-  next();
-});
-
-// Rest of your existing code...
+// Minimal safe request logging (no bodies/responses)
 app.use((req, res, next) => {
   const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  const requestId = (req.headers['x-request-id'] as string) || 'unknown';
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
+  res.on('finish', () => {
+    if (!req.path.startsWith('/api')) return;
+    logInfo('api_request', {
+      requestId,
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      durationMs: Date.now() - start,
+    });
   });
 
   next();
 });
 
-// Continue with the rest of the file...
-
-// Apply soft auth to all /api routes EXCEPT webhooks
-// Webhooks need to bypass auth as they come from external services with their own signature validation
+// Soft auth on /api except webhooks
 app.use('/api', (req, res, next) => {
-  // Skip auth for webhook endpoints - they have their own signature validation
   if (req.path.startsWith('/vapi/webhook') || req.path.startsWith('/stripe/webhook') || req.path.startsWith('/stripe-webhook')) {
-    console.log(`🔓 Webhook endpoint accessed: ${req.path} - Skipping JWT auth`);
     return next();
   }
-
-  // Apply auth to all other /api routes
   return authenticateToken(req, res, next);
 });
 
 (async () => {
   try {
     log('🚀 Starting server initialization...');
-    
     const server = await registerRoutes(app);
     log('✅ Routes registered successfully');
 
-    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-      console.error('Unhandled application error:', err);
-      if (res.headersSent) {
-        return next(err);
-      }
+    app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+      logError('unhandled_error', {
+        requestId: req.headers['x-request-id'],
+        name: err?.name,
+        message: err?.message,
+      });
 
+      if (res.headersSent) return next(err);
       const status = err.status || err.statusCode || 500;
-      const message =
-        status >= 500 && process.env.NODE_ENV !== 'development'
-          ? "Internal Server Error"
-          : (err.message || "Internal Server Error");
-
-      res.status(status).json({ message });
-      return;
+      const message = status >= 500 && process.env.NODE_ENV === 'production'
+        ? 'Internal Server Error'
+        : (err.message || 'Internal Server Error');
+      res.status(status).json({ message, requestId: req.headers['x-request-id'] });
     });
 
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
-    if (app.get("env") === "development") {
+    if (app.get('env') === 'development') {
       await setupVite(app, server);
       log('✅ Vite development server configured');
     } else {
@@ -222,25 +124,14 @@ app.use('/api', (req, res, next) => {
       log('✅ Static file serving configured for production');
     }
 
-    // ALWAYS serve the app on the port specified in the environment variable PORT
-    // Other ports are firewalled. Default to 5000 if not specified.
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
     const port = parseInt(process.env.PORT || '5000', 10);
-    
-    // Graceful server startup with error handling
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, (error?: Error) => {
+    server.listen({ port, host: '0.0.0.0', reusePort: true }, (error?: Error) => {
       if (error) {
         console.error(`❌ Failed to start server on port ${port}:`, error);
         process.exit(1);
       }
       log(`✅ Server running on 0.0.0.0:${port} in ${process.env.NODE_ENV || 'development'} mode`);
     });
-
   } catch (error) {
     console.error('❌ Fatal error during server startup:', error);
     process.exit(1);

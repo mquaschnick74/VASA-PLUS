@@ -302,10 +302,7 @@ router.post('/webhook', async (req, res) => {
   console.log('═══════════════════════════════════════════');
   console.log('📥 VAPI WEBHOOK RECEIVED');
   console.log('═══════════════════════════════════════════');
-  console.log('Timestamp:', new Date().toISOString());
   console.log('Has VAPI signature header:', !!req.headers['x-vapi-signature']);
-  console.log('Body type:', typeof req.body);
-  console.log('Body is Buffer:', Buffer.isBuffer(req.body));
 
   try {
     // PRESERVED: Your robust signature validation
@@ -366,43 +363,29 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
-    // PRESERVED: Enhanced debugging for production
+    // Minimal debug metadata only
     if (process.env.REPLIT_DEPLOYMENT === '1' || !userId || !callId) {
       console.log('📊 Webhook Debug Info:', {
         eventType,
         hasUserId: !!userId,
-        userId: userId || 'MISSING',
         hasCallId: !!callId,
-        callId: callId || 'MISSING',
         agentName,
         isProduction: process.env.REPLIT_DEPLOYMENT === '1'
       });
     }
 
     if (!userId || !callId) {
-      console.error('❌ CRITICAL: Missing critical data - userId:', userId, 'callId:', callId);
-      console.error('Event Type:', eventType);
-      console.error('Message metadata keys:', Object.keys(message?.call?.metadata || message?.metadata || {}));
-      console.error('All message keys:', Object.keys(message || {}));
-      console.error('Call object keys:', message?.call ? Object.keys(message.call) : 'N/A');
-      console.error('Assistant object keys:', message?.assistant ? Object.keys(message.assistant) : 'N/A');
-      console.log('═══════════════════════════════════════════');
-      console.log('');
-
-      // IMPORTANT: Return error status so the issue is visible
+      console.error('❌ CRITICAL: Missing critical data in webhook', {
+        eventType,
+        hasUserId: !!userId,
+        hasCallId: !!callId
+      });
       return res.status(400).json({
         error: 'Missing userId or callId',
         received: true,
-        debug: {
-          userId,
-          callId,
-          eventType,
-          availableMetadataKeys: Object.keys(message?.call?.metadata || message?.metadata || {})
-        }
       });
     }
-
-    console.log('✅ Extracted: userId =', userId, ', callId =', callId, ', agent =', agentName);
+    console.log('✅ Webhook identifiers extracted', { hasUserId: !!userId, hasCallId: !!callId, agentName });
 
     // DEBUGGING: Log specific user
     switch (eventType) {
@@ -660,9 +643,6 @@ router.post('/webhook', async (req, res) => {
 
 
         if (transcript) {
-          console.log(`📝 Transcript preview: ${transcript.substring(0, 100)}...`);
-          console.log(`📝 Raw transcript length: ${transcript.length}`);
-          console.log(`📝 First 200 chars: ${transcript.substring(0, 200)}`);
 
           // NEW: Process-based therapeutic assessment
           console.log(`📊 Creating process-based assessment for ${callId}...`);
@@ -880,13 +860,13 @@ function extractUserId(message: any): string | null {
 
     // Check if metadata exists but userId is under a different key
     if (callObj.metadata) {
-      console.log('🔍 [extractUserId] call.metadata keys:', Object.keys(callObj.metadata));
+      console.log('🔍 [extractUserId] call.metadata present');
     }
   }
 
   // Also check assistant metadata at root level
   if (!userId && message?.assistant?.metadata) {
-    console.log('🔍 [extractUserId] assistant.metadata keys:', Object.keys(message.assistant.metadata));
+    console.log('🔍 [extractUserId] assistant.metadata present');
   }
 
   if (!userId) {
@@ -894,7 +874,7 @@ function extractUserId(message: any): string | null {
     console.log('Event type:', message?.type || 'unknown');
     console.log('Message top-level keys:', Object.keys(message || {}));
   } else {
-    console.log(`✅ Extracted userId: ${userId}`);
+    console.log('✅ Extracted userId from webhook metadata');
   }
 
   return userId;

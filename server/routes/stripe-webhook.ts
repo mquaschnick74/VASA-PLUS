@@ -1,132 +1,154 @@
 import { Router } from 'express';
 import Stripe from 'stripe';
 import { supabase } from '../services/supabase-service';
+import { error as logError, info as logInfo, warn as logWarn } from '../utils/logger';
 
 const router = Router();
 
-// Initialize Stripe for signature verification
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripe = new Stripe(stripeSecretKey || '');
 
-// Stripe webhook endpoint - processes payment events
-// Route is mounted at /api/stripe/webhook, so this handles /api/stripe/webhook
+function isDuplicateKeyError(err: any): boolean {
+  return err?.code === '23505' || String(err?.message || '').toLowerCase().includes('duplicate key');
+}
+
+function minimalEventData(event: Stripe.Event) {
+  const obj: any = event.data?.object || {};
+  return {
+    stripe_event_id: event.id,
+    event_type: event.type,
+    created: event.created,
+    livemode: event.livemode,
+    customer: obj.customer ?? null,
+    subscription: obj.subscription ?? null,
+    checkout_session_id: obj.id ?? null,
+  };
+}
+
+async function markWebhookLog(
+  webhookEventId: string | null,
+  status: 'success' | 'failed' | 'pending',
+  updates?: Record<string, any>
+) {
+  if (!webhookEventId) return;
+  const payload = {
+    processing_status: status,
+    processed_at: new Date().toISOString(),
+    ...(updates || {}),
+  };
+  await supabase.from('stripe_webhook_events').update(payload).eq('id', webhookEventId);
+}
+
+async function extractPlanMetadata(session: Stripe.Checkout.Session) {
+  let tier = 'intro';
+  let minutesLimit = 45;
+  let planType = session.mode === 'payment' ? 'one_time' : 'recurring';
+  let userType = 'individual';
+
+  try {
+    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+    const firstItem = lineItems.data[0];
+
+    const productId = typeof firstItem?.price?.product === 'string'
+      ? firstItem.price.product
+      : firstItem?.price?.product?.id;
+
+    if (productId) {
+      const product = await stripe.products.retrieve(productId);
+      const metadata = product.metadata || {};
+      tier = metadata.tier || tier;
+      minutesLimit = Number.parseInt(metadata.minutes_limit || '', 10) || minutesLimit;
+      planType = metadata.plan_type || planType;
+      userType = metadata.user_type || userType;
+    }
+  } catch (e: any) {
+    logWarn('stripe_metadata_lookup_failed', { message: e?.message });
+  }
+
+  return { tier, minutesLimit, planType, userType };
+}
+
 router.post('/', async (req, res) => {
   let webhookEventId: string | null = null;
 
+  const requestId = req.headers['x-request-id'];
+  const isProduction = process.env.NODE_ENV === 'production';
+  const signature = req.headers['stripe-signature'] as string | undefined;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!Buffer.isBuffer(req.body)) {
+    logError('stripe_webhook_misconfigured_non_buffer_body', { requestId, path: req.path });
+    return res.status(500).json({ error: 'Webhook configuration error' });
+  }
+
+  if (isProduction && (!webhookSecret || !signature)) {
+    logError('stripe_webhook_misconfigured_signature', {
+      requestId,
+      hasSecret: !!webhookSecret,
+      hasSignature: !!signature,
+    });
+    return res.status(500).json({ error: 'Webhook configuration error' });
+  }
+
+  if (!stripeSecretKey) {
+    logError('stripe_secret_key_missing', { requestId });
+    return res.status(500).json({ error: 'Webhook configuration error' });
+  }
+
+  let event: Stripe.Event;
+
   try {
-    const signature = req.headers['stripe-signature'] as string;
-    let event: Stripe.Event;
-
-    // Get raw body for signature verification
-    const rawBody = Buffer.isBuffer(req.body)
-      ? req.body
-      : Buffer.from(JSON.stringify(req.body));
-
-    // Verify webhook signature using Stripe's official method
-    if (process.env.STRIPE_WEBHOOK_SECRET && signature) {
-      try {
-        event = stripe.webhooks.constructEvent(
-          rawBody,
-          signature,
-          process.env.STRIPE_WEBHOOK_SECRET
-        );
-        console.log('✅ Webhook signature verified successfully');
-      } catch (signatureError: any) {
-        console.error('❌ Webhook signature verification failed:', signatureError.message);
-        return res.status(400).json({ error: 'Invalid signature: ' + signatureError.message });
-      }
+    if (webhookSecret && signature) {
+      event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
     } else {
-      // No secret configured - parse body directly (for development/testing)
-      console.warn('⚠️ STRIPE_WEBHOOK_SECRET not configured - skipping signature verification');
-      event = Buffer.isBuffer(req.body)
-        ? JSON.parse(req.body.toString('utf8'))
-        : req.body;
+      if (isProduction) {
+        return res.status(500).json({ error: 'Webhook configuration error' });
+      }
+      event = JSON.parse(req.body.toString('utf8')) as Stripe.Event;
     }
+  } catch (e: any) {
+    logWarn('stripe_webhook_signature_invalid', { requestId, message: e?.message });
+    return res.status(400).json({ error: 'Invalid webhook signature' });
+  }
 
-    console.log('💳 Stripe webhook received:', event.type);
+  try {
+    const minimal = minimalEventData(event);
 
-    // Log webhook event to database for audit trail
-    const { data: webhookLog, error: logError } = await supabase
+    const { data: webhookLog, error: insertError } = await supabase
       .from('stripe_webhook_events')
       .insert({
         stripe_event_id: event.id,
         event_type: event.type,
-        event_data: event,
+        event_data: minimal,
         processing_status: 'pending',
       })
-      .select()
+      .select('id')
       .single();
 
-    if (webhookLog) {
-      webhookEventId = webhookLog.id;
+    if (insertError) {
+      if (isDuplicateKeyError(insertError)) {
+        logInfo('stripe_webhook_duplicate_event', { requestId, eventId: event.id, eventType: event.type });
+        return res.json({ received: true });
+      }
+      logError('stripe_webhook_log_insert_failed', { requestId, message: insertError.message });
+      return res.status(500).json({ error: 'Webhook processing error' });
     }
 
-    if (logError) {
-      console.error('⚠️ Failed to log webhook event (non-fatal):', logError);
-    }
+    webhookEventId = webhookLog?.id || null;
 
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object;
-
-        // Extract user ID from client_reference_id (passed during checkout)
+        const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.client_reference_id;
 
         if (!userId) {
-          console.error('❌ No user_id in checkout session');
+          await markWebhookLog(webhookEventId, 'failed', { error_message: 'Missing user_id in checkout session' });
           return res.json({ received: true });
         }
 
-        // Get metadata from the LINE ITEMS (this is where product metadata lives)
-        let tier = 'intro'; // default
-        let minutesLimit = 45; // default
-        let planType = 'recurring';
-        let userType = 'individual';
+        const metadata = await extractPlanMetadata(session);
+        let { tier, minutesLimit, planType, userType } = metadata;
 
-        try {
-          // Fetch line items to get product metadata
-          const lineItemsResponse = await fetch(
-            `https://api.stripe.com/v1/checkout/sessions/${session.id}/line_items`,
-            {
-              headers: {
-                'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`
-              }
-            }
-          );
-
-          if (lineItemsResponse.ok) {
-            const lineItemsData = await lineItemsResponse.json();
-            const firstItem = lineItemsData.data[0];
-
-            if (firstItem?.price?.product) {
-              // Fetch the product to get its metadata
-              const productResponse = await fetch(
-                `https://api.stripe.com/v1/products/${firstItem.price.product}`,
-                {
-                  headers: {
-                    'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`
-                  }
-                }
-              );
-
-              if (productResponse.ok) {
-                const product = await productResponse.json();
-                const metadata = product.metadata || {};
-
-                console.log('📦 Product metadata:', metadata);
-
-                // Read from metadata (added in Stripe Dashboard)
-                tier = metadata.tier || 'intro';
-                minutesLimit = parseInt(metadata.minutes_limit) || 45;
-                planType = metadata.plan_type || 'recurring';
-                userType = metadata.user_type || 'individual';
-              }
-            }
-          }
-        } catch (fetchError) {
-          console.error('⚠️ Failed to fetch product metadata, using defaults:', fetchError);
-        }
-
-        // Get user profile to determine if therapist
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('user_type')
@@ -135,55 +157,19 @@ router.post('/', async (req, res) => {
 
         if (profile?.user_type === 'therapist') {
           userType = 'therapist';
-          // Therapist-specific limits
-          if (tier === 'premium') {
-            minutesLimit = 600; // 10 hours
-          } else if (tier === 'basic') {
-            minutesLimit = 180; // 3 hours
-          }
+          if (tier === 'premium') minutesLimit = 600;
+          else if (tier === 'basic') minutesLimit = 180;
         }
 
-        // Detect one-time purchases vs subscriptions
         const isOneTimePurchase = session.mode === 'payment';
-        if (isOneTimePurchase) {
-          planType = 'one_time';
-        }
+        if (isOneTimePurchase) planType = 'one_time';
 
-        console.log('📊 Activating subscription:', {
-          userId,
-          tier,
-          planType,
-          userType,
-          minutesLimit,
-          customerId: session.customer,
-          subscriptionId: session.subscription,
-          sessionMode: session.mode,
-          isOneTimePurchase
-        });
-
-        // Calculate client limit for therapists
-        let clientLimit: number = 0;
-        if (userType === 'therapist') {
-          clientLimit = tier === 'premium' ? 10 : 3;
-        }
-
-        // Calculate period end based on plan type
-        let currentPeriodEnd: Date;
-        if (isOneTimePurchase) {
-          // One-time purchase: valid for 30 days from now
-          currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        } else {
-          // Recurring subscription: 30 days from now (will be updated by subscription.updated webhook)
-          currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        }
-
-        // For one-time purchases, store the session ID as a reference
+        const clientLimit = userType === 'therapist' ? (tier === 'premium' ? 10 : 3) : 0;
+        const currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         const stripeSubscriptionId = isOneTimePurchase
-          ? `otp_${session.id}` // Prefix with otp_ for one-time purchase
-          : (session.subscription as string || null);
+          ? `otp_${session.id}`
+          : (typeof session.subscription === 'string' ? session.subscription : null);
 
-        // Update or create subscription record
-        // CRITICAL: Always reset usage_minutes_used to 0 on new subscription
         const { error } = await supabase
           .from('subscriptions')
           .upsert({
@@ -191,120 +177,66 @@ router.post('/', async (req, res) => {
             subscription_tier: tier,
             subscription_status: 'active',
             plan_type: planType,
-            trial_ends_at: null, // Clear trial since they paid
+            trial_ends_at: null,
             usage_minutes_limit: minutesLimit,
-            usage_minutes_used: 0, // ✅ ALWAYS RESET TO 0 - FRESH START
+            usage_minutes_used: 0,
             client_limit: clientLimit,
             clients_used: 0,
-            stripe_customer_id: session.customer as string,
+            stripe_customer_id: typeof session.customer === 'string' ? session.customer : null,
             stripe_subscription_id: stripeSubscriptionId,
             current_period_end: currentPeriodEnd,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'user_id'
-          });
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
 
         if (error) {
-          console.error('❌ Failed to activate subscription:', error);
-          // Update webhook log as failed
-          if (webhookEventId) {
-            await supabase
-              .from('stripe_webhook_events')
-              .update({
-                processing_status: 'failed',
-                error_message: error.message || JSON.stringify(error),
-                processed_at: new Date().toISOString(),
-              })
-              .eq('id', webhookEventId);
-          }
-          // Return 500 so Stripe retries the webhook
-          return res.status(500).json({ error: 'Failed to activate subscription' });
-        } else {
-          const purchaseType = isOneTimePurchase ? 'one-time purchase' : 'subscription';
-          console.log(`✅ Activated ${tier} ${purchaseType} for user ${userId} with ${minutesLimit} minutes (expires: ${currentPeriodEnd.toISOString()})`);
-          // Update webhook log as success
-          if (webhookEventId) {
-            await supabase
-              .from('stripe_webhook_events')
-              .update({
-                processing_status: 'success',
-                user_id: userId,
-                stripe_customer_id: session.customer as string,
-                processed_at: new Date().toISOString(),
-              })
-              .eq('id', webhookEventId);
-          }
+          await markWebhookLog(webhookEventId, 'failed', { error_message: error.message });
+          return res.status(500).json({ error: 'Webhook processing error' });
         }
 
-        // ============================================================================
-        // NEW: PROMO CODE TRACKING - Extend discount if user has active promo
-        // ============================================================================
         try {
-          // Check if user has an active promo code
           const { data: userProfile } = await supabase
             .from('user_profiles')
             .select('promo_code, promo_discount_expires_at')
             .eq('id', userId)
             .single();
 
-          // If user has a promo code and it hasn't expired yet
           if (userProfile?.promo_code && userProfile?.promo_discount_expires_at) {
             const expiryDate = new Date(userProfile.promo_discount_expires_at);
-            const now = new Date();
-
-            // Only extend if promo is still active (hasn't expired yet)
-            if (expiryDate > now) {
-              // Extend promo to end of first billing cycle (30 days from purchase)
+            if (expiryDate > new Date()) {
               const firstBillingEnd = new Date();
               firstBillingEnd.setDate(firstBillingEnd.getDate() + 30);
-
               await supabase
                 .from('user_profiles')
-                .update({
-                  promo_discount_expires_at: firstBillingEnd.toISOString()
-                })
+                .update({ promo_discount_expires_at: firstBillingEnd.toISOString() })
                 .eq('id', userId);
-
-              console.log(`🎉 Extended promo "${userProfile.promo_code}" for user ${userId} until ${firstBillingEnd.toISOString()}`);
-            } else {
-              console.log(`ℹ️ User ${userId} had promo "${userProfile.promo_code}" but it already expired`);
             }
           }
-        } catch (promoError) {
-          console.error('⚠️ Failed to process promo extension:', promoError);
-          // Don't fail the webhook - promo is secondary to subscription activation
+        } catch (e: any) {
+          logWarn('promo_extension_failed', { requestId, message: e?.message });
         }
-        // ============================================================================
 
+        await markWebhookLog(webhookEventId, 'success', {
+          user_id: userId,
+          stripe_customer_id: typeof session.customer === 'string' ? session.customer : null,
+        });
         break;
       }
 
       case 'customer.subscription.updated': {
-        const subscription = event.data.object;
+        const subscription = event.data.object as Stripe.Subscription & { current_period_end: number };
 
-        // Map Stripe status to our status
         let status = 'active';
         if (subscription.status === 'canceled') status = 'canceled';
         else if (subscription.status === 'past_due') status = 'past_due';
         else if (subscription.status === 'unpaid') status = 'expired';
 
-        console.log('🔄 Updating subscription:', {
-          stripeId: subscription.id,
-          status: subscription.status,
-          mappedStatus: status
-        });
-
-        // On subscription renewal, reset usage for recurring plans
         const updateData: any = {
           subscription_status: status,
           current_period_end: new Date(subscription.current_period_end * 1000),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         };
 
-        // If the subscription just renewed (status is active and period changed)
-        // Reset usage minutes for the new billing period
         if (status === 'active') {
-          // Get current subscription to check if period changed
           const { data: currentSub } = await supabase
             .from('subscriptions')
             .select('current_period_end, plan_type, user_id')
@@ -314,41 +246,15 @@ router.post('/', async (req, res) => {
           if (currentSub?.plan_type === 'recurring') {
             const oldPeriodEnd = new Date(currentSub.current_period_end || 0);
             const newPeriodEnd = new Date(subscription.current_period_end * 1000);
-
-            // If period end changed, it's a renewal - reset usage
             if (newPeriodEnd > oldPeriodEnd) {
               updateData.usage_minutes_used = 0;
-              console.log('🔄 Subscription renewed - resetting usage minutes');
 
-              // ============================================================================
-              // NEW: PROMO CODE TRACKING - Clear promo on renewal (second billing cycle)
-              // ============================================================================
-              try {
-                if (currentSub.user_id) {
-                  // Check if user has an active promo
-                  const { data: userProfile } = await supabase
-                    .from('user_profiles')
-                    .select('promo_code, promo_discount_expires_at')
-                    .eq('id', currentSub.user_id)
-                    .single();
-
-                  if (userProfile?.promo_discount_expires_at) {
-                    // Clear the promo expiry since they're now on full price
-                    await supabase
-                      .from('user_profiles')
-                      .update({
-                        promo_discount_expires_at: null
-                      })
-                      .eq('id', currentSub.user_id);
-
-                    console.log(`✅ Cleared promo discount for user ${currentSub.user_id} after renewal - now paying full price`);
-                  }
-                }
-              } catch (promoError) {
-                console.error('⚠️ Failed to clear promo on renewal:', promoError);
-                // Don't fail the webhook - promo is secondary to subscription update
+              if (currentSub.user_id) {
+                await supabase
+                  .from('user_profiles')
+                  .update({ promo_discount_expires_at: null })
+                  .eq('id', currentSub.user_id);
               }
-              // ============================================================================
             }
           }
         }
@@ -358,120 +264,50 @@ router.post('/', async (req, res) => {
           .update(updateData)
           .eq('stripe_subscription_id', subscription.id);
 
-        if (!error) {
-          console.log(`✅ Updated subscription status to: ${status}`);
-          // Update webhook log as success
-          if (webhookEventId) {
-            await supabase
-              .from('stripe_webhook_events')
-              .update({
-                processing_status: 'success',
-                stripe_customer_id: subscription.customer as string,
-                processed_at: new Date().toISOString(),
-              })
-              .eq('id', webhookEventId);
-          }
-        } else {
-          console.error('❌ Failed to update subscription:', error);
-          // Update webhook log as failed
-          if (webhookEventId) {
-            await supabase
-              .from('stripe_webhook_events')
-              .update({
-                processing_status: 'failed',
-                error_message: error.message || JSON.stringify(error),
-                processed_at: new Date().toISOString(),
-              })
-              .eq('id', webhookEventId);
-          }
-          // Return 500 so Stripe retries the webhook
-          return res.status(500).json({ error: 'Failed to update subscription' });
+        if (error) {
+          await markWebhookLog(webhookEventId, 'failed', { error_message: error.message });
+          return res.status(500).json({ error: 'Webhook processing error' });
         }
+
+        await markWebhookLog(webhookEventId, 'success', {
+          stripe_customer_id: typeof subscription.customer === 'string' ? subscription.customer : null,
+        });
         break;
       }
 
       case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
-
-        console.log('❌ Subscription canceled:', subscription.id);
+        const subscription = event.data.object as Stripe.Subscription;
 
         const { error } = await supabase
           .from('subscriptions')
           .update({
             subscription_status: 'canceled',
             stripe_subscription_id: null,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('stripe_subscription_id', subscription.id);
 
-        if (!error) {
-          console.log(`✅ Marked subscription as canceled`);
-          // Update webhook log as success
-          if (webhookEventId) {
-            await supabase
-              .from('stripe_webhook_events')
-              .update({
-                processing_status: 'success',
-                stripe_customer_id: subscription.customer as string,
-                processed_at: new Date().toISOString(),
-              })
-              .eq('id', webhookEventId);
-          }
-        } else {
-          console.error('❌ Failed to mark subscription as canceled:', error);
-          // Update webhook log as failed
-          if (webhookEventId) {
-            await supabase
-              .from('stripe_webhook_events')
-              .update({
-                processing_status: 'failed',
-                error_message: error.message || JSON.stringify(error),
-                processed_at: new Date().toISOString(),
-              })
-              .eq('id', webhookEventId);
-          }
-          // Return 500 so Stripe retries the webhook
-          return res.status(500).json({ error: 'Failed to mark subscription as canceled' });
+        if (error) {
+          await markWebhookLog(webhookEventId, 'failed', { error_message: error.message });
+          return res.status(500).json({ error: 'Webhook processing error' });
         }
+
+        await markWebhookLog(webhookEventId, 'success', {
+          stripe_customer_id: typeof subscription.customer === 'string' ? subscription.customer : null,
+        });
         break;
       }
 
       default:
-        console.log(`ℹ️ Unhandled webhook event: ${event.type}`);
-        // Mark unhandled events as success (we don't process them)
-        if (webhookEventId) {
-          await supabase
-            .from('stripe_webhook_events')
-            .update({
-              processing_status: 'success',
-              processed_at: new Date().toISOString(),
-            })
-            .eq('id', webhookEventId);
-        }
+        await markWebhookLog(webhookEventId, 'success');
+        break;
     }
 
-    res.json({ received: true });
-  } catch (error: any) {
-    console.error('❌ Webhook processing error:', error);
-
-    // Update webhook log as failed if we have the ID
-    if (webhookEventId) {
-      try {
-        await supabase
-          .from('stripe_webhook_events')
-          .update({
-            processing_status: 'failed',
-            error_message: error.message || String(error),
-            processed_at: new Date().toISOString(),
-          })
-          .eq('id', webhookEventId);
-      } catch (logError) {
-        console.error('⚠️ Failed to update webhook log (non-fatal):', logError);
-      }
-    }
-
-    // Return 500 so Stripe retries the webhook
-    res.status(500).json({ error: error.message });
+    return res.json({ received: true });
+  } catch (e: any) {
+    await markWebhookLog(webhookEventId, 'failed', { error_message: e?.message || 'Unknown error' });
+    logError('stripe_webhook_processing_error', { requestId, eventId: webhookEventId, message: e?.message });
+    return res.status(500).json({ error: 'Webhook processing error' });
   }
 });
 
