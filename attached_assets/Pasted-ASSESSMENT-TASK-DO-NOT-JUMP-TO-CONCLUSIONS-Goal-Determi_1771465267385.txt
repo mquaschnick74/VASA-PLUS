@@ -1,0 +1,42 @@
+ASSESSMENT TASK (DO NOT JUMP TO CONCLUSIONS)
+
+Goal: Determine why “sensing layer / RAG / LLM / TTS” logs are missing after a user chat, while subscription-limit logs appear.
+
+Context:
+- Current Replit logs show only redirect + subscription status/limits for userId 7165725f-602a-4786-8756-09f68c0b5d5c.
+- Expected: additional logs from sensing layer pipeline, RAG retrieval, model call, and voice/TTS pipeline after the last chat.
+- Hypothesis is NOT decided yet: either the chat endpoint is not being hit, the wrong host/path is being used, or the pipeline is failing silently before logging.
+
+Investigation steps (do these in order):
+
+1) Add a GLOBAL REQUEST LOGGER middleware at the top of the server (before routes) that prints:
+   - request method + originalUrl when a request enters
+   - response statusCode + duration when it finishes
+   - include a short request id
+
+2) Add global error traps:
+   - process.on("unhandledRejection", ...)
+   - process.on("uncaughtException", ...)
+
+3) Identify ALL backend endpoints actually hit during a “chat turn” by checking Replit logs after step (1).
+   - Specifically confirm whether any POST hits the chat/voice endpoint (e.g., /api/chat, /voice, /vapi-webhook, /convai-webhook, etc.)
+   - If only subscription endpoints are hit, the frontend is not calling the chat endpoint.
+
+4) Confirm route wiring:
+   - Locate the server route that should handle chat/voice.
+   - Ensure the route is registered (app.use / app.post) and reachable under the deployed domain.
+   - Ensure it is not behind a path mismatch (e.g., frontend calling /api/chat while server uses /chat).
+
+5) Add “ENTERED” logs at the first line of:
+   - sensing layer function
+   - RAG retrieval function
+   - LLM call wrapper
+   - TTS/voice output function
+   These should log userId and a preview of message/query.
+
+6) Run one controlled test:
+   - Trigger a single chat turn from the UI and confirm which endpoints appear in logs.
+   - Additionally, run a direct curl POST to the expected chat endpoint with a test payload and confirm it appears in logs.
+
+Deliverable:
+- Report back with: (a) the endpoint(s) being hit during the chat attempt, (b) whether the chat endpoint is hit, (c) whether the sensing/RAG/LLM/TTS “ENTERED” logs appear, and (d) the first error stack trace if any appears.
