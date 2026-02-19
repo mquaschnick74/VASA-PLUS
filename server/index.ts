@@ -188,6 +188,7 @@ app.use("/api", (req, res, next) => {
   // Skip auth for webhooks
   if (
     req.path.startsWith("/vapi/webhook") ||
+    req.path.startsWith("/vapi/tools") ||
     req.path.startsWith("/stripe/webhook") ||
     req.path.startsWith("/stripe-webhook")
   ) {
