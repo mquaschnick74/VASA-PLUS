@@ -365,6 +365,7 @@ async function getUploadDocumentText(
  * Now filters insights to only show user-friendly content
  */
 export async function buildMemoryContext(userId: string): Promise<string> {
+  console.log(`🔵 [MEMORY-ENTERED] buildMemoryContext called for userId: ${userId}`);
   try {
     // === PHASE 1A AUDIT LOGGING ===
     const auditSizes: Record<string, number> = {};

@@ -88,6 +88,8 @@ export async function injectGuidance(
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       console.error(`❌ [GuidanceInjector] Failed to inject guidance: ${response.status} - ${errorText}`);
+      console.error(`   ControlUrl: ${controlUrl.substring(0, 80)}...`);
+      console.error(`   Posture: ${effectivePosture}, Urgency: ${guidance.urgency}`);
       return false;
     }
 

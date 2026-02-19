@@ -6,6 +6,18 @@ import { authenticateToken } from "./middleware/auth";
 import { createRequestId, error as logError, info as logInfo } from "./utils/logger";
 import { validateEnvironment } from "./utils/env";
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔴 UNHANDLED REJECTION:', reason);
+  if (reason instanceof Error) {
+    console.error('   Stack:', reason.stack);
+  }
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('🔴 UNCAUGHT EXCEPTION:', error.message);
+  console.error('   Stack:', error.stack);
+});
+
 try {
   validateEnvironment();
   log('✅ Environment validation passed');
@@ -68,19 +80,27 @@ app.use((req, res, next) => {
   next();
 });
 
-// Minimal safe request logging (no bodies/responses)
+// Global request logger with short request ID
+let reqCounter = 0;
 app.use((req, res, next) => {
   const start = Date.now();
-  const requestId = (req.headers['x-request-id'] as string) || 'unknown';
+  const rid = `R${++reqCounter}`;
+  const requestId = (req.headers['x-request-id'] as string) || rid;
+
+  if (req.path.startsWith('/api')) {
+    console.log(`➡️ [${rid}] ${req.method} ${req.originalUrl}`);
+  }
 
   res.on('finish', () => {
     if (!req.path.startsWith('/api')) return;
+    const duration = Date.now() - start;
+    console.log(`⬅️ [${rid}] ${req.method} ${req.originalUrl} → ${res.statusCode} (${duration}ms)`);
     logInfo('api_request', {
       requestId,
       method: req.method,
       path: req.path,
       status: res.statusCode,
-      durationMs: Date.now() - start,
+      durationMs: duration,
     });
   });
 
