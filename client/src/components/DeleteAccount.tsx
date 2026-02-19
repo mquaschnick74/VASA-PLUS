@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Button } from './ui/button';
 import { Trash2, AlertTriangle } from 'lucide-react';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface DeleteAccountProps {
   userId: string;
@@ -27,26 +28,11 @@ export const DeleteAccount: React.FC<DeleteAccountProps> = ({
     setIsDeleting(true);
 
     try {
-      console.log('🗑️ Starting account deletion process...');
+      console.log('Starting account deletion process...');
 
-      // STEP 1: Get auth token before we clear anything
-      const authToken = localStorage.getItem('authToken');
-
-      if (!authToken) {
-        console.error('❌ No auth token found');
-        alert('Authentication error. Please try logging in again.');
-        setIsDeleting(false);
-        return;
-      }
-
-      // STEP 2: Delete from database first
-      console.log('📡 Sending delete request to server...');
-      const response = await fetch(`/api/auth/user/${userId}`, {
+      // Delete from database first — apiFetch handles auth automatically
+      const response = await apiFetch(`/api/auth/user/${userId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
       });
 
       const result = await response.json();

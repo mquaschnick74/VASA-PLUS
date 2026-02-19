@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { supabase } from "./supabaseClient";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -8,8 +9,8 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest(
-  method: string, 
-  url: string, 
+  method: string,
+  url: string,
   body?: any,
   additionalHeaders?: Record<string, string>
 ) {
@@ -18,10 +19,13 @@ export async function apiRequest(
     ...additionalHeaders
   };
 
-  // Add auth token if available
-  const authToken = localStorage.getItem('authToken');
-  if (authToken && !headers['Authorization']) {
-    headers['Authorization'] = `Bearer ${authToken}`;
+  // Get auth token from Supabase session instead of localStorage
+  if (!headers['Authorization']) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
   }
 
   return fetch(url, {
