@@ -47,16 +47,29 @@ const allowedOrigins = [
   'http://localhost',
 ];
 
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
 app.use(cors({
   origin: (origin, callback) => {
+    // DEV: allow everything (Replit preview origins vary)
+    if (NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    // PROD: allow server-to-server / same-origin (no Origin header)
     if (!origin) return callback(null, true);
+
+    // PROD: allow only allowlisted origins
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+
+    // IMPORTANT: do NOT throw an error (that causes 500 + white screen)
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-Id'],
 }));
+
 
 app.use((req, _res, next) => {
   const rid = (req.headers['x-request-id'] as string) || createRequestId();
