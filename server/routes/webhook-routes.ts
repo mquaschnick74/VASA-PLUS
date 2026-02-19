@@ -28,7 +28,9 @@ import {
   getConversationHistory,
   getExchangeCount,
   updateCallState,
-  setAgentSpeakingState
+  setAgentSpeakingState,
+  trackVapiCall,
+  isCallActive
 } from '../services/sensing-layer/call-state';
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor } from '../services/sensing-layer/silence-monitor';
 
@@ -297,63 +299,51 @@ function cleanupCallCaches(callId: string) {
 }
 
 router.post('/webhook', async (req, res) => {
-  // Enhanced logging for debugging
   console.log('');
   console.log('═══════════════════════════════════════════');
   console.log('📥 VAPI WEBHOOK RECEIVED');
   console.log('═══════════════════════════════════════════');
-  console.log('Has VAPI signature header:', !!req.headers['x-vapi-signature']);
 
   try {
-    // PRESERVED: Your robust signature validation
+    // PRESERVED: Signature validation
     if (process.env.VAPI_SECRET_KEY) {
       const signature = req.headers['x-vapi-signature'] as string;
-      
-      // Only check signature if one is provided
       if (signature) {
-
-      // Handle both raw buffer and parsed JSON body
-      let payload: string;
-      if (Buffer.isBuffer(req.body)) {
-        payload = req.body.toString('utf8');
-      } else {
-        payload = JSON.stringify(req.body);
-      }
-
-      // VAPI uses different signature format - might be base64 encoded
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.VAPI_SECRET_KEY)
-        .update(payload)
-        .digest('hex');
-
-      // Also try base64 format
-      const expectedSignatureBase64 = crypto
-        .createHmac('sha256', process.env.VAPI_SECRET_KEY)
-        .update(payload)
-        .digest('base64');
-
-      if (signature !== expectedSignature && signature !== expectedSignatureBase64) {
-        console.warn(`Signature mismatch. Received: ${signature?.substring(0, 20)}...`);
-        // Don't block webhooks - just log the warning
-        // VAPI inline configs may not use signatures consistently
-      }
+        let payload: string;
+        if (Buffer.isBuffer(req.body)) {
+          payload = req.body.toString('utf8');
+        } else {
+          payload = JSON.stringify(req.body);
+        }
+        const expectedSignature = crypto
+          .createHmac('sha256', process.env.VAPI_SECRET_KEY)
+          .update(payload)
+          .digest('hex');
+        const expectedSignatureBase64 = crypto
+          .createHmac('sha256', process.env.VAPI_SECRET_KEY)
+          .update(payload)
+          .digest('base64');
+        if (signature !== expectedSignature && signature !== expectedSignatureBase64) {
+          console.warn(`Signature mismatch. Received: ${signature?.substring(0, 20)}...`);
+        }
       }
     }
 
-    // PRESERVED: Parse body if it's a buffer
+    // Parse body
     const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
     const { message } = body;
     const eventType = message?.type;
 
+    // ACTIVE-CALL TRACKING: Track every event immediately
+    const tracked = trackVapiCall(message);
+
     console.log('Event Type:', eventType);
-    console.log('Message Keys:', Object.keys(message || {}));
 
     let userId = extractUserId(message);
     const callId = extractCallId(message);
     let agentName = extractAgentName(message);
 
-    // FALLBACK: If userId not in message but we have callId, look it up from DB
-    // This is common for end-of-call-report which doesn't include metadata
+    // FALLBACK: DB lookup for userId
     if (!userId && callId) {
       console.log(`🔄 userId not in webhook, attempting DB lookup for callId: ${callId}`);
       const lookedUpUserId = await lookupUserIdByCallId(callId);
@@ -363,28 +353,14 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
-    // Minimal debug metadata only
-    if (process.env.REPLIT_DEPLOYMENT === '1' || !userId || !callId) {
-      console.log('📊 Webhook Debug Info:', {
-        eventType,
-        hasUserId: !!userId,
-        hasCallId: !!callId,
-        agentName,
-        isProduction: process.env.REPLIT_DEPLOYMENT === '1'
-      });
+    if (!userId || !callId) {
+      console.error('❌ CRITICAL: Missing critical data in webhook', { eventType, hasUserId: !!userId, hasCallId: !!callId });
+      return res.status(400).json({ error: 'Missing userId or callId', received: true });
     }
 
-    if (!userId || !callId) {
-      console.error('❌ CRITICAL: Missing critical data in webhook', {
-        eventType,
-        hasUserId: !!userId,
-        hasCallId: !!callId
-      });
-      return res.status(400).json({
-        error: 'Missing userId or callId',
-        received: true,
-      });
-    }
+    // RESPOND 200 IMMEDIATELY so VAPI doesn't wait
+    res.status(200).json({ received: true });
+
     console.log('✅ Webhook identifiers extracted', { hasUserId: !!userId, hasCallId: !!callId, agentName });
 
     // DEBUGGING: Log specific user
@@ -706,12 +682,13 @@ router.post('/webhook', async (req, res) => {
     console.log('✅ Webhook processed successfully');
     console.log('═══════════════════════════════════════════');
     console.log('');
-    res.status(200).json({ received: true });
   } catch (error) {
     console.error('❌ Webhook processing error:', error);
     console.log('═══════════════════════════════════════════');
     console.log('');
-    res.status(500).json({ error: 'Internal server error' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 });
 

@@ -14,11 +14,63 @@ interface CallState {
   lastUserUtteranceAt: Date | null;
   lastAgentUtteranceAt: Date | null;
   isAgentCurrentlySpeaking: boolean;
+  status: 'active' | 'ended';
+  lastEventAt: number;
   createdAt: Date;
 }
 
 // In-memory store for call states
 const callStates = new Map<string, CallState>();
+
+/**
+ * Track a VAPI webhook event - updates call status and controlUrl
+ * Call this at the top of every webhook event before any processing
+ */
+export function trackVapiCall(event: any): { callId: string | null; status: string; hasControlUrl: boolean } {
+  const callId = event?.call?.id || event?.callId || event?.id || null;
+  const controlUrl = event?.call?.monitor?.controlUrl || event?.monitor?.controlUrl;
+  const type = event?.type || event?.event || event?.message?.type;
+
+  if (!callId) {
+    return { callId: null, status: 'unknown', hasControlUrl: false };
+  }
+
+  const existing = callStates.get(callId);
+  const isEnding = type && String(type).includes('end');
+
+  if (existing) {
+    existing.lastEventAt = Date.now();
+    if (isEnding) existing.status = 'ended';
+    if (controlUrl) existing.controlUrl = controlUrl;
+  } else {
+    callStates.set(callId, {
+      controlUrl: controlUrl || '',
+      userId: '',
+      sessionId: callId,
+      exchangeCount: 0,
+      conversationHistory: [],
+      lastUserUtteranceAt: null,
+      lastAgentUtteranceAt: null,
+      isAgentCurrentlySpeaking: false,
+      status: isEnding ? 'ended' : 'active',
+      lastEventAt: Date.now(),
+      createdAt: new Date()
+    });
+  }
+
+  const state = callStates.get(callId)!;
+  console.log('📞 [CALL TRACK]', { type, callId, status: state.status, hasControlUrl: Boolean(state.controlUrl) });
+
+  return { callId, status: state.status, hasControlUrl: Boolean(state.controlUrl) };
+}
+
+/**
+ * Check if a call is still active
+ */
+export function isCallActive(callId: string): boolean {
+  const state = callStates.get(callId);
+  return state?.status === 'active';
+}
 
 // Cleanup interval - remove stale entries after 2 hours
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000;
@@ -42,6 +94,8 @@ export function setControlUrl(callId: string, url: string, userId?: string): voi
       lastUserUtteranceAt: null,
       lastAgentUtteranceAt: null,
       isAgentCurrentlySpeaking: false,
+      status: 'active',
+      lastEventAt: Date.now(),
       createdAt: new Date()
     });
   }
@@ -85,6 +139,8 @@ export function updateCallState(
       lastUserUtteranceAt: null,
       lastAgentUtteranceAt: null,
       isAgentCurrentlySpeaking: false,
+      status: 'active',
+      lastEventAt: Date.now(),
       createdAt: new Date()
     });
   }

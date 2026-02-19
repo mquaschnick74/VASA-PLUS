@@ -2,7 +2,7 @@
 // Injects therapeutic guidance into VAPI conversations via controlUrl
 
 import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance } from './types';
-import { getControlUrl, getCallState, getAgentSpeakingState } from './call-state';
+import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
 
 // Pending guidance queue: holds guidance deferred while agent is speaking
 const pendingGuidance = new Map<string, TherapeuticGuidance | EnhancedTherapeuticGuidance>();
@@ -30,27 +30,25 @@ export async function injectGuidance(
   guidance: TherapeuticGuidance | EnhancedTherapeuticGuidance,
   triggerResponse: boolean = false
 ): Promise<boolean> {
-  const controlUrl = getControlUrl(callId);
-
-  if (!controlUrl) {
-    console.warn(`⚠️ [GuidanceInjector] No controlUrl for call ${callId}`);
+  // ACTIVE-CALL GATE: Refuse injection if call is not active
+  if (!isCallActive(callId)) {
+    console.warn(`⚠️ GUIDANCE: call not active, skipping`, { callId, status: getCallState(callId)?.status || 'no_state' });
     return false;
   }
 
-  // Gate: Skip injection if call is no longer active (ended while pipeline was processing)
-  const callState = getCallState(callId);
-  if (!callState) {
-    console.log(`🚦 [GATE] Call ${callId} no longer active, skipping injection`);
+  // Get the tracked controlUrl (always the freshest from webhook events)
+  const controlUrl = (getControlUrl(callId) || '').trim().replace(/^<|>$/g, '');
+  if (!controlUrl.startsWith('https://')) {
+    console.error(`🛑 GUIDANCE: missing/invalid controlUrl`, { callId, controlUrl: controlUrl.substring(0, 40) });
     return false;
   }
 
   // Gate: Don't inject while agent is actively speaking (unless triggerResponse forces it)
-  // Queue the guidance and deliver when agent stops speaking
   if (getAgentSpeakingState(callId) && !triggerResponse) {
     console.log(`🚦 [GATE] Agent is speaking for call ${callId}, queuing guidance (posture: ${guidance.posture})`);
     pendingGuidance.set(callId, guidance);
     pendingTriggerResponse.set(callId, triggerResponse);
-    return false; // Signal that injection was deferred, not failed
+    return false;
   }
 
   // Check if this is enhanced guidance
@@ -65,9 +63,6 @@ export async function injectGuidance(
 
   console.log(`📤 [GuidanceInjector] Injecting ${isEnhanced ? 'enhanced ' : ''}guidance for call ${callId}`);
   console.log(`   Posture: ${effectivePosture}, Urgency: ${guidance.urgency}`);
-  if (isEnhanced && (guidance as EnhancedTherapeuticGuidance).anticipationGuidance?.shouldWait) {
-    console.log(`   ⏳ Strategic patience: ${(guidance as EnhancedTherapeuticGuidance).anticipationGuidance?.waitingFor}`);
-  }
 
   try {
     const response = await fetch(controlUrl, {
@@ -81,19 +76,24 @@ export async function injectGuidance(
           role: 'system',
           content: systemMessage
         },
-        triggerResponseEnabled: triggerResponse
+        triggerResponseEnabled: true
       })
     });
 
+    const responseText = await response.text().catch(() => '');
+
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      console.error(`❌ [GuidanceInjector] Failed to inject guidance: ${response.status} - ${errorText}`);
-      console.error(`   ControlUrl: ${controlUrl.substring(0, 80)}...`);
-      console.error(`   Posture: ${effectivePosture}, Urgency: ${guidance.urgency}`);
+      console.error(`❌ [GuidanceInjector] controlUrl inject failed`, {
+        callId,
+        status: response.status,
+        body: responseText.slice(0, 800),
+        controlUrl: controlUrl.substring(0, 80),
+        posture: effectivePosture
+      });
       return false;
     }
 
-    console.log(`✅ [GuidanceInjector] Guidance injected successfully for call ${callId}`);
+    console.log(`✅ GUIDANCE injected`, { callId, posture: effectivePosture });
     return true;
 
   } catch (error) {
@@ -296,10 +296,14 @@ export async function injectImmediateIntervention(
   callId: string,
   intervention: string
 ): Promise<boolean> {
-  const controlUrl = getControlUrl(callId);
+  if (!isCallActive(callId)) {
+    console.warn(`⚠️ [GuidanceInjector] Call not active for immediate intervention on ${callId}`);
+    return false;
+  }
 
-  if (!controlUrl) {
-    console.warn(`⚠️ [GuidanceInjector] No controlUrl for immediate intervention on call ${callId}`);
+  const controlUrl = (getControlUrl(callId) || '').trim().replace(/^<|>$/g, '');
+  if (!controlUrl.startsWith('https://')) {
+    console.error(`🛑 [GuidanceInjector] No valid controlUrl for immediate intervention on call ${callId}`);
     return false;
   }
 
@@ -342,11 +346,10 @@ export async function injectSystemMessage(
   callId: string,
   message: string
 ): Promise<boolean> {
-  const controlUrl = getControlUrl(callId);
+  if (!isCallActive(callId)) return false;
 
-  if (!controlUrl) {
-    return false;
-  }
+  const controlUrl = (getControlUrl(callId) || '').trim().replace(/^<|>$/g, '');
+  if (!controlUrl.startsWith('https://')) return false;
 
   try {
     const response = await fetch(controlUrl, {

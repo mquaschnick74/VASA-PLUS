@@ -1,0 +1,113 @@
+Drop-in fix: Active-call gate + controlUrl tracking
+
+Paste this (adapt names to your code). This is intentionally blunt and practical.
+
+// In-memory call tracker (resets on server restart, which is fine for debugging)
+const callTracker = new Map(); // callId -> { status, controlUrl, lastEventAt }
+
+// Call this inside your /api/vapi/webhook handler
+function trackVapiCall(event) {
+  const callId = event?.call?.id || event?.callId || event?.id;
+  const controlUrl = event?.call?.monitor?.controlUrl || event?.monitor?.controlUrl;
+
+  if (!callId) return;
+
+  const prev = callTracker.get(callId) || {};
+  const next = {
+    ...prev,
+    lastEventAt: Date.now(),
+  };
+
+  // Infer status from event type
+  const type = event?.type || event?.event || event?.message?.type;
+  if (type && String(type).includes("end")) next.status = "ended";
+  else next.status = "active";
+
+  // Always overwrite with freshest controlUrl when present
+  if (controlUrl) next.controlUrl = controlUrl;
+
+  callTracker.set(callId, next);
+
+  console.log("📞 [CALL TRACK]", {
+    type,
+    callId,
+    status: next.status,
+    hasControlUrl: Boolean(next.controlUrl),
+  });
+
+  return { callId, ...next };
+}
+
+async function injectGuidance({ callId, guidanceText }) {
+  const state = callTracker.get(callId);
+
+  if (!state) {
+    console.warn("⚠️ GUIDANCE: no call state, skipping", { callId });
+    return { ok: false, reason: "no_call_state" };
+  }
+
+  if (state.status !== "active") {
+    console.warn("⚠️ GUIDANCE: call not active, skipping", { callId, status: state.status });
+    return { ok: false, reason: "call_not_active" };
+  }
+
+  const controlUrl = (state.controlUrl || "").trim().replace(/^<|>$/g, "");
+  if (!controlUrl.startsWith("https://")) {
+    console.error("🛑 GUIDANCE: missing/invalid controlUrl", { callId, controlUrl });
+    return { ok: false, reason: "bad_control_url" };
+  }
+
+  const payload = {
+    type: "add-message",
+    message: { role: "system", content: guidanceText },
+    triggerResponseEnabled: true,
+  };
+
+  const res = await fetch(controlUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const txt = await res.text().catch(() => "");
+
+  if (!res.ok) {
+    console.error("❌ [GuidanceInjector] controlUrl inject failed", {
+      callId,
+      status: res.status,
+      body: txt.slice(0, 800),
+    });
+    return { ok: false, reason: "http_error", status: res.status };
+  }
+
+  console.log("✅ GUIDANCE injected", { callId });
+  return { ok: true };
+}
+
+
+Then in your webhook route:
+
+app.post("/api/vapi/webhook", async (req, res) => {
+  const event = req.body;
+
+  const tracked = trackVapiCall(event);
+
+  // respond ASAP so Vapi isn't waiting
+  res.status(200).json({ ok: true });
+
+  // after responding, do sensing + inject
+  if (tracked?.callId) {
+    // run sensing async
+    const guidanceText = await generateGuidanceSomehow(event);
+    await injectGuidance({ callId: tracked.callId, guidanceText });
+  }
+});
+
+
+This will immediately tell you if:
+
+you’re missing controlUrl,
+
+you’re injecting after end-of-call,
+
+or you’re injecting correctly but payload is rejected.
