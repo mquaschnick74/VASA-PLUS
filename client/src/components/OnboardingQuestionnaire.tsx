@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-import { getApiUrl } from '@/lib/platform';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface OnboardingQuestionnaireProps {
   userId: string;
@@ -56,14 +56,8 @@ export default function OnboardingQuestionnaire({ userId, onComplete }: Onboardi
     setError(null);
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(getApiUrl('/api/auth/complete-onboarding'), {
+      const response = await apiFetch('/api/auth/complete-onboarding', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        credentials: 'include',
         body: JSON.stringify({
           userId,
           voiceResponse: wasSkipped ? '' : voiceResponse,

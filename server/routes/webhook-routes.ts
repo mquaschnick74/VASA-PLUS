@@ -8,6 +8,7 @@ import {
   processEndOfCall,
   ensureSession
 } from '../services/orchestration-service';
+import { safeLog } from '../utils/safeLog';
 // NEW IMPORT - Enhanced therapeutic tracking
 import { enhancedTherapeuticTracker } from '../services/enhanced-therapeutic-tracker';
 // NEW IMPORT - Subscription tracking
@@ -584,7 +585,7 @@ router.post('/webhook', async (req, res) => {
               console.log(`✅ Updated session times for ${callId}`);
             }
           } catch (error) {
-            console.error(`❌ Failed to create retroactive session for ${callId}:`, error);
+            safeLog('error', 'retroactive_session_create_failed', { callId, error });
           }
         }
       }

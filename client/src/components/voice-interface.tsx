@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
 import { getApiUrl, isNativeApp, API_BASE_URL } from '@/lib/platform';
 import { useSubscription } from '@/hooks/use-subscription';
+import { safeLog } from '@/lib/safeLog';
 import { Link, useLocation } from 'wouter';
 
 interface VoiceInterfaceProps {
@@ -137,11 +138,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   // ADD subscription hook
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription(userId);
 
-  // Add this to voice-interface.tsx right after useSubscription
-  console.log('Full subscription data:', JSON.stringify(subscription, null, 2));
-
-  // Debug logging for subscription
-  console.log('Subscription data:', subscription, 'Loading:', subscriptionLoading);
+  // Debug logging for subscription (safe - no sensitive data)
+  safeLog('subscription_status', { tier: subscription?.limits?.subscription_tier, loading: subscriptionLoading });
 
   // Clean up state when voice session ends to ensure text sessions work properly
   const prevSessionActive = useRef(isSessionActive);
@@ -343,11 +341,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
 
       // Send transcript to backend for processing and storage with timeout
       console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
-      console.log('📤 [TEXT] Sending request to /api/chat/end-session');
-      console.log('📱 [TEXT] isNativeApp:', isNativeApp);
-      console.log('📱 [TEXT] API URL:', getApiUrl('/api/chat/end-session'));
-      console.log('📱 [TEXT] Token exists:', !!token);
-      console.log('📱 [TEXT] Token length:', token?.length);
+      safeLog('text_end_session_request', {
+        isNativeApp,
+        apiUrl: getApiUrl('/api/chat/end-session'),
+        hasSession: Boolean(sessionData?.session),
+      });
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -464,9 +462,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
 
           // If user not found (deleted from database), clear local storage and reload
           if (response.status === 404) {
-            console.log('User not found, clearing session...');
+            safeLog('user_not_found_clearing_session');
             localStorage.removeItem('userId');
-            localStorage.removeItem('authToken');
             setUserId(null);
             return;
           }
@@ -713,14 +710,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       const token = sessionData?.session?.access_token;
       const authenticatedUserId = sessionData?.session?.user?.id;
 
-      console.log('🔐 [TEXT] Auth check:', {
-        hasSession: !!sessionData?.session,
-        hasToken: !!token,
-        tokenLength: token?.length,
-        tokenPrefix: token?.substring(0, 20) + '...',
-        propUserId: userId,
-        sessionUserId: authenticatedUserId,
-        userIdMatch: userId === authenticatedUserId
+      safeLog('text_auth_check', {
+        hasSession: Boolean(sessionData?.session),
+        hasToken: Boolean(token),
+        userIdMatch: userId === authenticatedUserId,
       });
 
       if (!token || !authenticatedUserId) {
@@ -730,10 +723,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       // Validate token format (should be JWT with 3 parts)
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
-        console.error('❌ [TEXT] Malformed token:', {
-          parts: tokenParts.length,
-          expected: 3
-        });
+        safeLog('text_malformed_token', { parts: tokenParts.length, expected: 3 });
         throw new Error('Invalid authentication token - please sign in again');
       }
 

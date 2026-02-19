@@ -17,6 +17,7 @@ import { HelpCircle, ArrowLeft } from 'lucide-react';
 import Header from '@/components/shared/Header';
 import AgentCarousel from '@/components/AgentCarousel';
 import { getApiUrl } from '@/lib/platform';
+import { apiFetch } from '@/lib/apiFetch';
 import DemoVoiceCard from './DemoVoiceCard';
 
 interface AuthenticationProps {
@@ -188,17 +189,12 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack,
 
         // Successfully authenticated & verified
         if (authData.session) {
-          const token = authData.session.access_token;
-          localStorage.setItem('authToken', token);
+          // Token is managed by Supabase session — no localStorage persistence needed.
+          // apiFetch will read the token from supabase.auth.getSession() automatically.
 
           // Try to create/get user profile
-          const response = await fetch(getApiUrl('/api/auth/user'), {
+          const response = await apiFetch('/api/auth/user', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            credentials: 'include',
             body: JSON.stringify({
               email: authData.user.email,
               firstName: authData.user.user_metadata?.first_name,
