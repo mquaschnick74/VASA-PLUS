@@ -430,7 +430,31 @@ Do NOT call the tool unless you actually need more context beyond what is alread
               content: systemPrompt
             }
           ],
-          maxTokens: 300
+          maxTokens: 300,
+          tools: [
+            {
+              type: 'function' as const,
+              function: {
+                name: 'fetch_more_context',
+                description: 'Fetch additional context from the user\'s session history, memory, and knowledge base. Use when the user asks about prior sessions, wants more background, or you need specifics to answer.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    userId: { type: 'string', description: 'The user\'s ID' },
+                    query: { type: 'string', description: 'A short search query describing what context is needed' },
+                    limit: { type: 'number', description: 'Max knowledge chunks to return (default 5)' },
+                    types: { type: 'array', items: { type: 'string' }, description: 'Knowledge types: theory, example, technique, guideline' },
+                    tags: { type: 'array', items: { type: 'string' }, description: 'Tags to filter knowledge chunks' }
+                  },
+                  required: ['userId', 'query']
+                }
+              },
+              server: {
+                url: toolsUrl,
+                timeoutSeconds: 10
+              }
+            }
+          ]
         },
         voice: {
           provider: selectedAgent.voice.provider,
@@ -480,31 +504,6 @@ Do NOT call the tool unless you actually need more context beyond what is alread
           model: 'nova-2',
           language: 'en'
         },
-        tools: [
-          {
-            type: 'function' as const,
-            function: {
-              name: 'fetch_more_context',
-              description: 'Fetch additional context from the user\'s session history, memory, and knowledge base. Use when the user asks about prior sessions, wants more background, or you need specifics to answer.',
-              parameters: {
-                type: 'object',
-                properties: {
-                  userId: { type: 'string', description: 'The user\'s ID' },
-                  query: { type: 'string', description: 'A short search query describing what context is needed' },
-                  limit: { type: 'number', description: 'Max knowledge chunks to return (default 5)' },
-                  types: { type: 'array', items: { type: 'string' }, description: 'Knowledge types: theory, example, technique, guideline' },
-                  tags: { type: 'array', items: { type: 'string' }, description: 'Tags to filter knowledge chunks' }
-                },
-                required: ['userId', 'query']
-              }
-            },
-            server: {
-              url: toolsUrl,
-              timeoutSeconds: 10
-            },
-            async: false
-          }
-        ],
         recordingEnabled: true,
         backgroundSpeechDenoisingPlan: {
           smartDenoisingPlan: {
