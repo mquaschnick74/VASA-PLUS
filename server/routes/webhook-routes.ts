@@ -320,16 +320,25 @@ router.post('/tools', async (req, res) => {
     const results: Array<{ toolCallId: string; result: string }> = [];
 
     for (const toolCall of toolCallList) {
-      const toolCallId = toolCall.id;
-      const fnName = toolCall.function?.name;
-      let args: any = {};
+      const toolCallId = toolCall.id || toolCall.toolCallId || `tool_${Date.now()}`;
 
-      try {
-        args = typeof toolCall.function?.arguments === 'string'
-          ? JSON.parse(toolCall.function.arguments)
-          : toolCall.function?.arguments || {};
-      } catch {
-        args = {};
+      // ✅ Support BOTH shapes:
+      // 1) { name, parameters }
+      // 2) { function: { name, arguments } }
+      const fnName =
+        toolCall.name ||
+        toolCall.toolName ||
+        toolCall.function?.name;
+
+      let args: any =
+        toolCall.parameters ||
+        toolCall.args ||
+        toolCall.function?.arguments ||
+        {};
+
+      // Sometimes args can be a JSON string
+      if (typeof args === 'string') {
+        try { args = JSON.parse(args); } catch { args = {}; }
       }
 
       console.log(`🔧 [TOOLS] Processing tool: ${fnName} (${toolCallId})`);

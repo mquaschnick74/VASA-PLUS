@@ -28,6 +28,47 @@ process.on("uncaughtException", (error) => {
   console.error("   Stack:", error.stack);
 });
 
+// ---- HTTP LOG TOGGLE HELPERS ----
+type HttpLogMode = "off" | "api" | "match" | "all";
+
+function parseMatchList(raw?: string): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function getHttpLogMode(): HttpLogMode {
+  const v = (process.env.LOG_HTTP ?? "all").toLowerCase();
+
+  if (v === "off" || v === "0" || v === "false") return "off";
+  if (v === "api") return "api";
+  if (v === "match") return "match";
+  if (v === "all") return "all";
+
+  return "all";
+}
+
+const HTTP_LOG_MODE: HttpLogMode = getHttpLogMode();
+const HTTP_LOG_MATCH: string[] = parseMatchList(process.env.LOG_HTTP_MATCH);
+
+function shouldLogHttp(originalUrl: string): boolean {
+  if (HTTP_LOG_MODE === "off") return false;
+  if (HTTP_LOG_MODE === "all") return true;
+
+  // "api" = log only /api/*
+  if (HTTP_LOG_MODE === "api") return originalUrl.startsWith("/api/");
+
+  // "match" = log only configured prefixes
+  if (HTTP_LOG_MODE === "match") {
+    // strict: if you chose match but forgot to set LOG_HTTP_MATCH, log nothing
+    if (HTTP_LOG_MATCH.length === 0) return false;
+    return HTTP_LOG_MATCH.some((prefix) => originalUrl.startsWith(prefix));
+  }
+
+  return true;
+}
+
 // ---- ENV VALIDATION ----
 try {
   validateEnvironment();
@@ -40,9 +81,18 @@ try {
 const app = express();
 
 // ---- WEBHOOK RAW BODY (MUST BE BEFORE JSON PARSERS) ----
-app.use("/api/vapi/webhook", express.raw({ type: "application/json", limit: "10mb" }));
-app.use("/api/stripe/webhook", express.raw({ type: "application/json", limit: "10mb" }));
-app.use("/api/stripe-webhook", express.raw({ type: "application/json", limit: "10mb" }));
+app.use(
+  "/api/vapi/webhook",
+  express.raw({ type: "application/json", limit: "10mb" })
+);
+app.use(
+  "/api/stripe/webhook",
+  express.raw({ type: "application/json", limit: "10mb" })
+);
+app.use(
+  "/api/stripe-webhook",
+  express.raw({ type: "application/json", limit: "10mb" })
+);
 
 // ---- GLOBAL BODY PARSERS ----
 app.use(express.json({ limit: "10mb" }));
@@ -131,12 +181,20 @@ app.use((req, res, next) => {
   const rid = `R${++reqCounter}`;
   const requestId = (req.headers["x-request-id"] as string) || rid;
 
+  const logThis = shouldLogHttp(req.originalUrl);
+
   // Use stdout.write for more reliable flushing in autoscale
-  process.stdout.write(
-    `➡️ [${rid}] ${req.method} ${req.originalUrl} host=${req.get("host")} requestId=${requestId}\n`
-  );
+  if (logThis) {
+    process.stdout.write(
+      `➡️ [${rid}] ${req.method} ${req.originalUrl} host=${req.get(
+        "host"
+      )} requestId=${requestId}\n`
+    );
+  }
 
   res.on("finish", () => {
+    if (!logThis) return;
+
     const duration = Date.now() - start;
     process.stdout.write(
       `⬅️ [${rid}] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${duration}ms) requestId=${requestId}\n`
@@ -226,7 +284,9 @@ app.use("/api", (req, res, next) => {
           ? "Internal Server Error"
           : err.message || "Internal Server Error";
 
-      res.status(status).json({ message, requestId: req.headers["x-request-id"] });
+      res
+        .status(status)
+        .json({ message, requestId: req.headers["x-request-id"] });
     });
 
     if (app.get("env") === "development") {
@@ -242,14 +302,18 @@ app.use("/api", (req, res, next) => {
 
     server.on("error", (err: NodeJS.ErrnoException) => {
       process.stderr.write(
-        `❌ Failed to start server on port ${port}: code=${err.code ?? "?"} message=${err.message}\n`
+        `❌ Failed to start server on port ${port}: code=${
+          err.code ?? "?"
+        } message=${err.message}\n`
       );
       process.exit(1);
     });
 
     server.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
       process.stdout.write(
-        `✅ Server running on 0.0.0.0:${port} env=${process.env.NODE_ENV || "development"}\n`
+        `✅ Server running on 0.0.0.0:${port} env=${
+          process.env.NODE_ENV || "development"
+        } LOG_HTTP=${HTTP_LOG_MODE} LOG_HTTP_MATCH=${HTTP_LOG_MATCH.join(",")}\n`
       );
     });
   } catch (error) {
