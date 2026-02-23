@@ -8,7 +8,6 @@ import {
   SymbolicMappingResult,
   MovementIndicators,
   RegisterDistribution,
-  Register,
   CSSStage
 } from './types';
 
@@ -239,7 +238,7 @@ function coupleSymbolicToCSS(
   }
 
   // BACKWARD PULL: high resistance pulls stage back (no hysteresis needed)
-  if (movement.indicators.resistance > 0.6 && phaseTransitionProximity < 0.4) {
+  if (coupledMovement.resistance > 0.6 && phaseTransitionProximity < 0.4) {
     if (currentIndex > 0) {
       coupledStage = stageOrder[currentIndex - 1];
       coupledConfidence = Math.max(coupledConfidence - 0.1, 0.3);
