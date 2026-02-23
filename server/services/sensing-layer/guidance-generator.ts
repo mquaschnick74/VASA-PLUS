@@ -190,6 +190,19 @@ function isComplexSituation(osr: OrientationStateRegister): boolean {
   if (osr.symbolic.generativeInsight?.potentialConnection?.confidence &&
       osr.symbolic.generativeInsight.potentialConnection.confidence > 0.5) return true;
 
+  // 10. Phase transition approaching WITH strong momentum (both required to prevent over-triggering)
+  const proximity = osr.meta?.stateVector?.coupled.phaseTransitionProximity;
+  const momentum = osr.meta?.stateVector?.coupled.therapeuticMomentum;
+  if (proximity !== undefined && proximity > 0.7 &&
+      momentum !== undefined && Math.abs(momentum) > 0.4) return true;
+
+  // 11. Rapid velocity changes (something is shifting fast)
+  const velocity = osr.meta?.stateVector?.velocity;
+  if (velocity) {
+    if (Math.abs(velocity.deepeningAcceleration) > 0.5) return true;
+    if (Math.abs(velocity.resistanceTrajectory) > 0.5) return true;
+  }
+
   return false;
 }
 
@@ -270,6 +283,26 @@ function determinePosture(osr: OrientationStateRegister): TherapeuticPosture {
     return 'probe';
   }
 
+  // Phase transition approaching — hold space, don't disrupt
+  const proximity = osr.meta?.stateVector?.coupled.phaseTransitionProximity;
+  if (proximity !== undefined && proximity > 0.6 &&
+      ['suspension', 'gesture_toward'].includes(osr.movement.cssStage)) {
+    return 'hold';
+  }
+
+  // Rapid deepening acceleration — follow, don't lead
+  const deepAccel = osr.meta?.stateVector?.velocity.deepeningAcceleration;
+  if (deepAccel !== undefined && deepAccel > 0.4) {
+    return 'hold';
+  }
+
+  // Resistance dissolving — probe gently to support momentum
+  const resistTrajectory = osr.meta?.stateVector?.velocity.resistanceTrajectory;
+  if (resistTrajectory !== undefined && resistTrajectory < -0.3 &&
+      osr.movement.indicators.resistance < 0.3) {
+    return 'probe';
+  }
+
   // Default to probe in early session, hold later
   if (osr.movement.sessionPosition === 'opening' || osr.movement.sessionPosition === 'developing') {
     return 'probe';
@@ -324,6 +357,15 @@ function determineRegisterDirection(osr: OrientationStateRegister): RegisterDire
  * Generate strategic therapeutic direction
  */
 function generateStrategicDirection(osr: OrientationStateRegister): string {
+  // High therapeutic momentum — acknowledge and support the direction
+  const momentum = osr.meta?.stateVector?.coupled.therapeuticMomentum;
+  if (momentum !== undefined && momentum > 0.5) {
+    return 'User is making significant progress. Follow their lead and deepen what they are already exploring.';
+  }
+  if (momentum !== undefined && momentum < -0.5) {
+    return 'User may be retreating. Slow the pace. Prioritize safety and alliance over depth.';
+  }
+
   const { movement, patterns, symbolic } = osr;
 
   // If awareness shift happening, support integration

@@ -8,6 +8,13 @@ import {
   RegisterDistribution,
   Register
 } from './types';
+import {
+  TherapeuticStateVector,
+  StateVectorHistory,
+  createStateVectorHistory,
+  pushStateVector,
+  getFieldSummary
+} from './state-vector';
 
 /**
  * Accumulates session data in memory during a call
@@ -44,6 +51,9 @@ export interface SessionAccumulator {
   // Session-level aggregates
   patternsThisSession: string[];
   connectionsThisSession: string[];
+
+  // State vector history for coupling calculations
+  stateVectorHistory: StateVectorHistory;
 }
 
 /**
@@ -69,6 +79,13 @@ export interface SessionSummary {
     depth: string;
     coherence: string;
   };
+  fieldSummary: {
+    averageMomentum: number;
+    registerTrend: { Real: number; Imaginary: number; Symbolic: number };
+    peakSymbolicActivation: number;
+    cssProgressionDirection: 'advancing' | 'stable' | 'retreating';
+    dominantVelocityPattern: string;
+  } | null;
 }
 
 /**
@@ -93,7 +110,8 @@ export function initializeSession(callId: string, userId: string, sessionId: str
     latestMovement: null,
     latestGuidance: null,
     patternsThisSession: [],
-    connectionsThisSession: []
+    connectionsThisSession: [],
+    stateVectorHistory: createStateVectorHistory(10)
   };
 
   activeSessions.set(callId, accumulator);
@@ -199,6 +217,25 @@ export function recordSymbolicConnection(callId: string, connectionDescription: 
 }
 
 /**
+ * Record a state vector in the session history
+ */
+export function recordStateVector(callId: string, vector: TherapeuticStateVector): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+
+  pushStateVector(session.stateVectorHistory, vector);
+}
+
+/**
+ * Get previous state vectors for coupling calculations
+ */
+export function getPreviousVectors(callId: string): TherapeuticStateVector[] {
+  const session = activeSessions.get(callId);
+  if (!session) return [];
+  return session.stateVectorHistory.vectors;
+}
+
+/**
  * Determine if current state represents a significant moment worth recording
  */
 export function isSignificantMoment(
@@ -293,7 +330,10 @@ export function getSessionSummary(callId: string): SessionSummary | null {
     patternsDetected: session.patternsThisSession,
     symbolicConnections: session.connectionsThisSession,
     finalCSSStage: session.latestMovement?.cssStage || 'pointed_origin',
-    finalMovementQuality: session.latestMovement?.movementQuality || { pace: 'steady', depth: 'moderate', coherence: 'developing' }
+    finalMovementQuality: session.latestMovement?.movementQuality || { pace: 'steady', depth: 'moderate', coherence: 'developing' },
+    fieldSummary: session.stateVectorHistory.vectors.length > 0
+      ? getFieldSummary(session.stateVectorHistory)
+      : null
   };
 }
 

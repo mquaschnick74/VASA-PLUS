@@ -17,8 +17,14 @@ import {
   isSignificantMoment,
   getSessionSummary,
   clearSession,
-  SessionSummary
+  SessionSummary,
+  recordStateVector,
+  getPreviousVectors
 } from './session-state';
+import {
+  coupleStateVector,
+  TherapeuticStateVector
+} from './state-vector';
 import {
   TurnInput,
   UserTherapeuticProfile,
@@ -88,31 +94,52 @@ export class SensingLayerService {
       ]);
       console.log(`⚡ Sensing computations completed in ${Date.now() - sensingStart}ms`);
 
-      // 4. Build Orientation State Register
-      const osr: OrientationStateRegister = {
+      // 4. Couple state vector — apply cross-module dynamics
+      const previousVectors = getPreviousVectors(input.callId);
+      const stateVector = coupleStateVector(
+        patterns, register, symbolic, movement,
+        previousVectors, input.exchangeCount
+      );
+
+      // 4a. Record state vector in session history
+      recordStateVector(input.callId, stateVector);
+
+      // 4b. Build coupled OSR — guidance generator uses coupled scores, not raw
+      const coupledOSR: OrientationStateRegister = {
         patterns,
-        register,
+        register: {
+          ...register,
+          registerDistribution: stateVector.coupled.registerDistribution
+        },
         symbolic,
-        movement
+        movement: {
+          ...movement,
+          indicators: stateVector.coupled.movementIndicators,
+          cssStage: stateVector.coupled.cssStage,
+          cssStageConfidence: stateVector.coupled.cssStageConfidence
+        },
+        meta: { stateVector }
       };
 
-      console.log(`📊 OSR Summary:`);
+      console.log(`📊 OSR Summary (coupled):`);
       console.log(`   - Patterns: ${patterns.activePatterns.length} active, ${patterns.emergingPatterns.length} emerging`);
       console.log(`   - Register: ${register.currentRegister} (stuck: ${register.stucknessScore.toFixed(2)})`);
-      console.log(`   - Symbolic: ${symbolic.activeMappings.length} active mappings`);
-      console.log(`   - Movement: ${movement.trajectory}, CSS: ${movement.cssStage}`);
+      console.log(`   - Symbolic: ${symbolic.activeMappings.length} active, activation: ${stateVector.coupled.symbolicActivation.toFixed(2)}`);
+      console.log(`   - Movement: ${movement.trajectory}, CSS: ${stateVector.coupled.cssStage} (raw: ${movement.cssStage})`);
+      console.log(`   - Momentum: ${stateVector.coupled.therapeuticMomentum.toFixed(2)}, Phase proximity: ${stateVector.coupled.phaseTransitionProximity.toFixed(2)}`);
+      console.log(`   - Velocity: deep=${stateVector.velocity.deepeningAcceleration.toFixed(2)}, resist=${stateVector.velocity.resistanceTrajectory.toFixed(2)}, symbolic=${stateVector.velocity.symbolicActivationRate.toFixed(2)}`);
 
-      // 5. Generate therapeutic guidance
+      // 5. Generate therapeutic guidance (using coupled OSR)
       const guidanceStart = Date.now();
-      const guidance = await generateGuidance(osr, input);
+      const guidance = await generateGuidance(coupledOSR, input);
       console.log(`🎯 Guidance generated in ${Date.now() - guidanceStart}ms: Posture=${guidance.posture}`);
 
       // 6. Update in-memory session state (NO database write)
       const previousMovement = sessionState.latestMovement;
-      updateSessionState(input.callId, register, movement, guidance);
+      updateSessionState(input.callId, coupledOSR.register, coupledOSR.movement, guidance);
 
       // 7. Check for significant moments and record them
-      const significance = isSignificantMoment(movement, previousMovement);
+      const significance = isSignificantMoment(coupledOSR.movement, previousMovement);
       if (significance.isSignificant && significance.type && significance.description) {
         recordSignificantMoment(input.callId, significance.type, significance.description, guidance);
       }
@@ -216,7 +243,8 @@ export class SensingLayerService {
           symbolicConnections: summary.symbolicConnections,
           finalCSSStage: summary.finalCSSStage,
           finalMovementQuality: summary.finalMovementQuality,
-          duration: new Date(summary.endTime).getTime() - new Date(summary.startTime).getTime()
+          duration: new Date(summary.endTime).getTime() - new Date(summary.startTime).getTime(),
+          fieldSummary: summary.fieldSummary
         })
       });
 
@@ -437,3 +465,5 @@ export * from './types';
 // Export session state types and functions
 export type { SessionSummary } from './session-state';
 export { getSessionState, clearSession } from './session-state';
+
+export type { TherapeuticStateVector, StateVectorHistory } from './state-vector';

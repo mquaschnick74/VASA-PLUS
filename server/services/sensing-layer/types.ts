@@ -277,6 +277,13 @@ export interface OrientationStateRegister {
   register: RegisterAnalysisResult;
   symbolic: SymbolicMappingResult;
   movement: MovementAssessmentResult;
+
+  // IMPORTANT: keep as type-only import() to avoid runtime circular deps.
+  // state-vector.ts imports types.ts, so a regular import here would create a cycle.
+  // The inline import() syntax is erased at compile time and is safe.
+  meta?: {
+    stateVector?: import('./state-vector').TherapeuticStateVector;
+  };
 }
 
 /**
