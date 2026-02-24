@@ -4,8 +4,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getCallState, getLastUserMessage, getConversationHistory } from './call-state';
 import { getSessionState } from './session-state';
-import { injectGuidance } from './guidance-injector';
-import { TherapeuticGuidance } from './types';
+import { injectSpokenReEngagement } from './guidance-injector';
 import { queryKnowledgeBase, buildRetrievedContext } from './knowledge-base';
 
 // Initialize Anthropic client (shared with guidance-generator)
@@ -527,18 +526,10 @@ async function handleSilenceTimeout(callId: string): Promise<void> {
   // Generate message using tier-appropriate strategy
   const { message, source } = await generateReEngagementMessage(callId, timer.reEngagementCount, silenceDurationSeconds);
 
-  // Build a minimal guidance object for the re-engagement
-  const guidance: TherapeuticGuidance = {
-    posture: 'hold',
-    registerDirection: null,
-    strategicDirection: message,
-    avoidances: ['Do not ask multiple questions', 'Do not interpret or analyze'],
-    framing: message,
-    urgency: timer.reEngagementCount >= 3 ? 'moderate' : 'low',
-    confidence: 0.8
-  };
-
-  const injected = await injectGuidance(callId, guidance, true);
+  // Use Vapi's "say" command to force the agent to speak the re-engagement.
+  // This bypasses the LLM entirely — the agent speaks the exact text.
+  // Regular guidance uses add-message (silent context); re-engagement uses say (forced speech).
+  const injected = await injectSpokenReEngagement(callId, message);
   if (injected) {
     console.log(`🔇 [SILENCE] Re-engagement #${timer.reEngagementCount} injected for call ${callId} [${source}]: "${message}"`);
   } else {
