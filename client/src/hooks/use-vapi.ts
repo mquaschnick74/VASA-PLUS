@@ -271,12 +271,22 @@ const useVapi = ({
 
       // CHANGE 1: Add greeting generation instructions
       systemPrompt = `GREETING GENERATION INSTRUCTION:
-Your first message should be a warm greeting that:
-1. IF there are previous sessions: Reference specific details from the context
-2. IF this is the first session: Introduce yourself naturally without referencing past sessions
-3. NEVER invent or hallucinate previous conversations
-4. Uses the user's actual words when available (if any exist)
-5. Feels natural and conversational
+Your first message should be a warm, brief greeting. Follow these rules strictly:
+
+IF this is the FIRST session: Introduce yourself naturally. Do NOT reference past sessions.
+IF there are previous sessions: Pick ONE specific thread from the context below — the one that feels most alive or unfinished — and reference it briefly. Do NOT summarize multiple topics. Do NOT try to cover everything. One thread, one sentence about it, then invite them in.
+
+CRITICAL GREETING RULES:
+- Your greeting should be 2-3 sentences MAX (one greeting, one specific reference, one invitation)
+- Do NOT list multiple topics from previous sessions
+- Do NOT reference uploads AND session history AND patterns in the same greeting
+- Do NOT front-load clinical observations — save those for after the user responds
+- NEVER invent or hallucinate previous conversations
+- If you see multiple context blocks below, pick the MOST RECENT and MOST SPECIFIC one only
+
+GOOD EXAMPLE: "Hey Matthew. Last time we were getting into that thing about needing to breathe — not physically, but like needing room. What's present for you today?"
+
+BAD EXAMPLE: "Hey Matthew. I'm holding that thread about organizing and tracking, and you being clear it's not about preventing anything, and needing to breathe, and the coffee and carbs and alcohol monitoring..." (This is a data dump, not a greeting.)
 
 VOICE SESSION MODE:
 This is a voice conversation through VAPI.
@@ -322,8 +332,7 @@ Just respond naturally with your therapeutic conversation.
         systemPrompt += `\n\n===== LAST SESSION CONTEXT =====
 ${lastSessionSummary}
 
-IMPORTANT: You've already referenced this in your greeting. Build naturally from there.
-Continue the therapeutic narrative without re-introducing the previous session.
+FOR YOUR GREETING: Pick ONE thread from this context — the most unfinished or emotionally alive one. Do NOT summarize the whole session. After the greeting, build naturally from the user's response.
 ===== END LAST SESSION =====\n`;
       }
 
@@ -372,8 +381,7 @@ This content was previously discussed in an earlier session but remains fully av
 ${memoryContext}
 ===== END HISTORY =====
 
-IMPORTANT: Reference the above context naturally in conversation when relevant.
-Do not make up or hallucinate any details not explicitly mentioned above.`;
+This history is for YOUR reference during the conversation. Do NOT try to reference it all in your greeting. If LAST SESSION CONTEXT is also present above, use that for your greeting instead — it is more recent and specific. Do not make up or hallucinate any details not explicitly mentioned above.`;
       } else if (!lastSessionSummary) {
         // FIRST SESSION: Inject the first session introduction talk track
         // This gives the agent a specific opening script to use
