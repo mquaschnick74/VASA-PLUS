@@ -14,6 +14,9 @@ import {
   recordSignificantMoment,
   recordPatternDetected,
   recordSymbolicConnection,
+  recordStructuredPattern,
+  recordStructuredHistorical,
+  recordStructuredConnection,
   isSignificantMoment,
   getSessionSummary,
   clearSession,
@@ -25,6 +28,7 @@ import {
   coupleStateVector,
   TherapeuticStateVector
 } from './state-vector';
+import { persistSessionProfile } from './profile-writer';
 import {
   TurnInput,
   UserTherapeuticProfile,
@@ -154,6 +158,90 @@ export class SensingLayerService {
         recordSymbolicConnection(input.callId, connectionDesc);
       }
 
+      // 8a. Record STRUCTURED profile data for end-of-call persistence
+      //     (These feed into user_patterns, user_historical_material, symbolic_mappings)
+
+      // Active patterns → user_patterns
+      for (const pattern of patterns.activePatterns) {
+        recordStructuredPattern(input.callId, {
+          description: pattern.description,
+          patternType: pattern.patternType,
+          confidence: pattern.matchConfidence,
+          evidence: pattern.utteranceEvidence,
+          userExplicitlyIdentified: false
+        });
+      }
+
+      // Emerging patterns → user_patterns (lower confidence, still worth tracking across sessions)
+      for (const emerging of patterns.emergingPatterns) {
+        recordStructuredPattern(input.callId, {
+          description: emerging.description,
+          patternType: emerging.patternType,
+          confidence: 0.4,
+          evidence: emerging.examples[0] || '',
+          userExplicitlyIdentified: false
+        });
+      }
+
+      // User explicitly identified pattern → user_patterns (flagged as user-recognized)
+      // Default patternType is 'cognitive' — DB only allows behavioral/cognitive/relational
+      if (patterns.userExplicitIdentification) {
+        recordStructuredPattern(input.callId, {
+          description: patterns.userExplicitIdentification.inferredPattern,
+          patternType: 'cognitive',
+          confidence: patterns.userExplicitIdentification.confidence,
+          evidence: patterns.userExplicitIdentification.statement,
+          userExplicitlyIdentified: true
+        });
+      }
+
+      // Potential connections → user_historical_material
+      for (const conn of symbolic.potentialConnections) {
+        const historicalContent = conn.possibleHistoricalLink || '';
+        if (conn.confidence > 0.4 && historicalContent) {
+          recordStructuredHistorical(input.callId, {
+            content: historicalContent,
+            relatedFigures: extractFiguresFromText(historicalContent),
+            emotionalValence: inferValenceFromConnectionType(conn.connectionType),
+            contextNotes: conn.suggestedExploration || '',
+            confidence: conn.confidence
+          });
+        }
+      }
+
+      // Active mappings → symbolic_mappings
+      // Require BOTH sides to prevent junk rows (symbolic_connection is NOT NULL)
+      for (const mapping of symbolic.activeMappings) {
+        const presentDesc = mapping.presentPattern || '';
+        const historicalDesc = mapping.historicalMaterial || '';
+        if (presentDesc && historicalDesc) {
+          recordStructuredConnection(input.callId, {
+            presentPattern: presentDesc,
+            historicalMaterial: historicalDesc,
+            connectionType: mapping.connectionType,
+            confidence: mapping.currentActivation,
+            userAwareness: mapping.userAwareness,
+            symbolicConnection: `${presentDesc} → ${historicalDesc}`
+          });
+        }
+      }
+
+      // High-confidence potential connections → symbolic_mappings
+      for (const conn of symbolic.potentialConnections) {
+        const utterance = conn.utteranceContent || '';
+        const historicalLink = conn.possibleHistoricalLink || '';
+        if (conn.confidence > 0.5 && utterance && historicalLink) {
+          recordStructuredConnection(input.callId, {
+            presentPattern: utterance,
+            historicalMaterial: historicalLink,
+            connectionType: conn.connectionType,
+            confidence: conn.confidence,
+            userAwareness: 'unconscious',
+            symbolicConnection: `${utterance} → ${historicalLink}`
+          });
+        }
+      }
+
       // 9. Only write to DB on significant moments (optional - for real-time alerts)
       if (significance.isSignificant && (significance.type === 'flooding' || significance.type === 'breakthrough')) {
         // These are high-priority moments worth tracking immediately
@@ -209,6 +297,17 @@ export class SensingLayerService {
     try {
       // Write session summary to database
       await this.storeSessionSummary(summary);
+
+      // Persist accumulated profile data to user_patterns, user_historical_material, symbolic_mappings
+      if (summary.structuredPatterns.length > 0 || summary.structuredHistorical.length > 0 || summary.structuredConnections.length > 0) {
+        console.log(`💾 [Sensing Layer] Persisting user profile data...`);
+        await persistSessionProfile(
+          summary.userId,
+          summary.structuredPatterns,
+          summary.structuredHistorical,
+          summary.structuredConnections
+        );
+      }
 
       // Clear from memory
       clearSession(callId);
@@ -458,6 +557,59 @@ export class SensingLayerService {
 
 // Export singleton instance
 export const sensingLayer = SensingLayerService.getInstance();
+
+// ─────────────────────────────────────────────
+// Helper functions for structured profile recording
+// ─────────────────────────────────────────────
+
+/**
+ * Extract figure/person references from historical material text.
+ */
+function extractFiguresFromText(text: string): string[] {
+  const figures: string[] = [];
+  const lowerText = text.toLowerCase();
+
+  const figurePatterns: Array<{ regex: RegExp; figure: string }> = [
+    { regex: /\b(mother|mom|mama)\b/, figure: 'mother' },
+    { regex: /\b(father|dad|papa)\b/, figure: 'father' },
+    { regex: /\b(parent|parents)\b/, figure: 'parent' },
+    { regex: /\b(sibling|brother|sister)\b/, figure: 'sibling' },
+    { regex: /\b(partner|spouse|husband|wife)\b/, figure: 'partner' },
+    { regex: /\b(ex|ex-partner|ex-husband|ex-wife)\b/, figure: 'ex-partner' },
+    { regex: /\b(boss|manager|supervisor)\b/, figure: 'authority figure' },
+    { regex: /\b(teacher|coach|mentor)\b/, figure: 'mentor figure' },
+    { regex: /\b(friend|best friend)\b/, figure: 'friend' },
+    { regex: /\b(grandparent|grandmother|grandfather|grandma|grandpa)\b/, figure: 'grandparent' },
+    { regex: /\b(child|son|daughter|kid)\b/, figure: 'child' },
+    { regex: /\b(caregiver|caretaker)\b/, figure: 'caregiver' }
+  ];
+
+  for (const { regex, figure } of figurePatterns) {
+    if (regex.test(lowerText) && !figures.includes(figure)) {
+      figures.push(figure);
+    }
+  }
+
+  return figures;
+}
+
+/**
+ * Infer emotional valence from the type of symbolic connection.
+ */
+function inferValenceFromConnectionType(connectionType: string): string {
+  switch (connectionType) {
+    case 'figure_substitution':
+      return 'complex';
+    case 'situation_echo':
+      return 'distressing';
+    case 'emotional_rhyme':
+      return 'resonant';
+    case 'behavioral_repetition':
+      return 'conflicted';
+    default:
+      return 'unspecified';
+  }
+}
 
 // Export types for external use
 export * from './types';

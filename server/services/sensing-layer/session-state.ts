@@ -6,7 +6,10 @@ import {
   MovementAssessmentResult,
   TherapeuticGuidance,
   RegisterDistribution,
-  Register
+  Register,
+  SessionPatternRecord,
+  SessionHistoricalRecord,
+  SessionSymbolicRecord
 } from './types';
 import {
   TherapeuticStateVector,
@@ -52,6 +55,11 @@ export interface SessionAccumulator {
   patternsThisSession: string[];
   connectionsThisSession: string[];
 
+  // Structured profile data for end-of-call persistence
+  structuredPatterns: SessionPatternRecord[];
+  structuredHistorical: SessionHistoricalRecord[];
+  structuredConnections: SessionSymbolicRecord[];
+
   // State vector history for coupling calculations
   stateVectorHistory: StateVectorHistory;
 }
@@ -73,6 +81,9 @@ export interface SessionSummary {
   significantMoments: SessionAccumulator['significantMoments'];
   patternsDetected: string[];
   symbolicConnections: string[];
+  structuredPatterns: SessionPatternRecord[];
+  structuredHistorical: SessionHistoricalRecord[];
+  structuredConnections: SessionSymbolicRecord[];
   finalCSSStage: string;
   finalMovementQuality: {
     pace: string;
@@ -111,6 +122,9 @@ export function initializeSession(callId: string, userId: string, sessionId: str
     latestGuidance: null,
     patternsThisSession: [],
     connectionsThisSession: [],
+    structuredPatterns: [],
+    structuredHistorical: [],
+    structuredConnections: [],
     stateVectorHistory: createStateVectorHistory(10)
   };
 
@@ -213,6 +227,79 @@ export function recordSymbolicConnection(callId: string, connectionDescription: 
   if (!session.connectionsThisSession.includes(connectionDescription)) {
     session.connectionsThisSession.push(connectionDescription);
     console.log(`🔗 [SessionState] Recorded connection: ${connectionDescription}`);
+  }
+}
+
+/**
+ * Record a structured pattern for end-of-call profile persistence.
+ * Deduplicates within the session by normalized description.
+ * Keeps the higher-confidence version and merges explicit identification.
+ */
+export function recordStructuredPattern(callId: string, record: SessionPatternRecord): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+
+  const normalized = record.description.toLowerCase().trim();
+  const existing = session.structuredPatterns.find(
+    p => p.description.toLowerCase().trim() === normalized
+  );
+
+  if (existing) {
+    if (record.confidence > existing.confidence) {
+      existing.confidence = record.confidence;
+      existing.evidence = record.evidence || existing.evidence;
+    }
+    if (record.userExplicitlyIdentified) {
+      existing.userExplicitlyIdentified = true;
+    }
+  } else {
+    session.structuredPatterns.push({ ...record });
+  }
+}
+
+/**
+ * Record structured historical material for end-of-call profile persistence.
+ * Deduplicates within the session by normalized content.
+ * Merges higher-confidence or richer data into existing records.
+ */
+export function recordStructuredHistorical(callId: string, record: SessionHistoricalRecord): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+
+  const normalized = record.content.toLowerCase().trim();
+  const existing = session.structuredHistorical.find(
+    h => h.content.toLowerCase().trim() === normalized
+  );
+
+  if (existing) {
+    if (record.confidence > existing.confidence) {
+      existing.confidence = record.confidence;
+    }
+    if (record.contextNotes.length > existing.contextNotes.length) {
+      existing.contextNotes = record.contextNotes;
+    }
+    const mergedFigures = Array.from(new Set([...existing.relatedFigures, ...record.relatedFigures]));
+    existing.relatedFigures = mergedFigures;
+  } else {
+    session.structuredHistorical.push({ ...record });
+  }
+}
+
+/**
+ * Record a structured symbolic connection for end-of-call profile persistence.
+ * Deduplicates within the session by normalized symbolicConnection.
+ */
+export function recordStructuredConnection(callId: string, record: SessionSymbolicRecord): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+
+  const normalized = record.symbolicConnection.toLowerCase().trim();
+  const exists = session.structuredConnections.some(
+    c => c.symbolicConnection.toLowerCase().trim() === normalized
+  );
+
+  if (!exists) {
+    session.structuredConnections.push({ ...record });
   }
 }
 
@@ -329,6 +416,9 @@ export function getSessionSummary(callId: string): SessionSummary | null {
     significantMoments: session.significantMoments,
     patternsDetected: session.patternsThisSession,
     symbolicConnections: session.connectionsThisSession,
+    structuredPatterns: session.structuredPatterns,
+    structuredHistorical: session.structuredHistorical,
+    structuredConnections: session.structuredConnections,
     finalCSSStage: session.latestMovement?.cssStage || 'pointed_origin',
     finalMovementQuality: session.latestMovement?.movementQuality || { pace: 'steady', depth: 'moderate', coherence: 'developing' },
     fieldSummary: session.stateVectorHistory.vectors.length > 0

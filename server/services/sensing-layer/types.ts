@@ -494,3 +494,47 @@ export interface SensingLayerOutputRow {
   processing_time_ms: number;
   created_at?: string;
 }
+
+// ─────────────────────────────────────────────
+// Session Profile Accumulation Types
+// Used by session-state.ts to accumulate structured
+// data during a call, and by profile-writer.ts to
+// persist it at end-of-call.
+// ─────────────────────────────────────────────
+
+/**
+ * A pattern detected during this session, with full metadata
+ * needed for upsert into user_patterns.
+ */
+export interface SessionPatternRecord {
+  description: string;
+  patternType: PatternType;
+  confidence: number;
+  evidence: string;
+  userExplicitlyIdentified: boolean;
+}
+
+/**
+ * Historical material referenced during this session,
+ * extracted from symbolic mapping potential connections.
+ */
+export interface SessionHistoricalRecord {
+  content: string;
+  relatedFigures: string[];
+  emotionalValence: string;
+  contextNotes: string;
+  confidence: number;
+}
+
+/**
+ * A symbolic connection detected during this session,
+ * linking a present pattern to historical material.
+ */
+export interface SessionSymbolicRecord {
+  presentPattern: string;
+  historicalMaterial: string;
+  connectionType: SymbolicConnectionType;
+  confidence: number;
+  userAwareness: AwarenessLevel;
+  symbolicConnection: string;
+}
