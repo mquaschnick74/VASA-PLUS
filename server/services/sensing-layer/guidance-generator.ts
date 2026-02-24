@@ -635,7 +635,7 @@ Be concise and clinically precise. Focus on the most therapeutically relevant gu
   console.log(`🤖 [Claude] Calling API...`);
   const response = await anthropic.messages.create({
     model: 'claude-3-haiku-20240307',
-    max_tokens: 1200,
+    max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }]
   });
   console.log(`🤖 [Claude] Response received in ${Date.now() - claudeStart}ms`);
@@ -646,13 +646,67 @@ Be concise and clinically precise. Focus on the most therapeutically relevant gu
     throw new Error('Unexpected response type from Claude');
   }
 
-  // Parse JSON from response
+  // Parse JSON from response with repair logic
   const jsonMatch = content.text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('Could not parse JSON from Claude response');
   }
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  let jsonStr = jsonMatch[0];
+
+  // Repair common truncation issues:
+  // 1. Count open/close braces and brackets
+  const openBraces = (jsonStr.match(/\{/g) || []).length;
+  const closeBraces = (jsonStr.match(/\}/g) || []).length;
+  const openBrackets = (jsonStr.match(/\[/g) || []).length;
+  const closeBrackets = (jsonStr.match(/\]/g) || []).length;
+
+  // 2. If truncated, trim back to last complete value and close
+  if (openBraces !== closeBraces || openBrackets !== closeBrackets) {
+    console.warn(`🔧 [Guidance] JSON truncated (braces: ${openBraces}/${closeBraces}, brackets: ${openBrackets}/${closeBrackets}). Attempting repair.`);
+
+    // Remove any trailing incomplete key-value pair (e.g., `"key": "unterminated...`)
+    // Find the last complete value boundary (ends with `}`, `]`, `"`, number, true/false/null, followed by comma or nothing)
+    const lastGoodBoundary = jsonStr.search(/,\s*"[^"]*"\s*:\s*[^,}\]]*$/);
+    if (lastGoodBoundary > 0) {
+      jsonStr = jsonStr.substring(0, lastGoodBoundary);
+    }
+
+    // Close any remaining open brackets and braces
+    const remainingBrackets = (jsonStr.match(/\[/g) || []).length - (jsonStr.match(/\]/g) || []).length;
+    const remainingBraces = (jsonStr.match(/\{/g) || []).length - (jsonStr.match(/\}/g) || []).length;
+
+    for (let i = 0; i < remainingBrackets; i++) jsonStr += ']';
+    for (let i = 0; i < remainingBraces; i++) jsonStr += '}';
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch (parseError) {
+    console.error(`🔧 [Guidance] JSON repair failed, extracting core fields manually`);
+    // Extract the most critical fields with regex as last resort
+    const postureMatch = content.text.match(/"posture"\s*:\s*"([^"]+)"/);
+    const directionMatch = content.text.match(/"strategicDirection"\s*:\s*"([^"]+)"/);
+    const urgencyMatch = content.text.match(/"urgency"\s*:\s*"([^"]+)"/);
+    const confidenceMatch = content.text.match(/"confidence"\s*:\s*([\d.]+)/);
+
+    if (postureMatch) {
+      // We got at least posture — build a minimal valid guidance object
+      parsed = {
+        posture: postureMatch[1],
+        strategicDirection: directionMatch ? directionMatch[1] : 'Engage with the user\'s current material',
+        urgency: urgencyMatch ? urgencyMatch[1] : 'moderate',
+        confidence: confidenceMatch ? parseFloat(confidenceMatch[1]) : 0.6,
+        avoidances: [],
+        registerDirection: null,
+        framing: null
+      };
+      console.log(`🔧 [Guidance] Recovered core fields from malformed JSON (posture: ${parsed.posture})`);
+    } else {
+      throw new Error('Could not extract any fields from Claude response');
+    }
+  }
 
   return {
     posture: validatePosture(parsed.posture),

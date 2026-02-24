@@ -23,11 +23,12 @@ export interface SpeechUpdateMessage {
 interface UseVapiProps {
   userId: string;
   memoryContext: string;
-  lastSessionSummary?: string | null;  // ADD: Session continuity
-  shouldReferenceLastSession?: boolean; // ADD: Session continuity
-  hasUnaddressedUpload?: boolean;       // Upload is new and unaddressed
-  uploadAddressed?: boolean;            // Upload was previously discussed
-  uploadContext?: string | null;        // Full analysis + document text
+  lastSessionSummary?: string | null;
+  shouldReferenceLastSession?: boolean;
+  hasUnaddressedUpload?: boolean;
+  uploadAddressed?: boolean;
+  uploadContext?: string | null;
+  uploadId?: string | null;             // ID of the upload_analysis record presented to agent
   firstName: string;
   selectedAgent: TherapeuticAgent;
   sessionDurationLimit?: number;
@@ -54,6 +55,7 @@ const useVapi = ({
   hasUnaddressedUpload,
   uploadAddressed,
   uploadContext,
+  uploadId,
   firstName,
   selectedAgent,
   sessionDurationLimit = 7200,
@@ -337,18 +339,16 @@ ${uploadContext}
           // UNADDRESSED: Agent should proactively engage with the upload
           systemPrompt += `
 ===== UPLOAD ENGAGEMENT INSTRUCTIONS =====
-The user uploaded this content and chose to have it analyzed. They want to explore it with you.
+The user uploaded this content and chose to have it analyzed. It is ONE possible thread for your greeting — potentially the most relevant one if it is recent and unaddressed.
 
-YOUR OPENING: After greeting the user by name, move directly into the upload. Do NOT ask "how are you feeling today" first. Instead, share a specific observation from the CLINICAL ANALYSIS above. For example:
-- Reference a specific pattern identified in the analysis (like a tension or contradiction)
-- Quote one of their actual lines back to them and share what it reveals
-- Name a specific concept or argument from their writing that feels worth exploring
+YOUR GREETING: Follow the GREETING GENERATION INSTRUCTION above. The upload is a strong candidate for the ONE thread you pick, but only if it feels more alive than other available context. Do NOT dump the analysis. If you reference the upload, pick ONE specific detail — a quote, a tension, a concept — and weave it into a natural 2-3 sentence greeting. Then wait for their response before going deeper.
 
-YOUR STANCE: Engage with the content on its own terms. If it is theoretical writing, engage with the arguments, concepts, and structure of reasoning. If it is personal writing, engage with the emotional texture and what it reveals. If it is a practical document like a script or plan, engage with the intentions, dynamics, and underlying needs at work. Let the nature of the document guide your language — never call text passages "images" or use language that misrepresents the form of what the user shared.
+GOOD EXAMPLE: "Hey Matthew. That line you wrote — 'I need to breathe' — it stayed with me. What's that about for you right now?"
+BAD EXAMPLE: "Hey Matthew. I read your upload about needing to breathe, coffee and alcohol intake, and having a strong direction forward. Let's explore the tension between your self-awareness and self-sabotaging behaviors."
+
+YOUR STANCE DURING THE SESSION: Engage with the content on its own terms. If it is theoretical writing, engage with the arguments, concepts, and structure of reasoning. If it is personal writing, engage with the emotional texture and what it reveals. If it is a practical document like a script or plan, engage with the intentions, dynamics, and underlying needs at work. Let the nature of the document guide your language — never call text passages "images" or use language that misrepresents the form of what the user shared.
 
 WHEN THE USER WANTS TO DISCUSS THE UPLOAD: You have both the clinical analysis AND the full document text above. Use specific passages, arguments, and concepts from their actual writing. Reference concrete elements — quote their exact words, engage their specific formulations, discuss the structure of their reasoning. Do NOT fabricate or infer content that is not present in the document text above. If the user asks about something you cannot find in the provided text, say so honestly rather than improvising.
-
-IMPORTANT: Do NOT use the scripted phrase "I noticed some things I'd like to explore with you." Speak naturally and specifically about what you actually found in the text.
 ===== END UPLOAD INSTRUCTIONS =====\n`;
           console.log('📤 [VAPI] Unaddressed upload detected - adding proactive engagement context');
         } else {
@@ -539,6 +539,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
           agentName: selectedAgent.name,
           agentId: selectedAgent.id,
           hasSessionContinuity: shouldReferenceLastSession || false,
+          uploadId: uploadId || null,
           timestamp: Date.now()
         }
       };
@@ -582,7 +583,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
       setConnectionStatus('disconnected');
       setIsSessionActive(false);
     }
-  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, hasUnaddressedUpload, uploadAddressed, uploadContext, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
+  }, [vapi, userId, memoryContext, lastSessionSummary, shouldReferenceLastSession, hasUnaddressedUpload, uploadAddressed, uploadContext, uploadId, firstName, isLoading, isSessionActive, selectedAgent, onboarding, sessionDurationLimit]);
 
   const endSession = useCallback(() => {
     if (vapi && isSessionActive) {
