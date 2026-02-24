@@ -256,8 +256,11 @@ async function processSensingLayerAsync(
       // Continue processing anyway - guidance will still be generated for logging
     }
 
-    // Ensure session is initialized (defensive - should have been done on call-started)
-    sensingLayer.initializeCallSession(callId, userId, callId);
+    // NOTE: Do NOT call initializeCallSession here.
+    // processUtterance (in index.ts) already checks for existing session state
+    // and only initializes if null. Calling it unconditionally here was WIPING
+    // the accumulated state vector history on every webhook, which is why
+    // velocity was always 0.00, 0.00, 0.00.
 
     // Update rate limit timestamp
     lastProcessingTime.set(callId, startTime);
