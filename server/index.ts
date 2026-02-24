@@ -175,7 +175,11 @@ app.use((req, res, next) => {
     host === "ivasa.ai" ||
     host === "www.ivasa.ai" ||
     host === "ivasa-ai.com" ||
-    host === "www.ivasa-ai.com"
+    host === "www.ivasa-ai.com" ||
+    host === "theravasa.com" ||
+    host === "www.theravasa.com" ||
+    host === "registerreality.com" ||
+    host === "www.registerreality.com"
   ) {
     return res.redirect(301, `https://beta.ivasa.ai${req.originalUrl}`);
   }
