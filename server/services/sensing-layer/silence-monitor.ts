@@ -37,10 +37,10 @@ const silenceTimers = new Map<string, SilenceTimer>();
 
 const TEMPLATES: Record<string, string[]> = {
   guided_pause: [
-    "Take your time. I'm here.",
-    "No rush.",
-    "I'm still with you.",
-    "Whenever you're ready."
+    "No need to fill this space.",
+    "This quiet is fine.",
+    "Sitting with you in this.",
+    "Whenever something comes."
   ],
   confused: [
     "What's happening for you right now?",
@@ -49,12 +49,12 @@ const TEMPLATES: Record<string, string[]> = {
   ],
   deep_processing: [
     "I don't want to interrupt if you're still with something.",
-    "Take all the time you need."
+    "Something's moving. Stay with it."
   ],
   emotional: [
-    "I'm right here with you.",
     "You don't have to say anything yet.",
-    "Just breathe. I've got you."
+    "That landed somewhere. Let it sit.",
+    "Just breathe."
   ],
   hsfb: [
     "Stay with it.",
@@ -64,12 +64,12 @@ const TEMPLATES: Record<string, string[]> = {
     "What shifted?"
   ],
   default: [
-    "I'm here.",
     "What's coming up?",
-    "Take your time."
+    "Still here.",
+    "Yeah."
   ],
   escalation_2: [
-    "I'm still here. What's present for you?",
+    "What's present for you right now?",
     "Checking in — where are you right now?"
   ],
   escalation_3: [
@@ -77,12 +77,12 @@ const TEMPLATES: Record<string, string[]> = {
     "We can slow down if you need."
   ],
   final_normal: [
-    "I'll be here when you're ready. Take all the time you need.",
-    "I'm going to give you some space. I'm not going anywhere."
+    "I'll be here when you're ready.",
+    "Going to give you some space. Not going anywhere."
   ],
   final_deep: [
     "Something important is happening. I'll stay quiet and let it move.",
-    "You're in something deep. Take as long as you need."
+    "You're in something deep. No rush at all."
   ]
 };
 
@@ -349,6 +349,13 @@ Based on the full therapeutic context, generate a single brief re-engagement res
 - If in Real register (body-based processing), keep it somatic and minimal.
 - Do NOT ask multiple questions. One sentence or two short ones max.
 
+CRITICAL — Do NOT use any of these phrases or close variants:
+- "I'm right here." / "I'm here with you." / "I'm still with you."
+- "Take your time." / "No rush." / "Take all the time you need."
+- "Keep going." / "Say more." / "Tell me more."
+- "I'm listening."
+These phrases BREAK the user's internal processing by pulling attention to the therapist. They sound supportive but they interrupt the work. If you catch yourself generating any of these, rewrite entirely.
+
 Respond with ONLY the re-engagement message. No quotes, no explanation, just the words the therapist should speak.`;
 
   const claudePromise = anthropic.messages.create({
@@ -394,6 +401,13 @@ Recent exchange:
 ${recentHistory}
 
 Generate one brief sentence that gently re-engages without repeating the first check-in. This will be spoken aloud by a voice AI therapist.
+
+CRITICAL — Do NOT use any of these phrases or close variants:
+- "I'm right here." / "I'm here with you." / "I'm still with you."
+- "Take your time." / "No rush." / "Take all the time you need."
+- "Keep going." / "Say more." / "Tell me more."
+- "I'm listening."
+These break the user's internal processing. Rewrite entirely if you catch yourself generating any of these.
 
 Respond with ONLY the re-engagement message. No quotes, no explanation.`;
 
