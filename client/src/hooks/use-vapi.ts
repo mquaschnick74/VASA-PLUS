@@ -360,6 +360,10 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
         console.log('🎬 [VAPI] First session detected - injecting introduction script');
       }
 
+      systemPrompt += `\n\nMID-CALL CONTEXT TOOL:
+When the user asks for more background, prior sessions, more context, says "do you remember", or you need specifics to answer, call fetch_more_context with userId "${userId}" and a short query.
+Do NOT call the tool unless you actually need more context beyond what is already in this prompt.`;
+
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
       // CHANGE 2: REMOVED the firstMessageTemplate call - no more hardcoded greetings
@@ -394,6 +398,7 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
       // VAPI webhook must always use the full HTTPS URL because VAPI's servers need to reach it
       // getAbsoluteUrl() always returns an absolute URL (with origin) for external services
       const serverUrl = getAbsoluteUrl('/api/vapi/webhook');
+      const toolsUrl = getAbsoluteUrl('/api/vapi/tools');
 
       console.log('');
       console.log('╔══════════════════════════════════════════════════════════════╗');
@@ -425,7 +430,31 @@ Do not make up or hallucinate any details not explicitly mentioned above.`;
               content: systemPrompt
             }
           ],
-          maxTokens: 300
+          maxTokens: 300,
+          tools: [
+            {
+              type: 'function' as const,
+              function: {
+                name: 'fetch_more_context',
+                description: 'Fetch additional context from the user\'s session history, memory, and knowledge base. Use when the user asks about prior sessions, wants more background, or you need specifics to answer.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    userId: { type: 'string', description: 'The user\'s ID' },
+                    query: { type: 'string', description: 'A short search query describing what context is needed' },
+                    limit: { type: 'number', description: 'Max knowledge chunks to return (default 5)' },
+                    types: { type: 'array', items: { type: 'string' }, description: 'Knowledge types: theory, example, technique, guideline' },
+                    tags: { type: 'array', items: { type: 'string' }, description: 'Tags to filter knowledge chunks' }
+                  },
+                  required: ['userId', 'query']
+                }
+              },
+              server: {
+                url: toolsUrl,
+                timeoutSeconds: 10
+              }
+            }
+          ]
         },
         voice: {
           provider: selectedAgent.voice.provider,

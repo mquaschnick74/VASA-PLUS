@@ -15,6 +15,16 @@ const openai = new OpenAI({
   apiKey
 });
 
+/**
+ * Compatibility helper: newer models (gpt-4o, gpt-5*, o1*, o3*) require
+ * max_completion_tokens; older models use max_tokens.
+ * Returns a spread-ready object with the correct key.
+ */
+function tokenParam(model: string, tokens: number): { max_tokens?: number; max_completion_tokens?: number } {
+  const needsNewParam = /^(gpt-4o|gpt-5|o[13])/.test(model);
+  return needsNewParam ? { max_completion_tokens: tokens } : { max_tokens: tokens };
+}
+
 interface SessionSummaryData {
   userId: string;
   callId: string;
@@ -160,10 +170,15 @@ ${transcript.substring(0, 4000)} ${transcript.length > 4000 ? '...[transcript co
 Clinical notes (2-3 sentences):`;
 
   try {
+    const summaryModel = 'gpt-5.1';
+    const greetingTokenParam = tokenParam(summaryModel, 200);
+    const clinicalTokenParam = tokenParam(summaryModel, 150);
+    console.log(`📝 [SUMMARY] Starting generation — model: ${summaryModel}, token param: ${Object.keys(greetingTokenParam)[0]}`);
+
     // Generate both summaries in parallel
     const [greetingResponse, clinicalResponse] = await Promise.all([
       openai.chat.completions.create({
-        model: 'gpt-5.1',
+        model: summaryModel,
         messages: [
           {
             role: 'system',
@@ -175,10 +190,10 @@ Clinical notes (2-3 sentences):`;
           }
         ],
         temperature: 0.3,
-        max_tokens: 200
+        ...greetingTokenParam
       }),
       openai.chat.completions.create({
-        model: 'gpt-5.1',
+        model: summaryModel,
         messages: [
           {
             role: 'system',
@@ -190,7 +205,7 @@ Clinical notes (2-3 sentences):`;
           }
         ],
         temperature: 0.2,
-        max_tokens: 150
+        ...clinicalTokenParam
       })
     ]);
 

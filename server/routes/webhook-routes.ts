@@ -18,6 +18,10 @@ import { subscriptionService } from '../services/subscription-service';
 // ⬇️ Using existing supabase service instead of non-existent services
 import { supabase } from '../services/supabase-service';
 
+// MID-CALL CONTEXT IMPORTS
+import { buildMemoryContext } from '../services/memory-service';
+import { queryKnowledgeBase, buildRetrievedContext } from '../services/sensing-layer/knowledge-base';
+
 // SENSING LAYER IMPORTS - Real-time therapeutic guidance
 import { sensingLayer } from '../services/sensing-layer';
 import { injectGuidance, flushPendingGuidance, clearPendingGuidance } from '../services/sensing-layer/guidance-injector';
@@ -298,6 +302,122 @@ function cleanupCallCaches(callId: string) {
   lastProcessingTime.delete(callId);
   guidanceCache.delete(callId);
 }
+
+// ============================================================================
+// MID-CALL TOOL HANDLER — Vapi function-tool calls (fetch_more_context)
+// ============================================================================
+router.post('/tools', async (req, res) => {
+  console.log('🔧 [TOOLS] Vapi tool-call received');
+  try {
+    const body = req.body;
+    const toolCallList = body?.message?.toolCallList || [];
+
+    if (toolCallList.length === 0) {
+      console.warn('🔧 [TOOLS] Empty toolCallList');
+      return res.json({ results: [] });
+    }
+
+    const results: Array<{ toolCallId: string; result: string }> = [];
+
+    for (const toolCall of toolCallList) {
+      const toolCallId = toolCall.id || toolCall.toolCallId || `tool_${Date.now()}`;
+
+      // ✅ Support BOTH shapes:
+      // 1) { name, parameters }
+      // 2) { function: { name, arguments } }
+      const fnName =
+        toolCall.name ||
+        toolCall.toolName ||
+        toolCall.function?.name;
+
+      let args: any =
+        toolCall.parameters ||
+        toolCall.args ||
+        toolCall.function?.arguments ||
+        {};
+
+      // Sometimes args can be a JSON string
+      if (typeof args === 'string') {
+        try { args = JSON.parse(args); } catch { args = {}; }
+      }
+
+      console.log(`🔧 [TOOLS] Processing tool: ${fnName} (${toolCallId})`);
+
+      if (fnName === 'fetch_more_context') {
+        const { userId, query, limit, types, tags } = args;
+
+        if (!userId || !query) {
+          results.push({
+            toolCallId,
+            result: JSON.stringify({ error: 'Missing required args: userId, query' })
+          });
+          continue;
+        }
+
+        try {
+          // 1. Build memory context (existing service)
+          const memoryContext = await buildMemoryContext(userId);
+
+          // 2. Query knowledge base / RAG (existing service)
+          const ragChunks = await queryKnowledgeBase(query, {
+            userId,
+            limit: limit || 5,
+            threshold: 0.6,
+            types: types || undefined,
+            tags: tags || undefined
+          });
+          const rag = buildRetrievedContext(ragChunks);
+
+          // 3. Recent session summaries (lightweight query)
+          let recentSummaries: string[] = [];
+          try {
+            const { data: summaries } = await supabase
+              .from('therapeutic_context')
+              .select('content, context_type, created_at')
+              .eq('user_id', userId)
+              .in('context_type', ['call_summary', 'session_insight', 'conversational_summary'])
+              .order('created_at', { ascending: false })
+              .limit(3);
+
+            if (summaries && summaries.length > 0) {
+              recentSummaries = summaries.map(
+                (s: any) => `[${s.context_type} - ${new Date(s.created_at).toLocaleDateString()}] ${s.content}`
+              );
+            }
+          } catch (summaryErr) {
+            console.warn('🔧 [TOOLS] recentSummaries query failed (non-fatal):', summaryErr);
+          }
+
+          console.log(`🔧 [TOOLS] fetch_more_context success for ${userId} — memory: ${memoryContext.length} chars, rag: ${rag.length} chars, summaries: ${recentSummaries.length}`);
+
+          results.push({
+            toolCallId,
+            result: JSON.stringify({ memoryContext, rag, recentSummaries })
+          });
+        } catch (err) {
+          console.error(`🔧 [TOOLS] fetch_more_context error:`, err);
+          results.push({
+            toolCallId,
+            result: JSON.stringify({ error: 'Failed to fetch context', memoryContext: '', rag: '', recentSummaries: [] })
+          });
+        }
+      } else {
+        console.warn(`🔧 [TOOLS] Unknown tool: ${fnName}`);
+        results.push({
+          toolCallId,
+          result: JSON.stringify({ error: `Unknown tool: ${fnName}` })
+        });
+      }
+    }
+
+    res.json({ results });
+  } catch (error) {
+    console.error('🔧 [TOOLS] Fatal error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ results: [] });
+    }
+  }
+});
 
 router.post('/webhook', async (req, res) => {
   console.log('');

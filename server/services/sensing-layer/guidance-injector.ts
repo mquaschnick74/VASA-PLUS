@@ -76,7 +76,7 @@ export async function injectGuidance(
           role: 'system',
           content: systemMessage
         },
-        triggerResponseEnabled: true
+        triggerResponseEnabled: false
       })
     });
 
