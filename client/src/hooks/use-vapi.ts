@@ -67,6 +67,7 @@ const useVapi = ({
   const vapiRef = useRef<any>(null);
   const transcriptCallbackRef = useRef<((message: TranscriptMessage) => void) | null>(null);
   const speechUpdateCallbackRef = useRef<((message: SpeechUpdateMessage) => void) | null>(null);
+  const sessionActiveRef = useRef(false);
 
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
@@ -89,6 +90,7 @@ const useVapi = ({
         // Set up event listeners
         vapiInstance.on('call-start', () => {
           console.log('✅ Call started');
+          sessionActiveRef.current = true;
           setIsSessionActive(true);
           setConnectionStatus('connected');
           setIsLoading(false);
@@ -96,7 +98,7 @@ const useVapi = ({
 
         vapiInstance.on('call-end', () => {
           console.log('📴 Call ended');
-
+          sessionActiveRef.current = false;
           setIsSessionActive(false);
           setConnectionStatus('disconnected');
         });
@@ -126,7 +128,7 @@ const useVapi = ({
           });
 
           // Try to extract the most useful error message
-          let errorMessage = 'An unknown error occurred with VAPI';
+          let errorMessage = '';
 
           if (error?.error?.message) {
             errorMessage = error.error.message;
@@ -138,16 +140,36 @@ const useVapi = ({
             errorMessage = `VAPI returned status code ${error.statusCode}`;
           }
 
-          // Add helpful context based on common errors
-          if (errorMessage.toLowerCase().includes('api key') || errorMessage.toLowerCase().includes('unauthorized')) {
-            errorMessage += ' - Check your VAPI_PUBLIC_KEY or OpenAI API key';
-          } else if (errorMessage.toLowerCase().includes('timeout')) {
-            errorMessage += ' - The connection timed out. Check your internet connection';
-          } else if (errorMessage.toLowerCase().includes('voice')) {
-            errorMessage += ' - Voice provider error. Check ElevenLabs or voice configuration';
+          // Determine if this was a mid-session disconnection vs a startup failure
+          const wasSessionActive = sessionActiveRef.current;
+
+          // Check for silence/inactivity patterns
+          const lowerMsg = errorMessage.toLowerCase();
+          const isSilenceOrInactivity = lowerMsg.includes('silence') ||
+            lowerMsg.includes('inactive') ||
+            lowerMsg.includes('not active') ||
+            lowerMsg.includes('timeout');
+
+          // If session was active and error is unknown or silence-related, show friendly message
+          if (wasSessionActive && (!errorMessage || isSilenceOrInactivity)) {
+            console.log('📴 Session ended (likely silence timeout or inactivity)');
+            setError('Your session ended due to inactivity. Click "Start Voice Session" to reconnect.');
+          } else if (!errorMessage) {
+            // Unknown error during startup
+            setError('VAPI Error: An unknown error occurred. Please try again.');
+          } else {
+            // Add helpful context based on known error types
+            if (lowerMsg.includes('api key') || lowerMsg.includes('unauthorized')) {
+              errorMessage += ' - Check your VAPI_PUBLIC_KEY or OpenAI API key';
+            } else if (lowerMsg.includes('timeout')) {
+              errorMessage += ' - The connection timed out. Check your internet connection';
+            } else if (lowerMsg.includes('voice')) {
+              errorMessage += ' - Voice provider error. Check ElevenLabs or voice configuration';
+            }
+            setError(`VAPI Error: ${errorMessage}`);
           }
 
-          setError(`VAPI Error: ${errorMessage}`);
+          sessionActiveRef.current = false;
           setIsLoading(false);
           setConnectionStatus('disconnected');
           setIsSessionActive(false);
@@ -510,7 +532,8 @@ Do NOT call the tool unless you actually need more context beyond what is alread
             enabled: true
           }
         },
-        maxDurationSeconds: sessionDurationLimit,  // ← ADD THIS LINE (Vapi will enforce this limit)
+        maxDurationSeconds: sessionDurationLimit,  // Vapi will enforce this limit
+        silenceTimeoutSeconds: 300,                // 5 min — let sensing layer handle silence, not Vapi's default 30s
         metadata: {
           userId: userId,
           agentName: selectedAgent.name,
