@@ -340,6 +340,62 @@ export async function injectImmediateIntervention(
 }
 
 /**
+ * Inject a spoken re-engagement message via Vapi's "say" command.
+ * Unlike add-message, "say" forces the assistant to speak the exact text immediately.
+ * Used exclusively by the silence monitor — regular guidance should use injectGuidance().
+ */
+export async function injectSpokenReEngagement(
+  callId: string,
+  message: string,
+  endCallAfterSpoken: boolean = false
+): Promise<boolean> {
+  if (!isCallActive(callId)) {
+    console.warn(`⚠️ [SAY] Call not active, skipping spoken re-engagement`, { callId });
+    return false;
+  }
+
+  const controlUrl = (getControlUrl(callId) || '').trim().replace(/^<|>$/g, '');
+  if (!controlUrl.startsWith('https://')) {
+    console.error(`🛑 [SAY] No valid controlUrl for spoken re-engagement on call ${callId}`);
+    return false;
+  }
+
+  console.log(`🗣️ [SAY] Injecting spoken re-engagement for call ${callId}: "${message}"`);
+
+  try {
+    const response = await fetch(controlUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        type: 'say',
+        content: message,
+        endCallAfterSpoken: endCallAfterSpoken
+      })
+    });
+
+    const responseText = await response.text().catch(() => '');
+
+    if (!response.ok) {
+      console.error(`❌ [SAY] Failed to inject spoken re-engagement`, {
+        callId,
+        status: response.status,
+        body: responseText.slice(0, 800)
+      });
+      return false;
+    }
+
+    console.log(`✅ [SAY] Spoken re-engagement injected for call ${callId}`);
+    return true;
+
+  } catch (error) {
+    console.error(`❌ [SAY] Error injecting spoken re-engagement:`, error);
+    return false;
+  }
+}
+
+/**
  * Inject a simple system message (for debugging or simple updates)
  */
 export async function injectSystemMessage(
