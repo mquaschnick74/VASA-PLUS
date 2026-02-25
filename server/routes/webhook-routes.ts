@@ -36,7 +36,9 @@ import {
   setAgentSpeakingState,
   trackVapiCall,
   isCallActive,
-  setSensingProcessing
+  setSensingProcessing,
+  getLastSensedUtterance,
+  setLastSensedUtterance
 } from '../services/sensing-layer/call-state';
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor } from '../services/sensing-layer/silence-monitor';
 
@@ -278,6 +280,9 @@ async function processSensingLayerAsync(
       timestamp: Date.now(),
       utteranceHash
     });
+
+    // Mark this utterance as fully sensed so duplicate conversation-updates skip dispatch
+    setLastSensedUtterance(callId, utterance.trim());
 
     // Only attempt injection if controlUrl is available
     if (controlUrl) {
@@ -614,7 +619,15 @@ router.post('/webhook', async (req, res) => {
 
             // Process through sensing layer asynchronously (don't block webhook response)
             console.log(`🚀 [SENSING-PRE] Dispatching processSensingLayerAsync for call ${callId}`);
-            processSensingLayerAsync(callId, userId, latestUserMessage.content, formattedConversation);
+
+            // UTTERANCE DEDUP: Skip if sensing already processed this exact utterance
+            const trimmedUtterance = latestUserMessage.content.trim();
+            const lastSensed = getLastSensedUtterance(callId);
+            if (lastSensed === trimmedUtterance) {
+              console.log(`⏭️ [SENSING-PRE] Skipping — utterance unchanged since last sensing run`);
+            } else {
+              processSensingLayerAsync(callId, userId, latestUserMessage.content, formattedConversation);
+            }
           } else if (latestUserMessage) {
             console.warn(`⚠️ [SENSING-PRE] User message found but content is empty/whitespace - sensing layer will NOT run`);
           }

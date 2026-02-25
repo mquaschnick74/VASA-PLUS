@@ -16,6 +16,7 @@ interface CallState {
   isAgentCurrentlySpeaking: boolean;
   sensingLayerProcessing: boolean;
   sensingLayerLastCompletedAt: number | null;
+  lastSensedUtterance: string | null;
   status: 'active' | 'ended';
   lastEventAt: number;
   createdAt: Date;
@@ -56,6 +57,7 @@ export function trackVapiCall(event: any): { callId: string | null; status: stri
       isAgentCurrentlySpeaking: false,
       sensingLayerProcessing: false,
       sensingLayerLastCompletedAt: null,
+      lastSensedUtterance: null,
       status: isEnding ? 'ended' : 'active',
       lastEventAt: Date.now(),
       createdAt: new Date()
@@ -100,6 +102,7 @@ export function setControlUrl(callId: string, url: string, userId?: string): voi
       isAgentCurrentlySpeaking: false,
       sensingLayerProcessing: false,
       sensingLayerLastCompletedAt: null,
+      lastSensedUtterance: null,
       status: 'active',
       lastEventAt: Date.now(),
       createdAt: new Date()
@@ -147,6 +150,7 @@ export function updateCallState(
       isAgentCurrentlySpeaking: false,
       sensingLayerProcessing: false,
       sensingLayerLastCompletedAt: null,
+      lastSensedUtterance: null,
       status: 'active',
       lastEventAt: Date.now(),
       createdAt: new Date()
@@ -294,4 +298,21 @@ export function setSensingProcessing(callId: string, isProcessing: boolean): voi
  */
 export function isSensingProcessing(callId: string): boolean {
   return callStates.get(callId)?.sensingLayerProcessing ?? false;
+}
+
+/**
+ * Set the last utterance that was fully processed by the sensing layer.
+ */
+export function setLastSensedUtterance(callId: string, utterance: string): void {
+  const state = callStates.get(callId);
+  if (state) {
+    state.lastSensedUtterance = utterance;
+  }
+}
+
+/**
+ * Get the last utterance that was fully processed by the sensing layer.
+ */
+export function getLastSensedUtterance(callId: string): string | null {
+  return callStates.get(callId)?.lastSensedUtterance ?? null;
 }
