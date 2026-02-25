@@ -46,6 +46,10 @@ interface UserContext {
   displayMemoryContext?: string;  // NEW: Optional field for cleaner UI display
   lastSessionSummary?: string | null;  // ADD: Session continuity
   shouldReferenceLastSession?: boolean; // ADD: Session continuity
+  hasUnaddressedUpload?: boolean;
+  uploadAddressed?: boolean;
+  uploadContext?: string | null;
+  uploadId?: string | null;
   sessions: any[];
   firstName: string;
   sessionCount: number;
@@ -129,6 +133,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     hasUnaddressedUpload: userContext?.hasUnaddressedUpload || false,
     uploadAddressed: userContext?.uploadAddressed || false,
     uploadContext: userContext?.uploadContext || null,
+    uploadId: userContext?.uploadId || null,
     firstName: userContext?.firstName || 'there',
     selectedAgent: selectedAgent!,
     sessionDurationLimit: sessionDurationLimit,

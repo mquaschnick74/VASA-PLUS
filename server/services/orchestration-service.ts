@@ -486,41 +486,52 @@ export async function processEndOfCall(
     }
   }
 
-  // Mark ALL unaddressed upload analyses for this user as addressed
+  // Mark the SPECIFIC upload that was presented to the agent as addressed
+  // Only mark if there was meaningful engagement (at least 4 exchanges)
   try {
-    const { data: unaddressedUploads } = await supabase
-      .from('therapeutic_context')
-      .select('id, metadata')
-      .eq('user_id', session.userId)
-      .eq('context_type', 'upload_analysis');
+    // Get uploadId from VAPI metadata (passed through from client)
+    const presentedUploadId = callMetadata?.metadata?.uploadId || null;
 
-    if (unaddressedUploads && unaddressedUploads.length > 0) {
-      let markedCount = 0;
-      for (const upload of unaddressedUploads) {
-        if (upload.metadata?.addressed_in_session !== true) {
+    if (presentedUploadId) {
+      const minExchanges = 4;
+      const sessionExchanges = session.exchangeCount || 0;
+
+      if (sessionExchanges >= minExchanges) {
+        // Fetch the specific upload to preserve existing metadata
+        const { data: upload } = await supabase
+          .from('therapeutic_context')
+          .select('id, metadata')
+          .eq('id', presentedUploadId)
+          .eq('context_type', 'upload_analysis')
+          .single();
+
+        if (upload && upload.metadata?.addressed_in_session !== true) {
           const updatedMetadata = {
             ...upload.metadata,
             addressed_in_session: true,
             addressed_at: new Date().toISOString(),
-            addressed_call_id: callId
+            addressed_call_id: callId,
+            exchange_count_at_marking: sessionExchanges
           };
           await supabase
             .from('therapeutic_context')
             .update({ metadata: updatedMetadata })
-            .eq('id', upload.id);
+            .eq('id', presentedUploadId);
 
-          console.log(`📋 [Upload] Marked upload analysis ${upload.id} as addressed for call ${callId}`);
-          markedCount++;
+          console.log(`📋 [Upload] Marked upload ${presentedUploadId} as addressed (${sessionExchanges} exchanges in session ${callId})`);
+        } else if (upload) {
+          console.log(`📋 [Upload] Upload ${presentedUploadId} was already addressed`);
+        } else {
+          console.log(`📋 [Upload] Upload ${presentedUploadId} not found in therapeutic_context`);
         }
-      }
-      if (markedCount === 0) {
-        console.log(`📋 [Upload] All ${unaddressedUploads.length} uploads already addressed for user ${session.userId}`);
+      } else {
+        console.log(`📋 [Upload] Skipping marking upload ${presentedUploadId} — only ${sessionExchanges} exchanges (minimum: ${minExchanges})`);
       }
     } else {
-      console.log(`📋 [Upload] No unaddressed uploads to mark for user ${session.userId}`);
+      console.log(`📋 [Upload] No upload was presented in this session`);
     }
   } catch (err) {
-    console.error('Failed to mark uploads as addressed:', err);
+    console.error('Failed to mark upload as addressed:', err);
   }
 
   // Cleanup from both caches
