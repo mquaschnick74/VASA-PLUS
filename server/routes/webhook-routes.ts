@@ -177,6 +177,11 @@ export { trackInfluencerConversion };
 // Rate limiting: track last processing time per call
 const lastProcessingTime = new Map<string, number>();
 
+// Synchronous lock to prevent concurrent processing for the same call
+// This prevents the TOCTOU race condition where two webhooks both pass
+// the rate limit check before either sets the timestamp
+const processingLock = new Map<string, boolean>();
+
 // Track processed message count per call to prevent duplicate history entries
 const lastProcessedMessageIndex = new Map<string, number>();
 const RATE_LIMIT_MS = 5000; // Minimum 5 seconds between sensing layer calls
@@ -206,6 +211,15 @@ async function processSensingLayerAsync(
   console.log(`   Utterance: "${utterance?.substring(0, 80)}${utterance?.length > 80 ? '...' : ''}"`);
   console.log(`   History length: ${conversationHistory?.length ?? 'undefined'}`);
   console.log(`   UserId: ${userId}`);
+
+  // SYNCHRONOUS LOCK: Prevent concurrent processing for the same call.
+  // This must happen BEFORE the try block and BEFORE any async work.
+  // If another webhook is already being processed for this call, skip entirely.
+  if (processingLock.get(callId)) {
+    console.log(`🔒 [SENSING] Skipping - already processing for call ${callId}`);
+    return;
+  }
+  processingLock.set(callId, true);
 
   try {
     const startTime = Date.now();
@@ -246,8 +260,11 @@ async function processSensingLayerAsync(
       // Continue processing anyway - guidance will still be generated for logging
     }
 
-    // Ensure session is initialized (defensive - should have been done on call-started)
-    sensingLayer.initializeCallSession(callId, userId, callId);
+    // NOTE: Do NOT call initializeCallSession here.
+    // processUtterance (in index.ts) already checks for existing session state
+    // and only initializes if null. Calling it unconditionally here was WIPING
+    // the accumulated state vector history on every webhook, which is why
+    // velocity was always 0.00, 0.00, 0.00.
 
     // Update rate limit timestamp
     lastProcessingTime.set(callId, startTime);
@@ -304,6 +321,9 @@ async function processSensingLayerAsync(
       console.error(`   Message: ${error.message}`);
       console.error(`   Stack: ${error.stack}`);
     }
+  } finally {
+    // ALWAYS release the lock so the next webhook can be processed
+    processingLock.delete(callId);
   }
 }
 
@@ -311,6 +331,7 @@ async function processSensingLayerAsync(
 function cleanupCallCaches(callId: string) {
   lastProcessingTime.delete(callId);
   guidanceCache.delete(callId);
+  processingLock.delete(callId);
 }
 
 // ============================================================================
