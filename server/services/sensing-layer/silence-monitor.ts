@@ -2,7 +2,7 @@
 // Monitors silence during active calls and triggers context-aware re-engagement
 
 import Anthropic from '@anthropic-ai/sdk';
-import { getCallState, getLastUserMessage, getConversationHistory } from './call-state';
+import { getCallState, getLastUserMessage, getConversationHistory, isSensingProcessing } from './call-state';
 import { getSessionState } from './session-state';
 import { injectSpokenReEngagement } from './guidance-injector';
 import { queryKnowledgeBase, buildRetrievedContext } from './knowledge-base';
@@ -484,6 +484,14 @@ function armTimer(callId: string): void {
   timer.timeout = setTimeout(() => handleSilenceTimeout(callId), adjustedThreshold);
 }
 
+// Maximum times to defer for sensing layer before firing anyway
+const MAX_SENSING_DEFERRALS = 2;
+// How long to wait for sensing layer to finish (5 seconds)
+const SENSING_DEFERRAL_MS = 5000;
+
+// Track deferral count per call to prevent infinite deferral loops
+const sensingDeferralCounts = new Map<string, number>();
+
 async function handleSilenceTimeout(callId: string): Promise<void> {
   const timer = silenceTimers.get(callId);
   if (!timer) return;
@@ -505,13 +513,47 @@ async function handleSilenceTimeout(callId: string): Promise<void> {
     }
   }
 
+  // COORDINATION: If sensing layer is mid-computation, defer instead of firing.
+  // The sensing layer's real therapeutic guidance (posture, register, deepening)
+  // is more clinically informed than the silence monitor's generic re-engagement.
+  // Wait for it to finish so we can consult it.
+  if (isSensingProcessing(callId)) {
+    const deferrals = sensingDeferralCounts.get(callId) || 0;
+    if (deferrals < MAX_SENSING_DEFERRALS) {
+      sensingDeferralCounts.set(callId, deferrals + 1);
+      console.log(`🔇 [SILENCE] Sensing layer is processing for call ${callId} — deferring (${deferrals + 1}/${MAX_SENSING_DEFERRALS})`);
+      // Re-check after a short delay instead of firing now
+      timer.timeout = setTimeout(() => handleSilenceTimeout(callId), SENSING_DEFERRAL_MS);
+      return;
+    }
+    console.log(`🔇 [SILENCE] Max deferrals reached for call ${callId}, proceeding with re-engagement`);
+  }
+  // Reset deferral count since we're proceeding
+  sensingDeferralCounts.delete(callId);
+
   // MOD 2: Deepening override — check if user is going deeper during silence
+  // Now this reads the LATEST session state, which includes any guidance
+  // the sensing layer just finished computing (thanks to the deferral above).
   const session = getSessionState(callId);
   const currentDeepening = session?.latestMovement?.indicators?.deepening ?? 0;
 
   if (timer.lastDeepening >= 0 && currentDeepening > timer.lastDeepening + 0.1) {
     console.log(`🔇 [SILENCE] Deepening override for call ${callId}: ${timer.lastDeepening.toFixed(2)} → ${currentDeepening.toFixed(2)} — resetting to Tier 1`);
     timer.reEngagementCount = 0;
+  }
+
+  // CONSULTATION: If the sensing layer's latest guidance says "hold" or "silent",
+  // honor that posture — extend the threshold and don't fire yet.
+  const latestPosture = session?.latestGuidance?.posture;
+  if (latestPosture === 'hold' || latestPosture === 'silent' || latestPosture === 'wait_and_track') {
+    // The sensing layer explicitly said to be quiet. Only proceed if this is
+    // already escalation tier 2+ (the user has been silent a LONG time).
+    if (timer.reEngagementCount < 1) {
+      console.log(`🔇 [SILENCE] Sensing layer posture is "${latestPosture}" for call ${callId} — honoring therapeutic hold, re-arming with extended threshold`);
+      // Re-arm with an extra 15 seconds of space
+      timer.timeout = setTimeout(() => handleSilenceTimeout(callId), 15_000);
+      return;
+    }
   }
 
   timer.reEngagementCount++;
@@ -524,6 +566,9 @@ async function handleSilenceTimeout(callId: string): Promise<void> {
   const silenceDurationSeconds = Math.round(silenceDurationMs / 1000);
 
   // Generate message using tier-appropriate strategy
+  // NOTE: generateReEngagementMessage already reads session state (posture,
+  // register, deepening) via buildSessionContext — so the sensing layer's
+  // completed guidance naturally informs the re-engagement message content.
   const { message, source } = await generateReEngagementMessage(callId, timer.reEngagementCount, silenceDurationSeconds);
 
   // Use Vapi's "say" command to force the agent to speak the re-engagement.
@@ -609,6 +654,7 @@ export function stopSilenceMonitor(callId: string): void {
   if (timer) {
     clearTimeout(timer.timeout);
     silenceTimers.delete(callId);
+    sensingDeferralCounts.delete(callId);
     console.log(`🔇 [SILENCE] Stopped monitoring for call ${callId}`);
   }
 }

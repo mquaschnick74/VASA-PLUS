@@ -14,6 +14,8 @@ interface CallState {
   lastUserUtteranceAt: Date | null;
   lastAgentUtteranceAt: Date | null;
   isAgentCurrentlySpeaking: boolean;
+  sensingLayerProcessing: boolean;
+  sensingLayerLastCompletedAt: number | null;
   status: 'active' | 'ended';
   lastEventAt: number;
   createdAt: Date;
@@ -52,6 +54,8 @@ export function trackVapiCall(event: any): { callId: string | null; status: stri
       lastUserUtteranceAt: null,
       lastAgentUtteranceAt: null,
       isAgentCurrentlySpeaking: false,
+      sensingLayerProcessing: false,
+      sensingLayerLastCompletedAt: null,
       status: isEnding ? 'ended' : 'active',
       lastEventAt: Date.now(),
       createdAt: new Date()
@@ -94,6 +98,8 @@ export function setControlUrl(callId: string, url: string, userId?: string): voi
       lastUserUtteranceAt: null,
       lastAgentUtteranceAt: null,
       isAgentCurrentlySpeaking: false,
+      sensingLayerProcessing: false,
+      sensingLayerLastCompletedAt: null,
       status: 'active',
       lastEventAt: Date.now(),
       createdAt: new Date()
@@ -139,6 +145,8 @@ export function updateCallState(
       lastUserUtteranceAt: null,
       lastAgentUtteranceAt: null,
       isAgentCurrentlySpeaking: false,
+      sensingLayerProcessing: false,
+      sensingLayerLastCompletedAt: null,
       status: 'active',
       lastEventAt: Date.now(),
       createdAt: new Date()
@@ -265,4 +273,25 @@ export function getCallStateStats(): { activeCount: number; totalHistory: number
     activeCount: callStates.size,
     totalHistory
   };
+}
+
+/**
+ * Set the sensing layer processing state for a call.
+ * Called when processSensingLayerAsync starts and completes.
+ */
+export function setSensingProcessing(callId: string, isProcessing: boolean): void {
+  const state = callStates.get(callId);
+  if (state) {
+    state.sensingLayerProcessing = isProcessing;
+    if (!isProcessing) {
+      state.sensingLayerLastCompletedAt = Date.now();
+    }
+  }
+}
+
+/**
+ * Check if the sensing layer is currently processing for a call.
+ */
+export function isSensingProcessing(callId: string): boolean {
+  return callStates.get(callId)?.sensingLayerProcessing ?? false;
 }
