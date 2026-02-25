@@ -35,7 +35,8 @@ import {
   updateCallState,
   setAgentSpeakingState,
   trackVapiCall,
-  isCallActive
+  isCallActive,
+  setSensingProcessing
 } from '../services/sensing-layer/call-state';
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor } from '../services/sensing-layer/silence-monitor';
 
@@ -209,6 +210,9 @@ async function processSensingLayerAsync(
   try {
     const startTime = Date.now();
 
+    // Signal to silence monitor: sensing layer is working, don't fire yet
+    setSensingProcessing(callId, true);
+
     // RATE LIMITING: Skip if processed too recently
     const lastTime = lastProcessingTime.get(callId);
     if (lastTime && (startTime - lastTime) < RATE_LIMIT_MS) {
@@ -287,7 +291,13 @@ async function processSensingLayerAsync(
       console.log(`📝 [SENSING] Guidance generated but NOT injected (no controlUrl): ${guidance.posture}`);
     }
 
+    // Signal to silence monitor: sensing layer is done
+    setSensingProcessing(callId, false);
+
   } catch (error) {
+    // Signal to silence monitor: sensing layer is done (even on error)
+    setSensingProcessing(callId, false);
+
     // Log but don't throw - we don't want to break the conversation
     console.error(`❌ [SENSING] FATAL ERROR in processSensingLayerAsync for call ${callId}:`, error);
     if (error instanceof Error) {
@@ -595,9 +605,10 @@ router.post('/webhook', async (req, res) => {
             }
             lastProcessedMessageIndex.set(callId, formattedConversation.length);
 
-            // SILENCE MONITOR: Reset timer on user speech
-            const hasUserMessage = formattedConversation.some((m: any) => m.role === 'user');
-            if (hasUserMessage) {
+            // SILENCE MONITOR: Reset timer ONLY on genuinely NEW user speech
+            // (not on conversation-updates triggered by agent's own say/re-engagement)
+            const hasNewUserMessage = newMessages.some((m: any) => m.role === 'user');
+            if (hasNewUserMessage) {
               resetSilenceTimer(callId);
             }
 
