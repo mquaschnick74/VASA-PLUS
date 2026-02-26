@@ -510,7 +510,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
             },
             {
               // When user's speech ends with a trailing thought (comma, ellipsis, dash)
-              type: 'user' as const,
+              type: 'customer' as const,
               regex: '(,\\s*$|\\.{2,}\\s*$|—\\s*$|-\\s*$)',
               timeoutSeconds: 6.0
             }
