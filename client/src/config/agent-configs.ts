@@ -198,7 +198,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     model: { temperature: 0.7, model: 'gpt-5.2' },
     voice: {
       provider: 'cartesia',
-      voiceId: 'ec1e269e-9ca0-402f-8a18-58e0e022355a',
+      voiceId: '999df508-4de5-40a7-8bd3-8c12f678c284',
     },
     systemPrompt: `Your name is Sarah. You have a wise, maternal quality - like a trusted aunt who's seen a lot of life and meets everything with calm understanding.
 
