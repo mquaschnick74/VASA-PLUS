@@ -488,8 +488,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         },
         voice: {
           provider: selectedAgent.voice.provider,
-          voiceId: selectedAgent.voice.voiceId,
-          speed: selectedAgent.voice.speed || 1.0
+          voiceId: selectedAgent.voice.voiceId
         },
         // 🎯 Therapeutic Speech Configuration (simplified for compatibility)
         // These settings make VASA more patient and harder to interrupt accidentally
