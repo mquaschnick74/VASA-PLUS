@@ -488,7 +488,11 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         },
         voice: {
           provider: selectedAgent.voice.provider,
-          voiceId: selectedAgent.voice.voiceId
+          voiceId: selectedAgent.voice.voiceId,
+          model: selectedAgent.voice.model || 'sonic-3',
+          ...(selectedAgent.voice.generationConfig && {
+            generationConfig: selectedAgent.voice.generationConfig
+          })
         },
         // 🎯 Therapeutic Speech Configuration
         // Deepgram Flux handles primary endpointing via eotThreshold/eotTimeoutMs above.

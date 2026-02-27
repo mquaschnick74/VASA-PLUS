@@ -15,6 +15,10 @@ export interface TherapeuticAgent {
   voice: {
     provider: string;
     voiceId: string;
+    model?: string;
+    generationConfig?: {
+      speed?: number;
+    };
   };
   model: {
     temperature: number;
@@ -225,7 +229,9 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     model: { temperature: 0.7, model: 'gpt-5.2' },
     voice: {
       provider: 'cartesia',
-      voiceId: '999df508-4de5-40a7-8bd3-8c12f678c284',
+      voiceId: '78ab82d5-25be-4f7d-82b3-7ad64e5b85b2',
+      model: 'sonic-3',
+      generationConfig: { speed: 1.0 }
     },
     systemPrompt: `Your name is Sarah. You have a wise, maternal quality - like a trusted aunt who's seen a lot of life and meets everything with calm understanding.
 
@@ -250,6 +256,8 @@ ${SESSION_CONTINUITY}`,
     voice: {
       provider: 'cartesia',
       voiceId: '586b6832-1ca1-43ad-b974-527dc13c2532',
+      model: 'sonic-3',
+      generationConfig: { speed: 1.0 }
     },
     systemPrompt: `Your name is Marcus. You have a grounded, steady presence - like someone who's done their own work and can hold space without flinching.
 
@@ -274,6 +282,8 @@ ${SESSION_CONTINUITY}`,
     voice: {
       provider: 'cartesia',
       voiceId: '79f8b5fb-2cc8-479a-80df-29f7a7cf1a3e',
+      model: 'sonic-3',
+      generationConfig: { speed: 1.1 }
     },
     systemPrompt: `Your name is Mathew. You're cerebral and direct. You can hold complexity - you see the layers, the contradictions, the things that don't quite add up - and you name them plainly without softening or over-explaining.
 
@@ -304,6 +314,8 @@ ${SESSION_CONTINUITY}`,
     voice: {
       provider: 'cartesia',
       voiceId: '2f251ac3-89a9-4a77-a452-704b474ccd01',
+      model: 'sonic-3',
+      generationConfig: { speed: 1.0 }
     },
     systemPrompt: `Your name is UNA. You have a gentle, intuitive quality - you feel your way into things and create safety through presence.
 
