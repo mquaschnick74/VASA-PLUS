@@ -88,6 +88,9 @@ export async function queryKnowledgeBase(
         ...(userId ? { filter_user_id: userId } : {})
       });
       console.log(`[RAG] Supabase RPC took ${Date.now() - rpcStart}ms`);
+      console.log(`[RAG-DEBUG] Embedding length: ${embedding.length}, first 3 values: ${embedding.slice(0,3)}`);
+      console.log(`[RAG-DEBUG] RPC data type: ${typeof data}, length: ${data?.length}, error: ${error}`);
+      console.log(`[RAG-DEBUG] filter_types: ${JSON.stringify(types || null)}, threshold: ${threshold}`);
 
       if (error) {
         // RPC function might not exist yet - that's OK
