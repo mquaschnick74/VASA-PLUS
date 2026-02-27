@@ -393,9 +393,7 @@ router.post('/tools', async (req, res) => {
           const ragChunks = await queryKnowledgeBase(query, {
             userId,
             limit: limit || 5,
-            threshold: 0.6,
-            types: types || undefined,
-            tags: tags || undefined
+            threshold: 0.35
           });
           const rag = buildRetrievedContext(ragChunks);
 

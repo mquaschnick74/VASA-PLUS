@@ -473,8 +473,8 @@ Do NOT call the tool unless you actually need more context beyond what is alread
                     userId: { type: 'string', description: 'The user\'s ID' },
                     query: { type: 'string', description: 'A short search query describing what context is needed' },
                     limit: { type: 'number', description: 'Max knowledge chunks to return (default 5)' },
-                    types: { type: 'array', items: { type: 'string' }, description: 'Knowledge types: theory, example, technique, guideline' },
-                    tags: { type: 'array', items: { type: 'string' }, description: 'Tags to filter knowledge chunks' }
+                    types: { type: 'array', items: { type: 'string' }, description: 'Knowledge types: protocol, guideline, orientation' },
+                    tags: { type: 'array', items: { type: 'string' }, description: 'Tags to filter knowledge chunks (e.g. css, cvdc, ibm, hsfb, crisis, pointed-origin, focus-bind, suspension, real, imaginary, symbolic)' }
                   },
                   required: ['userId', 'query']
                 }

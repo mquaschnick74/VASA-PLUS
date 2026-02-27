@@ -1,5 +1,4 @@
 import { supabase } from './supabase-service';
-import { queryKnowledgeBase, buildRetrievedContext } from './sensing-layer/knowledge-base';
 
 /**
  * PHASE 1B AUDIT: Query PCA master analysis context size
@@ -743,60 +742,6 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     auditSizes['user_content'] = memoryContext.length - preUserContentLen;
 
     // ========================================
-    // NEW: RAG - Retrieve PCA/PCP methodology guidance
-    // Query the knowledge base for relevant therapeutic guidance
-    // ========================================
-    const preRagLen = memoryContext.length;
-    try {
-      // Build query based on user's therapeutic state
-      const ragQueryParts: string[] = [];
-
-      // Add CSS stage to query
-      if (cssPatterns && cssPatterns.length > 0) {
-        ragQueryParts.push(`CSS stage: ${cssPatterns[0].css_stage}`);
-      }
-
-      // Add pattern type if available
-      const cvdcPattern = cssPatterns?.find(p => p.pattern_type === 'CVDC');
-      if (cvdcPattern) {
-        ragQueryParts.push('CVDC contradiction pattern');
-      }
-
-      // Add assessment register if available
-      if (assessmentData?.register_type) {
-        ragQueryParts.push(`register: ${assessmentData.register_type}`);
-      }
-
-      // Default query if no specific context
-      if (ragQueryParts.length === 0) {
-        ragQueryParts.push('therapeutic guidance PCA methodology');
-      }
-
-      const ragQuery = ragQueryParts.join(' | ');
-      console.log(`[RAG] Memory context query: "${ragQuery}"`);
-
-      // Query knowledge base
-      const ragChunks = await queryKnowledgeBase(ragQuery, {
-        types: ['theory', 'guideline', 'technique'],
-        limit: 3,
-        threshold: 0.6
-      });
-
-      if (ragChunks && ragChunks.length > 0) {
-        console.log(`[RAG] Retrieved ${ragChunks.length} chunks for memory context`);
-        const ragContext = buildRetrievedContext(ragChunks);
-        memoryContext += `\n\n===== PCA/PCP METHODOLOGY GUIDANCE =====\n`;
-        memoryContext += ragContext;
-        memoryContext += `===== END METHODOLOGY GUIDANCE =====\n`;
-      } else {
-        console.log(`[RAG] No chunks retrieved for memory context`);
-      }
-    } catch (ragError) {
-      console.warn(`[RAG] Failed to retrieve guidance for memory context:`, ragError);
-    }
-    auditSizes['rag_guidance'] = memoryContext.length - preRagLen;
-
-    // ========================================
     // TOTAL CONTEXT LIMIT - prevent token overflow
     // ========================================
     const MAX_CONTEXT_CHARS = 12000; // ~3000 tokens - safe limit for VAPI
@@ -817,7 +762,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     console.log(`📏 CSS stage guidance:   ${auditSizes['css_stage_guidance'] || 0} chars (~${Math.ceil((auditSizes['css_stage_guidance'] || 0) / 4)} tokens)`);
     console.log(`📏 PCA context:          ${auditSizes['pca_context'] || 0} chars (~${Math.ceil((auditSizes['pca_context'] || 0) / 4)} tokens)`);
     console.log(`📏 User content:         ${auditSizes['user_content'] || 0} chars (~${Math.ceil((auditSizes['user_content'] || 0) / 4)} tokens)`);
-    console.log(`📏 RAG guidance:         ${auditSizes['rag_guidance'] || 0} chars (~${Math.ceil((auditSizes['rag_guidance'] || 0) / 4)} tokens)`);
+
     console.log(`📏 TOTAL memoryContext:  ${totalChars} chars (~${estimatedTokens} tokens)`);
     if (totalChars > MAX_CONTEXT_CHARS - 1000) {
       console.log(`⚠️ WARNING: Approaching token limit!`);

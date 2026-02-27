@@ -1,6 +1,5 @@
 // server/scripts/ingest-knowledge.ts
-// Script to process and embed PCA/PCP documents into the knowledge base
-// Supports .txt, .md, and .docx files
+// Script to parse VASA-RAG-Knowledge-Base.md and ingest chunks into Supabase
 
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
@@ -34,127 +33,138 @@ function getSupabase(): ReturnType<typeof createClient> {
   return supabase;
 }
 
-interface DocumentConfig {
-  filePath: string;
-  type: 'theory' | 'example' | 'technique' | 'guideline';
+interface ParsedChunk {
+  chunkId: string;
+  title: string;
+  type: 'protocol' | 'guideline' | 'orientation';
   tags: string[];
-  description?: string;
+  content: string;
 }
 
-// Point to ACTUAL file locations - knowledge/ folder
-const DOCUMENTS: DocumentConfig[] = [
-  // Theory documents
-  {
-    filePath: './knowledge/thend-framework.txt',
-    type: 'theory',
-    tags: ['thend', 'integration', 'cvdc', 'cyvc'],
-    description: 'Thend framework and integration theory'
-  },
-  {
-    filePath: './knowledge/register-theory.txt',
-    type: 'theory',
-    tags: ['register', 'real', 'imaginary', 'symbolic'],
-    description: 'Real/Imaginary/Symbolic register theory'
-  },
-  {
-    filePath: './knowledge/css-stages.txt',
-    type: 'theory',
-    tags: ['css', 'stages', 'methodology'],
-    description: 'CSS stage progression methodology'
-  },
-  {
-    filePath: './knowledge/vasa-ultimate-goal.txt',
-    type: 'theory',
-    tags: ['vug', 'origin-trauma'],
-    description: 'VASA Ultimate Goal - origin trauma integration'
-  },
-
-  // Examples
-  {
-    filePath: './knowledge/eve-case-study.txt',
-    type: 'example',
-    tags: ['cvdc', 'thend', 'case-study'],
-    description: 'Eve case study demonstrating PCA methodology'
-  },
-  {
-    filePath: './knowledge/example-intervention.txt',
-    type: 'example',
-    tags: ['symbolic-mapping', 'timing', 'intervention'],
-    description: 'Example therapeutic intervention with timing'
-  },
-
-  // Techniques
-  {
-    filePath: './knowledge/hsfb-protocol.txt',
-    type: 'technique',
-    tags: ['hsfb', 'grounding', 'real', 'body'],
-    description: 'HSFB protocol for register grounding'
-  },
-
-  // Guidelines
-  {
-    filePath: './knowledge/vasa-personality.txt',
-    type: 'guideline',
-    tags: ['voice', 'tone', 'personality'],
-    description: 'VASA agent personality guidelines'
-  },
-  {
-    filePath: './knowledge/vasa-voice-tone.txt',
-    type: 'guideline',
-    tags: ['voice', 'tone', 'style'],
-    description: 'VASA voice and tone style guide'
-  }
-];
+const KB_PATH = 'knowledge/VASA-RAG-Knowledge-Base.md';
 
 /**
- * Read file content - handles .txt, .md, and .docx
+ * Parse the structured MD knowledge base into chunks
  */
-async function readFileContent(filePath: string): Promise<string> {
-  const ext = path.extname(filePath).toLowerCase();
-
-  if (ext === '.docx') {
-    // Dynamically import mammoth only when needed for .docx files
-    const mammoth = await import('mammoth');
-    const result = await mammoth.extractRawText({ path: filePath });
-    return result.value;
-  } else {
-    // Plain text files (.txt, .md, etc.)
-    return fs.readFileSync(filePath, 'utf-8');
+function parseKnowledgeBase(): ParsedChunk[] {
+  const fullPath = path.join(process.cwd(), KB_PATH);
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`Knowledge base file not found: ${fullPath}`);
   }
-}
 
-/**
- * Chunk a document into smaller pieces with overlap
- */
-function chunkDocument(
-  content: string,
-  chunkSize: number = 1200,
-  overlap: number = 200
-): string[] {
-  const chunks: string[] = [];
-  const paragraphs = content.split(/\n\n+/);
-  let currentChunk = '';
+  const raw = fs.readFileSync(fullPath, 'utf-8');
 
-  for (const paragraph of paragraphs) {
-    const trimmedPara = paragraph.trim();
-    if (!trimmedPara) continue;
+  // Split on ### CHUNK boundaries
+  const parts = raw.split(/^### CHUNK/m);
 
-    if ((currentChunk + trimmedPara).length > chunkSize && currentChunk.length > 0) {
-      chunks.push(currentChunk.trim());
-      // Keep some overlap
-      const words = currentChunk.split(' ');
-      const overlapWords = words.slice(-Math.floor(overlap / 5));
-      currentChunk = overlapWords.join(' ') + '\n\n' + trimmedPara;
-    } else {
-      currentChunk += (currentChunk ? '\n\n' : '') + trimmedPara;
+  // Skip the preamble (everything before the first ### CHUNK)
+  const chunkParts = parts.slice(1);
+
+  const chunks: ParsedChunk[] = [];
+
+  for (const part of chunkParts) {
+    const lines = part.split('\n');
+
+    // Parse title line, e.g. " 1.1 — CSS Stage: Pointed Origin (⊙)"
+    const titleLine = lines[0].trim();
+    const titleMatch = titleLine.match(/^(\d+\.\d+)\s*[—–-]\s*(.+?)(?:\s*\([^)]*\)\s*)?$/);
+    if (!titleMatch) {
+      console.warn(`⚠️ Could not parse chunk header: "${titleLine.slice(0, 80)}"`);
+      continue;
     }
-  }
+    const chunkId = titleMatch[1];
+    const title = titleMatch[2].trim();
 
-  if (currentChunk.trim()) {
-    chunks.push(currentChunk.trim());
+    // Parse Type line
+    const typeLine = lines.find(l => l.startsWith('**Type:**'));
+    if (!typeLine) {
+      console.warn(`⚠️ No Type line found for chunk ${chunkId}`);
+      continue;
+    }
+    const typeMatch = typeLine.match(/`(\w+)`/);
+    const type = (typeMatch ? typeMatch[1] : 'protocol') as ParsedChunk['type'];
+
+    // Parse Tags line
+    const tagsLine = lines.find(l => l.startsWith('**Tags:**'));
+    if (!tagsLine) {
+      console.warn(`⚠️ No Tags line found for chunk ${chunkId}`);
+      continue;
+    }
+    const tags: string[] = [];
+    const tagMatches = tagsLine.matchAll(/`([^`]+)`/g);
+    for (const m of tagMatches) {
+      tags.push(m[1]);
+    }
+
+    // Extract content body: everything after the first --- separator after Tags, up to trailing ---
+    const tagsLineIndex = lines.findIndex(l => l.startsWith('**Tags:**'));
+    let contentStartIndex = -1;
+    for (let i = tagsLineIndex + 1; i < lines.length; i++) {
+      if (lines[i].trim() === '---') {
+        contentStartIndex = i + 1;
+        break;
+      }
+    }
+
+    if (contentStartIndex === -1) {
+      console.warn(`⚠️ No content separator found for chunk ${chunkId}`);
+      continue;
+    }
+
+    // Find trailing --- (end of chunk content)
+    let contentEndIndex = lines.length;
+    for (let i = lines.length - 1; i >= contentStartIndex; i--) {
+      if (lines[i].trim() === '---') {
+        contentEndIndex = i;
+        break;
+      }
+    }
+
+    const content = lines.slice(contentStartIndex, contentEndIndex).join('\n').trim();
+
+    if (!content) {
+      console.warn(`⚠️ Empty content for chunk ${chunkId}`);
+      continue;
+    }
+
+    chunks.push({ chunkId, title, type, tags, content });
   }
 
   return chunks;
+}
+
+/**
+ * Split content into sub-chunks at paragraph boundaries with overlap
+ */
+function subChunk(content: string, maxSize: number = 6000, overlap: number = 200): string[] {
+  if (content.length <= maxSize) {
+    return [content];
+  }
+
+  const paragraphs = content.split(/\n\n+/);
+  const subChunks: string[] = [];
+  let current = '';
+
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) continue;
+
+    if ((current + '\n\n' + trimmed).length > maxSize && current.length > 0) {
+      subChunks.push(current.trim());
+      // Overlap: keep tail of current chunk
+      const words = current.split(' ');
+      const overlapWords = words.slice(-Math.floor(overlap / 5));
+      current = overlapWords.join(' ') + '\n\n' + trimmed;
+    } else {
+      current += (current ? '\n\n' : '') + trimmed;
+    }
+  }
+
+  if (current.trim()) {
+    subChunks.push(current.trim());
+  }
+
+  return subChunks;
 }
 
 /**
@@ -163,160 +173,118 @@ function chunkDocument(
 async function generateEmbedding(text: string): Promise<number[]> {
   const response = await getOpenAI().embeddings.create({
     model: 'text-embedding-3-small',
-    input: text.slice(0, 8000),
+    input: text.slice(0, 30000),
   });
   return response.data[0].embedding;
 }
 
 /**
- * Ingest a single document
+ * Clear global knowledge chunks (preserve user-submitted chunks)
  */
-async function ingestDocument(config: DocumentConfig): Promise<number> {
-  const fullPath = path.join(process.cwd(), config.filePath);
-  console.log(`\n📄 Processing: ${config.filePath}`);
+async function clearGlobalChunks(): Promise<void> {
+  console.log('🗑️ Clearing global knowledge chunks (preserving user-submitted)...');
+  const { data, error } = await getSupabase()
+    .from('knowledge_chunks')
+    .delete()
+    .is('user_id', null)
+    .select('id');
 
-  if (!fs.existsSync(fullPath)) {
-    console.log(`   ⚠️ File not found, skipping`);
-    return 0;
+  if (error) {
+    console.error('❌ Error clearing:', error.message);
+  } else {
+    const count = data?.length || 0;
+    console.log(`✅ Cleared ${count} global chunks`);
   }
+}
 
-  try {
-    const content = await readFileContent(fullPath);
+/**
+ * List all chunks from the MD file without ingesting
+ */
+function listChunks(): void {
+  const chunks = parseKnowledgeBase();
+  console.log(`\n📋 Knowledge Base: ${chunks.length} chunks\n`);
+  console.log('ID     | Type        | Tags | Chars  | Title');
+  console.log('-------|-------------|------|--------|------');
+  for (const chunk of chunks) {
+    const id = chunk.chunkId.padEnd(6);
+    const type = chunk.type.padEnd(11);
+    const tagCount = String(chunk.tags.length).padStart(4);
+    const chars = String(chunk.content.length).padStart(6);
+    console.log(`${id} | ${type} | ${tagCount} | ${chars} | ${chunk.title}`);
+  }
+  console.log(`\n📊 Total: ${chunks.length} chunks`);
+}
 
-    if (!content || content.trim().length < 50) {
-      console.log(`   ⚠️ File too short or empty, skipping`);
-      return 0;
-    }
+/**
+ * Ingest all chunks into Supabase
+ */
+async function ingestAll(): Promise<void> {
+  const chunks = parseKnowledgeBase();
+  console.log(`\n📦 Ingesting ${chunks.length} chunks from ${KB_PATH}\n`);
 
-    const chunks = chunkDocument(content);
-    const sourceName = path.basename(config.filePath);
+  let totalInserted = 0;
 
-    console.log(`   📦 Created ${chunks.length} chunks`);
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const subChunks = subChunk(chunk.content);
 
-    let inserted = 0;
-
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
+    for (let j = 0; j < subChunks.length; j++) {
+      const text = subChunks[j];
 
       try {
-        const embedding = await generateEmbedding(chunk);
+        const embedding = await generateEmbedding(text);
 
         const { error } = await getSupabase().from('knowledge_chunks').insert({
-          content: chunk,
+          content: text,
           embedding: embedding,
           metadata: {
-            source: sourceName,
-            type: config.type,
-            tags: config.tags,
-            description: config.description
+            source: 'VASA-RAG-Knowledge-Base',
+            type: chunk.type,
+            tags: chunk.tags,
+            chunk_id: chunk.chunkId,
+            title: chunk.title
           },
-          source_document: config.filePath,
-          chunk_index: i
+          source_document: KB_PATH,
+          chunk_index: j,
+          user_id: null
         });
 
         if (error) {
-          console.error(`   ❌ Chunk ${i}:`, error.message);
+          console.error(`❌ Chunk ${chunk.chunkId} sub ${j}: ${error.message}`);
         } else {
-          inserted++;
-          process.stdout.write(`   ✅ ${i + 1}/${chunks.length}\r`);
+          totalInserted++;
         }
 
-        // Rate limiting - OpenAI embeddings
+        // Rate limit
         await new Promise(resolve => setTimeout(resolve, 100));
-
-      } catch (error: any) {
-        console.error(`   ❌ Chunk ${i}:`, error.message);
+      } catch (err: any) {
+        console.error(`❌ Chunk ${chunk.chunkId} sub ${j}: ${err.message}`);
       }
     }
 
-    console.log(`   ✅ Inserted ${inserted}/${chunks.length} chunks`);
-    return inserted;
-
-  } catch (error: any) {
-    console.error(`   ❌ Error reading file:`, error.message);
-    return 0;
+    console.log(`✅ Chunk ${chunk.chunkId} (${i + 1}/${chunks.length}): "${chunk.title}" — ${subChunks.length} sub-chunk(s) inserted`);
   }
+
+  console.log(`\n✅ Ingestion complete: ${totalInserted} total rows inserted`);
 }
 
 /**
- * Clear existing knowledge base
- */
-async function clearKnowledgeBase(): Promise<void> {
-  console.log('🗑️ Clearing existing knowledge base...');
-  const { error } = await getSupabase()
-    .from('knowledge_chunks')
-    .delete()
-    .neq('id', '00000000-0000-0000-0000-000000000000');
-
-  if (error) {
-    console.error('Error clearing:', error.message);
-  } else {
-    console.log('✅ Cleared');
-  }
-}
-
-/**
- * List all configured documents and their status
- */
-function listDocuments(): void {
-  console.log('\n📋 Configured Documents:\n');
-
-  const byType: Record<string, DocumentConfig[]> = {};
-
-  for (const doc of DOCUMENTS) {
-    if (!byType[doc.type]) byType[doc.type] = [];
-    byType[doc.type].push(doc);
-  }
-
-  for (const [type, docs] of Object.entries(byType)) {
-    console.log(`\n${type.toUpperCase()}:`);
-    for (const doc of docs) {
-      const fullPath = path.join(process.cwd(), doc.filePath);
-      const exists = fs.existsSync(fullPath);
-      const status = exists ? '✅' : '❌';
-      console.log(`  ${status} ${doc.filePath}`);
-      if (doc.description) {
-        console.log(`     └─ ${doc.description}`);
-      }
-    }
-  }
-
-  const existing = DOCUMENTS.filter(d => fs.existsSync(path.join(process.cwd(), d.filePath)));
-  const missing = DOCUMENTS.filter(d => !fs.existsSync(path.join(process.cwd(), d.filePath)));
-
-  console.log(`\n📊 Summary: ${existing.length} files found, ${missing.length} missing`);
-
-  if (missing.length > 0) {
-    console.log('\n💡 To add missing files, place them in:');
-    console.log('   - ./attached_assets/ (for uploaded documents)');
-    console.log('   - ./docs/ (for organized documentation)');
-  }
-}
-
-/**
- * Main ingestion function
+ * Main
  */
 async function main() {
-  console.log('🚀 PCA/PCP Knowledge Base Ingestion Tool\n');
+  console.log('🚀 VASA Knowledge Base Ingestion Tool\n');
   console.log('='.repeat(50));
 
   const args = process.argv.slice(2);
 
-  // Show help
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
 Usage: npx tsx server/scripts/ingest-knowledge.ts [options]
 
 Options:
-  --clear     Clear existing knowledge base before ingesting
-  --list      List all configured documents and their status
+  --clear     Clear global chunks then ingest
+  --list      List all chunks (no ingestion)
   --help, -h  Show this help message
-
-Supported file types:
-  .txt, .md, .docx
-
-Configuration:
-  Edit the DOCUMENTS array in this file to add/remove documents.
 
 Examples:
   npx tsx server/scripts/ingest-knowledge.ts --list
@@ -326,54 +294,16 @@ Examples:
     return;
   }
 
-  // List documents
   if (args.includes('--list')) {
-    listDocuments();
+    listChunks();
     return;
   }
 
-  // Clear existing data if requested
   if (args.includes('--clear')) {
-    await clearKnowledgeBase();
+    await clearGlobalChunks();
   }
 
-  // Find unique documents (avoid duplicates if same file in multiple locations)
-  const processedPaths = new Set<string>();
-  let totalChunks = 0;
-  let filesProcessed = 0;
-  let filesSkipped = 0;
-
-  for (const doc of DOCUMENTS) {
-    const fullPath = path.join(process.cwd(), doc.filePath);
-
-    // Skip if we've already processed this file
-    if (processedPaths.has(fullPath)) {
-      continue;
-    }
-
-    if (fs.existsSync(fullPath)) {
-      processedPaths.add(fullPath);
-      const inserted = await ingestDocument(doc);
-      totalChunks += inserted;
-      if (inserted > 0) {
-        filesProcessed++;
-      }
-    } else {
-      filesSkipped++;
-    }
-  }
-
-  console.log('\n' + '='.repeat(50));
-  console.log(`✅ Ingestion complete!`);
-  console.log(`   Files processed: ${filesProcessed}`);
-  console.log(`   Files not found: ${filesSkipped}`);
-  console.log(`   Total chunks inserted: ${totalChunks}`);
-
-  if (totalChunks === 0) {
-    console.log('\n⚠️ No documents were ingested!');
-    console.log('   Run with --list to see which files are missing.');
-    console.log('   Add your PCA/PCP documents to ./attached_assets/ or ./docs/');
-  }
+  await ingestAll();
 }
 
 main().catch(console.error);

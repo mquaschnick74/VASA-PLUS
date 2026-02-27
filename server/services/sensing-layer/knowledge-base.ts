@@ -12,14 +12,14 @@ export interface KnowledgeChunk {
   content: string;
   metadata: {
     source: string;
-    type: 'theory' | 'example' | 'technique' | 'guideline';
+    type: 'theory' | 'example' | 'technique' | 'guideline' | 'protocol' | 'orientation';
     tags: string[];
   };
   similarity: number;
 }
 
 export interface RagQueryOptions {
-  types?: Array<'theory' | 'example' | 'technique' | 'guideline'>;
+  types?: Array<'theory' | 'example' | 'technique' | 'guideline' | 'protocol' | 'orientation'>;
   tags?: string[];
   limit?: number;
   threshold?: number;
@@ -37,7 +37,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
     const response = await openai.embeddings.create({
       model: 'text-embedding-3-small',
-      input: text.slice(0, 8000), // Limit input length
+      input: text.slice(0, 30000), // Limit input length
     });
 
     clearTimeout(timeoutId);
@@ -146,90 +146,85 @@ export function buildRetrievedContext(chunks: KnowledgeChunk[]): string {
 export function buildRagQuery(osr: OrientationStateRegister): string {
   const parts: string[] = [];
 
-  // Pattern context
+  // CSS stage — descriptive language matching KB content
+  if (osr.movement?.cssStage) {
+    const stageDescriptions: Record<string, string> = {
+      'pointed_origin': 'Pointed Origin stage: initial therapeutic engagement, perceptual fragmentation, grounding in body and sensation, establishing therapeutic container',
+      'focus_bind': 'Focus Bind stage: introducing contradiction CVDC, holding opposing positions simultaneously, developing capacity for psychological tension',
+      'suspension': 'Suspension stage: holding contradiction without resolution, tolerating ambiguity, deepening somatic awareness of tension',
+      'gesture_toward': 'Gesture Toward stage: movement toward integration, Thend emerging, symbolic connection forming between fragmented elements',
+      'completion': 'Completion stage: integration achieved, CYVC emerging, new symbolic capacity, testing insights across contexts',
+      'terminal': 'Terminal Symbol stage: consolidated integration, symbolic wholeness, preparing for termination or new cycle'
+    };
+    const desc = stageDescriptions[osr.movement.cssStage];
+    if (desc) {
+      parts.push(desc);
+    }
+  }
+
+  // Pattern context — descriptive
   if (osr.patterns?.activePatterns?.length > 0) {
     const pattern = osr.patterns.activePatterns[0];
-    parts.push(`pattern: ${pattern.description || pattern.patternType}`);
+    const patternDescriptions: Record<string, string> = {
+      'CVDC': 'contradiction detected: user holds two incompatible positions simultaneously, living paradox requiring holding not resolution',
+      'IBM': 'intention-behavior mismatch: gap between what user wants to do and what they actually do',
+      'Thend': 'breakthrough moment emerging: integration of contradiction, symbolic function restoring',
+      'CYVC': 'conclusion forming: variable yet constant resolution, new operational capacity emerging'
+    };
+    const desc = patternDescriptions[pattern.patternType] || `pattern: ${pattern.description || pattern.patternType}`;
+    parts.push(desc);
   }
 
   // Register context
   if (osr.register?.currentRegister) {
     parts.push(`register: ${osr.register.currentRegister}`);
-
     if (osr.register.stucknessScore > 0.6) {
-      parts.push('stuck in register');
+      parts.push('stuck in register, repetition pattern, needs movement');
     }
-  }
-
-  // CSS stage
-  if (osr.movement?.cssStage) {
-    // Convert snake_case to Title Case to match knowledge base content
-    const stageMap: Record<string, string> = {
-      'pointed_origin': 'Pointed Origin',
-      'focus_bind': 'Focus Bind',
-      'suspension': 'Suspension',
-      'gesture_toward': 'Gesture Toward',
-      'completion': 'Completion',
-      'terminal': 'Terminal Symbol'
-    };
-    const stageName = stageMap[osr.movement.cssStage] || osr.movement.cssStage;
-    parts.push(`CSS stage: ${stageName}`);
   }
 
   // Anticipation/timing
   if (osr.movement?.anticipation?.timing?.phase === 'ready') {
-    parts.push('intervention timing ready');
-  } else if (osr.movement?.anticipation?.timing?.phase === 'approaching_readiness') {
-    parts.push('approaching intervention');
+    parts.push('intervention timing ready, therapeutic moment approaching');
   }
 
-  // Symbolic mapping - generative insight
+  // Symbolic mapping
   if (osr.symbolic?.generativeInsight?.potentialConnection) {
-    parts.push('symbolic connection possible');
+    parts.push('symbolic connection possible, Impressionate function engaging');
     if (osr.symbolic.generativeInsight.potentialConnection.connectionInsight) {
-      parts.push(osr.symbolic.generativeInsight.potentialConnection.connectionInsight.slice(0, 100));
+      parts.push(osr.symbolic.generativeInsight.potentialConnection.connectionInsight.slice(0, 150));
     }
-  }
-
-  // Movement trajectory
-  if (osr.movement?.trajectory) {
-    parts.push(`movement: ${osr.movement.trajectory}`);
   }
 
   // Default fallback
   if (parts.length === 0) {
-    parts.push('therapeutic guidance PCA methodology');
+    parts.push('PCA therapeutic guidance: grounding, register awareness, HSFB modalities, perceptual integration');
   }
 
-  return parts.join(' | ');
+  return parts.join('. ');
 }
 
 /**
  * Determine which document types are most relevant
  */
-export function determineRelevantTypes(osr: OrientationStateRegister): Array<'theory' | 'example' | 'technique' | 'guideline'> {
-  const types: Array<'theory' | 'example' | 'technique' | 'guideline'> = [];
+export function determineRelevantTypes(osr: OrientationStateRegister): Array<'theory' | 'example' | 'technique' | 'guideline' | 'protocol' | 'orientation'> {
+  const types: Set<string> = new Set(['guideline', 'protocol']);
 
-  // Always include theory as baseline
-  types.push('theory');
-
-  // If intervention timing is ready or approaching, include examples
   const phase = osr.movement?.anticipation?.timing?.phase;
   if (phase === 'ready' || phase === 'approaching_readiness') {
-    types.push('example');
+    types.add('orientation');
+    types.add('theory');
   }
 
-  // If register is stuck, include techniques
   if (osr.register?.stucknessScore > 0.5) {
-    types.push('technique');
+    types.add('orientation');
   }
 
-  // If symbolic connection is active, include examples
   if (osr.symbolic?.generativeInsight?.potentialConnection) {
-    if (!types.includes('example')) types.push('example');
+    types.add('orientation');
   }
 
-  return types;
+  return Array.from(types) as Array<'theory' | 'example' | 'technique' | 'guideline' | 'protocol' | 'orientation'>;
 }
 
 /**
@@ -238,34 +233,58 @@ export function determineRelevantTypes(osr: OrientationStateRegister): Array<'th
 export function determineRelevantTags(osr: OrientationStateRegister): string[] {
   const tags: string[] = [];
 
-  // Register tags
-  if (osr.register?.currentRegister) {
-    tags.push(osr.register.currentRegister.toLowerCase());
-  }
+  // CSS stage tag mapping: snake_case OSR values → hyphenated KB tags
+  const cssTagMap: Record<string, string[]> = {
+    'pointed_origin': ['pointed-origin', 'css', 'opening'],
+    'focus_bind': ['focus-bind', 'css', 'cvdc'],
+    'suspension': ['suspension', 'css'],
+    'gesture_toward': ['gesture-toward', 'css', 'thend'],
+    'completion': ['completion', 'css', 'integration'],
+    'terminal': ['terminal-symbol', 'css']
+  };
 
-  // CSS stage tags
   if (osr.movement?.cssStage) {
-    tags.push(osr.movement.cssStage);
+    const mapped = cssTagMap[osr.movement.cssStage];
+    if (mapped) {
+      tags.push(...mapped);
+    } else {
+      tags.push('css');
+    }
   }
 
-  // Pattern type tags
+  // Register tags (match KB as-is: 'real', 'imaginary', 'symbolic')
+  if (osr.register?.currentRegister) {
+    const reg = osr.register.currentRegister.toLowerCase();
+    tags.push(reg);
+    tags.push('register');
+  }
+
+  // Pattern type tags (uppercase from OSR → lowercase for KB)
   if (osr.patterns?.activePatterns?.length > 0) {
     osr.patterns.activePatterns.forEach((p) => {
-      if (p.patternType) tags.push(p.patternType);
+      if (p.patternType) {
+        tags.push(p.patternType.toLowerCase());
+      }
     });
   }
 
   // Movement tags
   if (osr.movement?.trajectory === 'toward_mastery') {
     tags.push('integration');
+    tags.push('thend');
   }
 
   // Symbolic tags
   if (osr.symbolic?.generativeInsight?.potentialConnection) {
-    tags.push('symbolic-mapping');
+    tags.push('impressionate');
   }
 
-  return Array.from(new Set(tags)); // Remove duplicates
+  // Stuckness tags
+  if (osr.register?.stucknessScore > 0.6) {
+    tags.push('repetition');
+  }
+
+  return Array.from(new Set(tags));
 }
 
 /**
@@ -282,7 +301,6 @@ export async function getRelevantGuidance(osr: OrientationStateRegister): Promis
 
   const chunks = await queryKnowledgeBase(query, {
     types,
-    tags,
     limit: 4,
     threshold: 0.4
   });
