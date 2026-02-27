@@ -489,11 +489,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         voice: {
           provider: selectedAgent.voice.provider,
           voiceId: selectedAgent.voice.voiceId,
-          model: selectedAgent.voice.model || 'eleven_flash_v2_5',
-          stability: selectedAgent.voice.stability || 0.7,
-          similarityBoost: selectedAgent.voice.similarityBoost || 0.75,
-          speed: selectedAgent.voice.speed || 1.0,
-          useSpeakerBoost: false
+          speed: selectedAgent.voice.speed || 1.0
         },
         // 🎯 Therapeutic Speech Configuration (simplified for compatibility)
         // These settings make VASA more patient and harder to interrupt accidentally

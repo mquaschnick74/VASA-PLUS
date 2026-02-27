@@ -15,11 +15,7 @@ export interface TherapeuticAgent {
   voice: {
     provider: string;
     voiceId: string;
-    model?: string;
-    stability?: number;
-    similarityBoost?: number;
     speed?: number;
-    useSpeakerBoost?: boolean;
   };
   model: {
     temperature: number;
@@ -202,13 +198,9 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     color: 'purple',
     model: { temperature: 0.7, model: 'gpt-5.2' },
     voice: {
-      provider: '11labs',
-      voiceId: 'Tfv2PGiTliSQ4XSXrJmA',
-      model: 'eleven_flash_v2_5',
-      stability: 0.9,
-      similarityBoost: 0.85,
-      speed: 1.0,
-      useSpeakerBoost: true
+      provider: 'cartesia',
+      voiceId: 'ec1e269e-9ca0-402f-8a18-58e0e022355a',
+      speed: 1.0
     },
     systemPrompt: `Your name is Sarah. You have a wise, maternal quality - like a trusted aunt who's seen a lot of life and meets everything with calm understanding.
 
@@ -231,13 +223,9 @@ ${SESSION_CONTINUITY}`,
     color: 'orange',
     model: { temperature: 0.8, model: 'gpt-5.2' },
     voice: {
-      provider: '11labs',
-      voiceId: 'pNInz6obpgDQGcFmaJgB',
-      model: 'eleven_flash_v2_5',
-      stability: 0.9,
-      similarityBoost: 0.85,
-      speed: 1.0,
-      useSpeakerBoost: true
+      provider: 'cartesia',
+      voiceId: '586b6832-1ca1-43ad-b974-527dc13c2532',
+      speed: 1.0
     },
     systemPrompt: `Your name is Marcus. You have a grounded, steady presence - like someone who's done their own work and can hold space without flinching.
 
@@ -260,13 +248,9 @@ ${SESSION_CONTINUITY}`,
     color: 'blue',
     model: { temperature: 0.9, model: 'gpt-5.2' },
     voice: {
-      provider: '11labs',
-      voiceId: '2hsbsDeRu57rsKFAC7uE',
-      model: 'eleven_flash_v2_5',
-      stability: 0.9,
-      similarityBoost: 0.85,
-      speed: 1.1,
-      useSpeakerBoost: true
+      provider: 'cartesia',
+      voiceId: '79f8b5fb-2cc8-479a-80df-29f7a7cf1a3e',
+      speed: 1.1
     },
     systemPrompt: `Your name is Mathew. You're cerebral and direct. You can hold complexity - you see the layers, the contradictions, the things that don't quite add up - and you name them plainly without softening or over-explaining.
 
@@ -295,13 +279,9 @@ ${SESSION_CONTINUITY}`,
     color: 'indigo',
     model: { temperature: 0.9, model: 'gpt-5.2' },
     voice: {
-      provider: '11labs',
-      voiceId: 'wJqPPQ618aTW29mptyoc',
-      model: 'eleven_turbo_v2_5',
-      stability: 0.5,
-      similarityBoost: 0.75,
-      speed: 1.0,
-      useSpeakerBoost: false
+      provider: 'cartesia',
+      voiceId: '2f251ac3-89a9-4a77-a452-704b474ccd01',
+      speed: 1.0
     },
     systemPrompt: `Your name is UNA. You have a gentle, intuitive quality - you feel your way into things and create safety through presence.
 
