@@ -223,6 +223,7 @@ async function ingestAll(): Promise<void> {
   console.log(`\n📦 Ingesting ${chunks.length} chunks from ${KB_PATH}\n`);
 
   let totalInserted = 0;
+  let globalIndex = 0; // Global running counter — unique per (source_document, chunk_index)
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
@@ -245,7 +246,7 @@ async function ingestAll(): Promise<void> {
             title: chunk.title
           },
           source_document: KB_PATH,
-          chunk_index: j,
+          chunk_index: globalIndex,
           user_id: null
         });
 
@@ -255,10 +256,13 @@ async function ingestAll(): Promise<void> {
           totalInserted++;
         }
 
+        globalIndex++;
+
         // Rate limit
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (err: any) {
         console.error(`❌ Chunk ${chunk.chunkId} sub ${j}: ${err.message}`);
+        globalIndex++;
       }
     }
 
