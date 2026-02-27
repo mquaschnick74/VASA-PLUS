@@ -490,17 +490,32 @@ Do NOT call the tool unless you actually need more context beyond what is alread
           provider: selectedAgent.voice.provider,
           voiceId: selectedAgent.voice.voiceId
         },
-        // 🎯 Therapeutic Speech Configuration (simplified for compatibility)
-        // These settings make VASA more patient and harder to interrupt accidentally
+        // 🎯 Therapeutic Speech Configuration
+        // Deepgram Flux handles primary endpointing via eotThreshold/eotTimeoutMs above.
+        // customEndpointingRules extend the wait after emotionally loaded questions.
+        // waitSeconds is a FINAL delay after LLM+TTS are done, before audio plays — keep low.
         startSpeakingPlan: {
-          waitSeconds: 3,
-          smartEndpointingEnabled: true
+          waitSeconds: 0.6,
+          customEndpointingRules: [
+            {
+              // After the agent asks a probing/emotional question, give the user up to 8 seconds
+              type: 'assistant' as const,
+              regex: '(feel|body|inside you|imagine|what happens|remind you|what.?s that about|where do you notice|what comes up|what shifted|say more about|sit with)',
+              timeoutSeconds: 8.0
+            },
+            {
+              // When user's speech ends with a trailing thought (comma, ellipsis, dash)
+              type: 'customer' as const,
+              regex: '(,\\s*$|\\.{2,}\\s*$|—\\s*$|-\\s*$)',
+              timeoutSeconds: 6.0
+            }
+          ]
         },
-        // Make user harder to interrupt - requires deliberate speech
+        // Make agent harder to interrupt - requires deliberate user speech
         stopSpeakingPlan: {
-          numWords: 5,         // Requires 3 words to interrupt (vs 1 word default)
-          voiceSeconds: .5,   // Requires 0.5s of voice activity (vs 0.2s default)
-          backoffSeconds: 2  // After interruption, wait 1.5s before VASA can resume
+          numWords: 5,          // Requires 5 words to interrupt (prevents accidental cut-ins)
+          voiceSeconds: 0.5,    // Requires 0.5s of sustained voice activity
+          backoffSeconds: 2     // After interruption, wait 2s before agent can resume
         },
         serverUrl: serverUrl,
         serverMessages: [
@@ -524,10 +539,16 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         },
         firstMessage: null,  // MUST be null, not undefined or omitted
         firstMessageMode: "assistant-speaks-first-with-model-generated-message",
+        // Deepgram Flux: content-aware end-of-turn detection for therapeutic conversations
+        // eotThreshold 0.9 = very conservative (waits until highly confident user is done)
+        // eotTimeoutMs 10000 = allows up to 10 seconds of silence before forcing turn end
+        // Do NOT set smartEndpointingPlan — Flux's built-in EOT replaces it
         transcriber: {
           provider: 'deepgram',
-          model: 'nova-2',
-          language: 'en'
+          model: 'flux-general-en',
+          language: 'en',
+          eotThreshold: 0.9,
+          eotTimeoutMs: 10000
         },
         recordingEnabled: true,
         backgroundSpeechDenoisingPlan: {
