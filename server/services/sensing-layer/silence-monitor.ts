@@ -27,6 +27,10 @@ interface SilenceTimer {
   firstUserUtteranceReceived: boolean;
   monitorStartedAt: number;
   lastDeepening: number;
+  // FIX: Generation counter — incremented every time resetSilenceTimer is called.
+  // handleSilenceTimeout captures this at start and checks after every await.
+  // If it changes mid-execution, the user spoke and this timeout is stale.
+  resetGeneration: number;
 }
 
 const silenceTimers = new Map<string, SilenceTimer>();
@@ -111,6 +115,22 @@ function containsVisualizationLanguage(msg: string): boolean {
     /glass|smoke|fire|water/i
   ];
   return patterns.some(p => p.test(msg));
+}
+
+// ============================================================================
+// Staleness check helper
+// ============================================================================
+
+/**
+ * FIX: Check if a silence timeout chain is stale.
+ * Returns true if the user has spoken since this chain started
+ * (i.e., resetSilenceTimer was called, incrementing the generation).
+ */
+function isStale(callId: string, generation: number): boolean {
+  const timer = silenceTimers.get(callId);
+  // Timer was removed (call ended) or generation changed (user spoke)
+  if (!timer) return true;
+  return timer.resetGeneration !== generation;
 }
 
 // ============================================================================
@@ -506,9 +526,33 @@ const SENSING_DEFERRAL_MS = 5000;
 // Track deferral count per call to prevent infinite deferral loops
 const sensingDeferralCounts = new Map<string, number>();
 
-async function handleSilenceTimeout(callId: string): Promise<void> {
+/**
+ * FIX: handleSilenceTimeout now accepts an optional `armedGeneration` parameter.
+ * 
+ * When called by a fresh setTimeout from armTimer, armedGeneration is undefined
+ * and we capture the current generation. When called by a DEFERRED setTimeout
+ * (sensing layer wait), we pass the original generation through so the entire
+ * chain can be invalidated if the user speaks during the deferral.
+ * 
+ * After every async boundary (await), we check isStale(). If the generation
+ * changed (user spoke), we abort immediately instead of injecting a stale
+ * re-engagement message.
+ */
+async function handleSilenceTimeout(callId: string, armedGeneration?: number): Promise<void> {
   const timer = silenceTimers.get(callId);
   if (!timer) return;
+
+  // FIX: Capture or inherit the generation from when this timeout chain started.
+  // If resetSilenceTimer runs at any point after this, generation will mismatch
+  // and we'll abort instead of injecting a stale re-engagement.
+  const generation = armedGeneration ?? timer.resetGeneration;
+
+  // FIX: Immediate staleness check — covers deferred re-entries where
+  // the user spoke between the deferral and this function executing.
+  if (isStale(callId, generation)) {
+    console.log(`🔇 [SILENCE] Aborting stale timeout for call ${callId} (user spoke, generation changed)`);
+    return;
+  }
 
   const callState = getCallState(callId);
   if (!callState) {
@@ -536,14 +580,23 @@ async function handleSilenceTimeout(callId: string): Promise<void> {
     if (deferrals < MAX_SENSING_DEFERRALS) {
       sensingDeferralCounts.set(callId, deferrals + 1);
       console.log(`🔇 [SILENCE] Sensing layer is processing for call ${callId} — deferring (${deferrals + 1}/${MAX_SENSING_DEFERRALS})`);
-      // Re-check after a short delay instead of firing now
-      timer.timeout = setTimeout(() => handleSilenceTimeout(callId), SENSING_DEFERRAL_MS);
+      // FIX: Pass generation through so the deferred call inherits it.
+      // If the user speaks during this 5-second deferral, resetSilenceTimer
+      // increments the generation, and the deferred call will abort on entry.
+      timer.timeout = setTimeout(() => handleSilenceTimeout(callId, generation), SENSING_DEFERRAL_MS);
       return;
     }
     console.log(`🔇 [SILENCE] Max deferrals reached for call ${callId}, proceeding with re-engagement`);
   }
   // Reset deferral count since we're proceeding
   sensingDeferralCounts.delete(callId);
+
+  // FIX: Staleness check after deferral logic (in case user spoke during
+  // the synchronous processing above — unlikely but defensive)
+  if (isStale(callId, generation)) {
+    console.log(`🔇 [SILENCE] Aborting stale timeout for call ${callId} after deferral check (user spoke)`);
+    return;
+  }
 
   // MOD 2: Deepening override — check if user is going deeper during silence
   // Now this reads the LATEST session state, which includes any guidance
@@ -564,8 +617,8 @@ async function handleSilenceTimeout(callId: string): Promise<void> {
     // already escalation tier 2+ (the user has been silent a LONG time).
     if (timer.reEngagementCount < 1) {
       console.log(`🔇 [SILENCE] Sensing layer posture is "${latestPosture}" for call ${callId} — honoring therapeutic hold, re-arming with extended threshold`);
-      // Re-arm with an extra 15 seconds of space
-      timer.timeout = setTimeout(() => handleSilenceTimeout(callId), 15_000);
+      // FIX: Pass generation through extended hold deferral too
+      timer.timeout = setTimeout(() => handleSilenceTimeout(callId, generation), 15_000);
       return;
     }
   }
@@ -585,10 +638,28 @@ async function handleSilenceTimeout(callId: string): Promise<void> {
   // completed guidance naturally informs the re-engagement message content.
   const { message, source } = await generateReEngagementMessage(callId, timer.reEngagementCount, silenceDurationSeconds);
 
+  // FIX: CRITICAL staleness check after the Claude API call.
+  // This is the main race condition — the Claude call takes 4-8 seconds,
+  // and the user may have spoken during that time. If they did,
+  // resetSilenceTimer already ran and this re-engagement is stale.
+  // Injecting it now would override the sensing layer's real response.
+  if (isStale(callId, generation)) {
+    console.log(`🔇 [SILENCE] Aborting stale re-engagement #${timer.reEngagementCount} for call ${callId} — user spoke during Claude generation (source: ${source})`);
+    return;
+  }
+
   // Use Vapi's "say" command to force the agent to speak the re-engagement.
   // This bypasses the LLM entirely — the agent speaks the exact text.
   // Regular guidance uses add-message (silent context); re-engagement uses say (forced speech).
   const injected = await injectSpokenReEngagement(callId, message);
+
+  // FIX: Final staleness check after injection attempt.
+  // If the user spoke during injection, don't continue the re-engagement chain.
+  if (isStale(callId, generation)) {
+    console.log(`🔇 [SILENCE] User spoke during injection for call ${callId} — will not re-arm`);
+    return;
+  }
+
   if (injected) {
     console.log(`🔇 [SILENCE] Re-engagement #${timer.reEngagementCount} injected for call ${callId} [${source}]: "${message}"`);
   } else {
@@ -626,7 +697,8 @@ export function startSilenceMonitor(callId: string): void {
     reEngagementCount: 0,
     firstUserUtteranceReceived: false,
     monitorStartedAt: Date.now(),
-    lastDeepening: -1
+    lastDeepening: -1,
+    resetGeneration: 0  // FIX: Initialize generation counter
   });
   clearTimeout(silenceTimers.get(callId)!.timeout);
 
@@ -655,6 +727,12 @@ export function resetSilenceTimer(callId: string): void {
   // Reset re-engagement count and deepening baseline on any new user speech
   timer.reEngagementCount = 0;
   timer.lastDeepening = -1;
+
+  // FIX: Increment generation counter. Any in-flight handleSilenceTimeout
+  // that captured an older generation will see the mismatch and abort
+  // at its next staleness check, preventing stale re-engagements.
+  timer.resetGeneration++;
+  console.log(`🔇 [SILENCE] Generation incremented to ${timer.resetGeneration} for call ${callId}`);
 
   armTimer(callId);
 }
