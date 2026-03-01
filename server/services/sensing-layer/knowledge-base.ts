@@ -77,7 +77,7 @@ export async function queryKnowledgeBase(
 
       const rpcStart = Date.now();
       const { data, error } = await supabase.rpc('match_knowledge_chunks', {
-        query_embedding: embedding,
+        query_embedding: `[${embedding.join(',')}]`,
         match_threshold: threshold,
         match_count: limit,
         filter_types: types || null,
