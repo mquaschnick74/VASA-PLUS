@@ -281,7 +281,7 @@ ${SESSION_CONTINUITY}`,
     model: { temperature: 0.9, model: 'gpt-5.2' },
     voice: {
       provider: 'cartesia',
-      voiceId: '87286a8d-7ea7-4235-a41a-dd9fa6630feb',
+      voiceId: '2b598f84-f0d3-48e0-ab0d-5b9008e80113',
       model: 'sonic-3',
       generationConfig: { speed: 1.1 }
     },
