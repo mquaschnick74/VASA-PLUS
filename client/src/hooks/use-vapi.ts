@@ -486,14 +486,24 @@ Do NOT call the tool unless you actually need more context beyond what is alread
             }
           ]
         },
-        voice: {
-          provider: selectedAgent.voice.provider,
-          voiceId: selectedAgent.voice.voiceId,
-          model: selectedAgent.voice.model || 'sonic-3',
-          ...(selectedAgent.voice.generationConfig && {
-            generationConfig: selectedAgent.voice.generationConfig
-          })
-        },
+        voice: selectedAgent.voice.provider === '11labs'
+          ? {
+              provider: selectedAgent.voice.provider,
+              voiceId: selectedAgent.voice.voiceId,
+              model: selectedAgent.voice.model || 'eleven_flash_v2_5',
+              stability: selectedAgent.voice.stability || 0.7,
+              similarityBoost: selectedAgent.voice.similarityBoost || 0.75,
+              speed: selectedAgent.voice.speed || 1.0,
+              useSpeakerBoost: selectedAgent.voice.useSpeakerBoost ?? false
+            }
+          : {
+              provider: selectedAgent.voice.provider,
+              voiceId: selectedAgent.voice.voiceId,
+              model: selectedAgent.voice.model || 'sonic-3',
+              ...(selectedAgent.voice.generationConfig && {
+                generationConfig: selectedAgent.voice.generationConfig
+              })
+            },
         // 🎯 Therapeutic Speech Configuration
         // Deepgram Flux handles primary endpointing via eotThreshold/eotTimeoutMs above.
         // customEndpointingRules extend the wait after emotionally loaded questions.
