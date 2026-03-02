@@ -308,13 +308,8 @@ async function processSensingLayerAsync(
       console.log(`📝 [SENSING] Guidance generated but NOT injected (no controlUrl): ${guidance.posture}`);
     }
 
-    // Signal to silence monitor: sensing layer is done
-    setSensingProcessing(callId, false);
 
   } catch (error) {
-    // Signal to silence monitor: sensing layer is done (even on error)
-    setSensingProcessing(callId, false);
-
     // Log but don't throw - we don't want to break the conversation
     console.error(`❌ [SENSING] FATAL ERROR in processSensingLayerAsync for call ${callId}:`, error);
     if (error instanceof Error) {
@@ -322,6 +317,11 @@ async function processSensingLayerAsync(
       console.error(`   Stack: ${error.stack}`);
     }
   } finally {
+    // ALWAYS clear the sensing processing flag, regardless of exit path.
+    // This prevents the silence monitor from thinking the sensing layer is
+    // permanently stuck in "processing" state after a rate-limit skip or cache hit.
+    setSensingProcessing(callId, false);
+
     // ALWAYS release the lock so the next webhook can be processed
     processingLock.delete(callId);
   }
