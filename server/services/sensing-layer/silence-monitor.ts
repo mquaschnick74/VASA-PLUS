@@ -510,7 +510,7 @@ function armTimer(callId: string): void {
 
   console.log(`🔇 [SILENCE] Timer reset for call ${callId} (threshold: ${adjustedThreshold}ms)`);
 
-  timer.timeout = setTimeout(() => handleSilenceTimeout(callId), adjustedThreshold);
+  timer.timeout = setTimeout(() => handleSilenceTimeout(callId, timer.resetGeneration), adjustedThreshold);
 }
 
 // Maximum times to defer for sensing layer before firing anyway
