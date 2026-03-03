@@ -251,6 +251,7 @@ app.use("/api", (req, res, next) => {
   if (
     req.path.startsWith("/vapi/webhook") ||
     req.path.startsWith("/vapi/tools") ||
+    req.path.startsWith("/custom-llm") ||
     req.path.startsWith("/stripe/webhook") ||
     req.path.startsWith("/stripe-webhook")
   ) {

@@ -450,14 +450,16 @@ Do NOT call the tool unless you actually need more context beyond what is alread
       // - All users: Also limited by subscription minutes remaining
       const assistantConfig = {
         name: `VASA-${selectedAgent.name}`,
+        // CUSTOM LLM TEST — original provider was 'openai' with full systemPrompt in messages[0]
         model: {
-          provider: 'openai',
+          provider: 'custom-llm',
+          url: getAbsoluteUrl('/api/custom-llm'),
           model: selectedAgent.model.model,
           temperature: selectedAgent.model.temperature,
           messages: [
             {
               role: 'system',
-              content: systemPrompt
+              content: 'VASA_CALL_ID:{{call.id}}'
             }
           ],
           maxTokens: 300,
