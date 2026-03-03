@@ -7,6 +7,10 @@ import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from
 // Pending guidance queue: holds guidance deferred while agent is speaking
 const pendingGuidance = new Map<string, TherapeuticGuidance | EnhancedTherapeuticGuidance>();
 const pendingTriggerResponse = new Map<string, boolean>();
+// Deduplication: track last injected system message hash per call
+// Prevents double-injection when speech-update and conversation-update arrive close together
+const lastInjectedHash = new Map<string, { hash: string; timestamp: number }>();
+const DEDUP_WINDOW_MS = 12000; // 12 seconds — wider than any realistic event gap
 
 /**
  * Posture descriptions for the voice model
@@ -20,6 +24,14 @@ const POSTURE_DESCRIPTIONS: Record<TherapeuticPosture, string> = {
   silent: 'Allow extended silence. Sometimes presence is more powerful than words.',
   wait_and_track: 'Let them continue. They\'re building toward something. Don\'t redirect or push. Strategic patience.'
 };
+
+function hashString(str: string): string {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return h.toString(36);
+}
 
 /**
  * Inject therapeutic guidance into a VAPI call via controlUrl
@@ -61,6 +73,14 @@ export async function injectGuidance(
     ? (guidance as EnhancedTherapeuticGuidance).enhancedPosture?.mode || guidance.posture
     : guidance.posture;
 
+  // Deduplication: skip if identical content was already injected within the window
+  const msgHash = hashString(systemMessage);
+  const lastInject = lastInjectedHash.get(callId);
+  if (lastInject && lastInject.hash === msgHash && (Date.now() - lastInject.timestamp) < DEDUP_WINDOW_MS) {
+    console.log(`⏭️ [GuidanceInjector] Skipping duplicate guidance for call ${callId} (posture: ${effectivePosture}, ${Math.round((Date.now() - lastInject.timestamp) / 1000)}s ago)`);
+    return false;
+  }
+
   console.log(`📤 [GuidanceInjector] Injecting ${isEnhanced ? 'enhanced ' : ''}guidance for call ${callId}`);
   console.log(`   Posture: ${effectivePosture}, Urgency: ${guidance.urgency}`);
 
@@ -94,6 +114,7 @@ export async function injectGuidance(
     }
 
     console.log(`✅ GUIDANCE injected`, { callId, posture: effectivePosture });
+    lastInjectedHash.set(callId, { hash: msgHash, timestamp: Date.now() });
     return true;
 
   } catch (error) {
@@ -455,4 +476,5 @@ export async function flushPendingGuidance(callId: string): Promise<void> {
 export function clearPendingGuidance(callId: string): void {
   pendingGuidance.delete(callId);
   pendingTriggerResponse.delete(callId);
+  lastInjectedHash.delete(callId);
 }
