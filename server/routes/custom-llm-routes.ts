@@ -22,7 +22,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       model: req.body.model || 'gpt-4o',
       messages: req.body.messages,
       temperature: req.body.temperature ?? 0.7,
-      max_tokens: req.body.max_tokens ?? 300,
+      max_completion_tokens: req.body.max_tokens ?? 300,
       stream: true,
     });
 

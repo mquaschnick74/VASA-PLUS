@@ -338,7 +338,7 @@ async function generateTier1WithClaudeRAG(callId: string, silenceDurationSeconds
     const ragQuery = buildSilenceRagQuery(callId);
     const chunks = await queryKnowledgeBase(ragQuery, {
       limit: 3,
-      threshold: 0.6
+      threshold: 0.35
     });
     if (chunks.length > 0) {
       retrievedContext = buildRetrievedContext(chunks);

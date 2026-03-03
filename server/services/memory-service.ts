@@ -777,9 +777,9 @@ export async function buildMemoryContext(userId: string): Promise<string> {
 
       // Query knowledge base
       const ragChunks = await queryKnowledgeBase(ragQuery, {
-        types: ['theory', 'guideline', 'technique'],
+        types: ['protocol', 'guideline', 'orientation'],
         limit: 3,
-        threshold: 0.6
+        threshold: 0.35
       });
 
       if (ragChunks && ragChunks.length > 0) {
