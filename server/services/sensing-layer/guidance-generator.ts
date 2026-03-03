@@ -54,7 +54,7 @@ export async function generateGuidance(
   if (isComplex && process.env.ANTHROPIC_API_KEY) {
     try {
       // Wrap Claude call in timeout to ensure fast response
-      const claudeTimeout = 8000; // 8 second max for Claude + RAG
+      const claudeTimeout = 5000; // 5 second max for Claude + RAG
       const claudePromise = generateEnhancedClaudeGuidance(osr, input);
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Claude guidance timeout')), claudeTimeout);
@@ -65,7 +65,7 @@ export async function generateGuidance(
       return claudeGuidance;
     } catch (error: any) {
       if (error.message === 'Claude guidance timeout') {
-        console.warn(`🎯 [Guidance Generator] Claude timed out after 8s, using rule-based`);
+        console.warn(`🎯 [Guidance Generator] Claude timed out after 5s, using rule-based`);
       } else {
         console.error('🎯 [Guidance Generator] Claude failed, using rule-based:', error);
       }
@@ -157,52 +157,41 @@ function generateSymbolicContext(osr: OrientationStateRegister): EnhancedTherape
 }
 
 /**
- * Check if the situation requires Claude for nuanced guidance
+ * Check if the situation requires Claude for nuanced guidance.
+ * Tightened to only trigger for genuinely pivotal moments (~15-25% of turns).
+ * Rule-based guidance handles routine turns well.
  */
 function isComplexSituation(osr: OrientationStateRegister): boolean {
-  // Complex if:
-  // 1. Multiple active patterns (including LLM-detected)
-  if (osr.patterns.activePatterns.length >= 2) return true;
+  // ALWAYS TRIGGER: Safety-critical — user is overwhelmed
+  if (osr.movement.indicators.flooding > 0.5) return true;
 
-  // 2. Active symbolic mappings
-  if (osr.symbolic.activeMappings.length > 0) return true;
-
-  // 3. User showing awareness shift (including LLM-detected)
+  // ALWAYS TRIGGER: Active awareness shift — real-time breakthrough
   if (osr.symbolic.awarenessShift) return true;
 
-  // 4. High stuckness
-  if (osr.register.stucknessScore > 0.6) return true;
+  // High symbolic activation — a known mapping is strongly resonating
+  if (osr.symbolic.activeMappings.some(m => m.currentActivation > 0.8)) return true;
 
-  // 5. Flooding or strong resistance
-  if (osr.movement.indicators.flooding > 0.4) return true;
-  if (osr.movement.indicators.resistance > 0.4) return true;
-
-  // 6. Late stage CSS
-  if (['gesture_toward', 'completion', 'terminal'].includes(osr.movement.cssStage)) return true;
-
-  // 7. High symbolic weight from LLM detection (metaphorical/symbolic language)
-  if (osr.symbolic.generativeInsight?.currentElaboration?.symbolicWeight > 0.5) return true;
-
-  // 8. Any active pattern detected (even just 1 from LLM means therapeutically rich content)
-  if (osr.patterns.activePatterns.length >= 1 && osr.patterns.emergingPatterns.length >= 1) return true;
-
-  // 9. Potential symbolic connection identified by LLM
-  if (osr.symbolic.generativeInsight?.potentialConnection?.confidence &&
-      osr.symbolic.generativeInsight.potentialConnection.confidence > 0.5) return true;
-
-  // 10. Phase transition approaching WITH strong momentum (both required to prevent over-triggering)
-  const proximity = osr.meta?.stateVector?.coupled.phaseTransitionProximity;
-  const momentum = osr.meta?.stateVector?.coupled.therapeuticMomentum;
-  if (proximity !== undefined && proximity > 0.7 &&
-      momentum !== undefined && Math.abs(momentum) > 0.4) return true;
-
-  // 11. Rapid velocity changes (something is shifting fast)
-  const velocity = osr.meta?.stateVector?.velocity;
-  if (velocity) {
-    if (Math.abs(velocity.deepeningAcceleration) > 0.5) return true;
-    if (Math.abs(velocity.resistanceTrajectory) > 0.5) return true;
+  // Pivotal CSS stages with reasonable confidence
+  const pivotalStages = ['gesture_toward', 'completion', 'terminal'];
+  if (pivotalStages.includes(osr.movement.cssStage)) {
+    if ((osr.movement.cssStageConfidence ?? 0) > 0.5) return true;
   }
 
+  // Strong resistance combined with high stuckness
+  if (osr.movement.indicators.resistance > 0.5 && osr.register.stucknessScore > 0.7) return true;
+
+  // Rich convergence: strong symbolic connection AND multiple patterns
+  const hasStrongSymbolicConnection =
+    osr.symbolic.generativeInsight?.potentialConnection?.confidence &&
+    osr.symbolic.generativeInsight.potentialConnection.confidence > 0.7;
+  const hasMultiplePatterns = osr.patterns.activePatterns.length >= 3;
+  if (hasStrongSymbolicConnection && hasMultiplePatterns) return true;
+
+  // Phase transition imminent
+  const phaseProximity = osr.meta?.stateVector?.coupled?.phaseTransitionProximity ?? 0;
+  if (phaseProximity > 0.7) return true;
+
+  // DEFAULT: Use fast rule-based guidance
   return false;
 }
 
@@ -529,24 +518,29 @@ async function generateEnhancedClaudeGuidance(
   const anticipation = osr.movement.anticipation;
   const generativeInsight = osr.symbolic.generativeInsight;
 
-  // Prepare concise OSR summary with anticipation data
+  // Fire RAG as a non-blocking promise immediately
+  const ragPromise = (async (): Promise<string> => {
+    const ragStart = Date.now();
+    try {
+      const ragResult = await getRelevantGuidance(osr);
+      const ragTime = Date.now() - ragStart;
+      if (ragResult.chunks.length > 0) {
+        console.log(`🧠 [RAG] Retrieved ${ragResult.chunks.length} chunks in ${ragTime}ms`);
+        return ragResult.context;
+      }
+      console.log(`🧠 [RAG] No chunks retrieved (${ragTime}ms)`);
+      return '';
+    } catch (error) {
+      console.warn(`🧠 [RAG] Failed after ${Date.now() - ragStart}ms:`, error);
+      return '';
+    }
+  })();
+
+  // While RAG runs, prepare OSR summary (instant)
   const osrSummary = prepareEnhancedOSRSummary(osr);
 
-  // RAG: Retrieve relevant PCA/PCP guidance (with timing)
-  let retrievedContext = '';
-  const ragStart = Date.now();
-  try {
-    const ragResult = await getRelevantGuidance(osr);
-    const ragTime = Date.now() - ragStart;
-    if (ragResult.chunks.length > 0) {
-      retrievedContext = ragResult.context;
-      console.log(`🧠 [RAG] Retrieved ${ragResult.chunks.length} chunks in ${ragTime}ms`);
-    } else {
-      console.log(`🧠 [RAG] No chunks retrieved (${ragTime}ms) - knowledge base may be empty`);
-    }
-  } catch (error) {
-    console.warn(`🧠 [RAG] Failed after ${Date.now() - ragStart}ms:`, error);
-  }
+  // Await RAG result — if it finished during prep, zero wait
+  const retrievedContext = await ragPromise;
 
   const prompt = `You are a master psychodynamic therapist generating precise therapeutic guidance for a voice AI therapist.
 ${retrievedContext}

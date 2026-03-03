@@ -52,6 +52,8 @@ import {
   SymbolicConnectionType
 } from './types';
 
+const profileCache = new Map<string, { profile: UserTherapeuticProfile; loadedAt: number }>();
+
 export class SensingLayerService {
   private static instance: SensingLayerService;
 
@@ -83,10 +85,18 @@ export class SensingLayerService {
         sessionState = initializeSession(input.callId, input.userId, input.sessionId);
       }
 
-      // 2. Get user profile from database (cached per session ideally)
+      // 2. Get user profile — cache-first (profile only changes at session end via persistSessionProfile)
       const profileStart = Date.now();
-      const profile = await this.getUserProfile(input.userId);
-      console.log(`👤 Profile loaded in ${Date.now() - profileStart}ms: ${profile.patterns.length} patterns, ${profile.historicalMaterial.length} historical items`);
+      let profile: UserTherapeuticProfile;
+      const cached = profileCache.get(input.callId);
+      if (cached) {
+        profile = cached.profile;
+        console.log(`👤 Profile loaded from CACHE in ${Date.now() - profileStart}ms: ${profile.patterns.length} patterns, ${profile.historicalMaterial.length} historical items`);
+      } else {
+        profile = await this.getUserProfile(input.userId);
+        profileCache.set(input.callId, { profile, loadedAt: Date.now() });
+        console.log(`👤 Profile loaded from DB in ${Date.now() - profileStart}ms (now cached): ${profile.patterns.length} patterns, ${profile.historicalMaterial.length} historical items`);
+      }
 
       // 3. Run sensing computations in parallel for speed
       const sensingStart = Date.now();
@@ -274,9 +284,17 @@ export class SensingLayerService {
 
   /**
    * Initialize a new session (call when VAPI call starts)
+   * Pre-caches user profile to avoid per-turn DB loads
    */
-  initializeCallSession(callId: string, userId: string, sessionId: string): void {
+  async initializeCallSession(callId: string, userId: string, sessionId: string): Promise<void> {
     initializeSession(callId, userId, sessionId);
+    try {
+      const profile = await this.getUserProfile(userId);
+      profileCache.set(callId, { profile, loadedAt: Date.now() });
+      console.log(`👤 [SENSING] Profile pre-cached for call ${callId}`);
+    } catch (error) {
+      console.error(`❌ [SENSING] Failed to pre-cache profile:`, error);
+    }
   }
 
   /**
@@ -311,11 +329,13 @@ export class SensingLayerService {
 
       // Clear from memory
       clearSession(callId);
+      profileCache.delete(callId);
 
       return summary;
     } catch (error) {
       console.error('❌ [Sensing Layer] Error finalizing session:', error);
       clearSession(callId); // Still clear memory to avoid leaks
+      profileCache.delete(callId);
       return null;
     }
   }
