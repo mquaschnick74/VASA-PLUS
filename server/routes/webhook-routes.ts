@@ -556,7 +556,7 @@ router.post('/webhook', async (req, res) => {
         });
 
         // SENSING LAYER: Initialize session state for in-memory accumulation
-        sensingLayer.initializeCallSession(callId, userId, callId);
+        await sensingLayer.initializeCallSession(callId, userId, callId);
         console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
 
         // SILENCE MONITOR: Start monitoring (timer won't arm until first user utterance)
