@@ -12,14 +12,14 @@ export interface KnowledgeChunk {
   content: string;
   metadata: {
     source: string;
-    type: 'theory' | 'example' | 'technique' | 'guideline';
+    type: string;  // DB types: protocol, guideline, orientation
     tags: string[];
   };
   similarity: number;
 }
 
 export interface RagQueryOptions {
-  types?: Array<'theory' | 'example' | 'technique' | 'guideline'>;
+  types?: string[];  // DB types: protocol, guideline, orientation
   tags?: string[];
   limit?: number;
   threshold?: number;
@@ -207,26 +207,33 @@ export function buildRagQuery(osr: OrientationStateRegister): string {
 /**
  * Determine which document types are most relevant
  */
-export function determineRelevantTypes(osr: OrientationStateRegister): Array<'theory' | 'example' | 'technique' | 'guideline'> {
-  const types: Array<'theory' | 'example' | 'technique' | 'guideline'> = [];
+/**
+ * Determine which document types are most relevant
+ * DB contains: protocol (37), guideline (6), orientation (5)
+ */
+export function determineRelevantTypes(osr: OrientationStateRegister): string[] {
+  const types: string[] = [];
 
-  // Always include theory as baseline
-  types.push('theory');
+  // Always include protocol — it's the bulk of the knowledge base (37/48 chunks)
+  types.push('protocol');
 
-  // If intervention timing is ready or approaching, include examples
+  // Include guideline for methodology guidance
+  types.push('guideline');
+
+  // If intervention timing is ready or approaching, include orientation
   const phase = osr.movement?.anticipation?.timing?.phase;
   if (phase === 'ready' || phase === 'approaching_readiness') {
-    types.push('example');
+    types.push('orientation');
   }
 
-  // If register is stuck, include techniques
-  if (osr.register?.stucknessScore > 0.5) {
-    types.push('technique');
-  }
-
-  // If symbolic connection is active, include examples
+  // If symbolic connection is active, include orientation
   if (osr.symbolic?.generativeInsight?.potentialConnection) {
-    if (!types.includes('example')) types.push('example');
+    if (!types.includes('orientation')) types.push('orientation');
+  }
+
+  // If register is stuck, include orientation for register-movement techniques
+  if (osr.register?.stucknessScore > 0.5) {
+    if (!types.includes('orientation')) types.push('orientation');
   }
 
   return types;
@@ -235,23 +242,33 @@ export function determineRelevantTypes(osr: OrientationStateRegister): Array<'th
 /**
  * Determine relevant tags based on current state
  */
+/**
+ * Determine relevant tags based on current state
+ * DB tags use lowercase hyphens: pointed-origin, focus-bind, gesture-toward
+ * Code generates underscores: pointed_origin, focus_bind
+ * This function converts to match the DB format
+ */
 export function determineRelevantTags(osr: OrientationStateRegister): string[] {
   const tags: string[] = [];
 
-  // Register tags
+  // Register tags — DB uses lowercase: real, imaginary, symbolic
   if (osr.register?.currentRegister) {
     tags.push(osr.register.currentRegister.toLowerCase());
   }
 
-  // CSS stage tags
+  // CSS stage tags — convert underscores to hyphens to match DB
+  // DB has: pointed-origin, focus-bind, suspension, gesture-toward, completion, terminal-symbol
   if (osr.movement?.cssStage) {
-    tags.push(osr.movement.cssStage);
+    tags.push(osr.movement.cssStage.replace(/_/g, '-'));
   }
 
-  // Pattern type tags
+  // Pattern type tags — convert to lowercase hyphenated to match DB
+  // DB has: cvdc, ibm, thend, cyvc
   if (osr.patterns?.activePatterns?.length > 0) {
     osr.patterns.activePatterns.forEach((p) => {
-      if (p.patternType) tags.push(p.patternType);
+      if (p.patternType) {
+        tags.push(p.patternType.toLowerCase().replace(/_/g, '-'));
+      }
     });
   }
 
@@ -262,7 +279,14 @@ export function determineRelevantTags(osr: OrientationStateRegister): string[] {
 
   // Symbolic tags
   if (osr.symbolic?.generativeInsight?.potentialConnection) {
-    tags.push('symbolic-mapping');
+    tags.push('symbolic');
+  }
+
+  // Session position tags — DB has: session-opening, mid-session, session-closing
+  if (osr.movement?.sessionPosition === 'opening') {
+    tags.push('session-opening');
+  } else if (osr.movement?.sessionPosition === 'closing') {
+    tags.push('session-closing');
   }
 
   return Array.from(new Set(tags)); // Remove duplicates
@@ -284,7 +308,7 @@ export async function getRelevantGuidance(osr: OrientationStateRegister): Promis
     types,
     tags,
     limit: 4,
-    threshold: 0.4
+    threshold: 0.35
   });
 
   const context = buildRetrievedContext(chunks);

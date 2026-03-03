@@ -21,6 +21,7 @@ import stripeWebhookRoutes from './routes/stripe-webhook';
 import stripeCheckoutRoutes from './routes/stripe-checkout';
 import blogRoutes from './routes/blog-routes';
 import contentRoutes from './routes/content-routes';
+import customLlmRoutes from './routes/custom-llm-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Make supabase available to all routes via app.locals
@@ -53,6 +54,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use('/blog', blogRoutes);
   apiRouter.use('/content', contentRoutes);
   console.log('✅ Content routes mounted at /api/content');
+  apiRouter.use('/custom-llm', customLlmRoutes);
+  console.log('✅ Custom LLM routes mounted at /api/custom-llm');
 
   // Health check
   apiRouter.get('/health', (req, res) => {
