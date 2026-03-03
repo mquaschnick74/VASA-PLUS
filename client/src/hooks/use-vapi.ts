@@ -451,7 +451,9 @@ Do NOT call the tool unless you actually need more context beyond what is alread
       const assistantConfig = {
         name: `VASA-${selectedAgent.name}`,
         model: {
-          provider: 'openai',
+          // CUSTOM LLM PROXY — full prompt sent from client, routed through our server to OpenAI
+          provider: 'custom-llm',
+          url: getAbsoluteUrl('/api/custom-llm'),
           model: selectedAgent.model.model,
           temperature: selectedAgent.model.temperature,
           messages: [
