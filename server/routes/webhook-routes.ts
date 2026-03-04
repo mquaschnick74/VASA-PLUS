@@ -452,12 +452,22 @@ router.post('/tools', async (req, res) => {
 });
 
 router.post('/webhook', async (req, res) => {
-  console.log('');
-  console.log('═══════════════════════════════════════════');
-  console.log('📥 VAPI WEBHOOK RECEIVED');
-  console.log('═══════════════════════════════════════════');
-
   try {
+    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
+    const { message } = body;
+    const eventType = message?.type;
+    
+    // EARLY EXIT: transcript events fire on every partial word from Deepgram.
+    // They carry no actionable data and generate massive log noise.
+    if (eventType === 'transcript') {
+      return res.status(200).json({ received: true });
+    }
+
+    console.log('');
+    console.log('═══════════════════════════════════════════');
+    console.log('📥 VAPI WEBHOOK RECEIVED');
+    console.log('═══════════════════════════════════════════');
+
     // PRESERVED: Signature validation
     if (process.env.VAPI_SECRET_KEY) {
       const signature = req.headers['x-vapi-signature'] as string;
@@ -482,10 +492,12 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
-    // Parse body
-    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
-    const { message } = body;
-    const eventType = message?.type;
+    // EARLY EXIT: transcript events fire on every partial word from Deepgram.
+    // They carry no actionable data for our pipeline and generate massive log noise.
+    // Return 200 immediately with zero logging.
+    if (eventType === 'transcript') {
+      return res.status(200).json({ received: true });
+    }
 
     // ACTIVE-CALL TRACKING: Track every event immediately
     const tracked = trackVapiCall(message);
@@ -968,8 +980,6 @@ router.post('/recover-orphaned-sessions', async (req, res) => {
 
 // PRESERVED: All your extraction functions with production debugging
 function extractUserId(message: any): string | null {
-  // Debug: Log all possible metadata locations
-  console.log('🔍 [extractUserId] Searching for userId in all possible locations...');
 
   // Check each location individually for debugging
   const locations = {
@@ -982,10 +992,6 @@ function extractUserId(message: any): string | null {
     'call.customer.userId': message?.call?.customer?.userId,
     'customer.userId': message?.customer?.userId,
   };
-
-  console.log('🔍 [extractUserId] Checked locations (presence only):', Object.fromEntries(
-    Object.entries(locations).map(([key, value]) => [key, !!value])
-  ));
 
   // Try multiple locations for userId
   const userId = message?.call?.metadata?.userId ||
