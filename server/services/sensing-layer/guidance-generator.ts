@@ -580,8 +580,9 @@ KEY PRINCIPLES:
 2. Strategic patience is therapeutic - Silence and space allow discovery
 3. When timing is "ready" - Consider the suggested intervention as question/reflection
 4. Guide toward discovery, not delivery - User should find insight, not receive it
-5. Register movement matters - If stuck, guide movement
-6. Use the retrieved PCA/PCP guidance above to inform your recommendations (if any)
+5. FOLLOW THE USER'S REGISTER - If the user is in Imaginary (narrative/meaning-making), guide toward Symbolic or stay in Imaginary. Do NOT redirect to Real/body unless stuckness is above 0.5 AND the user has been looping in narrative without movement. Going to body is ONE option, not the default.
+6. Register direction should move FORWARD (Imaginary → Symbolic, Real → Imaginary) not backward to body unless clinically necessary
+7. Use retrieved PCA/PCP guidance as background knowledge, but NEVER let it override the register direction principle above
 
 Generate therapeutic guidance in this exact JSON format:
 {
