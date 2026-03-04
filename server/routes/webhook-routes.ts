@@ -559,8 +559,10 @@ router.post('/webhook', async (req, res) => {
         await sensingLayer.initializeCallSession(callId, userId, callId);
         console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
 
-        // SILENCE MONITOR: Start monitoring (timer won't arm until first user utterance)
-        startSilenceMonitor(callId);
+        // SILENCE MONITOR: Disabled — custom LLM endpoint now handles therapeutic
+        // guidance injection pre-response. Proactive re-engagement during extended
+        // silence will be rebuilt as an integrated part of the custom LLM pipeline.
+        // startSilenceMonitor(callId);
 
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
@@ -629,9 +631,10 @@ router.post('/webhook', async (req, res) => {
             // SILENCE MONITOR: Reset timer ONLY on genuinely NEW user speech
             // (not on conversation-updates triggered by agent's own say/re-engagement)
             const hasNewUserMessage = newMessages.some((m: any) => m.role === 'user');
-            if (hasNewUserMessage) {
-              resetSilenceTimer(callId);
-            }
+            // SILENCE MONITOR: Disabled — see call-started comment
+            // if (hasNewUserMessage) {
+            //   resetSilenceTimer(callId);
+            // }
 
             // Process through sensing layer asynchronously (don't block webhook response)
             console.log(`🚀 [SENSING-PRE] Dispatching processSensingLayerAsync for call ${callId}`);
@@ -693,8 +696,8 @@ router.post('/webhook', async (req, res) => {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
       }
 
-      // SILENCE MONITOR: Stop monitoring before cleanup
-      stopSilenceMonitor(callId);
+      // SILENCE MONITOR: Disabled — see call-started comment
+      // stopSilenceMonitor(callId);
 
       // GUIDANCE GATE: Clear any pending guidance
       clearPendingGuidance(callId);
