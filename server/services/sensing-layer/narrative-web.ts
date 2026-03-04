@@ -212,11 +212,11 @@ export async function findResonatingFragments(
     }
 
     const constellationFragmentIds = new Set<string>();
-    for (const [fragmentId, count] of connectionCounts) {
+    connectionCounts.forEach((count, fragmentId) => {
       if (count >= 2) {
         constellationFragmentIds.add(fragmentId);
       }
-    }
+    });
 
     const constellationFragments = matchedFragments.filter((f) =>
       constellationFragmentIds.has(f.id)
