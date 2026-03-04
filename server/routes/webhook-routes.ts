@@ -39,6 +39,7 @@ import {
   setSensingProcessing
 } from '../services/sensing-layer/call-state';
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor } from '../services/sensing-layer/silence-monitor';
+import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
 const router = Router();
 
@@ -694,6 +695,19 @@ router.post('/webhook', async (req, res) => {
         console.log(`   🔄 Patterns detected: ${sensingSessionSummary.patternsDetected.length}`);
       } else {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
+      }
+
+      // FRAGMENT EXTRACTION: Extract narrative fragments from session transcript (fire-and-forget)
+      const transcriptForFragments = message?.artifact?.messages || message?.transcript || message?.fullTranscript;
+      const cssStageForFragments = sensingSessionSummary?.dominantRegister ? undefined : undefined; // CSS stage comes from pattern detection below
+      if (transcriptForFragments && userId) {
+        extractAndStoreFragments(userId, callId, transcriptForFragments)
+          .then(result => {
+            console.log(`📦 [FRAGMENTS] Extraction complete for ${callId}: ${result.fragmentCount} fragments, ${result.resonanceLinkCount} resonance links`);
+          })
+          .catch(err => {
+            console.error(`📦 [FRAGMENTS] Extraction failed for ${callId}:`, err);
+          });
       }
 
       // SILENCE MONITOR: Disabled — see call-started comment
