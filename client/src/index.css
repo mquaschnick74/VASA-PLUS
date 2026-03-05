@@ -232,15 +232,15 @@ body {
     position: relative;
     background: linear-gradient(
       165deg,
-      hsl(262, 61%, 28%) 0%,
-      hsl(265, 65%, 22%) 35%,
-      hsl(268, 68%, 17%) 70%,
-      hsl(269, 69% 13%) 100%
+      hsl(262, 58%, 22%) 0%,
+      hsl(265, 62%, 16%) 35%,
+      hsl(268, 66%, 12%) 70%,
+      hsl(269, 70%, 8%) 100%
     );
     min-height: 100vh;
   }
 
-  /* Layer 1: noise texture */
+  /* Layer 1: iVASA logo watermark */
   .gradient-bg::before {
     content: '';
     position: fixed;
@@ -248,20 +248,14 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-image:
-      url('/noise.svg'),
-      url('/iVASA_Heiti.png');
-    background-size: 200px 200px, contain;
-    background-repeat: repeat, no-repeat;
-    background-position: top left, center center;
+    background: url('/iVASA_Heiti.png') center center / contain no-repeat;
     opacity: 0.06;
-    mix-blend-mode: overlay;
     z-index: 0;
     pointer-events: none;
     animation: fadeInLogo 2s ease-in-out;
   }
 
-  /* Layer 2: iridescent color shift + radial glows */
+  /* Layer 2: noise grain + iridescent color shift */
   .gradient-bg::after {
     content: '';
     position: fixed;
@@ -269,18 +263,23 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background:
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E"),
       linear-gradient(
         135deg,
-        rgba(99, 60, 180, 0.12) 0%,
-        rgba(75, 108, 183, 0.08) 25%,
-        rgba(107, 33, 168, 0.10) 50%,
-        rgba(147, 51, 234, 0.07) 75%,
-        rgba(99, 60, 180, 0.12) 100%
+        rgba(99, 60, 180, 0.14) 0%,
+        rgba(75, 108, 183, 0.09) 25%,
+        rgba(107, 33, 168, 0.12) 50%,
+        rgba(147, 51, 234, 0.08) 75%,
+        rgba(99, 60, 180, 0.14) 100%
       ),
-      radial-gradient(ellipse at top right, rgba(75, 108, 183, 0.10) 0%, transparent 50%),
-      radial-gradient(ellipse at bottom left, rgba(0, 208, 98, 0.05) 0%, transparent 40%),
-      radial-gradient(ellipse at center, rgba(71, 33, 137, 0.18) 0%, transparent 70%);
+      radial-gradient(ellipse at top right, rgba(75, 108, 183, 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom left, rgba(0, 208, 98, 0.06) 0%, transparent 40%),
+      radial-gradient(ellipse at center, rgba(44, 14, 77, 0.20) 0%, transparent 70%);
+    background-size: 300px 300px, cover, cover, cover, cover;
+    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
     z-index: 0;
     pointer-events: none;
   }
