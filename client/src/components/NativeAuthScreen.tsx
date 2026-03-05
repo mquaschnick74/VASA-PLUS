@@ -109,7 +109,7 @@ export function NativeAuthScreen({ setUserId }: NativeAuthScreenProps) {
   if (mode === 'welcome') {
     return (
       <div
-        className="h-screen flex flex-col items-center justify-between bg-gradient-to-b from-purple-900 via-purple-800 to-black overflow-hidden fixed inset-0"
+        className="h-screen flex flex-col items-center justify-between overflow-hidden fixed inset-0 gradient-bg"
         style={{ 
           paddingTop: 'calc(env(safe-area-inset-top) + 60px)', 
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
@@ -167,7 +167,7 @@ export function NativeAuthScreen({ setUserId }: NativeAuthScreenProps) {
   // Login or Signup form
   return (
     <div
-      className="h-screen flex flex-col bg-gradient-to-b from-purple-900 via-purple-800 to-black overflow-hidden fixed inset-0"
+      className="h-screen flex flex-col overflow-hidden fixed inset-0 gradient-bg"
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {/* Back button - positioned at top */}

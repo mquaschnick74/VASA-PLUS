@@ -11,13 +11,13 @@ html, body {
   height: 100%;
 }
 
-/* Fix iOS safe area background color (purple-900) */
+/* Fix iOS safe area background color */
 html {
-  background-color: #581c87;
+  background-color: #2C0E4D;
 }
 
 body {
-  background-color: #581c87;
+  background-color: #2C0E4D;
 }
 
 #root {
@@ -41,86 +41,71 @@ body {
   --elevate-1: rgba(255, 255, 255, 0.08);
   --elevate-2: rgba(255, 255, 255, 0.12);
 
-  /* Purple-based backgrounds */
-  --background: 276 87% 20%;              /* Deep purple base */
-  --foreground: 0 0% 98%;                 /* White text */
+  /* New deep purple base: #2C0E4D deepest, #472189 mid */
+  --background: 269 69% 18%;              /* #2C0E4D */
+  --foreground: 0 0% 98%;
 
-  /* Borders */
-  --border: 276 60% 35%;                  /* Purple-tinted border */
+  --border: 269 55% 32%;
 
-  /* Cards - frosted glass on purple */
-  --card: 276 70% 28%;                    /* Slightly lighter purple */
+  --card: 262 61% 26%;                    /* #472189 family */
   --card-foreground: 0 0% 98%;
-  --card-border: 276 50% 40%;
+  --card-border: 262 50% 36%;
 
-  /* Sidebar */
-  --sidebar: 276 80% 22%;                 /* Dark purple */
+  --sidebar: 269 65% 20%;
   --sidebar-foreground: 0 0% 98%;
-  --sidebar-border: 276 50% 35%;
-  --sidebar-primary: 148 100% 41%;        /* Emerald green - KEEP */
+  --sidebar-border: 269 50% 30%;
+  --sidebar-primary: 148 100% 41%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 276 60% 30%;
+  --sidebar-accent: 262 55% 28%;
   --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-ring: 148 100% 41%;           /* Emerald green - KEEP */
+  --sidebar-ring: 148 100% 41%;
 
-  /* Popovers */
-  --popover: 276 75% 25%;
+  --popover: 269 65% 22%;
   --popover-foreground: 0 0% 98%;
-  --popover-border: 276 50% 38%;
+  --popover-border: 262 50% 32%;
 
-  /* Primary - Emerald Green - KEEP */
   --primary: 148 100% 41%;
   --primary-foreground: 0 0% 100%;
 
-  /* Secondary */
-  --secondary: 276 50% 30%;
+  --secondary: 262 55% 28%;
   --secondary-foreground: 0 0% 95%;
 
-  /* Muted */
-  --muted: 276 40% 25%;
-  --muted-foreground: 0 0% 75%;
+  --muted: 262 45% 22%;
+  --muted-foreground: 0 0% 72%;
 
-  /* Accent - subtle purple */
-  --accent: 276 60% 35%;
+  --accent: 262 55% 32%;
   --accent-foreground: 0 0% 98%;
 
-  /* Destructive */
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  /* Inputs */
-  --input: 276 50% 32%;
-  --ring: 148 100% 41%;                   /* Emerald green - KEEP */
+  --input: 262 50% 28%;
+  --ring: 148 100% 41%;
 
-  /* Charts - mix of purple and green */
-  --chart-1: 148 100% 41%;                /* Emerald */
-  --chart-2: 276 87% 44%;                 /* Purple */
-  --chart-3: 158 70% 45%;                 /* Teal-green */
-  --chart-4: 286 60% 50%;                 /* Light purple */
-  --chart-5: 168 80% 40%;                 /* Blue-green */
+  --chart-1: 148 100% 41%;
+  --chart-2: 262 61% 44%;
+  --chart-3: 158 70% 45%;
+  --chart-4: 280 55% 50%;
+  --chart-5: 168 80% 40%;
 
-  /* Typography */
   --font-sans: Inter, system-ui, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
 
-  /* Radius */
   --radius: 0.75rem;
 
-  /* Shadows - purple-tinted */
-  --shadow-2xs: 0 1px 2px rgba(136, 14, 212, 0.15);
-  --shadow-xs: 0 1px 3px rgba(136, 14, 212, 0.2);
-  --shadow-sm: 0 2px 4px rgba(136, 14, 212, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
-  --shadow: 0 4px 6px rgba(136, 14, 212, 0.25), 0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 6px 12px rgba(136, 14, 212, 0.25), 0 3px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 12px 24px rgba(136, 14, 212, 0.3), 0 6px 12px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 40px rgba(136, 14, 212, 0.35), 0 10px 20px rgba(0, 0, 0, 0.15);
-  --shadow-2xl: 0 25px 50px rgba(136, 14, 212, 0.4);
+  --shadow-2xs: 0 1px 2px rgba(44, 14, 77, 0.2);
+  --shadow-xs: 0 1px 3px rgba(44, 14, 77, 0.25);
+  --shadow-sm: 0 2px 4px rgba(44, 14, 77, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow: 0 4px 6px rgba(44, 14, 77, 0.3), 0 2px 4px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 6px 12px rgba(44, 14, 77, 0.3), 0 3px 6px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 12px 24px rgba(44, 14, 77, 0.35), 0 6px 12px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 40px rgba(44, 14, 77, 0.4), 0 10px 20px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 25px 50px rgba(44, 14, 77, 0.45);
 
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
-  /* Border fallbacks */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-accent-border: hsl(var(--sidebar-accent));
   --primary-border: hsl(148 100% 36%);
@@ -130,28 +115,27 @@ body {
   --destructive-border: hsl(var(--destructive));
 }
 
-/* Optional: Even darker purple mode */
 .dark {
-  --background: 276 87% 12%;
+  --background: 269 72% 10%;
   --foreground: 0 0% 98%;
-  --border: 276 60% 25%;
-  --card: 276 70% 18%;
+  --border: 262 55% 22%;
+  --card: 262 65% 16%;
   --card-foreground: 0 0% 98%;
-  --card-border: 276 50% 28%;
-  --popover: 276 75% 15%;
+  --card-border: 262 50% 24%;
+  --popover: 269 68% 13%;
   --popover-foreground: 0 0% 98%;
-  --popover-border: 276 50% 25%;
-  --secondary: 276 50% 20%;
+  --popover-border: 262 50% 20%;
+  --secondary: 262 50% 18%;
   --secondary-foreground: 0 0% 95%;
-  --muted: 276 40% 18%;
-  --muted-foreground: 276 20% 60%;
-  --accent: 276 60% 25%;
+  --muted: 262 40% 15%;
+  --muted-foreground: 262 20% 58%;
+  --accent: 262 55% 22%;
   --accent-foreground: 0 0% 98%;
-  --input: 276 50% 22%;
-  --sidebar: 276 80% 14%;
+  --input: 262 50% 18%;
+  --sidebar: 269 70% 12%;
   --sidebar-foreground: 0 0% 98%;
-  --sidebar-border: 276 50% 25%;
-  --sidebar-accent: 276 60% 20%;
+  --sidebar-border: 262 50% 20%;
+  --sidebar-accent: 262 55% 18%;
   --sidebar-accent-foreground: 0 0% 98%;
 }
 
@@ -163,10 +147,9 @@ body {
   body {
     @apply font-sans antialiased bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
-    color: hsl(0 0% 98%);  /* Force white text */
+    color: hsl(0 0% 98%);
   }
 
-  /* Ensure all text defaults to white on purple backgrounds */
   h1, h2, h3, h4, h5, h6, p, span, label, a {
     color: inherit;
   }
@@ -176,34 +159,34 @@ body {
   .glass {
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(71, 33, 137, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      0 8px 32px rgba(44, 14, 77, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   .glass-strong {
     backdrop-filter: blur(24px) saturate(200%);
     -webkit-backdrop-filter: blur(24px) saturate(200%);
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(71, 33, 137, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow:
-      0 12px 40px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      0 12px 40px rgba(44, 14, 77, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
   }
 
   .glass-card {
     backdrop-filter: blur(16px) saturate(180%);
     -webkit-backdrop-filter: blur(16px) saturate(180%);
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(71, 33, 137, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     box-shadow:
-      0 4px 24px rgba(0, 0, 0, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      0 4px 24px rgba(44, 14, 77, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
-  /* Emerald glow effects - maximum visibility */
+  /* Emerald glow effects */
   .glow-emerald {
     box-shadow: 0 0 25px rgba(0, 208, 98, 0.7),
                 0 0 50px rgba(0, 208, 98, 0.5),
@@ -216,7 +199,6 @@ body {
                 0 0 100px rgba(0, 208, 98, 0.4);
   }
 
-  /* Apply glow to primary buttons */
   .btn-primary,
   button[class*="bg-primary"],
   button[class*="bg-emerald"],
@@ -235,7 +217,6 @@ body {
                 0 0 100px rgba(0, 208, 98, 0.4);
   }
 
-  /* Emerald border glow for ghost buttons with emerald borders */
   button[class*="border-emerald"] {
     box-shadow: 0 0 20px rgba(0, 208, 98, 0.5),
                 0 0 40px rgba(0, 208, 98, 0.3);
@@ -251,14 +232,15 @@ body {
     position: relative;
     background: linear-gradient(
       165deg,
-      hsl(276, 87%, 28%) 0%,      /* Lighter purple top */
-      hsl(276, 87%, 22%) 35%,     /* Base #880ED4 area */
-      hsl(276, 90%, 18%) 70%,     /* Deeper purple */
-      hsl(280, 85%, 15%) 100%     /* Dark purple-blue bottom */
+      hsl(262, 61%, 28%) 0%,
+      hsl(265, 65%, 22%) 35%,
+      hsl(268, 68%, 17%) 70%,
+      hsl(269, 69% 13%) 100%
     );
     min-height: 100vh;
   }
 
+  /* Layer 1: noise texture */
   .gradient-bg::before {
     content: '';
     position: fixed;
@@ -266,13 +248,20 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: url('/iVASA_Heiti.png') center center / contain no-repeat;
+    background-image:
+      url('/noise.svg'),
+      url('/iVASA_Heiti.png');
+    background-size: 200px 200px, contain;
+    background-repeat: repeat, no-repeat;
+    background-position: top left, center center;
     opacity: 0.06;
+    mix-blend-mode: overlay;
     z-index: 0;
     pointer-events: none;
     animation: fadeInLogo 2s ease-in-out;
   }
 
+  /* Layer 2: iridescent color shift + radial glows */
   .gradient-bg::after {
     content: '';
     position: fixed;
@@ -281,9 +270,17 @@ body {
     width: 100%;
     height: 100%;
     background:
-      radial-gradient(ellipse at top right, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at bottom left, rgba(0, 208, 98, 0.06) 0%, transparent 40%),
-      radial-gradient(ellipse at center, rgba(136, 14, 212, 0.15) 0%, transparent 70%);
+      linear-gradient(
+        135deg,
+        rgba(99, 60, 180, 0.12) 0%,
+        rgba(75, 108, 183, 0.08) 25%,
+        rgba(107, 33, 168, 0.10) 50%,
+        rgba(147, 51, 234, 0.07) 75%,
+        rgba(99, 60, 180, 0.12) 100%
+      ),
+      radial-gradient(ellipse at top right, rgba(75, 108, 183, 0.10) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom left, rgba(0, 208, 98, 0.05) 0%, transparent 40%),
+      radial-gradient(ellipse at center, rgba(71, 33, 137, 0.18) 0%, transparent 70%);
     z-index: 0;
     pointer-events: none;
   }
@@ -294,7 +291,7 @@ body {
   }
 
   @keyframes fadeInLogo {
-    0% { opacity: 0.12; }
+    0% { opacity: 0.10; }
     100% { opacity: 0.06; }
   }
 
@@ -379,7 +376,6 @@ body {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 
-  /* Keep old styles for any legacy components */
   .agent-icon {
     @apply text-3xl sm:text-4xl mb-2 sm:mb-3;
   }
@@ -398,7 +394,6 @@ body {
     @apply opacity-50 cursor-not-allowed;
   }
 
-  /* Color variants for different agents */
   .agent-card[data-agent="sarah"] {
     border-color: hsl(148, 100%, 41%);
     border-opacity: 0.3;
@@ -457,7 +452,7 @@ body {
     cursor: pointer;
     background-size: cover;
     background-position: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 60px rgba(44, 14, 77, 0.5);
   }
 
   @media (max-width: 768px) {
@@ -542,7 +537,6 @@ body {
     }
   }
 
-  /* Clickable zones for side cards */
   .carousel-click-zone {
     position: absolute;
     width: 300px;
@@ -601,13 +595,11 @@ body {
     box-shadow: 0 0 12px rgba(0, 208, 98, 0.6);
   }
 
-  /* Agent Bio Modal Enhancements */
   [data-radix-dialog-overlay] {
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(8px);
   }
 
-  /* Ensure modal appears above carousel */
   [data-radix-dialog-content] {
     z-index: 100;
   }
