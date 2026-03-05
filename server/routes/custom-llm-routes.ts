@@ -27,11 +27,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const callId = req.body.call?.id || 'unknown';
   const userId = req.body.metadata?.userId || 'unknown';
   const agentName = req.body.metadata?.agentName || 'unknown';
-  const numUserTurns = req.body.metadata?.numUserTurns || 0;
-  const numAssistantTurns = req.body.metadata?.numAssistantTurns || 0;
-  const sessionId = req.body.metadata?.sessionId || callId;
-
   const messages: Array<{ role: string; content: string }> = req.body.messages || [];
+  const numUserTurns = messages.filter((m) => m.role === 'user').length;
+  const numAssistantTurns = messages.filter((m) => m.role === 'assistant').length;
+  const sessionId = req.body.metadata?.sessionId || callId;
   const userMessages = messages.filter((m) => m.role === 'user');
   const userUtterance = userMessages.length > 0 ? userMessages[userMessages.length - 1].content : '';
 
@@ -70,7 +69,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     // ─── Step 3: Run fast-path sensing ─────────────────────────────────────
     let fastResult: Awaited<ReturnType<typeof fastSense>> | null = null;
 
-    if (numUserTurns > 1) {
+    if (numUserTurns >= 1) {
       const fastInput: FastSenseInput = {
         userId,
         callId,
@@ -158,7 +157,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     console.log(`🔵 [CUSTOM-LLM] Response streamed: call=${callId} turns=${numUserTurns}/${numAssistantTurns} total=${totalTime}ms`);
 
     // ─── Step 7: Async deep processing after stream ────────────────────
-    if (!alreadyProcessedDeepPath && numUserTurns > 1) {
+    if (!alreadyProcessedDeepPath && numUserTurns >= 1) {
       const conversationHistory = messages
         .filter((m) => m.role === 'user' || m.role === 'assistant')
         .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
