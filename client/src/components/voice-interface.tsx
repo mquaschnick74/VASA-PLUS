@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import useVapi from '@/hooks/use-vapi';
+import AvatarAura, { AuraState } from '@/components/AvatarAura';
 import AgentSelector from './AgentSelector';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
 import { getAgentById } from '../config/agent-configs';
@@ -122,7 +123,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     isLoading,
     startSession,
     endSession,
-    connectionStatus: _connectionStatus,
+    connectionStatus,
+    speakingRole,
     error: vapiError,
     clearError
   } = useVapi({
@@ -859,6 +861,15 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     }
   };
 
+  const getAuraState = (): AuraState => {
+    if (connectionStatus === 'connecting' || isLoading) return 'connecting';
+    if (!isSessionActive) return 'idle';
+    if (speakingRole === 'user') return 'user-speaking';
+    if (speakingRole === 'assistant') return 'agent-speaking';
+    // Session active, no one speaking = sensing layer processing
+    return 'agent-thinking';
+  };
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -1100,15 +1111,28 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
               <CardContent className="p-4 sm:p-6 lg:p-8">
                 {/* Agent Avatar and Status */}
                 <div className="text-center space-y-4 mb-6">
-                  <div className="relative inline-block">
-                    <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 overflow-hidden`}>
-                      <img 
-                        src={selectedAgent?.image || '/agents/sarah.jpg'} 
+                  <div className="relative inline-flex items-center justify-center" style={{ padding: '18px' }}>
+                    {/* Aura animation — sits behind avatar, expands into padding area */}
+                    <AvatarAura
+                      state={getAuraState()}
+                      agentColor={selectedAgent?.color}
+                    />
+                    {/* Avatar image */}
+                    <div
+                      className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 overflow-hidden`}
+                      style={{ position: 'relative', zIndex: 1 }}
+                    >
+                      <img
+                        src={selectedAgent?.image || '/agents/sarah.jpg'}
                         alt={selectedAgent?.name || 'Sarah'}
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="absolute -bottom-2 -right-2 w-6 h-6 sm:w-7 sm:h-7 bg-green-500 rounded-full border-4 border-background flex items-center justify-center">
+                    {/* Online status dot */}
+                    <div
+                      className="absolute -bottom-0 -right-0 w-6 h-6 sm:w-7 sm:h-7 bg-green-500 rounded-full border-4 border-background flex items-center justify-center"
+                      style={{ zIndex: 2 }}
+                    >
                       <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-green-400 rounded-full animate-pulse"></div>
                     </div>
                   </div>
