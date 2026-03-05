@@ -9,7 +9,9 @@ import {
   Register,
   SessionPatternRecord,
   SessionHistoricalRecord,
-  SessionSymbolicRecord
+  SessionSymbolicRecord,
+  CSSStage,
+  CSSSignal
 } from './types';
 import {
   TherapeuticStateVector,
@@ -61,8 +63,14 @@ export interface SessionAccumulator {
   structuredConnections: SessionSymbolicRecord[];
 
   // State vector history for coupling calculations
-  stateVectorHistory: StateVectorHistory;
-}
+    stateVectorHistory: StateVectorHistory;
+
+    // CSS stage tracking (three-layer architecture)
+    cssSignals: CSSSignal[];              // Per-utterance signals accumulated across session
+    sessionCSSStage: CSSStage;            // Session-level stage — updated at milestones only
+    sessionCSSStageConfidence: number;    // Confidence in session-level stage
+    lastCSSMilestoneExchange: number;     // Exchange number of last milestone assessment
+  }
 
 /**
  * Session summary type for database storage
@@ -125,7 +133,11 @@ export function initializeSession(callId: string, userId: string, sessionId: str
     structuredPatterns: [],
     structuredHistorical: [],
     structuredConnections: [],
-    stateVectorHistory: createStateVectorHistory(10)
+    stateVectorHistory: createStateVectorHistory(10),
+      cssSignals: [],
+      sessionCSSStage: 'pointed_origin',
+      sessionCSSStageConfidence: 0.3,
+      lastCSSMilestoneExchange: 0
   };
 
   activeSessions.set(callId, accumulator);
@@ -462,4 +474,104 @@ export function clearSession(callId: string): void {
  */
 export function getActiveSessionCount(): number {
   return activeSessions.size;
+}
+/**
+ * Record per-utterance CSS signals into session accumulator.
+ * Called every turn from sensing-layer/index.ts after movement assessment.
+ */
+export function recordCSSSignals(callId: string, signals: CSSSignal[]): void {
+  const session = activeSessions.get(callId);
+  if (!session || signals.length === 0) return;
+  session.cssSignals.push(...signals);
+}
+
+/**
+ * Assess session-level CSS stage from accumulated signals.
+ * Called at milestone exchanges (5, 10, 15, 20) — not every turn.
+ *
+ * CLINICAL BASIS:
+ * - Signals weighted with recency bias (most recent third = 3x weight)
+ * - Advancement requires minimum score threshold to prevent noise-driven jumps
+ * - Maximum one stage advance per milestone (hysteresis)
+ * - Stage can retreat freely on sustained contradictory signals
+ */
+export function assessSessionCSSStage(callId: string): { stage: CSSStage; confidence: number } {
+  const session = activeSessions.get(callId);
+  if (!session) return { stage: 'pointed_origin', confidence: 0.3 };
+  if (session.cssSignals.length === 0) {
+    return { stage: session.sessionCSSStage, confidence: session.sessionCSSStageConfidence };
+  }
+
+  const stageOrder: CSSStage[] = [
+    'pointed_origin', 'focus_bind', 'suspension',
+    'gesture_toward', 'completion', 'terminal'
+  ];
+
+  // Weight signals with recency bias
+  const totalSignals = session.cssSignals.length;
+  const stageScores: Record<CSSStage, number> = {
+    pointed_origin: 0, focus_bind: 0, suspension: 0,
+    gesture_toward: 0, completion: 0, terminal: 0
+  };
+
+  for (let i = 0; i < totalSignals; i++) {
+    const signal = session.cssSignals[i];
+    const recencyWeight = i >= totalSignals * 0.67 ? 3
+      : i >= totalSignals * 0.33 ? 1.5
+      : 1;
+    stageScores[signal.stage] += signal.confidence * recencyWeight;
+  }
+
+  // Find highest scoring stage
+  let topStage: CSSStage = session.sessionCSSStage;
+  let topScore = 0;
+  for (const [stage, score] of Object.entries(stageScores) as [CSSStage, number][]) {
+    if (score > topScore) {
+      topScore = score;
+      topStage = stage;
+    }
+  }
+
+  const currentIndex = stageOrder.indexOf(session.sessionCSSStage);
+  const topIndex = stageOrder.indexOf(topStage);
+
+  // Hysteresis: advance at most one stage per milestone
+  if (topIndex > currentIndex + 1) {
+    topStage = stageOrder[currentIndex + 1];
+  }
+
+  // Require minimum score to advance (prevents noise-driven advancement)
+  const ADVANCEMENT_THRESHOLD = 0.8;
+  if (topIndex > currentIndex && topScore < ADVANCEMENT_THRESHOLD) {
+    topStage = session.sessionCSSStage;
+  }
+
+  // Confidence from margin over second-best score
+  const scores = Object.values(stageScores);
+  const maxScore = Math.max(...scores);
+  const secondMax = Math.max(...scores.filter(s => s !== maxScore));
+  const confidence = maxScore > 0
+    ? Math.min(0.9, 0.4 + (maxScore - secondMax) * 0.3)
+    : 0.3;
+
+  // Persist back to session
+  session.sessionCSSStage = topStage;
+  session.sessionCSSStageConfidence = confidence;
+  session.lastCSSMilestoneExchange = session.exchangeCount;
+
+  console.log(`🎯 [SessionState] CSS stage assessed at exchange ${session.exchangeCount}: ${topStage} (confidence: ${confidence.toFixed(2)}, signals: ${totalSignals})`);
+
+  return { stage: topStage, confidence };
+}
+
+/**
+ * Get current session-level CSS stage without triggering reassessment.
+ * Used by state-vector.ts and index.ts orchestration.
+ */
+export function getSessionCSSStage(callId: string): { stage: CSSStage; confidence: number } {
+  const session = activeSessions.get(callId);
+  return {
+    stage: session?.sessionCSSStage ?? 'pointed_origin',
+    confidence: session?.sessionCSSStageConfidence ?? 0.3
+  };
 }
