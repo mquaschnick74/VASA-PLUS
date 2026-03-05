@@ -11,6 +11,7 @@ import OpenAI from 'openai';
 import { sensingLayer } from '../services/sensing-layer';
 import { formatGuidanceAsSystemMessage, formatEnhancedGuidanceAsSystemMessage } from '../services/sensing-layer/guidance-injector';
 import { EnhancedTherapeuticGuidance } from '../services/sensing-layer/types';
+import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
 const router = Router();
 
@@ -469,6 +470,18 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
         error: summaryError.message,
         stack: summaryError.stack
       });
+    }
+
+    // FRAGMENT EXTRACTION: Extract narrative fragments from text session transcript
+    // Mirrors the fire-and-forget pattern used in webhook-routes.ts end-of-call-report
+    if (fullTranscript && userId) {
+      extractAndStoreFragments(userId, sessionId, fullTranscript)
+        .then(result => {
+          console.log(`📦 [FRAGMENTS] Extraction complete for ${sessionId}: ${result.fragmentCount} fragments, ${result.resonanceLinkCount} resonance links`);
+        })
+        .catch(err => {
+          console.error(`📦 [FRAGMENTS] Extraction failed for ${sessionId}:`, err);
+        });
     }
 
     console.log('✅ [CHAT] Text session processing completed:', sessionId);
