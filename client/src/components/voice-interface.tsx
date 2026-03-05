@@ -304,7 +304,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
 
   // NEW: Text session management
   const startTextSession = () => {
-    const sessionId = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = crypto.randomUUID();
     setActiveTextSessionId(sessionId);
     setTranscript([]); // Clear previous transcript
     console.log('📝 [TEXT] Started new text session:', sessionId);
