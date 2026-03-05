@@ -249,7 +249,7 @@ body {
     width: 100%;
     height: 100%;
     background: url('/iVASA_Heiti.png') center center / contain no-repeat;
-    opacity: 0.06;
+    opacity: 0.14;
     z-index: 0;
     pointer-events: none;
     animation: fadeInLogo 2s ease-in-out;
@@ -279,7 +279,7 @@ body {
     background-size: 300px 300px, cover, cover, cover, cover;
     background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
     mix-blend-mode: overlay;
-    opacity: 0.45;
+    opacity: 0.55;
     z-index: 0;
     pointer-events: none;
   }
@@ -291,7 +291,7 @@ body {
 
   @keyframes fadeInLogo {
     0% { opacity: 0.10; }
-    100% { opacity: 0.06; }
+    100% { opacity: 0.14; }
   }
 
   @keyframes float {
