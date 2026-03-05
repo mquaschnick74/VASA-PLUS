@@ -39,6 +39,7 @@ import {
   setSensingProcessing
 } from '../services/sensing-layer/call-state';
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor } from '../services/sensing-layer/silence-monitor';
+import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
 const router = Router();
 
@@ -451,12 +452,22 @@ router.post('/tools', async (req, res) => {
 });
 
 router.post('/webhook', async (req, res) => {
-  console.log('');
-  console.log('═══════════════════════════════════════════');
-  console.log('📥 VAPI WEBHOOK RECEIVED');
-  console.log('═══════════════════════════════════════════');
-
   try {
+    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
+    const { message } = body;
+    const eventType = message?.type;
+    
+    // EARLY EXIT: transcript events fire on every partial word from Deepgram.
+    // They carry no actionable data and generate massive log noise.
+    if (eventType === 'transcript') {
+      return res.status(200).json({ received: true });
+    }
+
+    console.log('');
+    console.log('═══════════════════════════════════════════');
+    console.log('📥 VAPI WEBHOOK RECEIVED');
+    console.log('═══════════════════════════════════════════');
+
     // PRESERVED: Signature validation
     if (process.env.VAPI_SECRET_KEY) {
       const signature = req.headers['x-vapi-signature'] as string;
@@ -481,10 +492,12 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
-    // Parse body
-    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
-    const { message } = body;
-    const eventType = message?.type;
+    // EARLY EXIT: transcript events fire on every partial word from Deepgram.
+    // They carry no actionable data for our pipeline and generate massive log noise.
+    // Return 200 immediately with zero logging.
+    if (eventType === 'transcript') {
+      return res.status(200).json({ received: true });
+    }
 
     // ACTIVE-CALL TRACKING: Track every event immediately
     const tracked = trackVapiCall(message);
@@ -559,8 +572,10 @@ router.post('/webhook', async (req, res) => {
         await sensingLayer.initializeCallSession(callId, userId, callId);
         console.log(`🧠 [SENSING] Initialized session state for call ${callId}`);
 
-        // SILENCE MONITOR: Start monitoring (timer won't arm until first user utterance)
-        startSilenceMonitor(callId);
+        // SILENCE MONITOR: Disabled — custom LLM endpoint now handles therapeutic
+        // guidance injection pre-response. Proactive re-engagement during extended
+        // silence will be rebuilt as an integrated part of the custom LLM pipeline.
+        // startSilenceMonitor(callId);
 
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
@@ -626,18 +641,9 @@ router.post('/webhook', async (req, res) => {
             }
             lastProcessedMessageIndex.set(callId, formattedConversation.length);
 
-            // SILENCE MONITOR: Reset timer ONLY on genuinely NEW user speech
-            // (not on conversation-updates triggered by agent's own say/re-engagement)
-            const hasNewUserMessage = newMessages.some((m: any) => m.role === 'user');
-            if (hasNewUserMessage) {
-              resetSilenceTimer(callId);
-            }
-
-            // Process through sensing layer asynchronously (don't block webhook response)
-            console.log(`🚀 [SENSING-PRE] Dispatching processSensingLayerAsync for call ${callId}`);
-            processSensingLayerAsync(callId, userId, latestUserMessage.content, formattedConversation);
-          } else if (latestUserMessage) {
-            console.warn(`⚠️ [SENSING-PRE] User message found but content is empty/whitespace - sensing layer will NOT run`);
+            // NOTE: Sensing layer processing is handled exclusively by the custom LLM
+            // endpoint (server/routes/custom-llm-routes.ts). processSensingLayerAsync
+            // was removed from here to prevent double-processing every utterance.
           }
         }
 
@@ -693,8 +699,21 @@ router.post('/webhook', async (req, res) => {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
       }
 
-      // SILENCE MONITOR: Stop monitoring before cleanup
-      stopSilenceMonitor(callId);
+      // FRAGMENT EXTRACTION: Extract narrative fragments from session transcript (fire-and-forget)
+      const transcriptForFragments = message?.artifact?.messages || message?.transcript || message?.fullTranscript;
+      const cssStageForFragments = sensingSessionSummary?.dominantRegister ? undefined : undefined; // CSS stage comes from pattern detection below
+      if (transcriptForFragments && userId) {
+        extractAndStoreFragments(userId, callId, transcriptForFragments)
+          .then(result => {
+            console.log(`📦 [FRAGMENTS] Extraction complete for ${callId}: ${result.fragmentCount} fragments, ${result.resonanceLinkCount} resonance links`);
+          })
+          .catch(err => {
+            console.error(`📦 [FRAGMENTS] Extraction failed for ${callId}:`, err);
+          });
+      }
+
+      // SILENCE MONITOR: Disabled — see call-started comment
+      // stopSilenceMonitor(callId);
 
       // GUIDANCE GATE: Clear any pending guidance
       clearPendingGuidance(callId);
@@ -951,8 +970,6 @@ router.post('/recover-orphaned-sessions', async (req, res) => {
 
 // PRESERVED: All your extraction functions with production debugging
 function extractUserId(message: any): string | null {
-  // Debug: Log all possible metadata locations
-  console.log('🔍 [extractUserId] Searching for userId in all possible locations...');
 
   // Check each location individually for debugging
   const locations = {
@@ -965,10 +982,6 @@ function extractUserId(message: any): string | null {
     'call.customer.userId': message?.call?.customer?.userId,
     'customer.userId': message?.customer?.userId,
   };
-
-  console.log('🔍 [extractUserId] Checked locations (presence only):', Object.fromEntries(
-    Object.entries(locations).map(([key, value]) => [key, !!value])
-  ));
 
   // Try multiple locations for userId
   const userId = message?.call?.metadata?.userId ||

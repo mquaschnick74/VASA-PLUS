@@ -43,6 +43,7 @@ interface UseVapiReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
   onTranscript: (callback: (message: TranscriptMessage) => void) => void;
   onSpeechUpdate: (callback: (message: SpeechUpdateMessage) => void) => void;
+  speakingRole: 'user' | 'assistant' | null;
   error: string | null;
   clearError: () => void;
 }
@@ -65,6 +66,7 @@ const useVapi = ({
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  const [speakingRole, setSpeakingRole] = useState<'user' | 'assistant' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const vapiRef = useRef<any>(null);
   const transcriptCallbackRef = useRef<((message: TranscriptMessage) => void) | null>(null);
@@ -103,15 +105,18 @@ const useVapi = ({
           sessionActiveRef.current = false;
           setIsSessionActive(false);
           setConnectionStatus('disconnected');
+          setSpeakingRole(null);
         });
 
         // Add more event listeners for debugging
         vapiInstance.on('speech-start', () => {
           console.log('🎤 User started speaking');
+          setSpeakingRole('user');
         });
 
         vapiInstance.on('speech-end', () => {
           console.log('🎤 User stopped speaking');
+          setSpeakingRole(null);
         });
 
         vapiInstance.on('message', (message: any) => {
@@ -197,9 +202,15 @@ const useVapi = ({
 
           // Handle speech-update events
           if (message.type === 'speech-update') {
+            const role: 'assistant' | 'user' = message.role === 'assistant' ? 'assistant' : 'user';
+            if (message.status === 'started') {
+              setSpeakingRole(role);
+            } else if (message.status === 'stopped') {
+              setSpeakingRole(null);
+            }
             const speechUpdateMessage: SpeechUpdateMessage = {
               status: message.status,
-              role: message.role === 'assistant' ? 'assistant' : 'user'
+              role,
             };
 
             // Call the speech update callback if it exists
@@ -653,6 +664,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
     connectionStatus,
     onTranscript,
     onSpeechUpdate,
+    speakingRole,
     error,
     clearError
   };

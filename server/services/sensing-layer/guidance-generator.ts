@@ -311,22 +311,22 @@ function determineRegisterDirection(osr: OrientationStateRegister): RegisterDire
     return null;
   }
 
-  // Stuck in Imaginary → guide toward Real
+  // Stuck in Imaginary → guide toward Symbolic (meaning/pattern)
   if (register.currentRegister === 'Imaginary') {
     return {
       from: 'Imaginary',
-      toward: 'Real',
-      technique: 'Invite body awareness: "What do you notice in your body as you share this?"'
+      toward: 'Symbolic',
+      technique: 'Invite pattern recognition: "What does this remind you of?" or "What story is your mind telling you about this?"'
     };
   }
 
-  // Stuck in Symbolic (intellectualizing) → guide toward Real
+  // Stuck in Symbolic (intellectualizing) → guide toward Imaginary (story/feeling)
   if (register.currentRegister === 'Symbolic' &&
       register.indicators.symbolicIndicators.some(i => i.startsWith('intellectual:'))) {
     return {
       from: 'Symbolic',
-      toward: 'Real',
-      technique: 'Ground the insight: "Where do you feel that understanding in your body?"'
+      toward: 'Imaginary',
+      technique: 'Move from concept to experience: "What does that actually feel like for you?" or "When did you first notice this pattern?"'
     };
   }
 
@@ -556,80 +556,38 @@ SESSION CONTEXT:
 - Position: ${osr.movement.sessionPosition}
 - CSS Stage: ${osr.movement.cssStage}
 
-ANTICIPATION STATE:
-- Building toward: ${anticipation.trajectory.buildingToward}
-- Trajectory confidence: ${anticipation.trajectory.trajectoryConfidence}
-- Current phase: ${anticipation.timing.phase}
-- Should wait: ${anticipation.patience.shouldWait}
-- Waiting for: ${anticipation.patience.waitingFor}
-- Risk if premature: ${anticipation.patience.riskOfPrematureIntervention}
-- Estimated turns to ready: ${anticipation.timing.estimatedTurnsToReady}
+ANTICIPATION: Building toward "${anticipation.trajectory.buildingToward}" (phase: ${anticipation.timing.phase}, wait: ${anticipation.patience.shouldWait}, risk: ${anticipation.patience.riskOfPrematureIntervention})
 
-GENERATIVE INSIGHT:
-- User elaborating: ${generativeInsight.currentElaboration.topic}
-- Symbolic weight: ${generativeInsight.currentElaboration.symbolicWeight}
-- Themes: ${generativeInsight.currentElaboration.connectedThemes.join(', ') || 'none'}
-${generativeInsight.potentialConnection ? `
-- Potential connection: ${generativeInsight.potentialConnection.connectionInsight}
-- Suggested intervention: ${generativeInsight.potentialConnection.suggestedIntervention || 'none'}
-- Intervention timing: ${generativeInsight.potentialConnection.interventionTiming}
-` : '- No potential connection identified'}
+SYMBOLIC: Topic "${generativeInsight.currentElaboration.topic}" (weight: ${generativeInsight.currentElaboration.symbolicWeight}, themes: ${generativeInsight.currentElaboration.connectedThemes.join(', ') || 'none'})${generativeInsight.potentialConnection ? `, connection: ${generativeInsight.potentialConnection.connectionInsight}` : ''}
 
 KEY PRINCIPLES:
 1. WAIT when anticipation says wait - Let user build material
 2. Strategic patience is therapeutic - Silence and space allow discovery
 3. When timing is "ready" - Consider the suggested intervention as question/reflection
 4. Guide toward discovery, not delivery - User should find insight, not receive it
-5. Register movement matters - If stuck, guide movement
-6. Use the retrieved PCA/PCP guidance above to inform your recommendations (if any)
+5. FOLLOW THE USER'S REGISTER - If the user is in Imaginary (narrative/meaning-making), guide toward Symbolic or stay in Imaginary. Do NOT redirect to Real/body unless stuckness is above 0.5 AND the user has been looping in narrative without movement. Going to body is ONE option, not the default.
+6. Register direction should move FORWARD (Imaginary → Symbolic, Real → Imaginary) not backward to body unless clinically necessary
+7. Use retrieved PCA/PCP guidance as background knowledge, but NEVER let it override the register direction principle above
 
-Generate therapeutic guidance in this exact JSON format:
+Generate therapeutic guidance in this COMPACT JSON format only:
 {
   "posture": "probe|hold|challenge|support|reflect|silent|wait_and_track",
-  "registerDirection": null | {
-    "from": "Real|Imaginary|Symbolic",
-    "toward": "Real|Imaginary|Symbolic",
-    "technique": "specific technique"
-  },
-  "strategicDirection": "1-2 sentence direction",
-  "avoidances": ["avoid 1", "avoid 2"],
-  "framing": "optional specific framing suggestion or null",
+  "registerDirection": null | {"from": "Real|Imaginary|Symbolic", "toward": "Real|Imaginary|Symbolic", "technique": "brief technique"},
+  "strategicDirection": "1 sentence max",
+  "avoidances": ["max 2 items"],
+  "framing": "optional 1 sentence or null",
   "urgency": "low|moderate|high|immediate",
-  "confidence": 0.0-1.0,
-  "anticipationGuidance": {
-    "userBuildingToward": "what they're building",
-    "currentPhase": "the phase",
-    "shouldWait": true/false,
-    "waitingFor": "if waiting, what for",
-    "potentialIntervention": "if ready, what to consider",
-    "interventionTiming": "timing assessment",
-    "riskIfPremature": "what could go wrong"
-  },
-  "symbolicContext": {
-    "activeConnection": "for awareness, not to speak",
-    "userAwareness": "where user is",
-    "guidanceNote": "how to handle"
-  },
-  "enhancedPosture": {
-    "mode": "posture mode",
-    "intensity": "gentle|moderate|firm",
-    "description": "what to do"
-  },
-  "enhancedStrategicDirection": {
-    "moveToward": "therapeutic goal",
-    "currentGoal": "this turn's goal",
-    "longerArc": "where this is headed"
-  }
+  "confidence": 0.0-1.0
 }
 
-Be concise and clinically precise. Focus on the most therapeutically relevant guidance.`;
+Be extremely concise. No explanations outside the JSON.`;
 
   // Claude API call with timing
   const claudeStart = Date.now();
   console.log(`🤖 [Claude] Calling API...`);
   const response = await anthropic.messages.create({
     model: 'claude-3-haiku-20240307',
-    max_tokens: 2000,
+    max_tokens: 600,
     messages: [{ role: 'user', content: prompt }]
   });
   console.log(`🤖 [Claude] Response received in ${Date.now() - claudeStart}ms`);

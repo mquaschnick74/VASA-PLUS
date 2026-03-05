@@ -569,52 +569,13 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     auditSizes['css_patterns'] = memoryContext.length - preCssPatternsLen;
 
     // ADDED: CSS Stage Guidance from Process Metrics
-    const preCssGuidanceLen = memoryContext.length;
-    const { data: processMetrics } = await supabase
-      .from('css_patterns')
-      .select('css_stage, confidence, content')
-      .eq('user_id', userId)
-      .eq('pattern_type', 'PROCESS')
-      .order('detected_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (processMetrics && processMetrics.css_stage) {
-      const suggestedStage = processMetrics.css_stage;
-      const confidence = processMetrics.confidence || 0.5;
-
-      // Parse the content to get metrics
-      let metricsInfo = '';
-      if (processMetrics.content) {
-        const match = processMetrics.content.match(/exchanges=(\d+)/);
-        if (match) {
-          metricsInfo = ` (${match[1]} exchanges)`;
-        }
-      }
-
-      memoryContext += `\n\n===== CSS STAGE GUIDANCE =====\n`;
-      memoryContext += `Clinical metrics suggest CSS stage: ${suggestedStage}${metricsInfo}\n`;
-      memoryContext += `Confidence: ${(confidence * 100).toFixed(0)}%\n`;
-      memoryContext += `\nThis is a suggestion based on therapeutic metrics (narrative depth, emotional range, exchange count). `;
-      memoryContext += `You should verify this matches your observations before progressing stages. `;
-      memoryContext += `Remember: Stage progression should be organic and therapeutically appropriate, not automatic.\n`;
-      memoryContext += `===== END GUIDANCE =====\n`;
-    }
-    auditSizes['css_stage_guidance'] = memoryContext.length - preCssGuidanceLen;
+    auditSizes['css_stage_guidance'] = 0;
 
     // ========================================
     // NEW: Add PCA Clinical Context if available
     // This injects unique therapeutic guidance from master PCA analysis
     // ========================================
-    const prePcaLen = memoryContext.length;
-    const pcaContext = await getPCAContextForAgent(userId);
-    if (pcaContext) {
-      memoryContext += `\n\n===== PCA CLINICAL GUIDANCE =====\n`;
-      memoryContext += `The following is specialized therapeutic guidance from the most recent clinical analysis:\n\n`;
-      memoryContext += pcaContext;
-      memoryContext += `\n===== END PCA GUIDANCE =====\n`;
-    }
-    auditSizes['pca_context'] = memoryContext.length - prePcaLen;
+    auditSizes['pca_context'] = 0;
 
     // ========================================
     // UPLOAD ANALYSES (from "Analyze" mode uploads)
@@ -746,55 +707,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     // NEW: RAG - Retrieve PCA/PCP methodology guidance
     // Query the knowledge base for relevant therapeutic guidance
     // ========================================
-    const preRagLen = memoryContext.length;
-    try {
-      // Build query based on user's therapeutic state
-      const ragQueryParts: string[] = [];
-
-      // Add CSS stage to query
-      if (cssPatterns && cssPatterns.length > 0) {
-        ragQueryParts.push(`CSS stage: ${cssPatterns[0].css_stage}`);
-      }
-
-      // Add pattern type if available
-      const cvdcPattern = cssPatterns?.find(p => p.pattern_type === 'CVDC');
-      if (cvdcPattern) {
-        ragQueryParts.push('CVDC contradiction pattern');
-      }
-
-      // Add assessment register if available
-      if (assessmentData?.register_type) {
-        ragQueryParts.push(`register: ${assessmentData.register_type}`);
-      }
-
-      // Default query if no specific context
-      if (ragQueryParts.length === 0) {
-        ragQueryParts.push('therapeutic guidance PCA methodology');
-      }
-
-      const ragQuery = ragQueryParts.join(' | ');
-      console.log(`[RAG] Memory context query: "${ragQuery}"`);
-
-      // Query knowledge base
-      const ragChunks = await queryKnowledgeBase(ragQuery, {
-        types: ['protocol', 'guideline', 'orientation'],
-        limit: 3,
-        threshold: 0.35
-      });
-
-      if (ragChunks && ragChunks.length > 0) {
-        console.log(`[RAG] Retrieved ${ragChunks.length} chunks for memory context`);
-        const ragContext = buildRetrievedContext(ragChunks);
-        memoryContext += `\n\n===== PCA/PCP METHODOLOGY GUIDANCE =====\n`;
-        memoryContext += ragContext;
-        memoryContext += `===== END METHODOLOGY GUIDANCE =====\n`;
-      } else {
-        console.log(`[RAG] No chunks retrieved for memory context`);
-      }
-    } catch (ragError) {
-      console.warn(`[RAG] Failed to retrieve guidance for memory context:`, ragError);
-    }
-    auditSizes['rag_guidance'] = memoryContext.length - preRagLen;
+    auditSizes['rag_guidance'] = 0;
 
     // ========================================
     // TOTAL CONTEXT LIMIT - prevent token overflow

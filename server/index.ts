@@ -181,7 +181,7 @@ app.use((req, res, next) => {
   const rid = `R${++reqCounter}`;
   const requestId = (req.headers["x-request-id"] as string) || rid;
 
-  const logThis = shouldLogHttp(req.originalUrl);
+  const logThis = shouldLogHttp(req.originalUrl) && !req.originalUrl.startsWith('/api/vapi/webhook');
 
   // Use stdout.write for more reliable flushing in autoscale
   if (logThis) {
