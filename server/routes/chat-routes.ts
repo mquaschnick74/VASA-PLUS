@@ -8,6 +8,10 @@ import { buildMemoryContext } from '../services/memory-service';
 import { detectCSSPatterns, assessPatternConfidence } from '../services/css-pattern-service';
 import { generateEnhancedSessionSummary } from '../services/summary-service';
 import OpenAI from 'openai';
+import { sensingLayer } from '../services/sensing-layer';
+import { formatGuidanceAsSystemMessage, formatEnhancedGuidanceAsSystemMessage } from '../services/sensing-layer/guidance-injector';
+import { EnhancedTherapeuticGuidance } from '../services/sensing-layer/types';
+import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
 const router = Router();
 
@@ -214,6 +218,52 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
       totalMessages: messages.length
     });
 
+    // SENSING LAYER: Run before OpenAI call so guidance shapes the response
+    // Text chat uses synchronous sensing (unlike voice which is async via controlUrl)
+    try {
+      // Initialize session state on first message of a new text session
+      if (history.length === 0) {
+        await sensingLayer.initializeCallSession(sessionId, userId, sessionId);
+        console.log(`🧠 [CHAT-SENSING] Initialized session state for text session: ${sessionId}`);
+      }
+
+      const exchangeCount = Math.floor(history.length / 2); // Each exchange = 1 user + 1 assistant
+
+      const guidance = await sensingLayer.processUtterance({
+        utterance: message,
+        sessionId,
+        callId: sessionId,
+        userId,
+        exchangeCount,
+        conversationHistory: history.map((m: { role: string; content: string }) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          timestamp: new Date().toISOString()
+        }))
+      });
+
+      console.log(`🧠 [CHAT-SENSING] Guidance generated — Posture: ${guidance.posture}, Urgency: ${guidance.urgency}`);
+
+      // Format guidance using the same formatter as the voice channel
+      const isEnhanced = 'anticipationGuidance' in guidance || 'enhancedPosture' in guidance;
+      const guidanceText = isEnhanced
+        ? formatEnhancedGuidanceAsSystemMessage(guidance as EnhancedTherapeuticGuidance)
+        : formatGuidanceAsSystemMessage(guidance);
+
+      // Insert guidance as a system message between the base system prompt and the user message
+      // Position: after system prompt [0], before current user message [last]
+      messages.splice(messages.length - 1, 0, {
+        role: 'system',
+        content: guidanceText
+      });
+
+      console.log(`🧠 [CHAT-SENSING] Guidance injected into messages array (${messages.length} total messages)`);
+
+    } catch (sensingError: any) {
+      // Non-fatal: log and continue. The agent still responds, just without sensing guidance.
+      console.error(`⚠️ [CHAT-SENSING] Sensing layer failed (non-fatal, continuing):`, sensingError.message);
+    }
+
     // Call OpenAI with streaming
     const stream = await openai.chat.completions.create({
       model: modelConfig.model,
@@ -290,6 +340,23 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
     }
 
     const userId = vasaUser.id;
+
+    // SENSING LAYER: Finalize session — writes in-memory state vectors to database
+    try {
+      const sensingSessionSummary = await sensingLayer.finalizeSession(sessionId);
+      if (sensingSessionSummary) {
+        console.log(`🧠 [CHAT-SENSING] Session finalized for text session ${sessionId}:`);
+        console.log(`   📊 Exchanges: ${sensingSessionSummary.exchangeCount}`);
+        console.log(`   📈 Dominant register: ${sensingSessionSummary.dominantRegister}`);
+        console.log(`   ⭐ Significant moments: ${sensingSessionSummary.significantMoments.length}`);
+        console.log(`   🔄 Patterns detected: ${sensingSessionSummary.patternsDetected.length}`);
+      } else {
+        console.warn(`⚠️ [CHAT-SENSING] No sensing session state found for ${sessionId} — session may not have used sensing layer`);
+      }
+    } catch (sensingFinalizeError: any) {
+      // Non-fatal: log and continue with CSS pattern storage and summary generation
+      console.error(`⚠️ [CHAT-SENSING] Failed to finalize sensing session (non-fatal):`, sensingFinalizeError.message);
+    }
 
     console.log('🏁 [CHAT] Processing text session end:', {
       sessionId,
@@ -372,8 +439,13 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
       }
     }
 
-    // 5. Detect CSS patterns
-    const patterns = detectCSSPatterns(fullTranscript, true);
+    // 5. Detect CSS patterns — use user-only transcript to prevent agent lines
+    // from being misclassified as user statements during sentence splitting
+    const userOnlyTranscript = transcript
+      .filter((t: any) => t.role === 'user')
+      .map((t: any) => t.content)
+      .join('\n');
+    const patterns = detectCSSPatterns(userOnlyTranscript, true);
     const { confidence, reasoning } = assessPatternConfidence(patterns);
 
     console.log('📊 [CHAT] CSS Analysis:', {
@@ -403,6 +475,18 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
         error: summaryError.message,
         stack: summaryError.stack
       });
+    }
+
+    // FRAGMENT EXTRACTION: Extract narrative fragments from text session transcript
+    // Mirrors the fire-and-forget pattern used in webhook-routes.ts end-of-call-report
+    if (fullTranscript && userId) {
+      extractAndStoreFragments(userId, sessionId, fullTranscript)
+        .then(result => {
+          console.log(`📦 [FRAGMENTS] Extraction complete for ${sessionId}: ${result.fragmentCount} fragments, ${result.resonanceLinkCount} resonance links`);
+        })
+        .catch(err => {
+          console.error(`📦 [FRAGMENTS] Extraction failed for ${sessionId}:`, err);
+        });
     }
 
     console.log('✅ [CHAT] Text session processing completed:', sessionId);

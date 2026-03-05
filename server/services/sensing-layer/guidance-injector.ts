@@ -126,7 +126,7 @@ export async function injectGuidance(
 /**
  * Format TherapeuticGuidance as a system message for the voice model
  */
-function formatGuidanceAsSystemMessage(guidance: TherapeuticGuidance): string {
+export function formatGuidanceAsSystemMessage(guidance: TherapeuticGuidance): string {
   const lines: string[] = [];
 
   // Header with urgency indicator
@@ -186,7 +186,7 @@ function formatGuidanceAsSystemMessage(guidance: TherapeuticGuidance): string {
 /**
  * Format EnhancedTherapeuticGuidance with anticipation as a system message
  */
-function formatEnhancedGuidanceAsSystemMessage(guidance: EnhancedTherapeuticGuidance): string {
+export function formatEnhancedGuidanceAsSystemMessage(guidance: EnhancedTherapeuticGuidance): string {
   const lines: string[] = [];
 
   // Header with urgency indicator
