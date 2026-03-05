@@ -22,7 +22,10 @@ import {
   clearSession,
   SessionSummary,
   recordStateVector,
-  getPreviousVectors
+  getPreviousVectors,
+  recordCSSSignals,
+  assessSessionCSSStage,
+  getSessionCSSStage
 } from './session-state';
 import {
   coupleStateVector,
@@ -108,11 +111,22 @@ export class SensingLayerService {
       ]);
       console.log(`⚡ Sensing computations completed in ${Date.now() - sensingStart}ms`);
 
+      // 3a. Record CSS signals from this utterance
+      recordCSSSignals(input.callId, movement.cssSignals);
+
+      // 3b. At milestone exchanges, assess session-level CSS stage from accumulated signals
+      if (input.exchangeCount > 0 && input.exchangeCount % 5 === 0) {
+        assessSessionCSSStage(input.callId);
+      }
+
+      // 3c. Get current session-level CSS stage for state vector coupling
+      const { stage: sessionCSSStage } = getSessionCSSStage(input.callId);
+
       // 4. Couple state vector — apply cross-module dynamics
       const previousVectors = getPreviousVectors(input.callId);
       const stateVector = coupleStateVector(
         patterns, register, symbolic, movement,
-        previousVectors, input.exchangeCount
+        previousVectors, input.exchangeCount, sessionCSSStage
       );
 
       // 4a. Record state vector in session history
@@ -371,6 +385,36 @@ export class SensingLayerService {
       console.error('❌ [Sensing Layer] Error storing register analysis:', registerError);
     } else {
       console.log(`💾 [Sensing Layer] Session summary stored for call ${summary.callId}`);
+    }
+
+    // Write session-level CSS stage to css_patterns for longitudinal tracking
+    // This is the authoritative record used to populate cssHistory on next session load
+    const { error: cssError } = await supabase
+      .from('css_patterns')
+      .insert({
+        user_id: summary.userId,
+        call_id: summary.callId,
+        pattern_type: summary.finalCSSStage,
+        css_stage: summary.finalCSSStage,
+        content: JSON.stringify({
+          sessionPosition: summary.finalMovementQuality,
+          exchangeCount: summary.exchangeCount,
+          dominantRegister: summary.dominantRegister,
+          cssProgressionDirection: summary.fieldSummary?.cssProgressionDirection ?? 'stable'
+        }),
+        confidence: 0.7,
+        detected_at: summary.endTime.toISOString(),
+        register: summary.dominantRegister,
+        register_stuckness: summary.stucknessScore,
+        safety_flag: false,
+        crisis_flag: false,
+        hsfb_invoked: false
+      });
+
+    if (cssError) {
+      console.warn(`⚠️ [Sensing Layer] Could not store CSS stage record:`, cssError.message);
+    } else {
+      console.log(`🎯 [Sensing Layer] CSS stage persisted: ${summary.finalCSSStage} for ${summary.callId}`);
     }
 
     // 2. Store significant moments if any (separate table for easy querying)

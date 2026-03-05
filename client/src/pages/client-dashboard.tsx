@@ -115,71 +115,73 @@ export default function ClientDashboard({ userId, setUserId }: ClientDashboardPr
   return (
     <div className="min-h-screen gradient-bg">
       <Header userId={userId} setUserId={setUserId} userType="client" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Dashboard Title */}
-        <h1 className="text-2xl sm:text-3xl font-bold mb-6">Client Dashboard</h1>
-        {/* Top Row - Therapist and Session Info Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Therapist Info Card */}
-          {therapist && (
+      <div className="w-full py-4 sm:py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Dashboard Title */}
+          <h1 className="text-2xl sm:text-3xl font-bold mb-6">Client Dashboard</h1>
+          {/* Top Row - Therapist and Session Info Cards */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {/* Therapist Info Card */}
+            {therapist && (
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle>Your Therapist</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="font-medium">{therapist.full_name}</p>
+                    <p className="text-sm text-muted-foreground">{therapist.email}</p>
+                    <div className="pt-4">
+                      <Alert>
+                        <AlertDescription>
+                          You're using your therapist's subscription for voice sessions.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Session Info */}
             <Card className="glass">
               <CardHeader>
-                <CardTitle>Your Therapist</CardTitle>
+                <CardTitle>Session Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <p className="font-medium">{therapist.full_name}</p>
-                  <p className="text-sm text-muted-foreground">{therapist.email}</p>
-                  <div className="pt-4">
-                    <Alert>
-                      <AlertDescription>
-                        You're using your therapist's subscription for voice sessions.
-                      </AlertDescription>
-                    </Alert>
+                {therapist ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Your voice sessions are managed through your therapist's account.
+                    </p>
+                    {userContext?.sessionDurationLimit && (
+                      <Alert>
+                        <AlertDescription>
+                          <strong>Session Limit:</strong> Your therapist has set a {Math.floor(userContext.sessionDurationLimit / 60)}-minute limit for sessions.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    You're using your own subscription for voice sessions.
+                  </p>
+                )}
               </CardContent>
             </Card>
-          )}
+          </div>
 
-          {/* Session Info */}
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle>Session Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {therapist ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Your voice sessions are managed through your therapist's account.
-                  </p>
-                  {userContext?.sessionDurationLimit && (
-                    <Alert>
-                      <AlertDescription>
-                        <strong>Session Limit:</strong> Your therapist has set a {Math.floor(userContext.sessionDurationLimit / 60)}-minute limit for sessions.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  You're using your own subscription for voice sessions.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+          {/* Main Voice Interface */}
+          <VoiceInterface
+            userId={userId}
+            setUserId={setUserId}
+            hideLogoutButton={true}
+          />
 
-        {/* Main Voice Interface */}
-        <VoiceInterface
-          userId={userId}
-          setUserId={setUserId}
-          hideLogoutButton={true}
-        />
-
-        {/* User Content Panel */}
-        <div className="mt-8">
-          <UserContentPanel userId={userId} />
+          {/* User Content Panel */}
+          <div className="mt-8">
+            <UserContentPanel userId={userId} />
+          </div>
         </div>
       </div>
     </div>

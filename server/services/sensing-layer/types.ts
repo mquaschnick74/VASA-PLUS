@@ -103,6 +103,43 @@ export interface CSSHistoryEntry {
   evidence: string[];
 }
 
+/**
+ * A single CSS stage signal detected in one utterance.
+ * Low confidence by design — signals accumulate into session-level stage assessment.
+ */
+export interface CSSSignal {
+  stage: CSSStage;
+  confidence: number;
+  indicatorType: CSSSignalIndicator;
+  evidence: string;
+  exchangeNumber: number;
+}
+
+export type CSSSignalIndicator =
+  // Pointed Origin
+  | 'fragmentation_present'
+  | 'help_seeking'
+  // Focus/Bind
+  | 'implicit_contradiction'
+  | 'motive_confusion'
+  | 'desire_negation'
+  // Suspension
+  | 'unexplained_somatic'
+  | 'incomplete_utterance'
+  | 'not_knowing_terminal'
+  // Gesture Toward
+  | 'witnessed_shift'
+  | 'surprised_integration'
+  | 'possibility_language'
+  // Completion
+  | 'inhabited_integration'
+  | 'capacity_language'
+  | 'past_tense_fragmentation'
+  // Terminal
+  | 'observing_self'
+  | 'historical_integration_ref'
+  | 'recursive_awareness';
+
 export type CSSStage =
   | 'pointed_origin'    // Initial engagement
   | 'focus_bind'        // Contradiction identified
@@ -236,9 +273,11 @@ export interface MovementAssessmentResult {
   cssStageConfidence: number;
   sessionPosition: SessionPosition;
   movementQuality: MovementQuality;
-
-  // NEW: Anticipation tracking
   anticipation: AnticipationState;
+
+  // Per-utterance CSS signals — low confidence, feed upward to session-level assessment
+  // Do NOT use cssStage directly for guidance; use session state's sessionCSSStage instead
+  cssSignals: CSSSignal[];
 }
 
 export type TherapeuticTrajectory =

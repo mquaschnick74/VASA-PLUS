@@ -241,7 +241,7 @@ export default function AgentCarousel() {
                 </p>
                 <button
                   onClick={() => setSelectedAgent(null)}
-                  className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-emerald-500 text-white font-medium hover:shadow-lg hover:shadow-emerald-500/30 transition-all"
+                  className="px-6 py-2 rounded-lg bg-primary text-white font-medium hover:shadow-lg hover:shadow-emerald-500/30 transition-all"
                 >
                   Begin Session
                 </button>

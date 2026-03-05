@@ -753,9 +753,11 @@ export default function Dashboard() {
       return (
         <div className="min-h-screen gradient-bg">
           <Header userId={userId} setUserId={setUserId} userType="individual" />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-8">
-            <VoiceInterface userId={userId} setUserId={setUserId} />
-            <UserContentPanel userId={userId} />
+          <div className="w-full py-4 sm:py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+              <VoiceInterface userId={userId} setUserId={setUserId} />
+              <UserContentPanel userId={userId} />
+            </div>
           </div>
         </div>
       );

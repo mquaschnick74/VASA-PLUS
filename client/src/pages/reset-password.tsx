@@ -128,7 +128,7 @@ export default function ResetPassword() {
   // Loading state while checking session
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20 w-full max-w-md text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white/80">Verifying recovery link...</p>
@@ -140,7 +140,7 @@ export default function ResetPassword() {
   // Error state - no valid session
   if (!isValidSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20 w-full max-w-md">
           <h1 className="text-2xl font-bold text-white mb-4 text-center">Password Reset</h1>
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
@@ -148,7 +148,7 @@ export default function ResetPassword() {
           </div>
           <button
             onClick={handleRequestNewReset}
-            className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors"
+            className="w-full py-3 px-4 bg-primary hover:opacity-90 text-white font-semibold rounded-lg transition-colors"
           >
             Return to Login
           </button>
@@ -159,7 +159,7 @@ export default function ResetPassword() {
 
   // Valid session - show password reset form
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen flex items-center justify-center gradient-bg">
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20 w-full max-w-md">
         <h1 className="text-2xl font-bold text-white mb-2 text-center">Set New Password</h1>
         <p className="text-white/60 text-center mb-6">Enter your new password below.</p>
@@ -181,7 +181,7 @@ export default function ResetPassword() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter new password"
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               required
               minLength={8}
               disabled={loading}
@@ -198,7 +198,7 @@ export default function ResetPassword() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm new password"
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               required
               minLength={8}
               disabled={loading}
@@ -208,7 +208,7 @@ export default function ResetPassword() {
           <button
             type="submit"
             disabled={loading || !password || !confirmPassword}
-            className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center"
+            className="w-full py-3 px-4 bg-primary hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center"
           >
             {loading ? (
               <>

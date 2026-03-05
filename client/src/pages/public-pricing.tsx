@@ -258,11 +258,11 @@ export default function PublicPricing() {
             {individualPlans.map((plan) => (
               <Card
                 key={plan.name}
-                className={`glass relative ${plan.popular ? 'border-purple-500 border-2' : ''}`}
+                className={`glass relative ${plan.popular ? 'border-emerald-500 border-2' : ''}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-purple-500 text-white">
+                    <Badge className="bg-emerald-500 text-white">
                       Most Popular
                     </Badge>
                   </div>
@@ -316,18 +316,18 @@ export default function PublicPricing() {
             {therapistPlans.map((plan) => (
               <Card
                 key={plan.name}
-                className={`glass relative ${plan.popular ? 'border-purple-500 border-2' : ''}`}
+                className={`glass relative ${plan.popular ? 'border-emerald-500 border-2' : ''}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-purple-500 text-white">
+                    <Badge className="bg-emerald-500 text-white">
                       Most Popular
                     </Badge>
                   </div>
                 )}
                 {plan.isEnterprise && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-purple-500 text-white">
+                    <Badge className="bg-emerald-500 text-white">
                       {plan.badge}
                     </Badge>
                   </div>
@@ -393,8 +393,8 @@ export default function PublicPricing() {
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <Card className="glass">
               <CardContent className="pt-6 text-center">
-                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-6 h-6 text-emerald-400" />
                 </div>
                 <h3 className="font-semibold mb-2">AI Voice Agents</h3>
                 <p className="text-sm text-muted-foreground">
@@ -433,7 +433,7 @@ export default function PublicPricing() {
         <div className="mt-16 text-center">
           <Card className="glass max-w-2xl mx-auto">
             <CardContent className="pt-6">
-              <Clock className="w-10 h-10 mx-auto mb-4 text-purple-500" />
+              <Clock className="w-10 h-10 mx-auto mb-4 text-emerald-400" />
               <h3 className="text-xl font-semibold mb-2">
                 Start with a Free Trial
               </h3>

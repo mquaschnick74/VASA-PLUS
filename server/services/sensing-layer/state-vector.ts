@@ -80,7 +80,8 @@ export function coupleStateVector(
   symbolic: SymbolicMappingResult,
   movement: MovementAssessmentResult,
   previousVectors: TherapeuticStateVector[],
-  exchangeNumber: number
+  exchangeNumber: number,
+  sessionCSSStage: CSSStage = 'pointed_origin'
 ): TherapeuticStateVector {
 
   // === COUPLING RULE 1: Register shift → Movement adjustment ===
@@ -89,7 +90,7 @@ export function coupleStateVector(
   // === COUPLING RULE 2: Symbolic activation → CSS stage adjustment ===
   const symbolicActivation = calculateSymbolicActivation(symbolic);
   const { coupledCSSStage, coupledCSSConfidence, phaseTransitionProximity } =
-    coupleSymbolicToCSS(symbolic, movement, coupledMovement, symbolicActivation, previousVectors);
+    coupleSymbolicToCSS(symbolic, movement, coupledMovement, symbolicActivation, previousVectors, sessionCSSStage);
 
   // === COUPLING RULE 3: Pattern density → Register interpretation ===
   const coupledRegister = couplePatternToRegister(patterns, register);
@@ -193,13 +194,15 @@ function coupleSymbolicToCSS(
   movement: MovementAssessmentResult,
   coupledMovement: MovementIndicators,
   symbolicActivation: number,
-  previousVectors: TherapeuticStateVector[]
+  previousVectors: TherapeuticStateVector[],
+  sessionCSSStage: CSSStage = 'pointed_origin'
 ): {
   coupledCSSStage: CSSStage;
   coupledCSSConfidence: number;
   phaseTransitionProximity: number;
 } {
-  let coupledStage = movement.cssStage;
+  // Use session-level stage as base (not per-utterance keyword verdict)
+  let coupledStage = sessionCSSStage;
   let coupledConfidence = movement.cssStageConfidence;
 
   // Calculate phase transition proximity from multiple signals

@@ -220,7 +220,7 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
       messages,
       stream: true,
       temperature: modelConfig.temperature,
-      max_tokens: 500 // Limit for text chat (more concise than voice)
+      max_completion_tokens: 500 // Limit for text chat (more concise than voice)
     });
 
     // Set up Server-Sent Events (SSE)
