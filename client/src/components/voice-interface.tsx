@@ -909,7 +909,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
 
   if (memoryLoading || !userContext || !selectedAgent) {
     return (
-      <div className="min-h-screen flex items-center justify-center gradient-bg">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-muted-foreground">
@@ -921,7 +921,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   }
 
   return (
-    <div className="min-h-screen gradient-bg">
+    <div>
       {/* Main Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Welcome Bar */}
