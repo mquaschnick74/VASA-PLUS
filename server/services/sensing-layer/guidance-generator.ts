@@ -311,12 +311,13 @@ function determineRegisterDirection(osr: OrientationStateRegister): RegisterDire
     return null;
   }
 
-  // Stuck in Imaginary → guide toward Real
-  if (register.currentRegister === 'Imaginary') {
+  // Stuck in Symbolic (intellectualizing) → guide toward Real
+  if (register.currentRegister === 'Symbolic' &&
+      register.indicators.symbolicIndicators.some(i => i.startsWith('intellectual:'))) {
     return {
-      from: 'Imaginary',
+      from: 'Symbolic',
       toward: 'Real',
-      technique: 'Invite body awareness: "What do you notice in your body as you share this?"'
+      technique: 'Ground the insight: "Where do you feel that understanding in your body?"'
     };
   }
 
