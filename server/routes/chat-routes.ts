@@ -439,8 +439,13 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
       }
     }
 
-    // 5. Detect CSS patterns
-    const patterns = detectCSSPatterns(fullTranscript, true);
+    // 5. Detect CSS patterns — use user-only transcript to prevent agent lines
+    // from being misclassified as user statements during sentence splitting
+    const userOnlyTranscript = transcript
+      .filter((t: any) => t.role === 'user')
+      .map((t: any) => t.content)
+      .join('\n');
+    const patterns = detectCSSPatterns(userOnlyTranscript, true);
     const { confidence, reasoning } = assessPatternConfidence(patterns);
 
     console.log('📊 [CHAT] CSS Analysis:', {

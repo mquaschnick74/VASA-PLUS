@@ -171,8 +171,8 @@ Clinical notes (2-3 sentences):`;
 
   try {
     const summaryModel = 'gpt-5.1';
-    const greetingTokenParam = tokenParam(summaryModel, 200);
-    const clinicalTokenParam = tokenParam(summaryModel, 150);
+    const greetingTokenParam = tokenParam(summaryModel, 600);
+    const clinicalTokenParam = tokenParam(summaryModel, 500);
     console.log(`📝 [SUMMARY] Starting generation — model: ${summaryModel}, token param: ${Object.keys(greetingTokenParam)[0]}`);
 
     // Generate both summaries in parallel
