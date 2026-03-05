@@ -641,19 +641,9 @@ router.post('/webhook', async (req, res) => {
             }
             lastProcessedMessageIndex.set(callId, formattedConversation.length);
 
-            // SILENCE MONITOR: Reset timer ONLY on genuinely NEW user speech
-            // (not on conversation-updates triggered by agent's own say/re-engagement)
-            const hasNewUserMessage = newMessages.some((m: any) => m.role === 'user');
-            // SILENCE MONITOR: Disabled — see call-started comment
-            // if (hasNewUserMessage) {
-            //   resetSilenceTimer(callId);
-            // }
-
-            // Process through sensing layer asynchronously (don't block webhook response)
-            console.log(`🚀 [SENSING-PRE] Dispatching processSensingLayerAsync for call ${callId}`);
-            processSensingLayerAsync(callId, userId, latestUserMessage.content, formattedConversation);
-          } else if (latestUserMessage) {
-            console.warn(`⚠️ [SENSING-PRE] User message found but content is empty/whitespace - sensing layer will NOT run`);
+            // NOTE: Sensing layer processing is handled exclusively by the custom LLM
+            // endpoint (server/routes/custom-llm-routes.ts). processSensingLayerAsync
+            // was removed from here to prevent double-processing every utterance.
           }
         }
 

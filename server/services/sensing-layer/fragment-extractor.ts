@@ -56,14 +56,16 @@ function normalizeTranscript(transcript: string | TranscriptMessage[]): Transcri
     return messages;
   }
 
-  // Already an array — normalize content field
-  return transcript.map((item) => ({
-    role: item.role,
-    content: item.content || item.message || item.text || '',
-  }));
-}
+  // Already an array — normalize content field, exclude system messages
+    return transcript
+      .filter((item) => item.role !== 'system')
+      .map((item) => ({
+        role: item.role,
+        content: item.content || item.message || item.text || '',
+      }));
+  }
 
-function formatTranscriptForClaude(messages: TranscriptMessage[]): string {
+  function formatTranscriptForClaude(messages: TranscriptMessage[]): string {
   return messages
     .map((m, i) => {
       const role = m.role === 'assistant' ? 'Therapist' : 'User';
