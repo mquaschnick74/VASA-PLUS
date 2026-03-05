@@ -323,8 +323,8 @@ body {
       );
     background-size: 182px, cover, cover, cover, cover;
     background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
-    mix-blend-mode: soft-light;
-    opacity: 0.12;
+    mix-blend-mode: overlay;
+    opacity: 0.35;
     filter: contrast(118%) brightness(108%);
     z-index: 0;
     pointer-events: none;
