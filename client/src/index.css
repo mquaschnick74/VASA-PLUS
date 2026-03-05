@@ -157,33 +157,45 @@ body {
 
 @layer utilities {
   .glass {
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    background: rgba(71, 33, 137, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(18px) saturate(165%);
+    -webkit-backdrop-filter: blur(18px) saturate(165%);
+    background: linear-gradient(
+      180deg,
+      rgba(103, 54, 187, 0.22) 0%,
+      rgba(63, 23, 118, 0.18) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.16);
     box-shadow:
-      0 8px 32px rgba(44, 14, 77, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  }
-
-  .glass-strong {
-    backdrop-filter: blur(24px) saturate(200%);
-    -webkit-backdrop-filter: blur(24px) saturate(200%);
-    background: rgba(71, 33, 137, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow:
-      0 12px 40px rgba(44, 14, 77, 0.4),
+      0 10px 36px rgba(15, 5, 25, 0.34),
       inset 0 1px 0 rgba(255, 255, 255, 0.16);
   }
 
-  .glass-card {
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    background: rgba(71, 33, 137, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+  .glass-strong {
+    backdrop-filter: blur(24px) saturate(185%);
+    -webkit-backdrop-filter: blur(24px) saturate(185%);
+    background: linear-gradient(
+      180deg,
+      rgba(109, 59, 194, 0.30) 0%,
+      rgba(59, 22, 109, 0.24) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.22);
     box-shadow:
-      0 4px 24px rgba(44, 14, 77, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      0 14px 44px rgba(15, 5, 25, 0.40),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .glass-card {
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    background: linear-gradient(
+      180deg,
+      rgba(99, 52, 180, 0.18) 0%,
+      rgba(54, 21, 101, 0.14) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 6px 28px rgba(15, 5, 25, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10);
   }
 
   /* Emerald glow effects */
@@ -230,17 +242,30 @@ body {
 
   .gradient-bg {
     position: relative;
-    background: linear-gradient(
-      165deg,
-      hsl(262, 58%, 22%) 0%,
-      hsl(265, 62%, 16%) 35%,
-      hsl(268, 66%, 12%) 70%,
-      hsl(269, 70%, 8%) 100%
-    );
+    background:
+      radial-gradient(
+        1200px 700px at 50% 14%,
+        rgba(150, 112, 255, 0.34) 0%,
+        rgba(113, 72, 214, 0.22) 22%,
+        rgba(71, 33, 137, 0.10) 44%,
+        rgba(44, 14, 77, 0) 68%
+      ),
+      radial-gradient(
+        900px 520px at 78% 26%,
+        rgba(104, 127, 255, 0.12) 0%,
+        rgba(104, 127, 255, 0) 55%
+      ),
+      linear-gradient(
+        180deg,
+        #5B2AA8 0%,
+        #3A1669 34%,
+        #21082F 72%,
+        #120214 100%
+      );
     min-height: 100vh;
   }
 
-  /* Layer 1: iVASA logo watermark */
+  /* Layer 1: subtle iVASA logo watermark */
   .gradient-bg::before {
     content: '';
     position: fixed;
@@ -248,14 +273,15 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: url('/iVASA_Heiti.png') center center / contain no-repeat;
-    opacity: 0.14;
+    background: url('/iVASA_Heiti.png') center center / 78% no-repeat;
+    opacity: 0.04;
+    mix-blend-mode: soft-light;
     z-index: 0;
     pointer-events: none;
     animation: fadeInLogo 2s ease-in-out;
   }
 
-  /* Layer 2: noise grain + iridescent color shift */
+  /* Layer 2: fine film grain + cool iridescent sheen */
   .gradient-bg::after {
     content: '';
     position: fixed;
@@ -265,21 +291,33 @@ body {
     height: 100%;
     background-image:
       url('/noise.png'),
+      radial-gradient(
+        1000px 600px at 52% 12%,
+        rgba(255, 255, 255, 0.10) 0%,
+        rgba(255, 255, 255, 0) 58%
+      ),
       linear-gradient(
         135deg,
-        rgba(99, 60, 180, 0.14) 0%,
-        rgba(75, 108, 183, 0.09) 25%,
-        rgba(107, 33, 168, 0.12) 50%,
-        rgba(147, 51, 234, 0.08) 75%,
-        rgba(99, 60, 180, 0.14) 100%
+        rgba(107, 77, 207, 0.12) 0%,
+        rgba(87, 118, 214, 0.08) 24%,
+        rgba(155, 99, 236, 0.10) 52%,
+        rgba(107, 77, 207, 0.12) 100%
       ),
-      radial-gradient(ellipse at top right, rgba(75, 108, 183, 0.12) 0%, transparent 50%),
-      radial-gradient(ellipse at bottom left, rgba(0, 208, 98, 0.06) 0%, transparent 40%),
-      radial-gradient(ellipse at center, rgba(44, 14, 77, 0.20) 0%, transparent 70%);
-    background-size: 300px 300px, cover, cover, cover, cover;
+      radial-gradient(
+        700px 380px at 20% 68%,
+        rgba(177, 103, 255, 0.08) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        560px 300px at 80% 32%,
+        rgba(91, 125, 255, 0.09) 0%,
+        transparent 58%
+      );
+    background-size: 180px 180px, cover, cover, cover, cover;
     background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
-    mix-blend-mode: overlay;
-    opacity: 0.55;
+    mix-blend-mode: soft-light;
+    opacity: 0.12;
+    filter: contrast(118%) brightness(108%);
     z-index: 0;
     pointer-events: none;
   }
@@ -290,8 +328,8 @@ body {
   }
 
   @keyframes fadeInLogo {
-    0% { opacity: 0.10; }
-    100% { opacity: 0.14; }
+    0% { opacity: 0.08; }
+    100% { opacity: 0.04; }
   }
 
   @keyframes float {
