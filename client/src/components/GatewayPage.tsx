@@ -4,7 +4,7 @@
 import { useLocation, Link } from 'wouter';
 import { Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import phoneMockup from '@root-assets/phone-mockup.png';
+import phoneMockup from '../../../assets/phone-mockup.png';
 
 interface GatewayPageProps {
   onTryDemo: () => void;
