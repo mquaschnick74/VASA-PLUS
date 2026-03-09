@@ -4,6 +4,7 @@
 import { useLocation, Link } from 'wouter';
 import { Mic, Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import phoneMockup from '@root-assets/phone-mockup.png';
 
 interface GatewayPageProps {
   onTryDemo: () => void;
@@ -31,39 +32,26 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
         {/* Hero section */}
         <section className="min-h-[calc(100vh-80px)] flex flex-col md:flex-row items-center justify-center gap-10 lg:gap-16 pt-8 pb-16">
 
-          {/* Phone frame — visible on ALL screens */}
+          {/* Phone mockup — visible on ALL screens */}
           {/* Mobile: appears first (order-first). Desktop: appears on the right (order-last) */}
-          <div className="order-first md:order-last flex-shrink-0">
+          <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <button
               onClick={onTryDemo}
-              className="cursor-pointer group md:animate-float hover:glow-emerald transition-shadow duration-500 rounded-[2.5rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="relative cursor-pointer group transition-shadow duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl"
             >
-              {/* Phone outer shell */}
-              <div className="relative w-[220px] h-[440px] sm:w-[260px] sm:h-[520px] rounded-[2.5rem] border-4 border-white/20 bg-gradient-to-b from-white/10 to-white/5 shadow-2xl p-2">
-                {/* Notch */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-black/60 rounded-full z-10" />
-                {/* Inner screen */}
-                <div className="w-full h-full rounded-[2rem] overflow-hidden bg-background flex flex-col items-center justify-center gap-6 px-4">
-                  {/* Pulsing mic circle */}
-                  <div className="relative">
-                    <div className="absolute inset-0 rounded-full bg-primary/30 animate-pulse-slow scale-125" />
-                    <div className="relative w-20 h-20 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center">
-                      <Mic className="w-8 h-8 text-primary" />
-                    </div>
-                  </div>
-                  {/* Waveform bars */}
-                  <div className="flex items-end gap-1.5 h-8">
-                    <div className="w-1 h-3 rounded-full bg-primary/30 animate-pulse-slow" />
-                    <div className="w-1 h-5 rounded-full bg-primary/25" />
-                    <div className="w-1 h-8 rounded-full bg-primary/35 animate-pulse-slow" />
-                    <div className="w-1 h-6 rounded-full bg-primary/25" />
-                    <div className="w-1 h-4 rounded-full bg-primary/30 animate-pulse-slow" />
-                  </div>
-                  {/* Label */}
-                  <p className="text-sm text-muted-foreground group-hover:text-primary transition-colors text-center">
-                    Tap to experience a session
-                  </p>
+              <img
+                src={phoneMockup}
+                alt="iVASA App"
+                className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl"
+              />
+              {/* Interactive overlay */}
+              <div className="absolute inset-0 rounded-[inherit] bg-black/30 group-hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-4">
+                <div className="glow-emerald bg-primary/90 rounded-full p-4">
+                  <Mic className="w-8 h-8 text-white" />
                 </div>
+                <p className="text-sm text-white/90">
+                  Tap to experience a session
+                </p>
               </div>
             </button>
           </div>
