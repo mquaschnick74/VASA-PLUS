@@ -20,7 +20,6 @@ import { NativeAuthScreen } from '@/components/NativeAuthScreen';
 import GatewayPage from '@/components/GatewayPage';
 import DemoVoiceCard from '@/components/DemoVoiceCard';
 import UserContentPanel from '@/components/UserContentPanel';
-import { ArrowLeft } from 'lucide-react';
 
 // Feature flag: Set VITE_REQUIRE_ASSESSMENT=false to skip assessment for new users
 const ASSESSMENT_REQUIRED = import.meta.env.VITE_REQUIRE_ASSESSMENT !== 'false';
@@ -114,13 +113,13 @@ export default function Dashboard() {
   const ensureUserProfile = async (session: any) => {
     // Try to get current session first
     let freshSession = session;
-    
+
     // If no session passed or session might be stale, get fresh one
     if (!freshSession) {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       freshSession = currentSession;
     }
-    
+
     if (!freshSession || !freshSession.user?.email) {
       console.error('❌ [DASHBOARD] No valid session found');
       return null;
@@ -623,7 +622,7 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center gradient-bg">
         <div className="text-center max-w-md">
           <p className="text-lg mb-4">{message}</p>
-          <button 
+          <button
             onClick={() => {
               localStorage.clear();
               sessionStorage.clear();
@@ -645,34 +644,32 @@ export default function Dashboard() {
       return <NativeAuthScreen setUserId={setUserId} />;
     }
 
-    // Demo mode - show DemoVoiceCard with back button
-    if (showDemo) {
-      return (
-        <div className="min-h-screen gradient-bg flex flex-col">
-          <div className="p-4">
+    // Show gateway page for unauthenticated users
+    // When showDemo is true, DemoVoiceCard renders as a modal overlay on top of GatewayPage
+    // useDemoVapi has cleanup on unmount (calls vapiRef.current.stop()), so closing the modal is safe
+    return (
+      <>
+        <GatewayPage onTryDemo={() => setShowDemo(true)} />
+        {showDemo && (
+          <div
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowDemo(false)}
+          >
             <button
+              className="absolute top-4 right-4 z-[60] text-white bg-black/50 hover:bg-black/70 rounded-full w-10 h-10 flex items-center justify-center text-xl font-bold"
               onClick={() => setShowDemo(false)}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Back
+              ×
             </button>
-          </div>
-          <div className="flex-1 flex items-center justify-center px-4">
-            <div className="w-full max-w-md">
+            <div
+              className="w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
               <DemoVoiceCard />
             </div>
           </div>
-        </div>
-      );
-    }
-
-    // Show gateway page for unauthenticated users
-    // Gateway buttons navigate to dedicated signup pages (/signup/individual, /signup/therapist, etc.)
-    return (
-      <GatewayPage
-        onTryDemo={() => setShowDemo(true)}
-      />
+        )}
+      </>
     );
   }
 

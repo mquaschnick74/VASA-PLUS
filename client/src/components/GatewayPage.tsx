@@ -1,8 +1,9 @@
 // client/src/components/GatewayPage.tsx
-// Full-screen gateway page for user path selection - Two-column layout
+// Premium landing page — dark, sophisticated, mobile-first design
 
 import { useLocation, Link } from 'wouter';
-import { Mic, Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
+import { Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
 interface GatewayPageProps {
@@ -15,118 +16,79 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
   return (
     <div className="min-h-screen gradient-bg">
       {/* Top bar */}
-      <div className="sticky top-0 left-0 right-0 flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4 z-50">
+      <nav className="sticky top-0 left-0 right-0 flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4 z-50">
         <img src="/apple-touch-icon.png" alt="iVASA" className="h-8 md:h-10" />
-        <button
+        <Button
+          variant="ghost"
           onClick={() => setLocation('/login')}
-          className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
         >
           Log in
-        </button>
-      </div>
+        </Button>
+      </nav>
 
-      {/* Main content area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center min-h-[calc(100vh-80px)] pt-8">
-        {/* Two-column section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-end w-full max-w-6xl">
-          {/* Left column - Phone mockup (hidden on mobile) */}
-          <div className="hidden md:flex items-end justify-center">
-            <img src={phoneMockup} alt="iVASA App" className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl" />
+      {/* Main content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Hero section */}
+        <section className="min-h-[calc(100vh-80px)] flex flex-col md:flex-row items-center justify-center gap-10 lg:gap-16 pt-8 pb-16">
+
+          {/* Phone mockup — visible on ALL screens */}
+          {/* Mobile: appears first (order-first). Desktop: appears on the right (order-last) */}
+          <div className="order-first md:order-last flex-shrink-0 md:animate-float">
+            <button
+              onClick={onTryDemo}
+              className="cursor-pointer group"
+            >
+              <img
+                src={phoneMockup}
+                alt="iVASA App"
+                className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl transition-all duration-300 group-hover:brightness-110 group-hover:scale-[1.02]"
+              />
+            </button>
           </div>
 
-          {/* Right column - Title and Glass card with options */}
-          <div className="flex flex-col items-center">
-            {/* Title section — above the card, wider than card, centered */}
-            <div className="text-center mb-8 w-full md:w-[140%]">
-              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white">
-                AI-Depth Therapy
-              </h1>
-              <p className="text-xl sm:text-2xl md:text-3xl text-emerald-400 italic mt-3">
-                Get to the core of the problem.
-              </p>
-              <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-lg mx-auto">
-                A licensed clinician, AI that actually understands you, or both — you choose.
-              </p>
+          {/* Text + CTAs */}
+          <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight">
+              Get to the Core of the Problem.
+            </h1>
+            <p className="text-lg text-muted-foreground mt-3 mb-8">
+              Depth therapy, powered by AI. Finally.
+            </p>
+
+            {/* CTA buttons */}
+            <div className="flex flex-col gap-3 w-full sm:w-auto">
+              <Button
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={() => setLocation('/signup/individual')}
+              >
+                <Brain className="w-5 h-5" />
+                Connect with an AI Guide
+              </Button>
+              <Button
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={() => setLocation('/ai-assisted-therapy')}
+              >
+                <Users className="w-5 h-5" />
+                AI-Assisted Therapy with a Real Human
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto mt-1"
+                onClick={() => setLocation('/signup/therapist')}
+              >
+                <Building2 className="w-5 h-5" />
+                For Therapists &amp; Clinics
+              </Button>
             </div>
 
-            <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full max-w-md">
-              {/* Question heading */}
-              <h2 className="text-xl font-semibold text-white text-center mb-6">
-                Choose Your Path:
-              </h2>
-
-              {/* Three stacked option buttons */}
-              <div className="flex flex-col gap-3">
-                {/* Button 1: AI Therapy */}
-                <button
-                  onClick={() => setLocation('/signup/individual')}
-                  className="w-full p-4 rounded-xl border border-blue-400/40 hover:border-blue-400 hover:bg-blue-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                      <Brain className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white">Connect with an AI Guide</p>
-                      <p className="text-sm text-muted-foreground mt-0.5"></p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Button 2: AI-Assisted Therapy */}
-                <button
-                  onClick={() => setLocation('/ai-assisted-therapy')}
-                  className="w-full p-4 rounded-xl border border-emerald-400/40 hover:border-emerald-400 hover:bg-emerald-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                      <Users className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white">AI-Assisted Therapy: Real Human</p>
-                      <p className="text-sm text-muted-foreground mt-0.5"></p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Button 3: Therapist or Clinic */}
-                <button
-                  onClick={() => setLocation('/signup/therapist')}
-                  className="w-full p-4 rounded-xl border border-amber-400/40 hover:border-amber-400 hover:bg-amber-400/10 bg-white/5 text-left cursor-pointer transition-all duration-200 hover:scale-[1.01]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-5 h-5 text-amber-400" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white">Therapist or Clinic</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">Augment your practice with AI</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Demo link — above the free trial banner */}
-              <div className="mt-6 pt-5 border-t border-white/10">
-                <button
-                  onClick={onTryDemo}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-emerald-400 hover:bg-emerald-400/10 transition-colors"
-                >
-                  <Mic className="w-4 h-4" />
-                  <span className="font-medium text-sm">Try a Free 5-Minute Demo</span>
-                </button>
-                <p className="text-xs text-muted-foreground text-center mt-1">No Account or Credit Card required</p>
-              </div>
-
-              {/* Free trial banner — at the bottom of the card */}
-              <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-lg py-2 px-3 mt-6">
-                <p className="text-sm font-semibold text-amber-400">
-                  30-Day Free Trial with 180 Minutes — No Credit Card Required
-                </p>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground text-center md:text-left mt-3 w-full">
+              30-day free trial · 180 minutes · No credit card required
+            </p>
           </div>
-        </div>
+        </section>
 
         {/* Testimonials section — auto-scrolling carousel */}
         <div
@@ -137,7 +99,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           }}
         >
           <p className="text-sm text-muted-foreground text-center mb-5 tracking-wide uppercase">
-            What people are saying
+            Trusted by real people
           </p>
           <style>{`
             @keyframes testimonial-scroll {
@@ -156,7 +118,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
             {[0, 1].map((setIndex) => (
               <div key={setIndex} className="flex gap-4">
                 {/* Daniel — individual user */}
-                <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
+                <div className="glass-card rounded-2xl border border-white/10 border-t-2 border-t-primary p-5 flex flex-col w-[320px] flex-shrink-0">
                   <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
                     "I went in skeptical — another chatbot, right? But within the first session it asked me something no one had ever asked before. I actually sat there in silence for a minute. That's when I knew this was different."
@@ -165,7 +127,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </div>
 
                 {/* Mathew — therapist perspective */}
-                <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
+                <div className="glass-card rounded-2xl border border-white/10 border-t-2 border-t-primary p-5 flex flex-col w-[320px] flex-shrink-0">
                   <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
                     "Some of my clients used to spiral between sessions with nowhere to turn. Now they have iVASA as a bridge — it picks up where we left off and holds the thread until our next appointment. It's extended my practice in ways I couldn't have imagined."
@@ -174,7 +136,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </div>
 
                 {/* Chris — technical/professional user */}
-                <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
+                <div className="glass-card rounded-2xl border border-white/10 border-t-2 border-t-primary p-5 flex flex-col w-[320px] flex-shrink-0">
                   <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
                     "I've built AI products. I know what's out there. iVASA isn't just pattern matching on keywords — there's a real therapeutic framework underneath. The way it tracks themes across conversations and surfaces connections is genuinely sophisticated."
@@ -183,7 +145,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </div>
 
                 {/* Terri — personal user perspective */}
-                <div className="glass rounded-2xl border border-white/10 p-5 flex flex-col w-[300px] flex-shrink-0">
+                <div className="glass-card rounded-2xl border border-white/10 border-t-2 border-t-primary p-5 flex flex-col w-[320px] flex-shrink-0">
                   <Quote className="w-5 h-5 text-emerald-400/60 mb-2 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">
                     "I never thought I'd open up to an AI, but iVASA doesn't feel like talking to a machine. It remembered something I mentioned three weeks ago and connected it to what I was struggling with today. That kind of continuity changed everything for me."
@@ -195,9 +157,9 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           </div>
         </div>
 
-        {/* Explore Resources card — below the main card */}
+        {/* Explore Resources card */}
         <Link href="/learn-more">
-          <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 max-w-3xl mx-auto mt-8 cursor-pointer hover:border-white/20 transition-all duration-300 group">
+          <div className="glass-card rounded-2xl border border-white/10 p-6 md:p-8 max-w-3xl mx-auto mt-8 cursor-pointer hover:border-white/20 transition-all duration-300 group">
 
             {/* Heading */}
             <h3 className="text-lg sm:text-xl font-semibold text-center mb-6">Explore Resources</h3>
