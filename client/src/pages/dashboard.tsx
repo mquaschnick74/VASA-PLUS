@@ -20,7 +20,6 @@ import { NativeAuthScreen } from '@/components/NativeAuthScreen';
 import GatewayPage from '@/components/GatewayPage';
 import DemoVoiceCard from '@/components/DemoVoiceCard';
 import UserContentPanel from '@/components/UserContentPanel';
-import { Button } from '@/components/ui/button';
 
 // Feature flag: Set VITE_REQUIRE_ASSESSMENT=false to skip assessment for new users
 const ASSESSMENT_REQUIRED = import.meta.env.VITE_REQUIRE_ASSESSMENT !== 'false';
@@ -652,19 +651,21 @@ export default function Dashboard() {
       <>
         <GatewayPage onTryDemo={() => setShowDemo(true)} />
         {showDemo && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
-            <div className="flex items-center justify-center w-full h-full p-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-4 right-4 text-white/70 hover:text-white z-10"
-                onClick={() => setShowDemo(false)}
-              >
-                ×
-              </Button>
-              <div className="w-full max-w-md">
-                <DemoVoiceCard />
-              </div>
+          <div
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowDemo(false)}
+          >
+            <button
+              className="absolute top-4 right-4 z-[60] text-white bg-black/50 hover:bg-black/70 rounded-full w-10 h-10 flex items-center justify-center text-xl font-bold"
+              onClick={() => setShowDemo(false)}
+            >
+              ×
+            </button>
+            <div
+              className="w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <DemoVoiceCard />
             </div>
           </div>
         )}

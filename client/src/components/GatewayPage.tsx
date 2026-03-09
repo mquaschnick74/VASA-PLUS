@@ -2,7 +2,7 @@
 // Premium landing page — dark, sophisticated, mobile-first design
 
 import { useLocation, Link } from 'wouter';
-import { Mic, Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
+import { Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import phoneMockup from '@root-assets/phone-mockup.png';
 
@@ -37,22 +37,13 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <button
               onClick={onTryDemo}
-              className="relative cursor-pointer group transition-shadow duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl"
+              className="cursor-pointer group"
             >
               <img
                 src={phoneMockup}
                 alt="iVASA App"
-                className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl"
+                className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl transition-all duration-300 group-hover:brightness-110 group-hover:scale-[1.02]"
               />
-              {/* Interactive overlay */}
-              <div className="absolute inset-0 rounded-[inherit] bg-black/30 group-hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-4">
-                <div className="glow-emerald bg-primary/90 rounded-full p-4">
-                  <Mic className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-sm text-white/90">
-                  Tap to experience a session
-                </p>
-              </div>
             </button>
           </div>
 
