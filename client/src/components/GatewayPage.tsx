@@ -39,20 +39,17 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
               <div className="hidden md:flex absolute -top-10 -left-14 flex-col items-start gap-1 pointer-events-none select-none z-10">
                 {/* Label on top */}
-                <span
-                  className="text-sm font-medium text-primary/90 whitespace-nowrap ml-2"
-                  style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}
-                >
+                <span className="text-sm font-medium text-primary/90 whitespace-nowrap ml-2 italic">
                   Try a live session
                 </span>
                 {/* Arrow below, pointing right toward the phone */}
                 <svg
-                  width="60"
-                  height="50"
+                  width="30"
+                  height="25"
                   viewBox="0 0 60 50"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
-                  className="text-primary opacity-90"
+                  className="text-primary opacity-90 ml-8"
                 >
                   {/* 90-degree arc: starts going right from left, swoops down-right */}
                   <path
