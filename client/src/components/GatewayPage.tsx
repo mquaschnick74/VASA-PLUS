@@ -51,7 +51,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   xmlns="http://www.w3.org/2000/svg"
                   className="text-primary opacity-90 ml-8"
                 >
-                  {/* 90-degree arc: starts going right from left, swoops down-right */}
                   <path
                     d="M4 4 C4 30, 20 44, 54 44"
                     stroke="currentColor"
@@ -59,7 +58,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                     strokeLinecap="round"
                     fill="none"
                   />
-                  {/* Arrowhead pointing right */}
                   <path
                     d="M46 38 L55 44 L46 50"
                     stroke="currentColor"
