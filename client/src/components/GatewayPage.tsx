@@ -37,7 +37,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <div className="relative">
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
-              <div className="hidden md:flex absolute -top-4 -left-14 flex-col items-start gap-1 pointer-events-none select-none z-10">
+              <div className="flex absolute -top-4 -left-14 flex-col items-start gap-1 pointer-events-none select-none z-10">
                 {/* Label on top */}
                 <span className="text-sm font-medium text-primary/90 whitespace-nowrap ml-2 italic">
                   Try a live session
