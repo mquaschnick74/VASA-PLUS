@@ -463,7 +463,7 @@ ${rawText.substring(0, 15000)}
   try {
     // Call Claude API for analysis
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20251001',
       max_tokens: 2000,
       messages: [
         {
