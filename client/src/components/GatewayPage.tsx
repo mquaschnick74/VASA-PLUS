@@ -35,24 +35,54 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           {/* Phone mockup — visible on ALL screens */}
           {/* Mobile: appears first (order-first). Desktop: appears on the right (order-last) */}
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
-            <button
-              onClick={onTryDemo}
-              className="cursor-pointer group relative"
-            >
-              <img
-                src={phoneMockup}
-                alt="iVASA App"
-                className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl transition-all duration-300 group-hover:brightness-110 group-hover:scale-[1.02]"
-              />
-              {/* Floating badge */}
-              <div className="group/badge absolute bottom-6 left-1/2 -translate-x-1/2 z-10 rounded-full px-4 py-2 bg-background/80 backdrop-blur-sm border border-primary/40 shadow-lg flex items-center gap-2 transition-all duration-200 hover:border-primary/80 hover:bg-background/95">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-75" />
-                  <span className="relative rounded-full h-2.5 w-2.5 bg-primary" />
+            <div className="relative">
+              {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
+              <div className="hidden md:flex absolute -top-8 -left-4 items-center gap-2 pointer-events-none select-none z-10">
+                {/* Curved arrow SVG */}
+                <svg
+                  width="36"
+                  height="36"
+                  viewBox="0 0 36 36"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="text-primary rotate-[200deg] opacity-90"
+                >
+                  <path
+                    d="M6 10 C6 10, 8 24, 22 26"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <path
+                    d="M18 22 L23 27 L17 30"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                </svg>
+                {/* Label */}
+                <span
+                  className="text-sm font-medium text-primary/90 whitespace-nowrap"
+                  style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}
+                >
+                  Try a live session
                 </span>
-                <span className="text-sm font-medium text-white whitespace-nowrap">Try a Live Session</span>
               </div>
-            </button>
+              {/* Phone button */}
+              <button
+                onClick={onTryDemo}
+                className="cursor-pointer group relative"
+              >
+                <img
+                  src={phoneMockup}
+                  alt="iVASA App"
+                  className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl transition-all duration-300 group-hover:brightness-110 group-hover:scale-[1.02]"
+                />
+              </button>
+            </div>
           </div>
 
           {/* Text + CTAs */}
