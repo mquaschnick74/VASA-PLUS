@@ -35,9 +35,9 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           {/* Phone mockup — visible on ALL screens */}
           {/* Mobile: appears first (order-first). Desktop: appears on the right (order-last) */}
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
-            <div className="relative">
+            <div className="relative origin-top scale-[0.65] sm:scale-[0.80] md:scale-100 -mb-28 sm:-mb-16 md:mb-0">
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
-              <div className="hidden md:flex absolute -top-4 -left-14 flex-col items-start gap-1 pointer-events-none select-none z-10">
+              <div className="absolute -top-4 -left-14 flex flex-col items-start pointer-events-none select-none z-10">
                 {/* Label on top */}
                 <span className="text-sm font-medium text-primary/90 whitespace-nowrap ml-2 italic">
                   Try a live session
@@ -51,7 +51,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   xmlns="http://www.w3.org/2000/svg"
                   className="text-primary opacity-90 ml-8"
                 >
-                  {/* 90-degree arc: starts going right from left, swoops down-right */}
                   <path
                     d="M4 4 C4 30, 20 44, 54 44"
                     stroke="currentColor"
@@ -59,7 +58,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                     strokeLinecap="round"
                     fill="none"
                   />
-                  {/* Arrowhead pointing right */}
                   <path
                     d="M46 38 L55 44 L46 50"
                     stroke="currentColor"
@@ -85,7 +83,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           </div>
 
           {/* Text + CTAs */}
-          <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl">
+          <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl -mt-8 md:mt-0">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight">
               Get to the Core of the Problem.
             </h1>
