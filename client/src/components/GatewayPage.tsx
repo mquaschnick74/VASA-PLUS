@@ -37,25 +37,27 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <div className="relative">
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
-              <div className="hidden md:flex absolute -top-8 -left-4 items-center gap-2 pointer-events-none select-none z-10">
+              <div className="hidden md:flex absolute -top-2 -left-8 items-end gap-2 pointer-events-none select-none z-10">
                 {/* Curved arrow SVG */}
                 <svg
-                  width="36"
-                  height="36"
-                  viewBox="0 0 36 36"
+                  width="40"
+                  height="44"
+                  viewBox="0 0 40 44"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                   className="text-primary opacity-90"
                 >
+                  {/* Curve starting lower-left, sweeping up to upper-right */}
                   <path
-                    d="M8 8 C10 18, 18 26, 28 28"
+                    d="M6 38 C8 20, 20 10, 34 6"
                     stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     fill="none"
                   />
+                  {/* Two-flare arrowhead at upper-right */}
                   <path
-                    d="M22 26 L29 29 L26 22"
+                    d="M28 4 L35 6 L30 12"
                     stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
