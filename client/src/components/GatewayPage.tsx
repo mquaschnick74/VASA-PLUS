@@ -35,16 +35,53 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           {/* Phone mockup — visible on ALL screens */}
           {/* Mobile: appears first (order-first). Desktop: appears on the right (order-last) */}
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
-            <button
-              onClick={onTryDemo}
-              className="cursor-pointer group"
-            >
-              <img
-                src={phoneMockup}
-                alt="iVASA App"
-                className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl transition-all duration-300 group-hover:brightness-110 group-hover:scale-[1.02]"
-              />
-            </button>
+            <div className="relative">
+              {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
+              <div className="hidden md:flex absolute -top-4 -left-14 flex-col items-start gap-1 pointer-events-none select-none z-10">
+                {/* Label on top */}
+                <span className="text-sm font-medium text-primary/90 whitespace-nowrap ml-2 italic">
+                  Try a live session
+                </span>
+                {/* Arrow below, pointing right toward the phone */}
+                <svg
+                  width="30"
+                  height="25"
+                  viewBox="0 0 60 50"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="text-primary opacity-90 ml-8"
+                >
+                  {/* 90-degree arc: starts going right from left, swoops down-right */}
+                  <path
+                    d="M4 4 C4 30, 20 44, 54 44"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  {/* Arrowhead pointing right */}
+                  <path
+                    d="M46 38 L55 44 L46 50"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                </svg>
+              </div>
+              {/* Phone button */}
+              <button
+                onClick={onTryDemo}
+                className="cursor-pointer group relative"
+              >
+                <img
+                  src={phoneMockup}
+                  alt="iVASA App"
+                  className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl transition-all duration-300 group-hover:brightness-110 group-hover:scale-[1.02]"
+                />
+              </button>
+            </div>
           </div>
 
           {/* Text + CTAs */}
