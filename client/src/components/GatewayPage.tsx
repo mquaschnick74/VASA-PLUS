@@ -35,7 +35,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           {/* Phone mockup — visible on ALL screens */}
           {/* Mobile: appears first (order-first). Desktop: appears on the right (order-last) */}
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
-            <div className="relative">
+            <div className="relative origin-top scale-[0.65] sm:scale-[0.80] md:scale-100 -mb-16 sm:-mb-8 md:mb-0">
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
               <div className="flex flex-col items-start pointer-events-none select-none z-10 mb-2 pl-2 md:absolute md:-top-4 md:-left-14 md:mb-0 md:pl-0">
                 {/* Label on top */}
