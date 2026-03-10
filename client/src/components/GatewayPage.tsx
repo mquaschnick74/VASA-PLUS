@@ -37,27 +37,34 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <div className="relative">
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
-              <div className="hidden md:flex absolute -top-2 -left-8 items-end gap-2 pointer-events-none select-none z-10">
-                {/* Curved arrow SVG */}
+              <div className="hidden md:flex absolute -top-10 -left-32 flex-col items-start gap-1 pointer-events-none select-none z-10">
+                {/* Label on top */}
+                <span
+                  className="text-sm font-medium text-primary/90 whitespace-nowrap ml-2"
+                  style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}
+                >
+                  Try a live session
+                </span>
+                {/* Arrow below, pointing right toward the phone */}
                 <svg
-                  width="40"
-                  height="44"
-                  viewBox="0 0 40 44"
+                  width="80"
+                  height="40"
+                  viewBox="0 0 80 40"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                   className="text-primary opacity-90"
                 >
-                  {/* Curve starting lower-left, sweeping up to upper-right */}
+                  {/* Curve starting left, sweeping right toward the phone */}
                   <path
-                    d="M6 38 C8 20, 20 10, 34 6"
+                    d="M4 8 C20 4, 50 20, 74 28"
                     stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     fill="none"
                   />
-                  {/* Two-flare arrowhead at upper-right */}
+                  {/* Two-flare arrowhead pointing right */}
                   <path
-                    d="M28 4 L35 6 L30 12"
+                    d="M66 22 L75 29 L65 34"
                     stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
@@ -65,13 +72,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                     fill="none"
                   />
                 </svg>
-                {/* Label */}
-                <span
-                  className="text-sm font-medium text-primary/90 whitespace-nowrap"
-                  style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}
-                >
-                  Try a live session
-                </span>
               </div>
               {/* Phone button */}
               <button
