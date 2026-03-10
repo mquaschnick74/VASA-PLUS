@@ -37,7 +37,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <div className="relative">
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
-              <div className="hidden md:flex absolute -top-10 -left-32 flex-col items-start gap-1 pointer-events-none select-none z-10">
+              <div className="hidden md:flex absolute -top-10 -left-14 flex-col items-start gap-1 pointer-events-none select-none z-10">
                 {/* Label on top */}
                 <span
                   className="text-sm font-medium text-primary/90 whitespace-nowrap ml-2"
@@ -47,24 +47,24 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </span>
                 {/* Arrow below, pointing right toward the phone */}
                 <svg
-                  width="80"
-                  height="40"
-                  viewBox="0 0 80 40"
+                  width="60"
+                  height="50"
+                  viewBox="0 0 60 50"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                   className="text-primary opacity-90"
                 >
-                  {/* Curve starting left, sweeping right toward the phone */}
+                  {/* 90-degree arc: starts going right from left, swoops down-right */}
                   <path
-                    d="M4 8 C20 4, 50 20, 74 28"
+                    d="M4 4 C4 30, 20 44, 54 44"
                     stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     fill="none"
                   />
-                  {/* Two-flare arrowhead pointing right */}
+                  {/* Arrowhead pointing right */}
                   <path
-                    d="M66 22 L75 29 L65 34"
+                    d="M46 38 L55 44 L46 50"
                     stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
