@@ -37,13 +37,21 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <button
               onClick={onTryDemo}
-              className="cursor-pointer group"
+              className="cursor-pointer group relative"
             >
               <img
                 src={phoneMockup}
                 alt="iVASA App"
                 className="max-w-sm lg:max-w-md w-full h-auto drop-shadow-2xl transition-all duration-300 group-hover:brightness-110 group-hover:scale-[1.02]"
               />
+              {/* Floating badge */}
+              <div className="group/badge absolute bottom-6 left-1/2 -translate-x-1/2 z-10 rounded-full px-4 py-2 bg-background/80 backdrop-blur-sm border border-primary/40 shadow-lg flex items-center gap-2 transition-all duration-200 hover:border-primary/80 hover:bg-background/95">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-75" />
+                  <span className="relative rounded-full h-2.5 w-2.5 bg-primary" />
+                </span>
+                <span className="text-sm font-medium text-white whitespace-nowrap">Try a Live Session</span>
+              </div>
             </button>
           </div>
 
