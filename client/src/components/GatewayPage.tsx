@@ -45,17 +45,17 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                   viewBox="0 0 36 36"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
-                  className="text-primary rotate-[200deg] opacity-90"
+                  className="text-primary opacity-90"
                 >
                   <path
-                    d="M6 10 C6 10, 8 24, 22 26"
+                    d="M8 8 C10 18, 18 26, 28 28"
                     stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     fill="none"
                   />
                   <path
-                    d="M18 22 L23 27 L17 30"
+                    d="M22 26 L29 29 L26 22"
                     stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
