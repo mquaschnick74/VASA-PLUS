@@ -293,7 +293,7 @@ export async function processContent(
 export async function getUserContentList(userId: string): Promise<any[]> {
   const { data, error } = await supabase
     .from('user_content')
-    .select('id, title, content_type, source, processing_status, chunk_count, created_at, original_filename, processing_error')
+    .select('id, title, content_type, source, processing_status, chunk_count, created_at, original_filename, processing_error, analysis_mode')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 

@@ -1118,8 +1118,9 @@ export const userContent = pgTable('user_content', {
   fileSize: integer('file_size'), // Size in bytes
   chunkCount: integer('chunk_count').default(0), // Number of knowledge_chunks created
   processingStatus: text('processing_status').notNull().default('pending'), // 'pending' | 'processing' | 'completed' | 'failed'
-  processingError: text('processing_error'), // Error message if failed
-  createdAt: timestamp('created_at').defaultNow(),
+  processingError: text('processing_error'),
+    analysisMode: text('analysis_mode').default('record'),
+    createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
