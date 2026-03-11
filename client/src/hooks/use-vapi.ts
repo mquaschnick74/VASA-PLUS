@@ -569,7 +569,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         firstMessage: null,  // MUST be null, not undefined or omitted
         firstMessageMode: "assistant-speaks-first-with-model-generated-message",
         // 🎯 Therapeutic Speech Configuration
-        // Deepgram nova-2 handles transcription with 1500ms silence endpointing.
+        // Deepgram nova-2 handles transcription with 500ms silence endpointing.
         // 1500ms is intentional: therapeutic speech includes natural mid-thought pauses
         // that 500ms would incorrectly treat as turn-end. The customEndpointingRules in
         // startSpeakingPlan extend the wait further for emotionally loaded questions and
@@ -580,7 +580,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
           model: 'nova-2',
           language: 'en-US',
           smartFormat: true,
-          endpointing: 1500
+          endpointing: 500
         },
         recordingEnabled: true,
         backgroundSpeechDenoisingPlan: {
