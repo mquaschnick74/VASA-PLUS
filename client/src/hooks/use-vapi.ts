@@ -532,8 +532,10 @@ Do NOT call the tool unless you actually need more context beyond what is alread
             },
             {
               // When user's speech ends with a trailing thought (comma, ellipsis, dash)
+              // OR a trailing connective/incomplete word (the, and, but, or, a, an, so, then, I, it, that, just, like, with, for, of)
+              // These indicate the user is mid-thought and was endpointed too early.
               type: 'customer' as const,
-              regex: '(,\\s*$|\\.{2,}\\s*$|—\\s*$|-\\s*$)',
+              regex: '(,\\s*$|\\.{2,}\\s*$|—\\s*$|-\\s*$|\\b(the|and|but|or|a|an|so|then|I|it|that|just|like|with|for|of)\\s*$)',
               timeoutSeconds: 6.0
             }
           ]
@@ -568,14 +570,17 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         firstMessageMode: "assistant-speaks-first-with-model-generated-message",
         // 🎯 Therapeutic Speech Configuration
         // Deepgram nova-2 handles transcription with 1500ms silence endpointing.
-        // customEndpointingRules in startSpeakingPlan extend the wait after emotionally loaded questions.
+        // 1500ms is intentional: therapeutic speech includes natural mid-thought pauses
+        // that 500ms would incorrectly treat as turn-end. The customEndpointingRules in
+        // startSpeakingPlan extend the wait further for emotionally loaded questions and
+        // trailing incomplete utterances.
         // waitSeconds is a FINAL delay after LLM+TTS are done, before audio plays — keep low.
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
           language: 'en-US',
           smartFormat: true,
-          endpointing: 500
+          endpointing: 1500
         },
         recordingEnabled: true,
         backgroundSpeechDenoisingPlan: {
