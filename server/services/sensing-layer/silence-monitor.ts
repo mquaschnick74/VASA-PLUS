@@ -248,35 +248,6 @@ function buildSessionContext(callId: string): string {
     if (session.latestGuidance.urgency) lines.push(`Urgency: ${session.latestGuidance.urgency}`);
   }
 
-  // NEW: Build client profile summary from pre-cached prior session data
-  function buildProfileContext(profile: any): string {
-    if (!profile) return 'No prior profile available — first session.';
-
-    const lines: string[] = [];
-
-    if (profile.patterns?.length > 0) {
-      const topPatterns = profile.patterns.slice(0, 3).map((p: any) => p.description);
-      lines.push(`Known Patterns: ${topPatterns.join('; ')}`);
-    }
-
-    if (profile.historicalMaterial?.length > 0) {
-      const topHistory = profile.historicalMaterial.slice(0, 2).map((h: any) => h.content);
-      lines.push(`Historical Material: ${topHistory.join('; ')}`);
-    }
-
-    if (profile.cssHistory?.length > 0) {
-      const lastStage = profile.cssHistory[0];
-      lines.push(`Last CSS Stage: ${lastStage.stage} (confidence: ${lastStage.confidence?.toFixed(2)})`);
-    }
-
-    if (profile.registerHistory?.length > 0) {
-      const lastRegister = profile.registerHistory[0];
-      lines.push(`Last Session Register: ${lastRegister.dominantRegister} (stuckness: ${lastRegister.stucknessScore?.toFixed(2)})`);
-    }
-
-    return lines.length > 0 ? lines.join('\n') : 'Profile exists but no prior session data yet.';
-  }
-
   // Register
   if (session.latestRegister) {
     lines.push(`Current Register: ${session.latestRegister.currentRegister}`);
@@ -308,6 +279,34 @@ function buildSessionContext(callId: string): string {
   lines.push(`Exchange Count: ${session.exchangeCount}`);
 
   return lines.join('\n');
+}
+
+function buildProfileContext(profile: any): string {
+  if (!profile) return 'No prior profile available — first session.';
+
+  const lines: string[] = [];
+
+  if (profile.patterns?.length > 0) {
+    const topPatterns = profile.patterns.slice(0, 3).map((p: any) => p.description);
+    lines.push(`Known Patterns: ${topPatterns.join('; ')}`);
+  }
+
+  if (profile.historicalMaterial?.length > 0) {
+    const topHistory = profile.historicalMaterial.slice(0, 2).map((h: any) => h.content);
+    lines.push(`Historical Material: ${topHistory.join('; ')}`);
+  }
+
+  if (profile.cssHistory?.length > 0) {
+    const lastStage = profile.cssHistory[0];
+    lines.push(`Last CSS Stage: ${lastStage.stage} (confidence: ${lastStage.confidence?.toFixed(2)})`);
+  }
+
+  if (profile.registerHistory?.length > 0) {
+    const lastRegister = profile.registerHistory[0];
+    lines.push(`Last Session Register: ${lastRegister.dominantRegister} (stuckness: ${lastRegister.stucknessScore?.toFixed(2)})`);
+  }
+
+  return lines.length > 0 ? lines.join('\n') : 'Profile exists but no prior session data yet.';
 }
 
 /**
