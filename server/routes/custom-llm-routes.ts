@@ -16,8 +16,22 @@ const openai = new OpenAI({
 // Module-level cache for narrative context, keyed by callId
 const narrativeContextCache = new Map<string, any>();
 
+const callRequestGeneration = new Map<string, number>();
+// Per-call streaming lock.
+// VAPI sends multiple concurrent requests for the same user turn as Deepgram
+// incrementally delivers its transcription. Each arrives ~300ms apart. Our
+// fast-sense completes in ~350–500ms — so each request IS the latest generation
+// by the time it checks. The generation counter therefore does not deduplicate them.
+//
+// This Set fixes that: the first request to reach the OpenAI streaming call
+// acquires the lock for its callId. Any request that arrives while a stream is
+// already open returns an empty SSE stop immediately. The lock is released in a
+// finally block after res.end(), so the next user turn gets a fresh lock.
+const streamingCallIds = new Set<string>();
 export function clearCustomLLMCache(callId: string): void {
   narrativeContextCache.delete(callId);
+  callRequestGeneration.delete(callId);
+  streamingCallIds.delete(callId);
 }
 
 router.post('/chat/completions', async (req: Request, res: Response) => {
@@ -132,6 +146,21 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   }
 
   // ─── Step 6: Forward to OpenAI and stream back ─────────────────────────
+  // Streaming gate: first request to reach this point acquires the lock for
+  // this callId. Any subsequent request that arrives while we are streaming
+  // (i.e., this callId is already in the Set) returns an empty SSE stop
+  // immediately so VAPI produces no speech output for that duplicate.
+  if (streamingCallIds.has(callId)) {
+    console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId} turns=${numUserTurns} already streaming — returning empty stop`);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.write(`data: ${JSON.stringify({ id: 'skip', object: 'chat.completion.chunk', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return;
+  }
+  streamingCallIds.add(callId);
   try {
     const completion = await openai.chat.completions.create({
       model: req.body.model || 'gpt-4o',
@@ -140,28 +169,22 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       max_completion_tokens: req.body.max_tokens ?? 300,
       stream: true,
     });
-
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-
     for await (const chunk of completion) {
       const data = JSON.stringify(chunk);
       res.write(`data: ${data}\n\n`);
     }
-
     res.write('data: [DONE]\n\n');
     res.end();
-
     const totalTime = Date.now() - requestStartTime;
     console.log(`🔵 [CUSTOM-LLM] Response streamed: call=${callId} turns=${numUserTurns}/${numAssistantTurns} total=${totalTime}ms`);
-
     // ─── Step 7: Async deep processing after stream ────────────────────
     if (!alreadyProcessedDeepPath && numUserTurns >= 1) {
       const conversationHistory = messages
         .filter((m) => m.role === 'user' || m.role === 'assistant')
         .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-
       const turnInput: TurnInput = {
         utterance: userUtterance,
         sessionId,
@@ -170,7 +193,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         exchangeCount: numUserTurns,
         conversationHistory,
       };
-
       sensingLayer.processUtterance(turnInput)
         .then((guidance) => {
           console.log(`🔵 [CUSTOM-LLM] Async deep path completed: posture=${guidance.posture}`);
@@ -181,11 +203,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     }
   } catch (error: any) {
     console.error(`🔴 [CUSTOM-LLM] OpenAI error: ${error.message}`, { callId, userId, agentName });
-
     if (!res.headersSent) {
       res.status(500).json({ error: 'LLM request failed', message: error.message });
     } else {
-      // Mid-stream failure — send graceful recovery message
       try {
         const errorChunk = {
           id: 'error',
@@ -205,7 +225,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         res.end();
       }
     }
+  } finally {
+    // Always release the streaming lock so the next user turn can stream.
+    streamingCallIds.delete(callId);
   }
 });
-
 export default router;
