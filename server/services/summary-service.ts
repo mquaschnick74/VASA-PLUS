@@ -75,8 +75,14 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
     console.log(`✅ AI summaries generated and stored successfully for call ${callId}`);
     return greetingContext;
 
-  } catch (error) {
-    console.error('❌ AI summary generation failed, using fallback:', error);
+  } catch (error: any) {
+  if (error?.message === 'NO_USER_SPEECH') {
+    console.log(`📝 [SUMMARY] No user speech in session ${callId} — storing minimal summary only`);
+    const minimalSummary = `${userName} was present but did not speak in this session.`;
+    await storeSummaries(userId, callId, minimalSummary, minimalSummary, agentName, userName);
+    return minimalSummary;
+  }
+  console.error('❌ AI summary generation failed, using fallback:', error);
     console.error('❌ Error details:', {
       message: (error as any)?.message,
       type: (error as any)?.type,
@@ -94,26 +100,58 @@ export async function generateEnhancedSessionSummary(data: SessionSummaryData): 
     );
 
     await storeSummaries(userId, callId, fallbackSummary, fallbackSummary, agentName, userName);
-    return fallbackSummary;
-  }
-}
+        return fallbackSummary;
+      }
+    }
 
-/**
- * Generate AI summaries using OpenAI
- */
-async function generateAISummaries(
-  transcript: string,
-  cssPatterns: any,
-  agentName: string,
-  duration: number,
-  userName: string
-): Promise<{ greetingContext: string; clinicalNotes: string }> {
+    /**
+     * Extract only genuine user speech from a raw transcript string.
+     * Filters out all agent/AI turns so summaries are never contaminated
+     * by agent-injected content (including silence monitor responses).
+     * Returns null if no user speech found.
+     */
+    function extractUserOnlyTranscript(transcript: string): string | null {
+      const lines = transcript.split('\n');
+      const userLines: string[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (/^user:/i.test(trimmed)) {
+          const content = trimmed.substring(trimmed.indexOf(':') + 1).trim();
+          if (content.length > 0) {
+            userLines.push(`User: ${content}`);
+          }
+        }
+      }
+
+      if (userLines.length === 0) return null;
+      return userLines.join('\n');
+    }
+
+    /**
+     * Generate AI summaries using OpenAI
+     */
+    async function generateAISummaries(
+      transcript: string,
+      cssPatterns: any,
+      agentName: string,
+      duration: number,
+      userName: string
+    ): Promise<{ greetingContext: string; clinicalNotes: string }> {
 
   // Check API key one more time
   if (!apiKey) {
     throw new Error('OpenAI API key not configured');
   }
 
+  // Filter transcript to user speech only.
+  // This prevents agent-injected content (including silence monitor responses)
+  // from being misread as user material by the summary LLM.
+  const userOnlyTranscript = extractUserOnlyTranscript(transcript);
+  if (!userOnlyTranscript) {
+    throw new Error('NO_USER_SPEECH');
+  }
+  
   // Prepare CSS context if available
   let cssContext = '';
   if (cssPatterns) {

@@ -531,6 +531,14 @@ async function generateReEngagementMessage(
   reEngagementCount: number,
   silenceDurationSeconds: number
 ): Promise<{ message: string; source: 'claude+rag' | 'claude' | 'template' }> {
+  // Guard: Claude requires a user signifier to work from.
+  // If the client has not yet spoken, Claude will hallucinate from profile vocabulary.
+  const lastUserMessage = getLastUserMessage(callId);
+  if (!lastUserMessage) {
+    console.log(`🔇 [SILENCE] No user utterance yet for call ${callId} — skipping Claude, using template`);
+    return { message: selectTemplateMessage(callId, reEngagementCount), source: 'template' };
+  }
+
   // Tier 1: Full Claude + RAG
   if (reEngagementCount === 1) {
     try {
@@ -543,7 +551,6 @@ async function generateReEngagementMessage(
       return { message: selectTemplateMessage(callId, reEngagementCount), source: 'template' };
     }
   }
-
   // Tier 2: Claude without RAG
   if (reEngagementCount === 2) {
     try {
@@ -556,7 +563,6 @@ async function generateReEngagementMessage(
       return { message: selectTemplateMessage(callId, reEngagementCount), source: 'template' };
     }
   }
-
   // Tier 3 & 4: Templates only
   return { message: selectTemplateMessage(callId, reEngagementCount), source: 'template' };
 }
