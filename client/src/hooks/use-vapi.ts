@@ -575,7 +575,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
           model: 'nova-2',
           language: 'en-US',
           smartFormat: true,
-          endpointing: 1500
+          endpointing: 500
         },
         recordingEnabled: true,
         backgroundSpeechDenoisingPlan: {
