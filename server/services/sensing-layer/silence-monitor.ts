@@ -492,7 +492,7 @@ async function generateReEngagementMessage(
 
 function armTimer(callId: string): void {
   const timer = silenceTimers.get(callId);
-  if (!timer || !timer.firstUserUtteranceReceived) return;
+  if (!timer) return;
 
   // Clear existing timeout
   clearTimeout(timer.timeout);
@@ -669,8 +669,9 @@ export function startSilenceMonitor(callId: string): void {
   });
   clearTimeout(silenceTimers.get(callId)!.timeout);
 
-  console.log(`🔇 [SILENCE] Started monitoring for call ${callId} (waiting for first user utterance)`);
-}
+    armTimer(callId);
+    console.log(`🔇 [SILENCE] Started monitoring for call ${callId}`);
+  }
 
 /**
  * Reset the silence timer. Called on each user message.
