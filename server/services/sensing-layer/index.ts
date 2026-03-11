@@ -57,6 +57,12 @@ import {
 
 const profileCache = new Map<string, { profile: UserTherapeuticProfile; loadedAt: number }>();
 
+// NEW: Expose cached profile to silence monitor and other sensing layer services
+export function getCachedProfile(callId: string): UserTherapeuticProfile | null {
+  const cached = profileCache.get(callId);
+  return cached ? cached.profile : null;
+}
+
 export class SensingLayerService {
   private static instance: SensingLayerService;
 

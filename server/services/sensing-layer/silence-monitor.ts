@@ -4,6 +4,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getCallState, getLastUserMessage, getConversationHistory, isSensingProcessing } from './call-state';
 import { getSessionState } from './session-state';
+import { getCachedProfile } from './index';
 import { injectSpokenReEngagement } from './guidance-injector';
 import { queryKnowledgeBase, buildRetrievedContext } from './knowledge-base';
 
@@ -247,6 +248,35 @@ function buildSessionContext(callId: string): string {
     if (session.latestGuidance.urgency) lines.push(`Urgency: ${session.latestGuidance.urgency}`);
   }
 
+  // NEW: Build client profile summary from pre-cached prior session data
+  function buildProfileContext(profile: any): string {
+    if (!profile) return 'No prior profile available — first session.';
+
+    const lines: string[] = [];
+
+    if (profile.patterns?.length > 0) {
+      const topPatterns = profile.patterns.slice(0, 3).map((p: any) => p.description);
+      lines.push(`Known Patterns: ${topPatterns.join('; ')}`);
+    }
+
+    if (profile.historicalMaterial?.length > 0) {
+      const topHistory = profile.historicalMaterial.slice(0, 2).map((h: any) => h.content);
+      lines.push(`Historical Material: ${topHistory.join('; ')}`);
+    }
+
+    if (profile.cssHistory?.length > 0) {
+      const lastStage = profile.cssHistory[0];
+      lines.push(`Last CSS Stage: ${lastStage.stage} (confidence: ${lastStage.confidence?.toFixed(2)})`);
+    }
+
+    if (profile.registerHistory?.length > 0) {
+      const lastRegister = profile.registerHistory[0];
+      lines.push(`Last Session Register: ${lastRegister.dominantRegister} (stuckness: ${lastRegister.stucknessScore?.toFixed(2)})`);
+    }
+
+    return lines.length > 0 ? lines.join('\n') : 'Profile exists but no prior session data yet.';
+  }
+
   // Register
   if (session.latestRegister) {
     lines.push(`Current Register: ${session.latestRegister.currentRegister}`);
@@ -331,6 +361,8 @@ async function generateTier1WithClaudeRAG(callId: string, silenceDurationSeconds
 
   const sessionContext = buildSessionContext(callId);
   const recentHistory = formatRecentHistory(callId, 8);
+  const tier2Profile = getCachedProfile(callId);
+  const profileContext = buildProfileContext(tier2Profile);
 
   // RAG: retrieve relevant therapeutic guidance
   let retrievedContext = '';
@@ -349,9 +381,12 @@ async function generateTier1WithClaudeRAG(callId: string, silenceDurationSeconds
   }
 
   const prompt = `You are a master psychodynamic therapist. The user has been silent for ${silenceDurationSeconds} seconds after the following therapeutic exchange. Your task is to generate a single brief re-engagement response (1-2 sentences max) that will be spoken aloud by the voice agent.
-${retrievedContext}
-## Session Context
-${sessionContext}
+
+  ## Client Profile (Prior Sessions)
+  ${profileContext}
+  ${retrievedContext}
+  ## Current Session Context
+  ${sessionContext}
 
 ## Recent Conversation
 ${recentHistory}
@@ -403,9 +438,16 @@ async function generateTier2WithClaude(callId: string, silenceDurationSeconds: n
   }
 
   const session = getSessionState(callId);
-  const recentHistory = formatRecentHistory(callId, 3);
+const recentHistory = formatRecentHistory(callId, 3);
+const profile = getCachedProfile(callId);
+const profileContext = buildProfileContext(profile);
 
-  const prompt = `The user has been silent for ${silenceDurationSeconds} seconds. This is the second check-in. Based on this session context:
+const prompt = `The user has been silent for ${silenceDurationSeconds} seconds. This is the second check-in.
+
+## Client Profile (Prior Sessions)
+${profileContext}
+
+Based on this session context:
 - Register: ${session?.latestRegister?.currentRegister || 'unknown'}
 - Posture: ${session?.latestGuidance?.posture || 'unknown'}
 - Movement: ${session?.latestMovement?.trajectory || 'unknown'}
