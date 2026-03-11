@@ -73,9 +73,14 @@ const TEMPLATES: Record<string, string[]> = {
     "Still here.",
     "Yeah."
   ],
+  session_opening: [
+    "Whenever you're ready.",
+    "No rush.",
+    "Take the space."
+  ],
   escalation_2: [
     "What's present for you right now?",
-    "Checking in — where are you right now?"
+    "Where are you right now?"
   ],
   escalation_3: [
     "Would you like to keep going, or would a pause help?",
@@ -187,6 +192,13 @@ function pickRandom(arr: string[]): string {
 }
 
 function selectTemplateMessage(callId: string, reEngagementCount: number): string {
+  // If the user has not yet spoken, use session-opening templates only.
+  // Default and escalation templates presuppose prior user speech and sound wrong as openers.
+  const lastUserMessage = getLastUserMessage(callId);
+  if (!lastUserMessage) {
+    return pickRandom(TEMPLATES.session_opening);
+  }
+
   // Tier 3: structural escalation
   if (reEngagementCount === 3) return pickRandom(TEMPLATES.escalation_3);
 

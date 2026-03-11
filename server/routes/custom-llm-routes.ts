@@ -84,33 +84,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
       console.log(`🔵 [CUSTOM-LLM] Fast sense: ${fastResult.processingTimeMs}ms, critical: ${fastResult.isCriticalMoment}, fragments: ${fastResult.resonance.matchedFragments.length}`);
 
-      // ─── Step 4: Critical moment — run deep path synchronously ─────────
+      // ─── Step 4: Critical moment — deep path runs async (informs NEXT turn)
       if (fastResult.isCriticalMoment) {
-        const conversationHistory = messages
-          .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-
-        const turnInput: TurnInput = {
-          utterance: userUtterance,
-          sessionId,
-          callId,
-          userId,
-          exchangeCount: numUserTurns,
-          conversationHistory,
-        };
-
-        const deepGuidance = await sensingLayer.processUtterance(turnInput);
         alreadyProcessedDeepPath = true;
-
-        console.log(`🔵 [CUSTOM-LLM] Deep path completed for critical moment: posture=${deepGuidance.posture}`);
-
-        guidanceInjection += `\n\nDEEP ANALYSIS: Posture: ${deepGuidance.posture}. ${deepGuidance.strategicDirection}`;
-        if (deepGuidance.framing) {
-          guidanceInjection += ` Framing: ${deepGuidance.framing}`;
-        }
-        if (deepGuidance.avoidances.length > 0) {
-          guidanceInjection += ` Avoid: ${deepGuidance.avoidances.join(', ')}`;
-        }
+        console.log(`🔵 [CUSTOM-LLM] Critical moment detected — deep path will run async after stream`);
       }
     }
   } catch (sensingError: any) {

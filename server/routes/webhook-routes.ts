@@ -641,6 +641,9 @@ router.post('/webhook', async (req, res) => {
             }
             lastProcessedMessageIndex.set(callId, formattedConversation.length);
 
+            // SILENCE MONITOR: Reset timer on each confirmed user utterance
+            resetSilenceTimer(callId);
+
             // NOTE: Sensing layer processing is handled exclusively by the custom LLM
             // endpoint (server/routes/custom-llm-routes.ts). processSensingLayerAsync
             // was removed from here to prevent double-processing every utterance.
