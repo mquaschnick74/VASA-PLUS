@@ -82,7 +82,7 @@ Be concise. Only include patterns with confidence > 0.4. Focus on depth psycholo
 
     const response = await client.messages.create({
       model: 'claude-3-haiku-20240307',
-      max_tokens: 600,
+      max_tokens: 1200,
       messages: [{ role: 'user', content: prompt }]
     });
 
@@ -96,7 +96,13 @@ Be concise. Only include patterns with confidence > 0.4. Focus on depth psycholo
       return { patterns: [], emerging: [], explicitIdentification: null };
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('🔍 [LLM Pattern Detection] JSON parse failed. Raw response:', content.text.slice(0, 500));
+      return { patterns: [], emerging: [], explicitIdentification: null };
+    }
 
     const patterns: DetectedPattern[] = (parsed.detectedPatterns || []).map((p: any, idx: number) => ({
       patternId: `llm-detected-${Date.now()}-${idx}`,

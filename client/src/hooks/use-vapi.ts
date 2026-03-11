@@ -566,16 +566,16 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         },
         firstMessage: null,  // MUST be null, not undefined or omitted
         firstMessageMode: "assistant-speaks-first-with-model-generated-message",
-        // Deepgram Flux: content-aware end-of-turn detection for therapeutic conversations
-        // eotThreshold 0.9 = very conservative (waits until highly confident user is done)
-        // eotTimeoutMs 10000 = allows up to 10 seconds of silence before forcing turn end
-        // Do NOT set smartEndpointingPlan — Flux's built-in EOT replaces it
+        // 🎯 Therapeutic Speech Configuration
+        // Deepgram nova-2 handles transcription with 1500ms silence endpointing.
+        // customEndpointingRules in startSpeakingPlan extend the wait after emotionally loaded questions.
+        // waitSeconds is a FINAL delay after LLM+TTS are done, before audio plays — keep low.
         transcriber: {
           provider: 'deepgram',
-          model: 'flux-general-en',
-          language: 'en',
-          eotThreshold: 0.9,
-          eotTimeoutMs: 10000
+          model: 'nova-2',
+          language: 'en-US',
+          smartFormat: true,
+          endpointing: 1500
         },
         recordingEnabled: true,
         backgroundSpeechDenoisingPlan: {
