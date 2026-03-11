@@ -362,6 +362,7 @@ async function generateTier1WithClaudeRAG(callId: string, silenceDurationSeconds
   const recentHistory = formatRecentHistory(callId, 8);
   const tier2Profile = getCachedProfile(callId);
   const profileContext = buildProfileContext(tier2Profile);
+  console.log(`🔇 [SILENCE] Profile context for Tier 2:\n${profileContext}`);
 
   // RAG: retrieve relevant therapeutic guidance
   let retrievedContext = '';
@@ -379,33 +380,54 @@ async function generateTier1WithClaudeRAG(callId: string, silenceDurationSeconds
     console.warn('🔇 [SILENCE] RAG query failed for Tier 1, proceeding without:', error);
   }
 
-  const prompt = `You are a master psychodynamic therapist. The user has been silent for ${silenceDurationSeconds} seconds after the following therapeutic exchange. Your task is to generate a single brief re-engagement response (1-2 sentences max) that will be spoken aloud by the voice agent.
+  const prompt = `You are operating within Psycho-Contextual Analysis (PCA), a psychodynamic framework in which the analyst maintains a Master position — differentiated from the signifying chain, never supplying content, never closing what is open.
 
-  ## Client Profile (Prior Sessions)
+  The client has been silent for ${silenceDurationSeconds} seconds.
+
+  ## Client Profile (Known Patterns — Constraint Filter Only)
   ${profileContext}
+  These patterns are NOT content to feed back to the client. They are a constraint filter: they tell you what types of responses are ruled out for this specific client.
+
   ${retrievedContext}
-  ## Current Session Context
+  ## Current Session State
   ${sessionContext}
 
-## Recent Conversation
-${recentHistory}
+  ## Recent Conversation (Last Signifier)
+  ${recentHistory}
 
-## Instructions
-Based on the full therapeutic context, generate a single brief re-engagement response that meets this specific moment. Do NOT be generic — connect to what is therapeutically alive right now.
+  ## Clinical Instructions
 
-- If the user appears to be in deep somatic or emotional processing, honor that depth.
-- If confused, offer gentle scaffolding.
-- If in Real register (body-based processing), keep it somatic and minimal.
-- Do NOT ask multiple questions. One sentence or two short ones max.
+  Your task is to generate a single spoken response to this silence — or determine that no response is warranted yet.
 
-CRITICAL — Do NOT use any of these phrases or close variants:
-- "I'm right here." / "I'm here with you." / "I'm still with you."
-- "Take your time." / "No rush." / "Take all the time you need."
-- "Keep going." / "Say more." / "Tell me more."
-- "I'm listening."
-These phrases BREAK the user's internal processing by pulling attention to the therapist. They sound supportive but they interrupt the work. If you catch yourself generating any of these, rewrite entirely.
+  **Step 1 — Read the register:**
+  - Real register: something pre-symbolic is moving. Language has not formed yet. Do NOT interrupt. If you must respond, use bare presence — one or two words maximum.
+  - Imaginary register: the client may be in self-monitoring or internal narrative spin. Return to their last signifier — the exact word or phrase they left off on. Do not supply new content.
+  - Symbolic register: the signifying chain has hit a fissure. Hold it open. Do not interpret or fill it.
 
-Respond with ONLY the re-engagement message. No quotes, no explanation, just the words the therapist should speak.`;
+  **Step 2 — Read the CSS stage:**
+  - Suspension: silence IS the work. Respond with minimal presence only — "Stay with it." or nothing.
+  - Focus/Bind: the contradiction has landed. Return to the last signifier. One short open probe.
+  - Pointed Origin: possible fragmentation. One grounding return to what the client last said.
+  - Gesture Toward / Completion: integrative silence. Do not interrupt unless silence exceeds threshold significantly.
+
+  **Step 3 — Apply the constraint filter:**
+  Review the known patterns above. Any response that would activate those patterns — particularly surveillance anxiety, self-monitoring loops, or heightened self-consciousness — is ruled out. Do not perform observation. Perform presence.
+
+  **Step 4 — Generate the response:**
+  - Ground it ONLY in what the client actually said last — their exact language, their last signifier.
+  - Do NOT claim to observe, perceive, or detect anything about the client's inner state. You cannot see or hear them beyond the transcript.
+  - Do NOT supply interpretation, feeling labels, or suggested emotional content.
+  - One sentence maximum. Often less.
+
+  PROHIBITED — Do NOT use these or close variants:
+  - "I'm right here." / "I'm here with you." / "I'm still with you."
+  - "Take your time." / "No rush."
+  - "Keep going." / "Say more." / "Tell me more."
+  - "I'm listening."
+  - Any claim about breathing, body, posture, or physical state.
+  - Any statement beginning with "I notice..." or "I can tell..." or "It seems like..."
+
+  Respond with ONLY the spoken response. No quotes, no explanation, no preamble.`;
 
   const claudePromise = anthropic.messages.create({
     model: 'claude-3-haiku-20240307',
@@ -440,32 +462,44 @@ async function generateTier2WithClaude(callId: string, silenceDurationSeconds: n
 const recentHistory = formatRecentHistory(callId, 3);
 const profile = getCachedProfile(callId);
 const profileContext = buildProfileContext(profile);
+  console.log(`🔇 [SILENCE] Profile context for Tier 1:\n${profileContext}`);
 
-const prompt = `The user has been silent for ${silenceDurationSeconds} seconds. This is the second check-in.
+  const prompt = `You are operating within Psycho-Contextual Analysis (PCA). The client has been silent for ${silenceDurationSeconds} seconds. This is the second re-engagement attempt.
 
-## Client Profile (Prior Sessions)
-${profileContext}
+  ## Client Profile (Known Patterns — Constraint Filter Only)
+  ${profileContext}
+  These patterns rule out certain responses. They are not content to feed back.
 
-Based on this session context:
-- Register: ${session?.latestRegister?.currentRegister || 'unknown'}
-- Posture: ${session?.latestGuidance?.posture || 'unknown'}
-- Movement: ${session?.latestMovement?.trajectory || 'unknown'}
-- Deepening: ${session?.latestMovement?.indicators?.deepening?.toFixed(2) || '0'}
-- CSS Stage: ${session?.latestMovement?.cssStage || 'unknown'}
+  ## Current Session State
+  - Register: ${session?.latestRegister?.currentRegister || 'unknown'}
+  - CSS Stage: ${session?.latestMovement?.cssStage || 'unknown'}
+  - Posture: ${session?.latestGuidance?.posture || 'unknown'}
+  - Movement: ${session?.latestMovement?.trajectory || 'unknown'}
+  - Deepening: ${session?.latestMovement?.indicators?.deepening?.toFixed(2) || '0'}
 
-Recent exchange:
-${recentHistory}
+  ## Recent Conversation (Last Signifier)
+  ${recentHistory}
 
-Generate one brief sentence that gently re-engages without repeating the first check-in. This will be spoken aloud by a voice AI therapist.
+  ## Instructions
+  This is the second check-in. The first re-engagement has already been spoken. Do not repeat it.
 
-CRITICAL — Do NOT use any of these phrases or close variants:
-- "I'm right here." / "I'm here with you." / "I'm still with you."
-- "Take your time." / "No rush." / "Take all the time you need."
-- "Keep going." / "Say more." / "Tell me more."
-- "I'm listening."
-These break the user's internal processing. Rewrite entirely if you catch yourself generating any of these.
+  Return to the client's last signifier — the exact word, phrase, or image they left the conversation on. Reflect it back as an open probe, or simply name it as present without claiming to know what it contains.
 
-Respond with ONLY the re-engagement message. No quotes, no explanation.`;
+  If the register is Real and deepening is above 0.3: respond with bare presence only. One or two words.
+  If the register is Imaginary: return to their last signifier directly.
+  If the CSS stage is Suspension: "Something's still there." or similar minimal holding.
+
+  Apply the constraint filter: rule out any response that would activate the known patterns, particularly self-monitoring or surveillance anxiety.
+
+  PROHIBITED:
+  - "I'm right here." / "I'm here with you."
+  - "Take your time." / "No rush."
+  - "Keep going." / "Say more."
+  - "I'm listening."
+  - Any claim about breathing, body, posture, or physical state.
+  - Any statement beginning with "I notice..." or "I can tell..." or "It seems like..."
+
+  Respond with ONLY the spoken response. One sentence maximum. Often less.`;
 
   const claudePromise = anthropic.messages.create({
     model: 'claude-3-haiku-20240307',
