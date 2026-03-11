@@ -575,7 +575,7 @@ router.post('/webhook', async (req, res) => {
         // SILENCE MONITOR: Disabled — custom LLM endpoint now handles therapeutic
         // guidance injection pre-response. Proactive re-engagement during extended
         // silence will be rebuilt as an integrated part of the custom LLM pipeline.
-        // startSilenceMonitor(callId);
+        startSilenceMonitor(callId);
 
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
@@ -713,7 +713,7 @@ router.post('/webhook', async (req, res) => {
       }
 
       // SILENCE MONITOR: Disabled — see call-started comment
-      // stopSilenceMonitor(callId);
+      stopSilenceMonitor(callId);
 
       // GUIDANCE GATE: Clear any pending guidance
       clearPendingGuidance(callId);
