@@ -478,3 +478,59 @@ export function clearPendingGuidance(callId: string): void {
   pendingTriggerResponse.delete(callId);
   lastInjectedHash.delete(callId);
 }
+
+/**
+ * Inject a silence signal into the conversation via VAPI add-message.
+ * Triggers the agent to generate its own response using PCA framework knowledge.
+ * Used for silence Tiers 1, 2, and 3.
+ * Tier 4 continues to use injectSpokenReEngagement.
+ */
+export async function injectSilenceContext(
+  callId: string,
+  silenceSignal: string
+): Promise<boolean> {
+  if (!isCallActive(callId)) {
+    console.warn(`⚠️ [SILENCE-INJECT] Call not active, skipping`, { callId });
+    return false;
+  }
+
+  const controlUrl = (getControlUrl(callId) || '').trim().replace(/^<|>$/g, '');
+  if (!controlUrl.startsWith('https://')) {
+    console.error(`🛑 [SILENCE-INJECT] No valid controlUrl for call ${callId}`);
+    return false;
+  }
+
+  console.log(`🔇 [SILENCE-INJECT] Injecting silence context for call ${callId}: "${silenceSignal}"`);
+
+  try {
+    const response = await fetch(controlUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'add-message',
+        message: {
+          role: 'system',
+          content: silenceSignal,
+        },
+        triggerResponseEnabled: true,
+      }),
+    });
+
+    const responseText = await response.text().catch(() => '');
+
+    if (!response.ok) {
+      console.error(`❌ [SILENCE-INJECT] Failed`, {
+        callId,
+        status: response.status,
+        body: responseText.slice(0, 400),
+      });
+      return false;
+    }
+
+    console.log(`✅ [SILENCE-INJECT] Injected for call ${callId}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ [SILENCE-INJECT] Error:`, error);
+    return false;
+  }
+}
