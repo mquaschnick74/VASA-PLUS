@@ -488,7 +488,8 @@ export class SensingLayerService {
         historicalResult,
         mappingsResult,
         registerResult,
-        cssResult
+        cssResult,
+        lastSessionResult
       ] = await Promise.all([
         supabase
           .from('user_patterns')
@@ -524,7 +525,15 @@ export class SensingLayerService {
           .select('id, user_id, css_stage, confidence, detected_at, content')
           .eq('user_id', userId)
           .order('detected_at', { ascending: false })
-          .limit(20)
+          .limit(20),
+
+        supabase
+          .from('therapeutic_context')
+          .select('content')
+          .eq('user_id', userId)
+          .eq('context_type', 'conversational_summary')
+          .order('created_at', { ascending: false })
+          .limit(1)
       ]);
 
       // Transform database rows to domain types
@@ -539,7 +548,8 @@ export class SensingLayerService {
         historicalMaterial,
         symbolicMappings,
         registerHistory,
-        cssHistory
+        cssHistory,
+        lastSessionSummary: lastSessionResult.data?.[0]?.content ?? null,
       };
 
     } catch (error) {

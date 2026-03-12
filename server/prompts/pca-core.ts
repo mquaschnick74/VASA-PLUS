@@ -128,11 +128,16 @@ Known CVDC: CVDC not yet identified — in active Prescripting.
 Patterns: No patterns recorded.
 Prior significant moments: No prior sessions.`;
   }
+  const lastSession = profile.lastSessionSummary
+    ? `Last session: ${profile.lastSessionSummary}`
+    : 'Last session: No prior session summary available.';
+
   const block = `[CLIENT CONTEXT — ${firstName}]
 ${assembleCSSStage(profile)}
 ${assembleRegisterPattern(profile)}
 Known CVDC: CVDC not yet identified — in active Prescripting.
 ${assemblePatterns(profile)}
+${lastSession}
 Prior significant moments: Not yet available — session finalizer build pending.`;
   const approxTokens = Math.round(block.length / 4);
   if (approxTokens > 200) {
