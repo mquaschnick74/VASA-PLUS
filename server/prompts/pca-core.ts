@@ -145,15 +145,49 @@ Prior significant moments: Not yet available — session finalizer build pending
   }
   return block;
 }
+// ─── Returning-session greeting instruction ───────────────────────────────────
+function buildReturningSessionGreetingInstruction(
+  firstName: string,
+  lastSessionSummary: string | null
+): string {
+  const summaryRef = lastSessionSummary
+    ? `The Last session field in the profile block below is your source. It reads:\n"${lastSessionSummary.slice(0, 400)}${lastSessionSummary.length > 400 ? '...' : ''}"`
+    : 'The profile block below has what context is available from prior sessions.';
+
+  return `RETURNING SESSION — GREETING INSTRUCTION:
+This is NOT a first session. Do not use your first session opening line.
+
+Your first utterance is 2–3 sentences maximum: one acknowledgment, ONE specific reference to the single most alive or unfinished thread from the last session, one invitation in.
+
+Do NOT summarize. Do NOT list multiple topics or patterns. Pick one thread. One sentence about it. Invite them in.
+
+${summaryRef}
+
+CORRECT: "Hey ${firstName}. Last time something tightened up when we got near the idea of choosing — not just surviving. Where are you with that today?"
+INCORRECT: "Hello ${firstName}. Last time we talked about your sense of obligation, how you manage things, and the pattern of checking whether I'm still here."
+
+Pick one thread. Speak from there.`;
+}
+
 // ─── Full prompt assembly ─────────────────────────────────────────────────────
 export function assembleSystemPrompt(
   agentId: string,
   firstName: string,
-  profileBlock: string
+  profileBlock: string,
+  isFirstSession: boolean = true,
+  lastSessionSummary: string | null = null
 ): string {
   const prefix = AGENT_PREFIXES[agentId.toLowerCase()] ?? AGENT_PREFIXES['marcus'] ?? '';
   const personalizedPrefix = prefix.replace(/\{firstName\}/g, firstName);
-  return [
+
+  const parts: string[] = [];
+
+  if (!isFirstSession) {
+    parts.push(buildReturningSessionGreetingInstruction(firstName, lastSessionSummary));
+    parts.push('');
+  }
+
+  parts.push(
     personalizedPrefix,
     '',
     profileBlock,
@@ -166,8 +200,8 @@ export function assembleSystemPrompt(
     '',
     LAYER_4,
     '',
-    LAYER_6,
-    '',
     HSFB_PROTOCOL,
-  ].join('\n');
+  );
+
+  return parts.join('\n');
 }

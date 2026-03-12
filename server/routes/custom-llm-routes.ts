@@ -84,12 +84,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   // Step 2: Initialize session on first turn
   if (!initializedCalls.has(callId)) {
     initializedCalls.add(callId);
-    if (numUserTurns <= 1) {
-      sensingLayer.initializeCallSession(callId, userId, sessionId).catch((err) => {
-        console.error(`🔵 [CUSTOM-LLM] Session init error:`, err);
-      });
-    } else {
+    try {
       await sensingLayer.initializeCallSession(callId, userId, sessionId);
+    } catch (err) {
+      console.error(`🔵 [CUSTOM-LLM] Session init error:`, err);
     }
     console.log(`🔵 [CUSTOM-LLM] Session initialized for call ${callId}`);
   }
@@ -100,9 +98,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     !cachedProfile ||
     !cachedProfile.registerHistory ||
     cachedProfile.registerHistory.length === 0;
+  const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
 
   const profileBlock = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
-  const fullSystemPrompt = assembleSystemPrompt(agentId, firstName, profileBlock);
+  const fullSystemPrompt = assembleSystemPrompt(agentId, firstName, profileBlock, isFirstSession, lastSessionSummary);
 
   const modifiedMessages = JSON.parse(JSON.stringify(messages));
   const systemMessageIdx = modifiedMessages.findIndex((m: any) => m.role === 'system');
