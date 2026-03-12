@@ -94,11 +94,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
   // Step 3: Assemble full PCA system prompt
   const cachedProfile = getCachedProfile(callId);
-  const isFirstSession =
-    !cachedProfile ||
-    !cachedProfile.registerHistory ||
-    cachedProfile.registerHistory.length === 0;
   const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
+  const isFirstSession = lastSessionSummary === null;
 
   const profileBlock = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
   const fullSystemPrompt = assembleSystemPrompt(agentId, firstName, profileBlock, isFirstSession, lastSessionSummary);
