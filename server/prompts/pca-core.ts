@@ -3,10 +3,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { UserTherapeuticProfile } from '../services/sensing-layer/types';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // ─── Resolve paths ────────────────────────────────────────────────────────────
 function resolveLayerPath(filename: string): string {
   const candidates = [
     path.join(process.cwd(), 'server', 'prompts', 'layers', filename),
+    path.join(process.cwd(), 'attached_assets', filename),
     path.join(__dirname, 'layers', filename),
   ];
   for (const p of candidates) {
