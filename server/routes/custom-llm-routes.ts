@@ -109,6 +109,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     console.warn(`🔵 [CUSTOM-LLM] No system message from VAPI — inserted assembled prompt`);
   }
 
+  console.log(`🔵 [CUSTOM-LLM] Prompt size: ${fullSystemPrompt.length} chars (~${Math.round(fullSystemPrompt.length / 4)} tokens)`);
+
   // Step 4: Streaming lock gate
   if (streamingCallIds.has(callId)) {
     console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId}`);
