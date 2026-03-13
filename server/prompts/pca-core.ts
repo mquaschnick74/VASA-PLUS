@@ -42,7 +42,6 @@ function readLayer1(): string {
   return '[Layer 1: Theoretical Foundation — file not found]';
 }
 // ─── Load all layers at startup ───────────────────────────────────────────────
-export const LAYER_1 = readLayer1();
 export const LAYER_2 = readLayer('layer-2.txt');
 export const LAYER_3 = readLayer('layer-3.txt');
 export const LAYER_4 = readLayer('layer-4.txt');
@@ -191,8 +190,6 @@ export function assembleSystemPrompt(
     personalizedPrefix,
     '',
     profileBlock,
-    '',
-    LAYER_1,
     '',
     LAYER_2,
     '',
