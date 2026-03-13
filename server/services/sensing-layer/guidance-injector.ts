@@ -1,7 +1,8 @@
 // server/services/sensing-layer/guidance-injector.ts
 // Injects therapeutic guidance into VAPI conversations via controlUrl
 
-import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance } from './types';
+import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance, RegisterAnalysisResult, MovementAssessmentResult } from './types';
+import { TherapeuticStateVector } from './state-vector';
 import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
 
 // Pending guidance queue: holds guidance deferred while agent is speaking
@@ -179,6 +180,54 @@ export function formatGuidanceAsSystemMessage(guidance: TherapeuticGuidance): st
   lines.push(`---`);
   lines.push(`Confidence: ${Math.round(guidance.confidence * 100)}%`);
   lines.push(`Remember: Speak warmly and naturally. This guidance shapes WHAT you explore, not HOW you sound.`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Format a perceptual session picture for the agent — describes the clinical field,
+ * not directives. Used by the custom-LLM fast path.
+ */
+export function formatSessionPicture(
+  guidance: TherapeuticGuidance,
+  register: RegisterAnalysisResult,
+  movement: MovementAssessmentResult,
+  stateVector: TherapeuticStateVector,
+  exchangeCount: number
+): string {
+  const cssStageLabels: Record<string, string> = {
+    pointed_origin: 'Pointed Origin',
+    focus_bind: 'Focus/Bind',
+    suspension: 'Suspension',
+    gesture_toward: 'Gesture Toward',
+    completion: 'Completion',
+    terminal: 'Terminal'
+  };
+
+  const stuckLabel = register.stucknessScore > 0.6 ? 'high stuckness' :
+                     register.stucknessScore > 0.35 ? 'moderate stuckness' : 'fluid';
+
+  const movementLabel = movement.trajectory === 'toward_mastery' ? 'deepening' :
+                        movement.trajectory === 'away_from_mastery' ? 'resisting' :
+                        movement.trajectory === 'cycling' ? 'cycling' : 'holding';
+
+  const cssLabel = cssStageLabels[stateVector.coupled.cssStage] ?? stateVector.coupled.cssStage;
+  const proximity = stateVector.coupled.phaseTransitionProximity.toFixed(2);
+
+  const confidenceLabel = guidance.confidence >= 0.7 ? 'high' :
+                          guidance.confidence >= 0.45 ? 'moderate' : 'low';
+
+  const lines = [
+    `[SESSION PICTURE — Exchange ${exchangeCount}]`,
+    `Register: ${register.currentRegister} foregrounded. ${stuckLabel}.`,
+    `Movement: ${movementLabel}.`,
+    `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
+    `CVDC: not yet visible`,
+    `IBM: none this turn`,
+    `Narrative: not yet mapped`,
+    `Patterns: none this turn`,
+    `Confidence: ${confidenceLabel}`,
+  ];
 
   return lines.join('\n');
 }

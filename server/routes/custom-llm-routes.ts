@@ -9,7 +9,7 @@ import {
   clearFooterState,
   type FooterState,
 } from '../prompts/pca-core';
-import { formatGuidanceAsSystemMessage } from '../services/sensing-layer/guidance-injector';
+import { formatGuidanceAsSystemMessage, formatSessionPicture } from '../services/sensing-layer/guidance-injector';
 
 const router = Router();
 
@@ -151,14 +151,20 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       };
 
       // Fast path — blocks ~16ms, produces session picture
-      const guidance = await sensingLayer.processFastUtterance(turnInput);
+      const fastResult = await sensingLayer.processFastUtterance(turnInput);
 
-      // Full cascade — async, never blocks response, accumulates patterns
+      // Full cascade — async, accumulates patterns for future turns
       sensingLayer.processUtterance(turnInput).catch(err =>
         console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
       );
 
-      const guidanceMessage = formatGuidanceAsSystemMessage(guidance);
+      const guidanceMessage = formatSessionPicture(
+        fastResult.guidance,
+        fastResult.register,
+        fastResult.movement,
+        fastResult.stateVector,
+        numUserTurns
+      );
 
       let lastUserIdx = -1;
       for (let i = modifiedMessages.length - 1; i >= 0; i--) {
@@ -167,7 +173,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       if (lastUserIdx !== -1) {
         modifiedMessages.splice(lastUserIdx, 0, { role: 'system', content: guidanceMessage });
       }
-      console.log(`🔵 [CUSTOM-LLM] Fast guidance injected: call=${callId} turns=${numUserTurns} posture=${guidance.posture}`);
+      console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${fastResult.register.currentRegister} movement=${fastResult.movement.trajectory}`);
     } catch (err) {
       console.error(`🔵 [CUSTOM-LLM] Fast guidance error (non-fatal):`, err);
     }

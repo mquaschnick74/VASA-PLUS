@@ -51,6 +51,7 @@ import {
   PatternDetectionResult,
   SymbolicMappingResult,
   RegisterAnalysisResult,
+  MovementAssessmentResult,
   PatternType,
   AwarenessLevel,
   SymbolicConnectionType
@@ -308,7 +309,12 @@ export class SensingLayerService {
    * Runs register analysis + movement assessment only (no LLM calls).
    * Used by the custom-LLM route for same-turn guidance injection.
    */
-  async processFastUtterance(input: TurnInput): Promise<TherapeuticGuidance> {
+  async processFastUtterance(input: TurnInput): Promise<{
+    guidance: TherapeuticGuidance;
+    register: RegisterAnalysisResult;
+    movement: MovementAssessmentResult;
+    stateVector: TherapeuticStateVector;
+  }> {
     const fastStart = Date.now();
 
     // Load profile from cache only — never DB on fast path
@@ -317,16 +323,22 @@ export class SensingLayerService {
     if (cached) {
       profile = cached.profile;
     } else {
-      // Cache miss on fast path — return minimal guidance immediately
+      // Cache miss on fast path — return minimal fallback immediately
       console.warn(`⚡ [FAST] Cache miss for call ${input.callId} — returning default guidance`);
-      return {
+      const fallbackGuidance: TherapeuticGuidance = {
         posture: 'wait_and_track',
-        registerDirection: { from: 'Imaginary', toward: 'Real', technique: 'listen' },
-        strategicDirection: 'Hold space. Track what the material produces.',
+        registerDirection: null,
+        strategicDirection: '',
         avoidances: [],
-        framing: '',
+        framing: null,
         urgency: 'low',
         confidence: 0.3
+      };
+      return {
+        guidance: fallbackGuidance,
+        register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } },
+        movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] },
+        stateVector: { raw: { patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null }, register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } }, symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } }, movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] } }, coupled: { movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3 }, velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 }, exchangeNumber: 0, timestamp: new Date() }
       };
     }
 
@@ -386,7 +398,12 @@ export class SensingLayerService {
 
     const guidance = await generateGuidance(fastOSR, input);
     console.log(`⚡ [FAST] Sensing complete in ${Date.now() - fastStart}ms: posture=${guidance.posture}`);
-    return guidance;
+    return {
+      guidance,
+      register,
+      movement,
+      stateVector
+    };
   }
 
   /**
