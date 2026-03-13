@@ -9,6 +9,7 @@ import {
   clearFooterState,
   type FooterState,
 } from '../prompts/pca-core';
+import { formatGuidanceAsSystemMessage } from '../services/sensing-layer/guidance-injector';
 
 const router = Router();
 
@@ -129,6 +130,39 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     return;
   }
   streamingCallIds.add(callId);
+
+  // Step 4a: Run sensing cascade on current utterance (same-turn)
+  const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content;
+  if (currentUtterance && numUserTurns > 0) {
+    try {
+      const conversationHistory = modifiedMessages
+        .filter((m: any) => m.role === 'user' || m.role === 'assistant')
+        .slice(0, -1)
+        .map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+      const guidance = await sensingLayer.processUtterance({
+        utterance: currentUtterance,
+        sessionId,
+        callId,
+        userId,
+        exchangeCount: numUserTurns,
+        conversationHistory,
+      });
+
+      const guidanceMessage = formatGuidanceAsSystemMessage(guidance);
+
+      let lastUserIdx = -1;
+      for (let i = modifiedMessages.length - 1; i >= 0; i--) {
+        if (modifiedMessages[i].role === 'user') { lastUserIdx = i; break; }
+      }
+      if (lastUserIdx !== -1) {
+        modifiedMessages.splice(lastUserIdx, 0, { role: 'system', content: guidanceMessage });
+      }
+      console.log(`🔵 [CUSTOM-LLM] Guidance injected: call=${callId} turns=${numUserTurns} posture=${guidance.posture}`);
+    } catch (err) {
+      console.error(`🔵 [CUSTOM-LLM] Guidance error (non-fatal):`, err);
+    }
+  }
 
   try {
     // Step 5: Stream from OpenAI, buffer full response for footer stripping
