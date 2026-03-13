@@ -163,7 +163,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         fastResult.register,
         fastResult.movement,
         fastResult.stateVector,
-        numUserTurns
+        numUserTurns,
+        callId
       );
 
       let lastUserIdx = -1;

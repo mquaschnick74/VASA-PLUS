@@ -4,6 +4,7 @@
 import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance, RegisterAnalysisResult, MovementAssessmentResult } from './types';
 import { TherapeuticStateVector } from './state-vector';
 import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
+import { getSessionState } from './session-state';
 
 // Pending guidance queue: holds guidance deferred while agent is speaking
 const pendingGuidance = new Map<string, TherapeuticGuidance | EnhancedTherapeuticGuidance>();
@@ -193,7 +194,8 @@ export function formatSessionPicture(
   register: RegisterAnalysisResult,
   movement: MovementAssessmentResult,
   stateVector: TherapeuticStateVector,
-  exchangeCount: number
+  exchangeCount: number,
+  callId: string
 ): string {
   const cssStageLabels: Record<string, string> = {
     pointed_origin: 'Pointed Origin',
@@ -217,6 +219,20 @@ export function formatSessionPicture(
   const confidenceLabel = guidance.confidence >= 0.7 ? 'high' :
                           guidance.confidence >= 0.45 ? 'moderate' : 'low';
 
+  // Pull accumulated patterns from background cascade
+  const sessionState = getSessionState(callId);
+  const accumulatedPatterns = sessionState?.patternsThisSession ?? [];
+
+  // Surface structural flags
+  const psychoticFlags = ['hallucination', 'psychotic', 'dissociative', 'voices', 'reality'];
+  const structuralFlag = accumulatedPatterns.some(p =>
+    psychoticFlags.some(flag => p.toLowerCase().includes(flag))
+  ) ? 'Symbolic impairment signals present — stabilization priority' : null;
+
+  const patternSummary = accumulatedPatterns.length > 0
+    ? accumulatedPatterns.slice(-3).join('; ')
+    : 'none accumulated yet';
+
   const lines = [
     `[SESSION PICTURE — Exchange ${exchangeCount}]`,
     `Register: ${register.currentRegister} foregrounded. ${stuckLabel}.`,
@@ -225,9 +241,13 @@ export function formatSessionPicture(
     `CVDC: not yet visible`,
     `IBM: none this turn`,
     `Narrative: not yet mapped`,
-    `Patterns: none this turn`,
+    `Patterns: ${patternSummary}`,
     `Confidence: ${confidenceLabel}`,
   ];
+
+  if (structuralFlag) {
+    lines.splice(1, 0, `⚠️ STRUCTURAL: ${structuralFlag}`);
+  }
 
   return lines.join('\n');
 }
