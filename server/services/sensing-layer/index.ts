@@ -49,6 +49,7 @@ import {
   SessionRegisterAnalysisRow,
   SensingLayerOutputRow,
   PatternDetectionResult,
+  SymbolicMappingResult,
   RegisterAnalysisResult,
   PatternType,
   AwarenessLevel,
@@ -300,6 +301,92 @@ export class SensingLayerService {
         confidence: 0.3
       };
     }
+  }
+
+  /**
+   * Fast path — heuristic-only sensing (~16ms)
+   * Runs register analysis + movement assessment only (no LLM calls).
+   * Used by the custom-LLM route for same-turn guidance injection.
+   */
+  async processFastUtterance(input: TurnInput): Promise<TherapeuticGuidance> {
+    const fastStart = Date.now();
+
+    // Load profile from cache only — never DB on fast path
+    let profile: UserTherapeuticProfile;
+    const cached = profileCache.get(input.callId);
+    if (cached) {
+      profile = cached.profile;
+    } else {
+      // Cache miss on fast path — return minimal guidance immediately
+      console.warn(`⚡ [FAST] Cache miss for call ${input.callId} — returning default guidance`);
+      return {
+        posture: 'wait_and_track',
+        registerDirection: { from: 'Imaginary', toward: 'Real', technique: 'listen' },
+        strategicDirection: 'Hold space. Track what the material produces.',
+        avoidances: [],
+        framing: '',
+        urgency: 'low',
+        confidence: 0.3
+      };
+    }
+
+    // Empty defaults for LLM modules — not run on fast path
+    const emptyPatterns: PatternDetectionResult = {
+      activePatterns: [],
+      emergingPatterns: [],
+      patternResonance: [],
+      userExplicitIdentification: null
+    };
+
+    const emptySymbolic: SymbolicMappingResult = {
+      activeMappings: [],
+      potentialConnections: [],
+      awarenessShift: null,
+      generativeInsight: {
+        currentElaboration: {
+          topic: '',
+          symbolicWeight: 0,
+          connectedThemes: []
+        }
+      }
+    };
+
+    // Run only heuristic modules — no LLM calls
+    const [register, movement] = await Promise.all([
+      analyzeRegister(input, profile),
+      assessMovement(input, profile)
+    ]);
+
+    // Couple state vector with empty pattern/symbolic inputs
+    const stateVector = coupleStateVector(
+      emptyPatterns,
+      register,
+      emptySymbolic,
+      movement,
+      [], // no previous vectors on fast path
+      input.exchangeCount,
+      profile.cssHistory?.[0]?.stage ?? 'pointed_origin'
+    );
+
+    // Assemble minimal OSR for guidance generation
+    const fastOSR: OrientationStateRegister = {
+      patterns: emptyPatterns,
+      register: {
+        ...register,
+        registerDistribution: stateVector.coupled.registerDistribution
+      },
+      symbolic: emptySymbolic,
+      movement: {
+        ...movement,
+        cssStage: stateVector.coupled.cssStage,
+        cssStageConfidence: stateVector.coupled.cssStageConfidence
+      },
+      meta: { stateVector }
+    };
+
+    const guidance = await generateGuidance(fastOSR, input);
+    console.log(`⚡ [FAST] Sensing complete in ${Date.now() - fastStart}ms: posture=${guidance.posture}`);
+    return guidance;
   }
 
   /**

@@ -131,7 +131,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   }
   streamingCallIds.add(callId);
 
-  // Step 4a: Run sensing cascade on current utterance (same-turn)
+  // Step 4a: Fast sensing cascade (same-turn, heuristic only)
+  // Full processUtterance runs async for longitudinal accumulation
   const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content;
   if (currentUtterance && numUserTurns > 0) {
     try {
@@ -140,14 +141,22 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         .slice(0, -1)
         .map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-      const guidance = await sensingLayer.processUtterance({
+      const turnInput = {
         utterance: currentUtterance,
         sessionId,
         callId,
         userId,
         exchangeCount: numUserTurns,
         conversationHistory,
-      });
+      };
+
+      // Fast path — blocks ~16ms, produces session picture
+      const guidance = await sensingLayer.processFastUtterance(turnInput);
+
+      // Full cascade — async, never blocks response, accumulates patterns
+      sensingLayer.processUtterance(turnInput).catch(err =>
+        console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
+      );
 
       const guidanceMessage = formatGuidanceAsSystemMessage(guidance);
 
@@ -158,9 +167,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       if (lastUserIdx !== -1) {
         modifiedMessages.splice(lastUserIdx, 0, { role: 'system', content: guidanceMessage });
       }
-      console.log(`🔵 [CUSTOM-LLM] Guidance injected: call=${callId} turns=${numUserTurns} posture=${guidance.posture}`);
+      console.log(`🔵 [CUSTOM-LLM] Fast guidance injected: call=${callId} turns=${numUserTurns} posture=${guidance.posture}`);
     } catch (err) {
-      console.error(`🔵 [CUSTOM-LLM] Guidance error (non-fatal):`, err);
+      console.error(`🔵 [CUSTOM-LLM] Fast guidance error (non-fatal):`, err);
     }
   }
 
