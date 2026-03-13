@@ -233,6 +233,19 @@ export function formatSessionPicture(
     ? accumulatedPatterns.slice(-3).join('; ')
     : 'none accumulated yet';
 
+  const cssStage = stateVector.coupled.cssStage;
+
+  const toolAvailability =
+    cssStage === 'pointed_origin'
+      ? 'Tools: Prescripting only. HSFB not available. No somatic checks.'
+      : cssStage === 'focus_bind'
+      ? 'Tools: Prescripting. HSFB available if stuckness confirmed.'
+      : 'Tools: Prescripting. HSFB available.';
+
+  const postureDirective = guidance.posture
+    ? `Posture this turn: ${guidance.posture.toUpperCase()} — execute in your own voice.`
+    : null;
+
   const lines = [
     `[SESSION PICTURE — Exchange ${exchangeCount}]`,
     `Register: ${register.currentRegister} foregrounded. ${stuckLabel}.`,
@@ -243,6 +256,8 @@ export function formatSessionPicture(
     `Narrative: not yet mapped`,
     `Patterns: ${patternSummary}`,
     `Confidence: ${confidenceLabel}`,
+    toolAvailability,
+    ...(postureDirective ? [postureDirective] : []),
   ];
 
   if (structuralFlag) {

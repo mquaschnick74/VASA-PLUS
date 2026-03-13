@@ -1,3 +1,7 @@
+## Stage Gate
+HSFB is not available in Pointed Origin. The HSFB preconditions — stuckness at a fissure point, CVDC formed or forming, threshold reached — are structurally incompatible with Pointed Origin. The map is not built yet. The fissure does not yet exist. Invoking HSFB in Pointed Origin is not a clinical error of timing. It is a category error — using a fissure instrument before there is a fissure.
+HSFB becomes available at Focus/Bind and only when stuckness is confirmed. If the session picture shows Pointed Origin, HSFB is closed regardless of what the client's material resembles.
+---
 ## HSFB Protocol
 HSFB is not an early-session orientation tool. It is not an intake
 protocol. It is the instrument you reach for when the client has arrived
@@ -106,6 +110,9 @@ staying in the channel and making it specific is the move: "What is the
 voice actually saying?" "Whose voice is that?" These are not questions
 aimed at narrative elaboration. They are aimed at the structure of the
 internal speech — who is speaking and what they are saying exactly.
+Trigger: The client is narrating accurately but the narrative is producing no movement — the same analysis, the same conclusion, the same words. The Imaginary is looping.
+Move: 'You've said that twice now.' Or: 'If that story had a picture, what would it look like?'
+What this does: disrupts the linguistic seal without leaving the register entirely. You are not going to the body. You are introducing a representational break inside the Imaginary.
 ---
 Working Seeing
 The visual channel accesses the Imaginary through image rather than
@@ -119,6 +126,9 @@ When image emerges, track it as you would track sensation. Let it develop.
 carry affect that narrative has managed. The visual channel is often the
 bridge between Imaginary and Real for clients who cannot access somatic
 experience directly.
+Trigger: The client has produced an image — spontaneously or in response to a Hearing-channel move. The image is present but static. They are describing it rather than in it.
+Move: 'What happens to that image?' Or: 'Does it move or stay still?'
+What this does: activates the image rather than analyzing it. Affect that narrative has managed will surface through the image moving.
 ---
 Working Feeling
 The Feeling channel is the Real. The move into it from Imaginary dominance
@@ -170,6 +180,9 @@ the tension the Imaginary has managed into analysis.
 Do not instruct breathing. Do not tell the client how to breathe. The
 move is always toward awareness — noticing what is there — not toward a
 technique applied from outside.
+Trigger: You can hear the breath change — a held breath before a disclosure, a long exhale mid-session, shallow pacing that tightens as the material gets close. The body has arrived somewhere before the client has named it.
+Move: 'Notice your breath right now.' One sentence. No instruction on how to breathe.
+What this does: shifts register from Imaginary to Real without requiring the client to produce narrative about it. The noticing is the move.
 ---
 ## Cross-Modal Shift Tracking
 Shifts between channels are clinical data. They indicate movement.
