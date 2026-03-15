@@ -589,6 +589,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
           userId: userId,
           agentName: selectedAgent.name,
           agentId: selectedAgent.id,
+          firstName: firstName,
           hasSessionContinuity: shouldReferenceLastSession || false,
           uploadId: uploadId || null,
           timestamp: Date.now()

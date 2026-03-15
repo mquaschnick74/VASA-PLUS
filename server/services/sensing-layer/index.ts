@@ -49,7 +49,9 @@ import {
   SessionRegisterAnalysisRow,
   SensingLayerOutputRow,
   PatternDetectionResult,
+  SymbolicMappingResult,
   RegisterAnalysisResult,
+  MovementAssessmentResult,
   PatternType,
   AwarenessLevel,
   SymbolicConnectionType
@@ -303,6 +305,108 @@ export class SensingLayerService {
   }
 
   /**
+   * Fast path — heuristic-only sensing (~16ms)
+   * Runs register analysis + movement assessment only (no LLM calls).
+   * Used by the custom-LLM route for same-turn guidance injection.
+   */
+  async processFastUtterance(input: TurnInput): Promise<{
+    guidance: TherapeuticGuidance;
+    register: RegisterAnalysisResult;
+    movement: MovementAssessmentResult;
+    stateVector: TherapeuticStateVector;
+  }> {
+    const fastStart = Date.now();
+
+    // Load profile from cache only — never DB on fast path
+    let profile: UserTherapeuticProfile;
+    const cached = profileCache.get(input.callId);
+    if (cached) {
+      profile = cached.profile;
+    } else {
+      // Cache miss on fast path — return minimal fallback immediately
+      console.warn(`⚡ [FAST] Cache miss for call ${input.callId} — returning default guidance`);
+      const fallbackGuidance: TherapeuticGuidance = {
+        posture: 'wait_and_track',
+        registerDirection: null,
+        strategicDirection: '',
+        avoidances: [],
+        framing: null,
+        urgency: 'low',
+        confidence: 0.3
+      };
+      return {
+        guidance: fallbackGuidance,
+        register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } },
+        movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] },
+        stateVector: { raw: { patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null }, register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } }, symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } }, movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] } }, coupled: { movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3 }, velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 }, exchangeNumber: 0, timestamp: new Date() }
+      };
+    }
+
+    // Empty defaults for LLM modules — not run on fast path
+    const emptyPatterns: PatternDetectionResult = {
+      activePatterns: [],
+      emergingPatterns: [],
+      patternResonance: [],
+      userExplicitIdentification: null
+    };
+
+    const emptySymbolic: SymbolicMappingResult = {
+      activeMappings: [],
+      potentialConnections: [],
+      awarenessShift: null,
+      generativeInsight: {
+        currentElaboration: {
+          topic: '',
+          symbolicWeight: 0,
+          connectedThemes: []
+        }
+      }
+    };
+
+    // Run only heuristic modules — no LLM calls
+    const [register, movement] = await Promise.all([
+      analyzeRegister(input, profile),
+      assessMovement(input, profile)
+    ]);
+
+    // Couple state vector with empty pattern/symbolic inputs
+    const stateVector = coupleStateVector(
+      emptyPatterns,
+      register,
+      emptySymbolic,
+      movement,
+      [], // no previous vectors on fast path
+      input.exchangeCount,
+      profile.cssHistory?.[0]?.stage ?? 'pointed_origin'
+    );
+
+    // Assemble minimal OSR for guidance generation
+    const fastOSR: OrientationStateRegister = {
+      patterns: emptyPatterns,
+      register: {
+        ...register,
+        registerDistribution: stateVector.coupled.registerDistribution
+      },
+      symbolic: emptySymbolic,
+      movement: {
+        ...movement,
+        cssStage: stateVector.coupled.cssStage,
+        cssStageConfidence: stateVector.coupled.cssStageConfidence
+      },
+      meta: { stateVector }
+    };
+
+    const guidance = await generateGuidance(fastOSR, input);
+    console.log(`⚡ [FAST] Sensing complete in ${Date.now() - fastStart}ms: posture=${guidance.posture}`);
+    return {
+      guidance,
+      register,
+      movement,
+      stateVector
+    };
+  }
+
+  /**
    * Initialize a new session (call when VAPI call starts)
    * Pre-caches user profile to avoid per-turn DB loads
    */
@@ -488,7 +592,8 @@ export class SensingLayerService {
         historicalResult,
         mappingsResult,
         registerResult,
-        cssResult
+        cssResult,
+        lastSessionResult
       ] = await Promise.all([
         supabase
           .from('user_patterns')
@@ -524,7 +629,15 @@ export class SensingLayerService {
           .select('id, user_id, css_stage, confidence, detected_at, content')
           .eq('user_id', userId)
           .order('detected_at', { ascending: false })
-          .limit(20)
+          .limit(20),
+
+        supabase
+          .from('therapeutic_context')
+          .select('content')
+          .eq('user_id', userId)
+          .eq('context_type', 'conversational_summary')
+          .order('created_at', { ascending: false })
+          .limit(1)
       ]);
 
       // Transform database rows to domain types
@@ -539,7 +652,8 @@ export class SensingLayerService {
         historicalMaterial,
         symbolicMappings,
         registerHistory,
-        cssHistory
+        cssHistory,
+        lastSessionSummary: lastSessionResult.data?.[0]?.content ?? null,
       };
 
     } catch (error) {

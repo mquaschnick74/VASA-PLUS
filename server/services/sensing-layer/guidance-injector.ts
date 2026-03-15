@@ -1,8 +1,10 @@
 // server/services/sensing-layer/guidance-injector.ts
 // Injects therapeutic guidance into VAPI conversations via controlUrl
 
-import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance } from './types';
+import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance, RegisterAnalysisResult, MovementAssessmentResult } from './types';
+import { TherapeuticStateVector } from './state-vector';
 import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
+import { getSessionState } from './session-state';
 
 // Pending guidance queue: holds guidance deferred while agent is speaking
 const pendingGuidance = new Map<string, TherapeuticGuidance | EnhancedTherapeuticGuidance>();
@@ -179,6 +181,88 @@ export function formatGuidanceAsSystemMessage(guidance: TherapeuticGuidance): st
   lines.push(`---`);
   lines.push(`Confidence: ${Math.round(guidance.confidence * 100)}%`);
   lines.push(`Remember: Speak warmly and naturally. This guidance shapes WHAT you explore, not HOW you sound.`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Format a perceptual session picture for the agent — describes the clinical field,
+ * not directives. Used by the custom-LLM fast path.
+ */
+export function formatSessionPicture(
+  guidance: TherapeuticGuidance,
+  register: RegisterAnalysisResult,
+  movement: MovementAssessmentResult,
+  stateVector: TherapeuticStateVector,
+  exchangeCount: number,
+  callId: string
+): string {
+  const cssStageLabels: Record<string, string> = {
+    pointed_origin: 'Pointed Origin',
+    focus_bind: 'Focus/Bind',
+    suspension: 'Suspension',
+    gesture_toward: 'Gesture Toward',
+    completion: 'Completion',
+    terminal: 'Terminal'
+  };
+
+  const stuckLabel = register.stucknessScore > 0.6 ? 'high stuckness' :
+                     register.stucknessScore > 0.35 ? 'moderate stuckness' : 'fluid';
+
+  const movementLabel = movement.trajectory === 'toward_mastery' ? 'deepening' :
+                        movement.trajectory === 'away_from_mastery' ? 'resisting' :
+                        movement.trajectory === 'cycling' ? 'cycling' : 'holding';
+
+  const cssLabel = cssStageLabels[stateVector.coupled.cssStage] ?? stateVector.coupled.cssStage;
+  const proximity = stateVector.coupled.phaseTransitionProximity.toFixed(2);
+
+  const confidenceLabel = guidance.confidence >= 0.7 ? 'high' :
+                          guidance.confidence >= 0.45 ? 'moderate' : 'low';
+
+  // Pull accumulated patterns from background cascade
+  const sessionState = getSessionState(callId);
+  const accumulatedPatterns = sessionState?.patternsThisSession ?? [];
+
+  // Surface structural flags
+  const psychoticFlags = ['hallucination', 'psychotic', 'dissociative', 'voices', 'reality'];
+  const structuralFlag = accumulatedPatterns.some(p =>
+    psychoticFlags.some(flag => p.toLowerCase().includes(flag))
+  ) ? 'Symbolic impairment signals present — stabilization priority' : null;
+
+  const patternSummary = accumulatedPatterns.length > 0
+    ? accumulatedPatterns.slice(-3).join('; ')
+    : 'none accumulated yet';
+
+  const cssStage = stateVector.coupled.cssStage;
+
+  const toolAvailability =
+    cssStage === 'pointed_origin'
+      ? 'Tools: Prescripting only. HSFB not available. No somatic checks.'
+      : cssStage === 'focus_bind'
+      ? 'Tools: Prescripting. HSFB available if stuckness confirmed.'
+      : 'Tools: Prescripting. HSFB available.';
+
+  const postureDirective = guidance.posture
+    ? `Posture this turn: ${guidance.posture.toUpperCase()} — execute in your own voice.`
+    : null;
+
+  const lines = [
+    `[SESSION PICTURE — Exchange ${exchangeCount}]`,
+    `Register: ${register.currentRegister} foregrounded. ${stuckLabel}.`,
+    `Movement: ${movementLabel}.`,
+    `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
+    `CVDC: not yet visible`,
+    `IBM: none this turn`,
+    `Narrative: not yet mapped`,
+    `Patterns: ${patternSummary}`,
+    `Confidence: ${confidenceLabel}`,
+    toolAvailability,
+    ...(postureDirective ? [postureDirective] : []),
+  ];
+
+  if (structuralFlag) {
+    lines.splice(1, 0, `⚠️ STRUCTURAL: ${structuralFlag}`);
+  }
 
   return lines.join('\n');
 }
@@ -477,4 +561,60 @@ export function clearPendingGuidance(callId: string): void {
   pendingGuidance.delete(callId);
   pendingTriggerResponse.delete(callId);
   lastInjectedHash.delete(callId);
+}
+
+/**
+ * Inject a silence signal into the conversation via VAPI add-message.
+ * Triggers the agent to generate its own response using PCA framework knowledge.
+ * Used for silence Tiers 1, 2, and 3.
+ * Tier 4 continues to use injectSpokenReEngagement.
+ */
+export async function injectSilenceContext(
+  callId: string,
+  silenceSignal: string
+): Promise<boolean> {
+  if (!isCallActive(callId)) {
+    console.warn(`⚠️ [SILENCE-INJECT] Call not active, skipping`, { callId });
+    return false;
+  }
+
+  const controlUrl = (getControlUrl(callId) || '').trim().replace(/^<|>$/g, '');
+  if (!controlUrl.startsWith('https://')) {
+    console.error(`🛑 [SILENCE-INJECT] No valid controlUrl for call ${callId}`);
+    return false;
+  }
+
+  console.log(`🔇 [SILENCE-INJECT] Injecting silence context for call ${callId}: "${silenceSignal}"`);
+
+  try {
+    const response = await fetch(controlUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'add-message',
+        message: {
+          role: 'system',
+          content: silenceSignal,
+        },
+        triggerResponseEnabled: true,
+      }),
+    });
+
+    const responseText = await response.text().catch(() => '');
+
+    if (!response.ok) {
+      console.error(`❌ [SILENCE-INJECT] Failed`, {
+        callId,
+        status: response.status,
+        body: responseText.slice(0, 400),
+      });
+      return false;
+    }
+
+    console.log(`✅ [SILENCE-INJECT] Injected for call ${callId}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ [SILENCE-INJECT] Error:`, error);
+    return false;
+  }
 }

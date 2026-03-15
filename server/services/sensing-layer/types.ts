@@ -28,6 +28,7 @@ export interface UserTherapeuticProfile {
   symbolicMappings: SymbolicMapping[];
   registerHistory: RegisterHistoryEntry[];
   cssHistory: CSSHistoryEntry[];
+  lastSessionSummary?: string | null;
 }
 
 export interface UserPattern {

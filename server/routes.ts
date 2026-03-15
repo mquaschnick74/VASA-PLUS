@@ -136,6 +136,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dynamic sitemap — registered on app directly (not apiRouter) so it responds
+  // at https://beta.ivasa.ai/sitemap.xml. Queries Supabase for all published posts
+  // so individual blog post URLs are always current. This route must be registered
+  // before app.use('/api', apiRouter) and before static file serving.
+  app.get('/sitemap.xml', async (_req, res) => {
+    try {
+      const { data: posts, error } = await supabase
+        .from('blog_posts')
+        .select('slug, published_at, updated_at')
+        .eq('status', 'published')
+        .order('published_at', { ascending: false });
+
+      if (error) {
+        console.error('Sitemap: failed to fetch blog posts from Supabase:', error);
+      }
+
+      const staticUrls = [
+        { loc: 'https://beta.ivasa.ai/', changefreq: 'weekly', priority: '1.0', lastmod: '2025-10-27' },
+        { loc: 'https://beta.ivasa.ai/pricing', changefreq: 'monthly', priority: '0.8', lastmod: '2025-10-27' },
+        { loc: 'https://beta.ivasa.ai/faq', changefreq: 'monthly', priority: '0.7', lastmod: '2025-10-27' },
+        { loc: 'https://beta.ivasa.ai/blog', changefreq: 'weekly', priority: '0.9', lastmod: new Date().toISOString().split('T')[0] },
+      ];
+
+      const blogPostUrls = (posts || []).map(post => {
+        const lastmod = post.updated_at
+          ? new Date(post.updated_at).toISOString().split('T')[0]
+          : post.published_at
+            ? new Date(post.published_at).toISOString().split('T')[0]
+            : new Date().toISOString().split('T')[0];
+        return {
+          loc: `https://beta.ivasa.ai/blog/${post.slug}`,
+          changefreq: 'monthly',
+          priority: '0.7',
+          lastmod,
+        };
+      });
+
+      const allUrls = [...staticUrls, ...blogPostUrls];
+
+      const urlEntries = allUrls.map(u => `
+  <url>
+    <loc>${u.loc}</loc>
+    <lastmod>${u.lastmod}</lastmod>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>
+  </url>`).join('');
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urlEntries}
+</urlset>`;
+
+      res.status(200).set({
+        'Content-Type': 'application/xml',
+        'Cache-Control': 'public, max-age=3600',
+      }).end(xml);
+
+    } catch (err) {
+      console.error('Sitemap route error:', err);
+      res.status(500).send('Failed to generate sitemap');
+    }
+  });
+
   app.use('/api', apiRouter);
 
   const httpServer = createServer(app);

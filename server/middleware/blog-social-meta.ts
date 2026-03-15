@@ -1,6 +1,7 @@
 // Location: server/middleware/blog-social-meta.ts
-// Middleware to inject Open Graph and Twitter Card meta tags for blog posts
-// This enables rich link previews when blog posts are shared on social media
+// Middleware to inject Open Graph, Twitter Card meta tags, AND pre-rendered body
+// content for blog posts. The body injection is critical for search engine indexing —
+// without it, crawlers that do not execute JavaScript see only an empty <div id="root">.
 
 import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
@@ -24,7 +25,7 @@ interface BlogPost {
   view_count: number;
 }
 
-// Function to escape HTML special characters to prevent XSS
+// Escape HTML special characters to prevent XSS
 function escapeHtml(text: string): string {
   const map: Record<string, string> = {
     '&': '&amp;',
@@ -36,42 +37,70 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (char) => map[char]);
 }
 
-// Function to truncate text to a specific length
+// Truncate text to a specific length
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - 3) + '...';
 }
 
-// Function to strip markdown formatting for plain text descriptions
+// Strip markdown formatting for plain text descriptions
 function stripMarkdown(text: string): string {
   return text
-    // Remove headers
     .replace(/#{1,6}\s+/g, '')
-    // Remove bold/italic
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')
     .replace(/__([^_]+)__/g, '$1')
     .replace(/_([^_]+)_/g, '$1')
-    // Remove links but keep text
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove images
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
-    // Remove code blocks
     .replace(/```[^`]*```/gs, '')
     .replace(/`([^`]+)`/g, '$1')
-    // Remove blockquotes
     .replace(/^\s*>\s+/gm, '')
-    // Remove horizontal rules
     .replace(/^[-*_]{3,}\s*$/gm, '')
-    // Remove list markers
     .replace(/^\s*[-*+]\s+/gm, '')
     .replace(/^\s*\d+\.\s+/gm, '')
-    // Normalize whitespace
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-// Generate the meta tags HTML to inject
+// Convert markdown to semantic HTML for pre-rendering in the body.
+// This does not need to be styled — it exists solely for crawler readability.
+// React will replace it when JavaScript loads in the browser.
+function markdownToSemanticHtml(markdown: string): string {
+  if (!markdown) return '';
+
+  let html = markdown;
+
+  // Headers
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+  // Bold and italic
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Links
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // Unordered list items — collect them then wrap
+  html = html.replace(/^- (.+)$/gim, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+
+  // Paragraphs — double newlines become <p> tags
+  html = html.split('\n\n').map(para => {
+    const trimmed = para.trim();
+    if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<li')) {
+      return trimmed;
+    }
+    if (trimmed === '') return '';
+    return `<p>${trimmed}</p>`;
+  }).join('\n');
+
+  return html;
+}
+
+// Generate the <head> meta tags HTML to inject
 function generateMetaTags(post: BlogPost, postUrl: string): string {
   const title = escapeHtml(post.meta_title || `${post.title} | iVASA Blog`);
   const description = escapeHtml(
@@ -85,10 +114,8 @@ function generateMetaTags(post: BlogPost, postUrl: string): string {
   );
   const keywords = post.meta_keywords ? escapeHtml(post.meta_keywords) : '';
 
-  // Use absolute URL for the image
-  let imageUrl = 'https://beta.ivasa.ai/og-image.png'; // Default fallback
+  let imageUrl = 'https://beta.ivasa.ai/og-image.png';
   if (post.featured_image_url) {
-    // If it's already an absolute URL, use it; otherwise, make it absolute
     if (post.featured_image_url.startsWith('http')) {
       imageUrl = post.featured_image_url;
     } else {
@@ -155,9 +182,48 @@ function generateMetaTags(post: BlogPost, postUrl: string): string {
     </script>`;
 }
 
-// Function to replace meta tags in HTML template
-function injectMetaTags(html: string, metaTags: string): string {
-  // Remove existing meta tags that we're replacing
+// Generate pre-rendered body HTML for the blog post.
+// This is injected inside <div id="root"> so that crawlers that do not
+// execute JavaScript can read the full article content.
+// React replaces this content when JavaScript loads in the browser.
+function generateBodyHtml(post: BlogPost, postUrl: string): string {
+  const publishedDate = post.published_at
+    ? new Date(post.published_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    : '';
+
+  const featuredImageHtml = post.featured_image_url
+    ? `<img src="${escapeHtml(post.featured_image_url)}" alt="${escapeHtml(post.title)}" style="max-width:100%;height:auto;display:block;margin-bottom:2rem;" />`
+    : '';
+
+  const contentHtml = markdownToSemanticHtml(post.content || '');
+
+  return `
+    <article itemscope itemtype="https://schema.org/BlogPosting" style="max-width:860px;margin:0 auto;padding:2rem 1rem;font-family:sans-serif;color:#fff;">
+      ${featuredImageHtml}
+      <header>
+        <h1 itemprop="headline" style="font-size:2.5rem;font-weight:700;margin-bottom:1rem;">${escapeHtml(post.title)}</h1>
+        <div style="display:flex;gap:1.5rem;font-size:0.9rem;opacity:0.75;margin-bottom:2rem;flex-wrap:wrap;">
+          <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+            By <span itemprop="name">${escapeHtml(post.author_name || 'iVASA Team')}</span>
+          </span>
+          ${publishedDate ? `<time itemprop="datePublished" datetime="${post.published_at || ''}">${publishedDate}</time>` : ''}
+        </div>
+      </header>
+      <div itemprop="articleBody">
+        ${contentHtml}
+      </div>
+      <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.2);">
+        <a href="/blog" style="color:#00d062;text-decoration:none;">\u2190 Back to Blog</a>
+      </footer>
+    </article>`;
+}
+
+// Replace meta tags in HTML template AND inject pre-rendered body content
+function injectMetaTags(html: string, metaTags: string, bodyHtml: string): string {
   let modifiedHtml = html;
 
   // Remove existing title
@@ -182,7 +248,7 @@ function injectMetaTags(html: string, metaTags: string): string {
   modifiedHtml = modifiedHtml.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/g, '');
 
   // Remove existing JSON-LD structured data (the default SoftwareApplication one)
-  modifiedHtml = modifiedHtml.replace(/<script\s+type="application\/ld\+json">[^<]*<\/script>/gs, '');
+  modifiedHtml = modifiedHtml.replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/g, '');
 
   // Insert new meta tags after the viewport meta tag
   const viewportMetaMatch = modifiedHtml.match(/<meta\s+name="viewport"[^>]*>/);
@@ -193,14 +259,20 @@ function injectMetaTags(html: string, metaTags: string): string {
       metaTags +
       modifiedHtml.substring(insertPosition);
   } else {
-    // Fallback: insert after <head>
     modifiedHtml = modifiedHtml.replace('<head>', '<head>' + metaTags);
   }
+
+  // Inject pre-rendered article HTML inside <div id="root">
+  // React replaces this when JavaScript loads. Crawlers read it directly.
+  modifiedHtml = modifiedHtml.replace(
+    '<div id="root"></div>',
+    `<div id="root">${bodyHtml}</div>`
+  );
 
   return modifiedHtml;
 }
 
-// Main middleware function to handle blog post meta tag injection
+// Main middleware function
 export async function blogSocialMetaMiddleware(
   req: Request,
   res: Response,
@@ -209,7 +281,7 @@ export async function blogSocialMetaMiddleware(
 ) {
   const url = req.originalUrl || req.url;
 
-  // Check if this is a blog post URL
+  // Only handle blog post URLs (not the blog index /blog)
   const blogPostMatch = url.match(/^\/blog\/([^/?#]+)/);
 
   if (!blogPostMatch) {
@@ -218,7 +290,6 @@ export async function blogSocialMetaMiddleware(
 
   const slug = blogPostMatch[1];
 
-  // Skip if it's just /blog without a slug
   if (!slug || slug === '') {
     return next();
   }
@@ -238,23 +309,19 @@ export async function blogSocialMetaMiddleware(
     }
 
     if (!posts || posts.length === 0) {
-      // Post not found, let the app handle the 404
       return next();
     }
 
     const post = posts[0] as BlogPost;
     const postUrl = `https://beta.ivasa.ai/blog/${slug}`;
 
-    // Get the HTML template
     const htmlTemplate = await getHtmlTemplate();
 
-    // Generate meta tags for this post
     const metaTags = generateMetaTags(post, postUrl);
+    const bodyHtml = generateBodyHtml(post, postUrl);
 
-    // Inject meta tags into the HTML
-    const modifiedHtml = injectMetaTags(htmlTemplate, metaTags);
+    const modifiedHtml = injectMetaTags(htmlTemplate, metaTags, bodyHtml);
 
-    // Send the modified HTML
     res.status(200).set({ 'Content-Type': 'text/html' }).end(modifiedHtml);
 
   } catch (error) {
@@ -263,5 +330,4 @@ export async function blogSocialMetaMiddleware(
   }
 }
 
-// Export for use in vite.ts
 export default blogSocialMetaMiddleware;
