@@ -411,13 +411,14 @@ export class SensingLayerService {
    * Pre-caches user profile to avoid per-turn DB loads
    */
   async initializeCallSession(callId: string, userId: string, sessionId: string): Promise<void> {
-    initializeSession(callId, userId, sessionId);
     try {
       const profile = await this.getUserProfile(userId);
       profileCache.set(callId, { profile, loadedAt: Date.now() });
-      console.log(`👤 [SENSING] Profile pre-cached for call ${callId}`);
+      initializeSession(callId, userId, sessionId, profile.lastCSSStage, profile.lastCSSStageConfidence);
+      console.log(`👤 [SENSING] Profile pre-cached for call ${callId}, CSS arc seeded: ${profile.lastCSSStage ?? 'pointed_origin'} (${profile.lastCSSStageConfidence ?? 0.3})`);
     } catch (error) {
-      console.error(`❌ [SENSING] Failed to pre-cache profile:`, error);
+      console.error(`❌ [SENSING] Failed to pre-cache profile, initializing with defaults:`, error);
+      initializeSession(callId, userId, sessionId);
     }
   }
 
@@ -449,6 +450,26 @@ export class SensingLayerService {
           summary.structuredHistorical,
           summary.structuredConnections
         );
+      }
+
+      // Write CSS arc summary for cross-session continuity
+      try {
+        await supabase
+          .from('therapeutic_context')
+          .insert({
+            user_id: summary.userId,
+            call_id: summary.callId,
+            context_type: 'css_arc_summary',
+            content: JSON.stringify({
+              stage: summary.finalCSSStage,
+              confidence: summary.finalCSSStageConfidence
+            }),
+            confidence: 0.9,
+            importance: 9
+          });
+        console.log(`🎯 [Sensing Layer] CSS arc summary written: ${summary.finalCSSStage} (${summary.finalCSSStageConfidence.toFixed(2)})`);
+      } catch (arcError) {
+        console.error(`❌ [Sensing Layer] Failed to write CSS arc summary (non-fatal):`, arcError);
       }
 
       // Clear from memory
@@ -593,7 +614,8 @@ export class SensingLayerService {
         mappingsResult,
         registerResult,
         cssResult,
-        lastSessionResult
+        lastSessionResult,
+        cssArcResult
       ] = await Promise.all([
         supabase
           .from('user_patterns')
@@ -637,6 +659,14 @@ export class SensingLayerService {
           .eq('user_id', userId)
           .eq('context_type', 'conversational_summary')
           .order('created_at', { ascending: false })
+          .limit(1),
+
+        supabase
+          .from('therapeutic_context')
+          .select('content')
+          .eq('user_id', userId)
+          .eq('context_type', 'css_arc_summary')
+          .order('created_at', { ascending: false })
           .limit(1)
       ]);
 
@@ -647,6 +677,20 @@ export class SensingLayerService {
       const registerHistory = this.transformRegisterHistory(registerResult.data || []);
       const cssHistory = this.transformCSSHistory(cssResult.data || []);
 
+      // Parse CSS arc summary from last session
+      let lastCSSStage: import('./types').CSSStage | null = null;
+      let lastCSSStageConfidence: number | null = null;
+      const arcContent = cssArcResult.data?.[0]?.content;
+      if (arcContent) {
+        try {
+          const parsed = typeof arcContent === 'string' ? JSON.parse(arcContent) : arcContent;
+          lastCSSStage = parsed.stage ?? null;
+          lastCSSStageConfidence = parsed.confidence ?? null;
+        } catch {
+          console.warn(`⚠️ [Sensing Layer] Could not parse css_arc_summary content`);
+        }
+      }
+
       return {
         patterns,
         historicalMaterial,
@@ -654,6 +698,8 @@ export class SensingLayerService {
         registerHistory,
         cssHistory,
         lastSessionSummary: lastSessionResult.data?.[0]?.content ?? null,
+        lastCSSStage,
+        lastCSSStageConfidence,
       };
 
     } catch (error) {

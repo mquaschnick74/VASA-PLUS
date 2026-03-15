@@ -93,6 +93,7 @@ export interface SessionSummary {
   structuredHistorical: SessionHistoricalRecord[];
   structuredConnections: SessionSymbolicRecord[];
   finalCSSStage: string;
+  finalCSSStageConfidence: number;
   finalMovementQuality: {
     pace: string;
     depth: string;
@@ -115,7 +116,13 @@ const activeSessions = new Map<string, SessionAccumulator>();
 /**
  * Initialize a new session accumulator
  */
-export function initializeSession(callId: string, userId: string, sessionId: string): SessionAccumulator {
+export function initializeSession(
+  callId: string,
+  userId: string,
+  sessionId: string,
+  priorCSSStage?: CSSStage | null,
+  priorCSSStageConfidence?: number | null
+): SessionAccumulator {
   const accumulator: SessionAccumulator = {
     callId,
     userId,
@@ -135,8 +142,8 @@ export function initializeSession(callId: string, userId: string, sessionId: str
     structuredConnections: [],
     stateVectorHistory: createStateVectorHistory(10),
       cssSignals: [],
-      sessionCSSStage: 'pointed_origin',
-      sessionCSSStageConfidence: 0.3,
+      sessionCSSStage: priorCSSStage ?? 'pointed_origin',
+      sessionCSSStageConfidence: priorCSSStageConfidence ?? 0.3,
       lastCSSMilestoneExchange: 0
   };
 
@@ -431,7 +438,8 @@ export function getSessionSummary(callId: string): SessionSummary | null {
     structuredPatterns: session.structuredPatterns,
     structuredHistorical: session.structuredHistorical,
     structuredConnections: session.structuredConnections,
-    finalCSSStage: session.latestMovement?.cssStage || 'pointed_origin',
+    finalCSSStage: session.sessionCSSStage,
+    finalCSSStageConfidence: session.sessionCSSStageConfidence,
     finalMovementQuality: session.latestMovement?.movementQuality || { pace: 'steady', depth: 'moderate', coherence: 'developing' },
     fieldSummary: session.stateVectorHistory.vectors.length > 0
       ? getFieldSummary(session.stateVectorHistory)

@@ -29,6 +29,8 @@ export interface UserTherapeuticProfile {
   registerHistory: RegisterHistoryEntry[];
   cssHistory: CSSHistoryEntry[];
   lastSessionSummary?: string | null;
+  lastCSSStage?: CSSStage | null;
+  lastCSSStageConfidence?: number | null;
 }
 
 export interface UserPattern {
