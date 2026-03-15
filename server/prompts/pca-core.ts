@@ -199,7 +199,7 @@ export function assembleSystemPrompt(
     '',
     HSFB_PROTOCOL,
     '',
-      LAYER_6,
+    LAYER_6,
   );
 
   return parts.join('\n');
