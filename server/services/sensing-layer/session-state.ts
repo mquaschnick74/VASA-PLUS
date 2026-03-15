@@ -11,7 +11,9 @@ import {
   SessionHistoricalRecord,
   SessionSymbolicRecord,
   CSSStage,
-  CSSSignal
+  CSSSignal,
+  IBMCandidate,
+  IBMSignalContribution
 } from './types';
 import {
   TherapeuticStateVector,
@@ -70,6 +72,7 @@ export interface SessionAccumulator {
     sessionCSSStage: CSSStage;            // Session-level stage — updated at milestones only
     sessionCSSStageConfidence: number;    // Confidence in session-level stage
     lastCSSMilestoneExchange: number;     // Exchange number of last milestone assessment
+    activeIBMCandidates: IBMCandidate[];
   }
 
 /**
@@ -144,7 +147,8 @@ export function initializeSession(
       cssSignals: [],
       sessionCSSStage: priorCSSStage ?? 'pointed_origin',
       sessionCSSStageConfidence: priorCSSStageConfidence ?? 0.3,
-      lastCSSMilestoneExchange: 0
+      lastCSSMilestoneExchange: 0,
+      activeIBMCandidates: []
   };
 
   activeSessions.set(callId, accumulator);
@@ -480,6 +484,165 @@ export function clearSession(callId: string): void {
 /**
  * Get count of active sessions (for monitoring)
  */
+// ─── IBM Candidate Management ────────────────────────────────────────────────
+const IBM_WEIGHTED_THRESHOLD = 2.0;
+const IBM_MIN_SIGNAL_STRENGTH = 0.4;
+const IBM_MIN_QUALIFYING_SIGNALS = 2;
+const IBM_CONSECUTIVE_ALIGNMENT_CLEAR = 2;
+
+export function computeIBMSignalStrength(
+  resistance: number,
+  intellectualizing: number,
+  contradictionStrength: number
+): number {
+  return Math.min(1,
+    contradictionStrength *
+    (1 + (resistance * 0.2) + (intellectualizing * 0.1))
+  );
+}
+
+function evaluateCandidateViability(
+  candidate: IBMCandidate,
+  currentRegister: 'Real' | 'Imaginary' | 'Symbolic'
+): void {
+  const qualifyingSignals = candidate.confirmingSignals.filter(
+    s => s.signalStrength >= IBM_MIN_SIGNAL_STRENGTH
+  );
+  candidate.minimumHoldSatisfied = qualifyingSignals.length >= IBM_MIN_QUALIFYING_SIGNALS;
+
+  const registerViable = currentRegister === 'Imaginary' || currentRegister === 'Symbolic';
+  candidate.registerViable = registerViable;
+  candidate.viableRegister = registerViable
+    ? currentRegister as 'Imaginary' | 'Symbolic'
+    : null;
+
+  candidate.thresholdCrossed = candidate.weightedAccumulation >= IBM_WEIGHTED_THRESHOLD;
+
+  candidate.namingViable =
+    candidate.minimumHoldSatisfied &&
+    candidate.registerViable &&
+    candidate.thresholdCrossed;
+
+  if (candidate.namingViable) {
+    candidate.status = 'viable';
+  }
+}
+
+export function createIBMCandidate(
+  callId: string,
+  hypothesis: string,
+  statedPosition: string,
+  exchange: number,
+  initialSignalStrength: number,
+  evidence: string,
+  resistanceValue: number,
+  intellectualizingValue: number
+): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+
+  const signalBasis: IBMSignalContribution['signalBasis'] =
+    resistanceValue > 0 && intellectualizingValue > 0 ? 'composite'
+    : resistanceValue >= intellectualizingValue ? 'resistance'
+    : 'intellectualizing';
+
+  const candidate: IBMCandidate = {
+    id: `ibm-${exchange}-${Date.now()}`,
+    hypothesis,
+    statedPosition,
+    candidateExchange: exchange,
+    confirmingSignals: initialSignalStrength > 0 ? [{
+      exchange,
+      evidenceStatement: evidence,
+      signalStrength: initialSignalStrength,
+      signalBasis
+    }] : [],
+    consecutiveAlignmentTurns: 0,
+    weightedAccumulation: initialSignalStrength,
+    namingViable: false,
+    minimumHoldSatisfied: false,
+    registerViable: false,
+    thresholdCrossed: false,
+    viableRegister: null,
+    status: 'accumulating'
+  };
+
+  session.activeIBMCandidates.push(candidate);
+  console.log(`🔲 [IBM] New candidate created at exchange ${exchange}: "${hypothesis.substring(0, 60)}"`);
+}
+
+export function confirmIBMCandidates(
+  callId: string,
+  exchange: number,
+  signalStrength: number,
+  evidence: string,
+  currentRegister: 'Real' | 'Imaginary' | 'Symbolic'
+): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+
+  session.activeIBMCandidates
+    .filter(c => c.status === 'accumulating' || c.status === 'viable')
+    .forEach(candidate => {
+      candidate.consecutiveAlignmentTurns = 0;
+      candidate.confirmingSignals.push({
+        exchange,
+        evidenceStatement: evidence,
+        signalStrength,
+        signalBasis: 'composite'
+      });
+      candidate.weightedAccumulation += signalStrength;
+      evaluateCandidateViability(candidate, currentRegister);
+    });
+}
+
+export function processIBMAlignment(
+  callId: string,
+  signalStrengthEquivalent: number,
+  currentRegister: 'Real' | 'Imaginary' | 'Symbolic'
+): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+
+  session.activeIBMCandidates
+    .filter(c => c.status === 'accumulating' || c.status === 'viable')
+    .forEach(candidate => {
+      candidate.consecutiveAlignmentTurns++;
+      if (candidate.consecutiveAlignmentTurns >= IBM_CONSECUTIVE_ALIGNMENT_CLEAR) {
+        candidate.status = 'resolved_inconclusive';
+        console.log(`🔲 [IBM] Candidate resolved inconclusive (sustained alignment): "${candidate.hypothesis.substring(0, 60)}"`);
+      } else {
+        candidate.weightedAccumulation = Math.max(
+          0,
+          candidate.weightedAccumulation - signalStrengthEquivalent
+        );
+        evaluateCandidateViability(candidate, currentRegister);
+        console.log(`🔲 [IBM] Alignment turn — accumulation reduced to ${candidate.weightedAccumulation.toFixed(2)}`);
+      }
+    });
+}
+
+export function resolveIBMClientInitiated(callId: string): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+
+  session.activeIBMCandidates
+    .filter(c => c.status === 'accumulating' || c.status === 'viable')
+    .forEach(candidate => {
+      candidate.status = 'resolved_client';
+      candidate.clientInitiated = true;
+      console.log(`🔲 [IBM] Candidate resolved — client named contradiction: "${candidate.hypothesis.substring(0, 60)}"`);
+    });
+}
+
+export function getActiveIBMCandidates(callId: string): IBMCandidate[] {
+  const session = activeSessions.get(callId);
+  if (!session) return [];
+  return session.activeIBMCandidates.filter(
+    c => c.status === 'accumulating' || c.status === 'viable'
+  );
+}
+
 export function getActiveSessionCount(): number {
   return activeSessions.size;
 }

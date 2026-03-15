@@ -143,6 +143,38 @@ export type CSSSignalIndicator =
   | 'historical_integration_ref'
   | 'recursive_awareness';
 
+// IBM Detection Types
+export interface IBMSignalContribution {
+  exchange: number;
+  evidenceStatement: string;
+  signalStrength: number;
+  signalBasis: 'resistance' | 'intellectualizing' | 'composite';
+}
+export interface IBMCandidate {
+  id: string;
+  hypothesis: string;
+  statedPosition: string;
+  candidateExchange: number;
+  confirmingSignals: IBMSignalContribution[];
+  consecutiveAlignmentTurns: number;
+  weightedAccumulation: number;
+  namingViable: boolean;
+  minimumHoldSatisfied: boolean;
+  registerViable: boolean;
+  thresholdCrossed: boolean;
+  viableRegister: 'Imaginary' | 'Symbolic' | null;
+  status: 'accumulating' | 'viable' | 'resolved_client' | 'resolved_inconclusive';
+  clientInitiated?: boolean;
+}
+export interface IBMDetectionResult {
+  hypothesis: string | null;
+  statedPosition: string | null;
+  contradictionStrength: number;
+  behavioralAlignment: boolean;
+  clientNamed: boolean;
+  evidence: string;
+}
+
 export type CSSStage =
   | 'pointed_origin'    // Initial engagement
   | 'focus_bind'        // Contradiction identified

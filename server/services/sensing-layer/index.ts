@@ -2,7 +2,7 @@
 // Main Sensing Layer Service - Orchestrates all sensing modules
 
 import { supabase } from '../supabase-service';
-import { detectPatterns } from './pattern-detection';
+import { detectPatterns, detectIBMWithLLM } from './pattern-detection';
 import { analyzeRegister } from './register-analysis';
 import { mapSymbolic } from './symbolic-mapping';
 import { assessMovement } from './movement-assessment';
@@ -25,7 +25,13 @@ import {
   getPreviousVectors,
   recordCSSSignals,
   assessSessionCSSStage,
-  getSessionCSSStage
+  getSessionCSSStage,
+  computeIBMSignalStrength,
+  createIBMCandidate,
+  confirmIBMCandidates,
+  processIBMAlignment,
+  resolveIBMClientInitiated,
+  getActiveIBMCandidates
 } from './session-state';
 import {
   coupleStateVector,
@@ -111,12 +117,52 @@ export class SensingLayerService {
 
       // 3. Run sensing computations in parallel for speed
       const sensingStart = Date.now();
-      const [patterns, register, symbolic, movement] = await Promise.all([
+      const [patterns, register, symbolic, movement, ibmDetection] = await Promise.all([
         detectPatterns(input, profile),
         analyzeRegister(input, profile),
         mapSymbolic(input, profile),
-        assessMovement(input, profile)
+        assessMovement(input, profile),
+        detectIBMWithLLM(input)
       ]);
+      // ─── IBM Cross-Turn Evaluation ──────────────────────────────────────
+      const ibmSignalStrength = computeIBMSignalStrength(
+        movement.indicators.resistance,
+        movement.indicators.intellectualizing,
+        ibmDetection.contradictionStrength
+      );
+      if (ibmDetection.clientNamed) {
+        resolveIBMClientInitiated(input.callId);
+      } else if (ibmDetection.behavioralAlignment) {
+        processIBMAlignment(
+          input.callId,
+          ibmSignalStrength,
+          register.currentRegister
+        );
+      } else if (ibmDetection.contradictionStrength > 0) {
+        const existingCandidates = getActiveIBMCandidates(input.callId);
+        if (existingCandidates.length === 0 && ibmDetection.hypothesis) {
+          createIBMCandidate(
+            input.callId,
+            ibmDetection.hypothesis,
+            ibmDetection.statedPosition || '',
+            input.exchangeCount,
+            ibmSignalStrength,
+            ibmDetection.evidence,
+            movement.indicators.resistance,
+            movement.indicators.intellectualizing
+          );
+        } else if (existingCandidates.length > 0 && ibmSignalStrength > 0) {
+          confirmIBMCandidates(
+            input.callId,
+            input.exchangeCount,
+            ibmSignalStrength,
+            ibmDetection.evidence,
+            register.currentRegister
+          );
+        }
+      }
+      // ─── End IBM Evaluation ─────────────────────────────────────────────
+
       console.log(`⚡ Sensing computations completed in ${Date.now() - sensingStart}ms`);
 
       // 3a. Record CSS signals from this utterance

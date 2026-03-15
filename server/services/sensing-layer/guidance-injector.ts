@@ -4,7 +4,7 @@
 import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance, RegisterAnalysisResult, MovementAssessmentResult } from './types';
 import { TherapeuticStateVector } from './state-vector';
 import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
-import { getSessionState } from './session-state';
+import { getSessionState, getActiveIBMCandidates } from './session-state';
 
 // Pending guidance queue: holds guidance deferred while agent is speaking
 const pendingGuidance = new Map<string, TherapeuticGuidance | EnhancedTherapeuticGuidance>();
@@ -252,7 +252,16 @@ export function formatSessionPicture(
     `Movement: ${movementLabel}.`,
     `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
     `CVDC: not yet visible`,
-    `IBM: none this turn`,
+    (() => {
+      const ibmCandidates = getActiveIBMCandidates(callId);
+      if (ibmCandidates.length === 0) return `IBM: none detected`;
+      const viable = ibmCandidates.find(c => c.status === 'viable');
+      if (viable) {
+        return `IBM: ${viable.hypothesis} — viable [register: ${viable.viableRegister}]`;
+      }
+      const accumulating = ibmCandidates[0];
+      return `IBM: ${accumulating.hypothesis} — held [accumulation: ${accumulating.weightedAccumulation.toFixed(2)}/2.0]`;
+    })(),
     `Narrative: not yet mapped`,
     `Patterns: ${patternSummary}`,
     `Confidence: ${confidenceLabel}`,
