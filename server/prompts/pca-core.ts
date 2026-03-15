@@ -114,6 +114,40 @@ function assemblePatterns(profile: UserTherapeuticProfile): string {
   const lines = profile.patterns.slice(0, 3).map(p => p.description).join('\n');
   return `Patterns: ${lines}`;
 }
+function assembleNarrativeContext(profile: UserTherapeuticProfile): string {
+  const narrative = profile.narrativeContext;
+  if (!narrative || narrative.totalFragmentCount === 0) {
+    return 'Prior significant moments: No cross-session material recorded yet.';
+  }
+
+  const lines: string[] = [`Prior significant moments (${narrative.totalFragmentCount} total across sessions):`];
+
+  if (narrative.constellations.length > 0) {
+    const top = narrative.constellations[0];
+    lines.push(`Recurring theme (${top.fragments.length} linked moments):`);
+    top.fragments.slice(0, 2).forEach(f => {
+      const stage = f.css_stage_at_disclosure ? ` [${f.css_stage_at_disclosure}]` : '';
+      const signals = f.investment_signals?.length > 0
+        ? ` — ${f.investment_signals.slice(0, 2).join(', ')}`
+        : '';
+      lines.push(`  • ${f.content_summary}${stage}${signals}`);
+    });
+  }
+
+  if (narrative.lastSessionFragments.length > 0) {
+    lines.push(`Last session:`);
+    narrative.lastSessionFragments.slice(0, 2).forEach(f => {
+      const stage = f.css_stage_at_disclosure ? ` [${f.css_stage_at_disclosure}]` : '';
+      const signals = f.investment_signals?.length > 0
+        ? ` — ${f.investment_signals.slice(0, 2).join(', ')}`
+        : '';
+      lines.push(`  • ${f.content_summary}${stage}${signals}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
 export function assembleProfileBlock(
   firstName: string,
   profile: UserTherapeuticProfile | null,
@@ -137,7 +171,7 @@ ${assembleRegisterPattern(profile)}
 Known CVDC: CVDC not yet identified — in active Prescripting.
 ${assemblePatterns(profile)}
 ${lastSession}
-Prior significant moments: Not yet available — session finalizer build pending.`;
+${assembleNarrativeContext(profile)}`;
   const approxTokens = Math.round(block.length / 4);
   if (approxTokens > 200) {
     console.warn(`[PCA-CORE] Profile block for ${firstName} is ~${approxTokens} tokens — exceeds soft cap.`);

@@ -164,7 +164,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         fastResult.movement,
         fastResult.stateVector,
         numUserTurns,
-        callId
+        callId,
+        fastResult.resonance
       );
 
       let lastUserIdx = -1;

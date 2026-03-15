@@ -1,6 +1,8 @@
 // server/services/sensing-layer/types.ts
 // Type definitions for the Sensing Layer service
 
+import type { SessionNarrativeContext } from './narrative-web';
+
 /**
  * Input for processing a single turn/utterance
  */
@@ -31,6 +33,7 @@ export interface UserTherapeuticProfile {
   lastSessionSummary?: string | null;
   lastCSSStage?: CSSStage | null;
   lastCSSStageConfidence?: number | null;
+  narrativeContext?: SessionNarrativeContext | null;
 }
 
 export interface UserPattern {

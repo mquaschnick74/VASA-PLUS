@@ -38,6 +38,7 @@ import {
   TherapeuticStateVector
 } from './state-vector';
 import { persistSessionProfile } from './profile-writer';
+import { loadSessionNarrativeContext, findResonatingFragments, type ResonanceResult } from './narrative-web';
 import {
   TurnInput,
   UserTherapeuticProfile,
@@ -360,6 +361,7 @@ export class SensingLayerService {
     register: RegisterAnalysisResult;
     movement: MovementAssessmentResult;
     stateVector: TherapeuticStateVector;
+    resonance: ResonanceResult | null;
   }> {
     const fastStart = Date.now();
 
@@ -384,7 +386,8 @@ export class SensingLayerService {
         guidance: fallbackGuidance,
         register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } },
         movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] },
-        stateVector: { raw: { patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null }, register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } }, symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } }, movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] } }, coupled: { movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3 }, velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 }, exchangeNumber: 0, timestamp: new Date() }
+        stateVector: { raw: { patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null }, register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } }, symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } }, movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] } }, coupled: { movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3 }, velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 }, exchangeNumber: 0, timestamp: new Date() },
+        resonance: null,
       };
     }
 
@@ -410,9 +413,10 @@ export class SensingLayerService {
     };
 
     // Run only heuristic modules — no LLM calls
-    const [register, movement] = await Promise.all([
+    const [register, movement, resonance] = await Promise.all([
       analyzeRegister(input, profile),
-      assessMovement(input, profile)
+      assessMovement(input, profile),
+      findResonatingFragments(input.userId, input.utterance).catch(() => null)
     ]);
 
     // Couple state vector with empty pattern/symbolic inputs
@@ -448,7 +452,8 @@ export class SensingLayerService {
       guidance,
       register,
       movement,
-      stateVector
+      stateVector,
+      resonance
     };
   }
 
@@ -661,7 +666,8 @@ export class SensingLayerService {
         registerResult,
         cssResult,
         lastSessionResult,
-        cssArcResult
+        cssArcResult,
+        narrativeContext
       ] = await Promise.all([
         supabase
           .from('user_patterns')
@@ -713,7 +719,9 @@ export class SensingLayerService {
           .eq('user_id', userId)
           .eq('context_type', 'css_arc_summary')
           .order('created_at', { ascending: false })
-          .limit(1)
+          .limit(1),
+
+        loadSessionNarrativeContext(userId).catch(() => null)
       ]);
 
       // Transform database rows to domain types
@@ -746,6 +754,7 @@ export class SensingLayerService {
         lastSessionSummary: lastSessionResult.data?.[0]?.content ?? null,
         lastCSSStage,
         lastCSSStageConfidence,
+        narrativeContext: narrativeContext ?? null,
       };
 
     } catch (error) {
@@ -756,7 +765,8 @@ export class SensingLayerService {
         historicalMaterial: [],
         symbolicMappings: [],
         registerHistory: [],
-        cssHistory: []
+        cssHistory: [],
+        narrativeContext: null,
       };
     }
   }
