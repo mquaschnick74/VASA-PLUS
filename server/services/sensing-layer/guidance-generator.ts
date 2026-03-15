@@ -48,30 +48,6 @@ export async function generateGuidance(
   // 2. Enhance with anticipation guidance
   const anticipationGuidance = generateAnticipationGuidance(anticipation, generativeInsight);
 
-  // 3. If situation is complex, enhance with Claude
-  const isComplex = isComplexSituation(osr);
-
-  if (isComplex && process.env.ANTHROPIC_API_KEY) {
-    try {
-      // Wrap Claude call in timeout to ensure fast response
-      const claudeTimeout = 5000; // 5 second max for Claude + RAG
-      const claudePromise = generateEnhancedClaudeGuidance(osr, input);
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Claude guidance timeout')), claudeTimeout);
-      });
-
-      const claudeGuidance = await Promise.race([claudePromise, timeoutPromise]);
-      console.log(`🎯 [Guidance Generator] Enhanced Claude guidance generated (${Date.now() - startTime}ms)`);
-      return claudeGuidance;
-    } catch (error: any) {
-      if (error.message === 'Claude guidance timeout') {
-        console.warn(`🎯 [Guidance Generator] Claude timed out after 5s, using rule-based`);
-      } else {
-        console.error('🎯 [Guidance Generator] Claude failed, using rule-based:', error);
-      }
-    }
-  }
-
   // Combine rule-based with anticipation guidance
   const enhancedGuidance: EnhancedTherapeuticGuidance = {
     ...ruleBasedGuidance,

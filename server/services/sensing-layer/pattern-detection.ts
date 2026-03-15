@@ -10,7 +10,8 @@ import {
   PatternResonance,
   UserExplicitPattern,
   PatternType,
-  UserPattern
+  UserPattern,
+  IBMDetectionResult
 } from './types';
 
 /**
@@ -648,4 +649,70 @@ function calculateStructuralResonance(utterance: string, pattern: UserPattern): 
   if (patternStructures === 0 || utteranceStructures === 0) return 0;
 
   return matchingStructures / Math.max(patternStructures, utteranceStructures);
+}
+
+export async function detectIBMWithLLM(input: TurnInput): Promise<IBMDetectionResult> {
+  const defaultResult: IBMDetectionResult = {
+    hypothesis: null,
+    statedPosition: null,
+    contradictionStrength: 0,
+    behavioralAlignment: false,
+    clientNamed: false,
+    evidence: ''
+  };
+  if (!process.env.ANTHROPIC_API_KEY || input.utterance.length < 20) {
+    return defaultResult;
+  }
+  const recentHistory = input.conversationHistory
+    .slice(-6)
+    .map(t => `${t.role.toUpperCase()}: ${t.content}`)
+    .join('\n');
+  const prompt = `Analyze this therapeutic conversation for an Incoherent Behavior Matrix (IBM) pattern.
+An IBM occurs when a client's stated reason or position is structurally contradicted by their actual behavior in the conversation. Example: client says "I'm only here because I agreed to be" but then actively engages, pushes back, and corrects the therapist across multiple turns.
+RECENT CONVERSATION HISTORY:
+${recentHistory || 'No prior history'}
+CURRENT UTTERANCE:
+"${input.utterance}"
+Assess:
+1. Has the client stated a position or reason (for being here, for their behavior, for their feelings) in the conversation history?
+2. Does the current utterance behaviorally contradict that stated position, or does it align with it?
+3. Has the client explicitly named the contradiction themselves?
+Respond ONLY with valid JSON:
+{
+  "hypothesis": "one sentence describing the contradiction, or null if none",
+  "statedPosition": "the client's stated position verbatim or paraphrased, or null",
+  "contradictionStrength": 0.0,
+  "behavioralAlignment": false,
+  "clientNamed": false,
+  "evidence": "what in the current utterance supports this assessment"
+}
+contradictionStrength: 0 = no contradiction or alignment turn, 0.1-0.4 = mild inconsistency, 0.5-0.7 = clear behavioral contradiction, 0.8-1.0 = direct and explicit contradiction of stated position.
+behavioralAlignment: true only if current utterance actively confirms the stated position.
+clientNamed: true only if the client explicitly acknowledges or names the contradiction themselves.`;
+  try {
+    const anthropic = await import('@anthropic-ai/sdk');
+    const client = new anthropic.default({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+    const response = await client.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const content = response.content[0];
+    if (content.type !== 'text') return defaultResult;
+    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return defaultResult;
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      hypothesis: parsed.hypothesis || null,
+      statedPosition: parsed.statedPosition || null,
+      contradictionStrength: Math.min(1, Math.max(0, parsed.contradictionStrength || 0)),
+      behavioralAlignment: parsed.behavioralAlignment || false,
+      clientNamed: parsed.clientNamed || false,
+      evidence: parsed.evidence || ''
+    };
+  } catch {
+    return defaultResult;
+  }
 }

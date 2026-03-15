@@ -2,7 +2,7 @@
 // Main Sensing Layer Service - Orchestrates all sensing modules
 
 import { supabase } from '../supabase-service';
-import { detectPatterns } from './pattern-detection';
+import { detectPatterns, detectIBMWithLLM } from './pattern-detection';
 import { analyzeRegister } from './register-analysis';
 import { mapSymbolic } from './symbolic-mapping';
 import { assessMovement } from './movement-assessment';
@@ -25,7 +25,13 @@ import {
   getPreviousVectors,
   recordCSSSignals,
   assessSessionCSSStage,
-  getSessionCSSStage
+  getSessionCSSStage,
+  computeIBMSignalStrength,
+  createIBMCandidate,
+  confirmIBMCandidates,
+  processIBMAlignment,
+  resolveIBMClientInitiated,
+  getActiveIBMCandidates
 } from './session-state';
 import {
   coupleStateVector,
@@ -111,12 +117,52 @@ export class SensingLayerService {
 
       // 3. Run sensing computations in parallel for speed
       const sensingStart = Date.now();
-      const [patterns, register, symbolic, movement] = await Promise.all([
+      const [patterns, register, symbolic, movement, ibmDetection] = await Promise.all([
         detectPatterns(input, profile),
         analyzeRegister(input, profile),
         mapSymbolic(input, profile),
-        assessMovement(input, profile)
+        assessMovement(input, profile),
+        detectIBMWithLLM(input)
       ]);
+      // ─── IBM Cross-Turn Evaluation ──────────────────────────────────────
+      const ibmSignalStrength = computeIBMSignalStrength(
+        movement.indicators.resistance,
+        movement.indicators.intellectualizing,
+        ibmDetection.contradictionStrength
+      );
+      if (ibmDetection.clientNamed) {
+        resolveIBMClientInitiated(input.callId);
+      } else if (ibmDetection.behavioralAlignment) {
+        processIBMAlignment(
+          input.callId,
+          ibmSignalStrength,
+          register.currentRegister
+        );
+      } else if (ibmDetection.contradictionStrength > 0) {
+        const existingCandidates = getActiveIBMCandidates(input.callId);
+        if (existingCandidates.length === 0 && ibmDetection.hypothesis) {
+          createIBMCandidate(
+            input.callId,
+            ibmDetection.hypothesis,
+            ibmDetection.statedPosition || '',
+            input.exchangeCount,
+            ibmSignalStrength,
+            ibmDetection.evidence,
+            movement.indicators.resistance,
+            movement.indicators.intellectualizing
+          );
+        } else if (existingCandidates.length > 0 && ibmSignalStrength > 0) {
+          confirmIBMCandidates(
+            input.callId,
+            input.exchangeCount,
+            ibmSignalStrength,
+            ibmDetection.evidence,
+            register.currentRegister
+          );
+        }
+      }
+      // ─── End IBM Evaluation ─────────────────────────────────────────────
+
       console.log(`⚡ Sensing computations completed in ${Date.now() - sensingStart}ms`);
 
       // 3a. Record CSS signals from this utterance
@@ -411,13 +457,14 @@ export class SensingLayerService {
    * Pre-caches user profile to avoid per-turn DB loads
    */
   async initializeCallSession(callId: string, userId: string, sessionId: string): Promise<void> {
-    initializeSession(callId, userId, sessionId);
     try {
       const profile = await this.getUserProfile(userId);
       profileCache.set(callId, { profile, loadedAt: Date.now() });
-      console.log(`👤 [SENSING] Profile pre-cached for call ${callId}`);
+      initializeSession(callId, userId, sessionId, profile.lastCSSStage, profile.lastCSSStageConfidence);
+      console.log(`👤 [SENSING] Profile pre-cached for call ${callId}, CSS arc seeded: ${profile.lastCSSStage ?? 'pointed_origin'} (${profile.lastCSSStageConfidence ?? 0.3})`);
     } catch (error) {
-      console.error(`❌ [SENSING] Failed to pre-cache profile:`, error);
+      console.error(`❌ [SENSING] Failed to pre-cache profile, initializing with defaults:`, error);
+      initializeSession(callId, userId, sessionId);
     }
   }
 
@@ -449,6 +496,26 @@ export class SensingLayerService {
           summary.structuredHistorical,
           summary.structuredConnections
         );
+      }
+
+      // Write CSS arc summary for cross-session continuity
+      try {
+        await supabase
+          .from('therapeutic_context')
+          .insert({
+            user_id: summary.userId,
+            call_id: summary.callId,
+            context_type: 'css_arc_summary',
+            content: JSON.stringify({
+              stage: summary.finalCSSStage,
+              confidence: summary.finalCSSStageConfidence
+            }),
+            confidence: 0.9,
+            importance: 9
+          });
+        console.log(`🎯 [Sensing Layer] CSS arc summary written: ${summary.finalCSSStage} (${summary.finalCSSStageConfidence.toFixed(2)})`);
+      } catch (arcError) {
+        console.error(`❌ [Sensing Layer] Failed to write CSS arc summary (non-fatal):`, arcError);
       }
 
       // Clear from memory
@@ -593,7 +660,8 @@ export class SensingLayerService {
         mappingsResult,
         registerResult,
         cssResult,
-        lastSessionResult
+        lastSessionResult,
+        cssArcResult
       ] = await Promise.all([
         supabase
           .from('user_patterns')
@@ -637,6 +705,14 @@ export class SensingLayerService {
           .eq('user_id', userId)
           .eq('context_type', 'conversational_summary')
           .order('created_at', { ascending: false })
+          .limit(1),
+
+        supabase
+          .from('therapeutic_context')
+          .select('content')
+          .eq('user_id', userId)
+          .eq('context_type', 'css_arc_summary')
+          .order('created_at', { ascending: false })
           .limit(1)
       ]);
 
@@ -647,6 +723,20 @@ export class SensingLayerService {
       const registerHistory = this.transformRegisterHistory(registerResult.data || []);
       const cssHistory = this.transformCSSHistory(cssResult.data || []);
 
+      // Parse CSS arc summary from last session
+      let lastCSSStage: import('./types').CSSStage | null = null;
+      let lastCSSStageConfidence: number | null = null;
+      const arcContent = cssArcResult.data?.[0]?.content;
+      if (arcContent) {
+        try {
+          const parsed = typeof arcContent === 'string' ? JSON.parse(arcContent) : arcContent;
+          lastCSSStage = parsed.stage ?? null;
+          lastCSSStageConfidence = parsed.confidence ?? null;
+        } catch {
+          console.warn(`⚠️ [Sensing Layer] Could not parse css_arc_summary content`);
+        }
+      }
+
       return {
         patterns,
         historicalMaterial,
@@ -654,6 +744,8 @@ export class SensingLayerService {
         registerHistory,
         cssHistory,
         lastSessionSummary: lastSessionResult.data?.[0]?.content ?? null,
+        lastCSSStage,
+        lastCSSStageConfidence,
       };
 
     } catch (error) {
