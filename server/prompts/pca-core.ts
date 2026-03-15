@@ -198,6 +198,8 @@ export function assembleSystemPrompt(
     LAYER_4,
     '',
     HSFB_PROTOCOL,
+    '',
+      LAYER_6,
   );
 
   return parts.join('\n');
