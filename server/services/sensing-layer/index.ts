@@ -89,7 +89,12 @@ export class SensingLayerService {
    * Main entry point - process a user utterance through the sensing layer
    * Uses in-memory session state to avoid per-turn database writes
    */
-  async processUtterance(input: TurnInput): Promise<TherapeuticGuidance> {
+  async processUtterance(input: TurnInput): Promise<{
+    guidance: TherapeuticGuidance;
+    register: RegisterAnalysisResult;
+    movement: MovementAssessmentResult;
+    stateVector: TherapeuticStateVector;
+  }> {
     const startTime = Date.now();
     console.log(`\n🧠 ===== SENSING LAYER PROCESSING =====`);
     console.log(`📝 User: "${input.utterance.substring(0, 100)}..."`);
@@ -332,13 +337,13 @@ export class SensingLayerService {
       console.log(`⏱️ Total processing time: ${processingTimeMs}ms`);
       console.log(`🧠 ===== SENSING LAYER COMPLETE =====\n`);
 
-      return guidance;
+      return { guidance, register, movement, stateVector };
 
     } catch (error) {
       console.error('❌ [Sensing Layer] Processing error:', error);
 
-      // Return safe default guidance
-      return {
+      // Return safe default guidance with fallback register/movement/stateVector
+      const fallbackGuidance: TherapeuticGuidance = {
         posture: 'hold',
         registerDirection: null,
         strategicDirection: 'Stay present and follow the user\'s lead.',
@@ -347,6 +352,27 @@ export class SensingLayerService {
         urgency: 'low',
         confidence: 0.3
       };
+      const fallbackRegister: RegisterAnalysisResult = {
+        currentRegister: 'Imaginary', sessionDominance: 'Imaginary',
+        registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 },
+        stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static',
+        indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] }
+      };
+      const fallbackMovement: MovementAssessmentResult = {
+        trajectory: 'holding',
+        indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 },
+        cssStage: 'pointed_origin', cssStageConfidence: 0.5,
+        sessionPosition: 'opening', movementQuality: 'stable',
+        anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] },
+        cssSignals: []
+      };
+      const fallbackStateVector: TherapeuticStateVector = {
+        raw: { patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null }, register: fallbackRegister, symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } }, movement: fallbackMovement },
+        coupled: { movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3 },
+        velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 },
+        exchangeNumber: 0, timestamp: new Date()
+      };
+      return { guidance: fallbackGuidance, register: fallbackRegister, movement: fallbackMovement, stateVector: fallbackStateVector };
     }
   }
 
