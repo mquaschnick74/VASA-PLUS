@@ -236,15 +236,11 @@ export class SensingLayerService {
         recordPatternDetected(input.callId, pattern.description);
       }
       for (const mapping of symbolic.activeMappings) {
-        // Build connection description from mapping properties
         const connectionDesc = `${mapping.presentPattern} → ${mapping.historicalMaterial} (${mapping.connectionType})`;
         recordSymbolicConnection(input.callId, connectionDesc);
       }
 
       // 8a. Record STRUCTURED profile data for end-of-call persistence
-      //     (These feed into user_patterns, user_historical_material, symbolic_mappings)
-
-      // Active patterns → user_patterns
       for (const pattern of patterns.activePatterns) {
         recordStructuredPattern(input.callId, {
           description: pattern.description,
@@ -255,7 +251,6 @@ export class SensingLayerService {
         });
       }
 
-      // Emerging patterns → user_patterns (lower confidence, still worth tracking across sessions)
       for (const emerging of patterns.emergingPatterns) {
         recordStructuredPattern(input.callId, {
           description: emerging.description,
@@ -266,8 +261,6 @@ export class SensingLayerService {
         });
       }
 
-      // User explicitly identified pattern → user_patterns (flagged as user-recognized)
-      // Default patternType is 'cognitive' — DB only allows behavioral/cognitive/relational
       if (patterns.userExplicitIdentification) {
         recordStructuredPattern(input.callId, {
           description: patterns.userExplicitIdentification.inferredPattern,
@@ -278,7 +271,6 @@ export class SensingLayerService {
         });
       }
 
-      // Potential connections → user_historical_material
       for (const conn of symbolic.potentialConnections) {
         const historicalContent = conn.possibleHistoricalLink || '';
         if (conn.confidence > 0.4 && historicalContent) {
@@ -292,8 +284,6 @@ export class SensingLayerService {
         }
       }
 
-      // Active mappings → symbolic_mappings
-      // Require BOTH sides to prevent junk rows (symbolic_connection is NOT NULL)
       for (const mapping of symbolic.activeMappings) {
         const presentDesc = mapping.presentPattern || '';
         const historicalDesc = mapping.historicalMaterial || '';
@@ -309,7 +299,6 @@ export class SensingLayerService {
         }
       }
 
-      // High-confidence potential connections → symbolic_mappings
       for (const conn of symbolic.potentialConnections) {
         const utterance = conn.utteranceContent || '';
         const historicalLink = conn.possibleHistoricalLink || '';
@@ -327,7 +316,6 @@ export class SensingLayerService {
 
       // 9. Only write to DB on significant moments (optional - for real-time alerts)
       if (significance.isSignificant && (significance.type === 'flooding' || significance.type === 'breakthrough')) {
-        // These are high-priority moments worth tracking immediately
         this.storeSignificantMoment(input, significance.type!, significance.description!, guidance).catch(err => {
           console.error('❌ [Sensing Layer] Failed to store significant moment:', err);
         });
@@ -342,7 +330,7 @@ export class SensingLayerService {
     } catch (error) {
       console.error('❌ [Sensing Layer] Processing error:', error);
 
-      // Return safe default guidance with fallback register/movement/stateVector
+      // ─── FIX 3 (catch block): Correct MovementQuality and AnticipationState shapes ───
       const fallbackGuidance: TherapeuticGuidance = {
         posture: 'hold',
         registerDirection: null,
@@ -361,14 +349,33 @@ export class SensingLayerService {
       const fallbackMovement: MovementAssessmentResult = {
         trajectory: 'holding',
         indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 },
-        cssStage: 'pointed_origin', cssStageConfidence: 0.5,
-        sessionPosition: 'opening', movementQuality: 'stable',
-        anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] },
+        cssStage: 'pointed_origin',
+        cssStageConfidence: 0.5,
+        sessionPosition: 'opening',
+        // FIX 3a: was 'stable' (string) — must be MovementQuality object
+        movementQuality: { pace: 'steady', depth: 'moderate', coherence: 'developing' },
+        // FIX 3b: was { phase, proximity, signals } — must match AnticipationState interface
+        anticipation: {
+          trajectory: { buildingToward: '', trajectoryConfidence: 0.3, evidencePoints: [] },
+          timing: { phase: 'early_elaboration', waitReasons: [], readyIndicators: [], estimatedTurnsToReady: 5 },
+          patience: { shouldWait: true, waitingFor: '', riskOfPrematureIntervention: '' }
+        },
         cssSignals: []
       };
       const fallbackStateVector: TherapeuticStateVector = {
-        raw: { patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null }, register: fallbackRegister, symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } }, movement: fallbackMovement },
-        coupled: { movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3 },
+        raw: {
+          patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null },
+          register: fallbackRegister,
+          symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } },
+          // FIX 3c: raw.movement embedded copy also needs correct shapes
+          movement: fallbackMovement
+        },
+        coupled: {
+          movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 },
+          registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 },
+          cssStage: 'pointed_origin', cssStageConfidence: 0.5,
+          symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3
+        },
         velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 },
         exchangeNumber: 0, timestamp: new Date()
       };
@@ -406,11 +413,52 @@ export class SensingLayerService {
         urgency: 'low',
         confidence: 0.3
       };
+
+      // ─── FIX 3d: cache-miss fallback movement — correct shapes ───
+      const cacheMissFallbackMovement: MovementAssessmentResult = {
+        trajectory: 'holding',
+        indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 },
+        cssStage: 'pointed_origin',
+        cssStageConfidence: 0.5,
+        sessionPosition: 'opening',
+        // FIX: was 'stable' (string)
+        movementQuality: { pace: 'steady', depth: 'moderate', coherence: 'developing' },
+        // FIX: was { phase, proximity, signals }
+        anticipation: {
+          trajectory: { buildingToward: '', trajectoryConfidence: 0.3, evidencePoints: [] },
+          timing: { phase: 'early_elaboration', waitReasons: [], readyIndicators: [], estimatedTurnsToReady: 5 },
+          patience: { shouldWait: true, waitingFor: '', riskOfPrematureIntervention: '' }
+        },
+        cssSignals: []
+      };
+
+      const cacheMissFallbackRegister: RegisterAnalysisResult = {
+        currentRegister: 'Imaginary', sessionDominance: 'Imaginary',
+        registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 },
+        stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static',
+        indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] }
+      };
+
       return {
         guidance: fallbackGuidance,
-        register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } },
-        movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] },
-        stateVector: { raw: { patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null }, register: { currentRegister: 'Imaginary', sessionDominance: 'Imaginary', registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static', indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] } }, symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } }, movement: { trajectory: 'holding', indicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, sessionPosition: 'opening', movementQuality: 'stable', anticipation: { phase: 'early_elaboration', proximity: 0.3, signals: [] }, cssSignals: [] } }, coupled: { movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 }, registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 }, cssStage: 'pointed_origin', cssStageConfidence: 0.5, symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3 }, velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 }, exchangeNumber: 0, timestamp: new Date() }
+        register: cacheMissFallbackRegister,
+        movement: cacheMissFallbackMovement,
+        stateVector: {
+          raw: {
+            patterns: { activePatterns: [], emergingPatterns: [], patternResonance: [], userExplicitIdentification: null },
+            register: cacheMissFallbackRegister,
+            symbolic: { activeMappings: [], potentialConnections: [], awarenessShift: null, generativeInsight: { currentElaboration: { topic: '', symbolicWeight: 0, connectedThemes: [] } } },
+            movement: cacheMissFallbackMovement
+          },
+          coupled: {
+            movementIndicators: { deepening: 0, resistance: 0, integration: 0, flooding: 0, intellectualizing: 0, looping: 0 },
+            registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 },
+            cssStage: 'pointed_origin', cssStageConfidence: 0.5,
+            symbolicActivation: 0.06, therapeuticMomentum: 0, phaseTransitionProximity: 0.3
+          },
+          velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 },
+          exchangeNumber: 0, timestamp: new Date()
+        }
       };
     }
 
@@ -441,15 +489,26 @@ export class SensingLayerService {
       assessMovement(input, profile)
     ]);
 
-    // Couple state vector with empty pattern/symbolic inputs
+    // ─── FIX 1: Use accumulated session vectors instead of always-empty [] ───
+    // Previously passed [] which made velocity/momentum always 0.00 every turn.
+    // getPreviousVectors returns what processUtterance has already accumulated
+    // for this call, so the fast path now benefits from prior turns' full cascade.
+    const previousVectors = getPreviousVectors(input.callId);
+
+    // ─── FIX 2: Use current session CSS stage, not last session's DB record ───
+    // Previously used profile.cssHistory?.[0]?.stage which is the stage from the
+    // previous session stored in the DB — not the stage being assessed this session.
+    const { stage: currentSessionCSSStage } = getSessionCSSStage(input.callId);
+
+    // Couple state vector with accumulated history
     const stateVector = coupleStateVector(
       emptyPatterns,
       register,
       emptySymbolic,
       movement,
-      [], // no previous vectors on fast path
+      previousVectors,       // FIX 1: was []
       input.exchangeCount,
-      profile.cssHistory?.[0]?.stage ?? 'pointed_origin'
+      currentSessionCSSStage // FIX 2: was profile.cssHistory?.[0]?.stage ?? 'pointed_origin'
     );
 
     // Assemble minimal OSR for guidance generation
@@ -510,10 +569,8 @@ export class SensingLayerService {
     console.log(`   Significant moments: ${summary.significantMoments.length}`);
 
     try {
-      // Write session summary to database
       await this.storeSessionSummary(summary);
 
-      // Persist accumulated profile data to user_patterns, user_historical_material, symbolic_mappings
       if (summary.structuredPatterns.length > 0 || summary.structuredHistorical.length > 0 || summary.structuredConnections.length > 0) {
         console.log(`💾 [Sensing Layer] Persisting user profile data...`);
         await persistSessionProfile(
@@ -524,7 +581,6 @@ export class SensingLayerService {
         );
       }
 
-      // Write CSS arc summary for cross-session continuity
       try {
         await supabase
           .from('therapeutic_context')
@@ -544,14 +600,13 @@ export class SensingLayerService {
         console.error(`❌ [Sensing Layer] Failed to write CSS arc summary (non-fatal):`, arcError);
       }
 
-      // Clear from memory
       clearSession(callId);
       profileCache.delete(callId);
 
       return summary;
     } catch (error) {
       console.error('❌ [Sensing Layer] Error finalizing session:', error);
-      clearSession(callId); // Still clear memory to avoid leaks
+      clearSession(callId);
       profileCache.delete(callId);
       return null;
     }
@@ -561,7 +616,6 @@ export class SensingLayerService {
    * Store session summary to database (single write at end of call)
    */
   private async storeSessionSummary(summary: SessionSummary): Promise<void> {
-    // 1. Store session register analysis (single row per call)
     const { error: registerError } = await supabase
       .from('session_register_analysis')
       .insert({
@@ -590,8 +644,6 @@ export class SensingLayerService {
       console.log(`💾 [Sensing Layer] Session summary stored for call ${summary.callId}`);
     }
 
-    // Write session-level CSS stage to css_patterns for longitudinal tracking
-    // This is the authoritative record used to populate cssHistory on next session load
     const { error: cssError } = await supabase
       .from('css_patterns')
       .insert({
@@ -620,7 +672,6 @@ export class SensingLayerService {
       console.log(`🎯 [Sensing Layer] CSS stage persisted: ${summary.finalCSSStage} for ${summary.callId}`);
     }
 
-    // 2. Store significant moments if any (separate table for easy querying)
     if (summary.significantMoments.length > 0) {
       const moments = summary.significantMoments.map(m => ({
         session_id: summary.sessionId,
@@ -637,7 +688,6 @@ export class SensingLayerService {
         .insert(moments);
 
       if (momentsError) {
-        // Table might not exist yet - just log and continue
         console.warn(`⚠️ [Sensing Layer] Could not store significant moments:`, momentsError.message);
       }
     }
@@ -665,7 +715,6 @@ export class SensingLayerService {
       });
 
     if (error) {
-      // Table might not exist - silently fail
       console.warn(`⚠️ [Sensing Layer] Could not store significant moment:`, error.message);
     } else {
       console.log(`⭐ [Sensing Layer] Significant moment stored: ${type}`);
@@ -679,7 +728,6 @@ export class SensingLayerService {
     console.log(`📥 [Sensing Layer] Loading profile for user: ${userId}`);
 
     try {
-      // Fetch all profile components in parallel
       const [
         patternsResult,
         historicalResult,
@@ -742,14 +790,12 @@ export class SensingLayerService {
           .limit(1)
       ]);
 
-      // Transform database rows to domain types
       const patterns = this.transformPatterns(patternsResult.data || []);
       const historicalMaterial = this.transformHistoricalMaterial(historicalResult.data || []);
       const symbolicMappings = this.transformSymbolicMappings(mappingsResult.data || []);
       const registerHistory = this.transformRegisterHistory(registerResult.data || []);
       const cssHistory = this.transformCSSHistory(cssResult.data || []);
 
-      // Parse CSS arc summary from last session
       let lastCSSStage: import('./types').CSSStage | null = null;
       let lastCSSStageConfidence: number | null = null;
       const arcContent = cssArcResult.data?.[0]?.content;
@@ -776,7 +822,6 @@ export class SensingLayerService {
 
     } catch (error) {
       console.error('❌ [Sensing Layer] Error loading profile:', error);
-      // Return empty profile for new users
       return {
         patterns: [],
         historicalMaterial: [],
@@ -786,8 +831,6 @@ export class SensingLayerService {
       };
     }
   }
-
-  // Transform functions for database rows to domain types
 
   private transformPatterns(rows: UserPatternRow[]): UserPattern[] {
     return rows.map(row => ({
@@ -841,7 +884,7 @@ export class SensingLayerService {
       stucknessScore: row.stuckness_score,
       registerDistribution: row.register_distribution,
       analysisNotes: row.analysis_notes,
-      timestamp: new Date().toISOString() // Default since not in row
+      timestamp: new Date().toISOString()
     }));
   }
 
@@ -864,9 +907,6 @@ export const sensingLayer = SensingLayerService.getInstance();
 // Helper functions for structured profile recording
 // ─────────────────────────────────────────────
 
-/**
- * Extract figure/person references from historical material text.
- */
 function extractFiguresFromText(text: string): string[] {
   const figures: string[] = [];
   const lowerText = text.toLowerCase();
@@ -895,9 +935,6 @@ function extractFiguresFromText(text: string): string[] {
   return figures;
 }
 
-/**
- * Infer emotional valence from the type of symbolic connection.
- */
 function inferValenceFromConnectionType(connectionType: string): string {
   switch (connectionType) {
     case 'figure_substitution':
