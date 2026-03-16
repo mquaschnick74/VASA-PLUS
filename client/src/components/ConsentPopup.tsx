@@ -5,15 +5,16 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
-import { apiFetch } from '@/lib/apiFetch';
+import { getApiUrl } from '@/lib/platform';
 
 interface ConsentPopupProps {
   userId: string;
   userEmail: string;
   onConsentAccepted: () => void;
+  authToken?: string | null;
 }
 
-export default function ConsentPopup({ userId, userEmail, onConsentAccepted }: ConsentPopupProps) {
+export default function ConsentPopup({ userId, userEmail, onConsentAccepted, authToken }: ConsentPopupProps) {
   const [aiLimitationsChecked, setAiLimitationsChecked] = useState(false);
   const [dataSecurityChecked, setDataSecurityChecked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -29,13 +30,23 @@ export default function ConsentPopup({ userId, userEmail, onConsentAccepted }: C
     setError(null);
 
     try {
-      const response = await apiFetch('/api/auth/accept-consent', {
+      if (!authToken) {
+        throw new Error('No auth token available');
+      }
+
+      const response = await fetch(getApiUrl('/api/auth/accept-consent'), {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        credentials: 'include',
         body: JSON.stringify({ userId })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to record consent');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to record consent');
       }
 
       onConsentAccepted();

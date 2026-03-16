@@ -43,6 +43,7 @@ export default function Dashboard() {
   const mountedRef = useRef(true);
   const isSignedInRef = useRef(false);
   const lastEventRef = useRef<string>('');
+  const sessionTokenRef = useRef<string | null>(null);
 
   // Check URL params on mount — redirect invitation links to dedicated signup pages
   useEffect(() => {
@@ -126,6 +127,7 @@ export default function Dashboard() {
     }
 
     const token = freshSession.access_token;
+    sessionTokenRef.current = token;
 
     try {
       const apiUrl = getApiUrl('/api/auth/user');
@@ -689,7 +691,7 @@ export default function Dashboard() {
 
   // Show consent popup if not yet accepted (only after invitation is processed)
   if (showConsent) {
-    return <ConsentPopup userId={userId} userEmail={userEmail} onConsentAccepted={handleConsentAccepted} />;
+    return <ConsentPopup userId={userId} userEmail={userEmail} onConsentAccepted={handleConsentAccepted} authToken={sessionTokenRef.current} />;
   }
 
   // Show assessment iframe modal if not yet completed (only after consent and invitation)
