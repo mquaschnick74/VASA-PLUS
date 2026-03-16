@@ -8,7 +8,8 @@ import { buildMemoryContext } from '../services/memory-service';
 import { detectCSSPatterns, assessPatternConfidence } from '../services/css-pattern-service';
 import { generateEnhancedSessionSummary } from '../services/summary-service';
 import OpenAI from 'openai';
-import { sensingLayer } from '../services/sensing-layer';
+import { sensingLayer, getCachedProfile } from '../services/sensing-layer';
+import { assembleSystemPrompt, assembleProfileBlock } from '../prompts/pca-core';
 import { formatGuidanceAsSystemMessage, formatEnhancedGuidanceAsSystemMessage } from '../services/sensing-layer/guidance-injector';
 import { EnhancedTherapeuticGuidance } from '../services/sensing-layer/types';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
@@ -36,48 +37,10 @@ interface AgentConfig {
   };
 }
 
-// Helper function to build system prompt for text chat
-function buildChatSystemPrompt(
-  agentSystemPrompt: string,
-  userContext: any,
-  firstName: string
-): string {
-  let systemPrompt = `TEXT CHAT MODE:
-This is a text-based conversation. Respond naturally and therapeutically.
-Keep responses concise but meaningful (2-4 paragraphs maximum for text readability).
-Use the user's name (${firstName}) naturally but not excessively.
-
-${agentSystemPrompt}`;
-
-  // Add memory context if available
-  const hasMemory = userContext?.memoryContext && userContext.memoryContext.length > 50;
-
-  if (userContext?.shouldReferenceLastSession && userContext?.lastSessionSummary) {
-    systemPrompt += `\n\n===== LAST SESSION CONTEXT =====
-${userContext.lastSessionSummary}
-
-Continue the therapeutic narrative naturally.
-===== END LAST SESSION =====\n`;
-  }
-
-  if (hasMemory) {
-    systemPrompt += `\n\n===== PREVIOUS SESSION HISTORY =====
-${userContext.memoryContext}
-===== END HISTORY =====
-
-IMPORTANT: Reference the above context naturally when relevant.
-Do not make up or hallucinate details not mentioned above.`;
-  } else if (!userContext?.lastSessionSummary) {
-    systemPrompt += '\n\nThis is your first interaction with this user. Get to know them gently.';
-  }
-
-  return systemPrompt;
-}
-
 // POST /api/chat/send-message - Send a text message and get AI response
 router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { sessionId, agentId, agentName, systemPrompt, modelConfig, message, conversationHistory } = req.body;
+    const { sessionId, agentId, agentName, modelConfig, message, conversationHistory } = req.body;
 
     // Map Supabase auth user ID to VASA platform user ID
     const authUserId = req.user.id; // Supabase auth ID from JWT token
@@ -119,11 +82,10 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     });
 
     // Validate inputs
-    if (!message || !agentId || !systemPrompt || !modelConfig || !sessionId) {
+    if (!message || !agentId || !modelConfig || !sessionId) {
       console.error('❌ [CHAT] Missing required fields:', {
         hasMessage: !!message,
         hasAgentId: !!agentId,
-        hasSystemPrompt: !!systemPrompt,
         hasModelConfig: !!modelConfig,
         hasSessionId: !!sessionId
       });
@@ -195,11 +157,21 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     const history = conversationHistory || [];
     console.log('💬 [CHAT] History messages:', history.length);
 
-    // Build system prompt with user context
-    const fullSystemPrompt = buildChatSystemPrompt(
-      systemPrompt,
-      userContext,
-      firstName
+    // Load therapeutic profile — same mechanism as voice path
+    const cachedProfile = getCachedProfile(sessionId);
+    const isFirstSession = !userContext?.lastSessionSummary &&
+      (!cachedProfile?.cssHistory || cachedProfile.cssHistory.length === 0);
+    const profileBlock = assembleProfileBlock(
+      firstName,
+      cachedProfile,
+      isFirstSession
+    );
+    const fullSystemPrompt = assembleSystemPrompt(
+      agentId,
+      firstName,
+      profileBlock,
+      isFirstSession,
+      userContext?.lastSessionSummary ?? null
     );
 
     console.log('🤖 [CHAT] Calling OpenAI with model:', modelConfig.model);
