@@ -262,7 +262,7 @@ export async function extractAndStoreFragments(
           structural_patterns: fragment.structural_patterns,
           investment_signals: fragment.investment_signals,
           css_stage_at_disclosure: fragment.css_stage_at_disclosure || cssStage || null,
-          embedding: JSON.stringify(embedding),
+          embedding: `[${embedding.join(',')}]`,
           extraction_run_id: extractionRunId,
         })
         .select('id')
@@ -289,7 +289,7 @@ export async function extractAndStoreFragments(
       try {
         const { data: matches } = await supabase.rpc('match_narrative_fragments', {
           p_user_id: userId,
-          p_query_embedding: JSON.stringify(stored.embedding),
+          p_query_embedding: `[${stored.embedding.join(',')}]`,
           p_match_count: 5,
           p_match_threshold: RESONANCE_SIMILARITY_THRESHOLD,
         });
