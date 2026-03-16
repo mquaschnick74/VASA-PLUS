@@ -274,7 +274,7 @@ async function processSensingLayerAsync(
     const exchangeCount = getExchangeCount(callId);
 
     // Process through sensing layer
-    const guidance = await sensingLayer.processUtterance({
+    const { guidance } = await sensingLayer.processUtterance({
       utterance,
       sessionId: callId,
       callId,

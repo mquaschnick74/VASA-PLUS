@@ -213,21 +213,16 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
         }))
       };
 
-      // Fast path — blocks, produces session picture (mirrors voice path)
-      const fastResult = await sensingLayer.processFastUtterance(turnInput);
+      const { guidance, register, movement, stateVector } =
+        await sensingLayer.processUtterance(turnInput);
 
-      // Full cascade — async, accumulates patterns for future turns
-      sensingLayer.processUtterance(turnInput).catch(err =>
-        console.error(`⚠️ [CHAT-SENSING] Background sensing error:`, err)
-      );
-
-      console.log(`🧠 [CHAT-SENSING] Guidance generated — Posture: ${fastResult.guidance.posture}, Register: ${fastResult.register.currentRegister}`);
+      console.log(`🧠 [CHAT-SENSING] Guidance generated — Posture: ${guidance.posture}, Register: ${register.currentRegister}`);
 
       const guidanceText = formatSessionPicture(
-        fastResult.guidance,
-        fastResult.register,
-        fastResult.movement,
-        fastResult.stateVector,
+        guidance,
+        register,
+        movement,
+        stateVector,
         exchangeCount,
         sessionId
       );
