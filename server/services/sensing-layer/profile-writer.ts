@@ -100,15 +100,34 @@ function calculateStemmedSimilarity(text1: string, text2: string): number {
   if (words1.size === 0 || words2.size === 0) return 0;
 
   let overlap = 0;
-  for (const word of words1) {
+  // FIX 1: Array.from() to avoid --downlevelIteration TS error on Set iteration
+  for (const word of Array.from(words1)) {
     if (words2.has(word)) overlap++;
   }
 
   return (2 * overlap) / (words1.size + words2.size);
 }
 
-const DEDUP_THRESHOLD = 0.6;
+// ─────────────────────────────────────────────
+// Thresholds
+// ─────────────────────────────────────────────
+
+// FIX 2: Raised from 0.6 → 0.75 to prevent near-duplicate pattern accumulation.
+// At 0.6, patterns like "avoidance of silence" and "avoidance of silence and need
+// for constant interaction" were creating separate rows. 0.75 requires substantial
+// semantic overlap before treating two descriptions as the same pattern.
+const DEDUP_THRESHOLD = 0.75;
+
 const FK_MATCH_THRESHOLD = 0.5;
+
+// FIX 3: Minimum confidence a pattern must have to be written to the DB.
+// LLM-detected patterns with confidence < 0.65 are single-utterance observations,
+// not clinically meaningful patterns. This eliminates the bulk of noise rows.
+const MIN_INSERT_CONFIDENCE = 0.65;
+
+// FIX 4: Maximum patterns persisted per session. Caps the DB write volume.
+// Top patterns by confidence are kept; the rest are discarded.
+const MAX_PATTERNS_PER_SESSION = 15;
 
 /** Normalize for exact-match attempts (prevents trivial mismatch) */
 function normalizeText(s: string): string {
@@ -137,16 +156,25 @@ export async function persistSessionProfile(
 ): Promise<void> {
   const startTime = Date.now();
 
-  console.log(`💾 [Profile Writer] Persisting profile for user ${userId}:`);
-  console.log(`   Patterns: ${patterns.length}, Historical: ${historicalMaterial.length}, Connections: ${symbolicConnections.length}`);
+  // FIX 5: Cap and filter session patterns before any DB work.
+  // Sort by confidence descending, take top MAX_PATTERNS_PER_SESSION,
+  // then discard anything below MIN_INSERT_CONFIDENCE.
+  // User-explicitly-identified patterns bypass the confidence floor.
+  const filteredPatterns = patterns
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, MAX_PATTERNS_PER_SESSION)
+    .filter(p => p.userExplicitlyIdentified || p.confidence >= MIN_INSERT_CONFIDENCE);
 
-  if (patterns.length === 0 && historicalMaterial.length === 0 && symbolicConnections.length === 0) {
+  console.log(`💾 [Profile Writer] Persisting profile for user ${userId}:`);
+  console.log(`   Patterns: ${patterns.length} session → ${filteredPatterns.length} after confidence/cap filter, Historical: ${historicalMaterial.length}, Connections: ${symbolicConnections.length}`);
+
+  if (filteredPatterns.length === 0 && historicalMaterial.length === 0 && symbolicConnections.length === 0) {
     console.log(`💾 [Profile Writer] Nothing to persist — skipping`);
     return;
   }
 
   try {
-    const patternIdMap = await persistPatterns(userId, patterns);
+    const patternIdMap = await persistPatterns(userId, filteredPatterns);
     const historicalIdMap = await persistHistoricalMaterial(userId, historicalMaterial);
     await persistSymbolicMappings(userId, symbolicConnections, patternIdMap, historicalIdMap);
 
@@ -199,7 +227,7 @@ async function persistPatterns(
       const dbPatternType = toDbPatternType(String(sessionPattern.patternType));
 
       if (bestMatch) {
-        // Clone examples array before mutating to avoid shared-reference bugs
+        // Update existing match — always allowed regardless of confidence
         const updatedExamples = Array.isArray(bestMatch.examples) ? [...bestMatch.examples] : [];
         const evidence = (sessionPattern.evidence || '').trim();
 
@@ -231,6 +259,13 @@ async function persistPatterns(
         idMap.set(desc, bestMatch.id);
 
       } else {
+        // Insert new pattern — confidence already filtered upstream in persistSessionProfile,
+        // but explicitly-identified patterns bypass the floor so check once more here.
+        if (!sessionPattern.userExplicitlyIdentified && sessionPattern.confidence < MIN_INSERT_CONFIDENCE) {
+          console.log(`⏭️ [Profile Writer] Skipped low-confidence pattern (${sessionPattern.confidence.toFixed(2)}): "${desc.substring(0, 60)}"`);
+          continue;
+        }
+
         const { data: inserted, error: insertError } = await supabase
           .from('user_patterns')
           .insert({
@@ -272,7 +307,7 @@ async function persistPatterns(
     }
   }
 
-  console.log(`💾 [Profile Writer] Patterns: ${idMap.size} persisted (from ${sessionPatterns.length} session patterns, against ${existing.length} existing)`);
+  console.log(`💾 [Profile Writer] Patterns: ${idMap.size} persisted (from ${sessionPatterns.length} filtered session patterns, against ${existing.length} existing)`);
   return idMap;
 }
 
@@ -325,7 +360,6 @@ async function persistHistoricalMaterial(
             ? sessionItem.contextNotes
             : bestMatch.context_notes;
 
-        // Keep existing valence if non-empty, otherwise use session value
         const nextValence =
           (bestMatch.emotional_valence && String(bestMatch.emotional_valence).trim())
             ? bestMatch.emotional_valence
@@ -443,7 +477,6 @@ async function persistSymbolicMappings(
         if (confidenceImproved || awarenessImproved) {
           const nextAwareness = awarenessImproved ? dbSessionAwareness : dbExistingAwareness;
 
-          // Set recognized_at when progressing to recognized and it wasn't set before
           const shouldSetRecognizedAt =
             nextAwareness === 'recognized' && !existingMapping.recognized_at;
 
@@ -510,16 +543,17 @@ function resolveForeignKey(
   const desc = normalizeText(description);
   if (!desc || idMap.size === 0) return null;
 
+  // FIX 6: Array.from() to avoid --downlevelIteration TS error on Map iteration
   // Normalized exact match first
-  for (const [key, uuid] of idMap) {
+  for (const [key, uuid] of Array.from(idMap)) {
     if (normalizeText(key) === desc) return uuid;
   }
 
-  // Fuzzy match
+  // FIX 7: Array.from() on second Map iteration
   let bestId: string | null = null;
   let bestSimilarity = 0;
 
-  for (const [key, uuid] of idMap) {
+  for (const [key, uuid] of Array.from(idMap)) {
     const similarity = calculateStemmedSimilarity(desc, key);
     if (similarity > FK_MATCH_THRESHOLD && similarity > bestSimilarity) {
       bestId = uuid;

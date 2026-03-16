@@ -35,45 +35,59 @@ async function detectSemanticPatternsWithLLM(
     .map(m => `${m.role}: ${m.content.slice(0, 100)}`)
     .join('\n');
 
-  const prompt = `Analyze this therapeutic conversation for psychological patterns.
+  // FIX: Raised confidence threshold from > 0.4 to > 0.6.
+  // Patterns with confidence < 0.6 are single-utterance surface observations —
+  // not clinically meaningful.
+  //
+  // FIX: Explicit instruction to describe only the USER's psychological patterns,
+  // not the therapist's interventions or the assistant's behaviors.
+  // Previously the LLM was generating descriptions like "The assistant expresses
+  // a need for confirmation..." because the prompt did not exclude agent content.
+  const prompt = `Analyze this therapeutic conversation for the USER's psychological patterns.
 
-CURRENT UTTERANCE: "${input.utterance}"
+CURRENT USER UTTERANCE: "${input.utterance}"
 
-RECENT CONTEXT:
+RECENT CONTEXT (user turns only are clinically relevant):
 ${recentContext || 'First utterance'}
 
-Identify:
-1. CVDC Contradictions (wanting X but doing Y, saying one thing but feeling another)
-2. Emotional patterns (recurring feelings, reactions)
-3. Behavioral patterns (repeated actions, choices)
-4. Relational patterns (dynamics with others)
-5. Self-awareness statements ("I notice I...", "I always...", pattern recognition)
+CRITICAL RULES:
+- Describe only the USER's patterns — never the therapist's interventions or the assistant's behaviors.
+- A pattern requires behavioral or emotional evidence from the USER's own words.
+- Do not infer patterns from what the assistant said or did.
+- Patterns must be concise (under 15 words), specific, and grounded in depth psychology.
+
+Identify from the USER's utterance:
+1. CVDC Contradictions (user wants X but does Y, says one thing but feels another)
+2. Emotional patterns (recurring feelings or reactions the user describes)
+3. Behavioral patterns (repeated actions or choices the user describes)
+4. Relational patterns (dynamics with others the user describes)
+5. Self-awareness statements where the user explicitly recognizes a pattern in themselves
 
 Respond in JSON:
 {
   "explicitPattern": {
-    "statement": "exact quote where they recognize a pattern",
-    "inferredPattern": "the pattern they're recognizing",
+    "statement": "exact quote where user recognizes a pattern in themselves",
+    "inferredPattern": "the pattern they are recognizing",
     "confidence": 0.0-1.0
   } OR null,
   "detectedPatterns": [
     {
-      "description": "concise pattern description",
+      "description": "concise user pattern description (under 15 words)",
       "type": "behavioral|cognitive|relational|emotional|avoidance|protective",
       "confidence": 0.0-1.0,
-      "evidence": "quote supporting this"
+      "evidence": "user quote supporting this"
     }
   ],
   "emergingPatterns": [
     {
-      "description": "pattern appearing but not fully formed",
+      "description": "emerging user pattern (under 15 words)",
       "type": "behavioral|cognitive|relational|emotional|avoidance|protective",
-      "significance": "why this matters therapeutically"
+      "significance": "why this matters therapeutically for this user"
     }
   ]
 }
 
-Be concise. Only include patterns with confidence > 0.4. Focus on depth psychology, not surface observations.`;
+Only include patterns with confidence > 0.6. Focus on depth psychology. Be concise.`;
 
   try {
     const anthropic = await import('@anthropic-ai/sdk');
@@ -200,7 +214,7 @@ function mergePatternsDedup<T extends { description: string }>(patterns: T[]): T
         pattern.description.toLowerCase(),
         existing.description.toLowerCase()
       );
-      return similarity > 0.6; // 60% similar = duplicate
+      return similarity > 0.6;
     });
 
     if (!isDuplicate) {
@@ -213,25 +227,19 @@ function mergePatternsDedup<T extends { description: string }>(patterns: T[]): T
 
 /**
  * Detect when user explicitly identifies their own pattern
- * e.g., "I always do this", "this is a problem for me", "I notice I..."
  */
 function detectUserExplicitPattern(utterance: string): UserExplicitPattern | null {
   const lowerUtterance = utterance.toLowerCase();
 
   const explicitPatternMarkers = [
-    // Direct identification
     { regex: /i always (do|feel|think|say|end up|find myself)/i, type: 'always' },
     { regex: /i never (seem to|can|manage to|let myself)/i, type: 'never' },
     { regex: /this is a pattern/i, type: 'direct' },
     { regex: /i (notice|realize|see) (that )?i (always|tend to|keep)/i, type: 'insight' },
-
-    // Problem identification
     { regex: /this is (my|a) problem/i, type: 'problem' },
     { regex: /i know i (shouldn't|should|need to) but/i, type: 'awareness' },
     { regex: /i keep doing (this|the same thing)/i, type: 'repetition' },
     { regex: /every time.{0,30}(i|the same thing happens)/i, type: 'repetition' },
-
-    // Pattern language
     { regex: /i have (this|a) (habit|tendency|pattern) of/i, type: 'labeled' },
     { regex: /i'm (stuck|trapped) in/i, type: 'stuck' },
     { regex: /i can't (stop|help|break)/i, type: 'compulsive' }
@@ -240,7 +248,6 @@ function detectUserExplicitPattern(utterance: string): UserExplicitPattern | nul
   for (const marker of explicitPatternMarkers) {
     const match = utterance.match(marker.regex);
     if (match) {
-      // Extract the pattern context (what comes after the marker)
       const markerEnd = match.index! + match[0].length;
       const patternContext = utterance.substring(markerEnd, markerEnd + 100).trim();
 
@@ -255,11 +262,7 @@ function detectUserExplicitPattern(utterance: string): UserExplicitPattern | nul
   return null;
 }
 
-/**
- * Extract pattern description from user's statement
- */
 function extractPatternFromStatement(fullUtterance: string, matchedPortion: string): string {
-  // Get surrounding context
   const sentences = fullUtterance.split(/[.!?]+/);
   for (const sentence of sentences) {
     if (sentence.includes(matchedPortion.substring(0, 20))) {
@@ -269,9 +272,6 @@ function extractPatternFromStatement(fullUtterance: string, matchedPortion: stri
   return matchedPortion;
 }
 
-/**
- * Match current utterance against existing patterns in profile
- */
 function matchExistingPatterns(
   input: TurnInput,
   existingPatterns: UserPattern[]
@@ -296,13 +296,9 @@ function matchExistingPatterns(
     }
   }
 
-  // Sort by confidence
   return matched.sort((a, b) => b.matchConfidence - a.matchConfidence);
 }
 
-/**
- * Calculate match between utterance and a pattern
- */
 function calculatePatternMatch(
   utteranceLower: string,
   pattern: UserPattern
@@ -310,7 +306,6 @@ function calculatePatternMatch(
   let confidence = 0;
   let evidence = '';
 
-  // 1. Keyword matching from pattern description
   const patternKeywords = extractKeywords(pattern.description);
   let keywordMatches = 0;
 
@@ -325,7 +320,6 @@ function calculatePatternMatch(
     confidence += (keywordMatches / patternKeywords.length) * 0.4;
   }
 
-  // 2. Check against pattern examples
   for (const example of pattern.examples) {
     const similarity = calculateSimilarity(utteranceLower, example.toLowerCase());
     if (similarity > 0.3) {
@@ -335,7 +329,6 @@ function calculatePatternMatch(
     }
   }
 
-  // 3. Thematic matching based on pattern type
   const thematicMatch = matchPatternType(utteranceLower, pattern.patternType);
   if (thematicMatch > 0) {
     confidence += thematicMatch * 0.3;
@@ -344,9 +337,6 @@ function calculatePatternMatch(
   return { confidence: Math.min(confidence, 1), evidence };
 }
 
-/**
- * Extract meaningful keywords from a pattern description
- */
 function extractKeywords(text: string): string[] {
   const stopWords = new Set([
     'i', 'me', 'my', 'myself', 'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are',
@@ -366,9 +356,6 @@ function extractKeywords(text: string): string[] {
     .filter(word => word.length > 3 && !stopWords.has(word));
 }
 
-/**
- * Calculate simple word overlap similarity
- */
 function calculateSimilarity(text1: string, text2: string): number {
   const words1 = new Set(extractKeywords(text1));
   const words2 = new Set(extractKeywords(text2));
@@ -383,9 +370,6 @@ function calculateSimilarity(text1: string, text2: string): number {
   return (2 * overlap) / (words1.size + words2.size);
 }
 
-/**
- * Check if utterance matches pattern type thematically
- */
 function matchPatternType(utteranceLower: string, patternType: PatternType): number {
   const typeIndicators: Record<PatternType, string[]> = {
     behavioral: ['do', 'act', 'behavior', 'action', 'habit', 'routine', 'reaction'],
@@ -406,9 +390,6 @@ function matchPatternType(utteranceLower: string, patternType: PatternType): num
   return indicators.length > 0 ? matches / indicators.length : 0;
 }
 
-/**
- * Detect patterns that are emerging (1-2 occurrences) from conversation history
- */
 function detectEmergingPatterns(
   input: TurnInput,
   existingPatterns: UserPattern[]
@@ -416,20 +397,16 @@ function detectEmergingPatterns(
   const emerging: EmergingPattern[] = [];
   const existingDescriptions = new Set(existingPatterns.map(p => p.description.toLowerCase()));
 
-  // Analyze conversation history for repetitions
   const userUtterances = input.conversationHistory
     .filter(turn => turn.role === 'user')
     .map(turn => turn.content.toLowerCase());
 
-  // Add current utterance
   userUtterances.push(input.utterance.toLowerCase());
 
-  // Look for thematic repetitions
   const themes = extractThemes(userUtterances);
 
   for (const [theme, occurrences] of Object.entries(themes)) {
     if (occurrences.count >= 2 && occurrences.count <= 3) {
-      // Check if this is already an existing pattern
       if (!existingDescriptions.has(theme)) {
         emerging.push({
           description: theme,
@@ -445,13 +422,9 @@ function detectEmergingPatterns(
   return emerging;
 }
 
-/**
- * Extract thematic clusters from utterances
- */
 function extractThemes(utterances: string[]): Record<string, { count: number; examples: string[] }> {
   const themes: Record<string, { count: number; examples: string[] }> = {};
 
-  // Theme detection patterns
   const themePatterns = [
     { regex: /feeling (alone|isolated|lonely)/gi, theme: 'isolation and loneliness' },
     { regex: /(not|never) (good enough|worthy|deserving)/gi, theme: 'self-worth struggles' },
@@ -472,7 +445,7 @@ function extractThemes(utterances: string[]): Record<string, { count: number; ex
   for (const utterance of utterances) {
     for (const pattern of themePatterns) {
       if (pattern.regex.test(utterance)) {
-        pattern.regex.lastIndex = 0; // Reset regex
+        pattern.regex.lastIndex = 0;
 
         if (!themes[pattern.theme]) {
           themes[pattern.theme] = { count: 0, examples: [] };
@@ -488,9 +461,6 @@ function extractThemes(utterances: string[]): Record<string, { count: number; ex
   return themes;
 }
 
-/**
- * Infer pattern type from theme description
- */
 function inferPatternType(theme: string): PatternType {
   const themeLower = theme.toLowerCase();
 
@@ -524,9 +494,6 @@ function inferPatternType(theme: string): PatternType {
   return 'behavioral';
 }
 
-/**
- * Assess significance of an emerging pattern
- */
 function assessSignificance(theme: string, occurrences: number): string {
   if (occurrences >= 3) {
     return `This theme has appeared ${occurrences} times - may be a significant pattern worth exploring`;
@@ -536,9 +503,6 @@ function assessSignificance(theme: string, occurrences: number): string {
   return 'Initial observation';
 }
 
-/**
- * Calculate pattern resonance - how strongly does this utterance activate existing patterns
- */
 function calculatePatternResonance(
   input: TurnInput,
   patterns: UserPattern[]
@@ -549,13 +513,11 @@ function calculatePatternResonance(
   for (const pattern of patterns) {
     if (!pattern.active) continue;
 
-    // Calculate different types of resonance
     const directResonance = calculateDirectResonance(utteranceLower, pattern);
     const thematicResonance = calculateThematicResonance(utteranceLower, pattern);
     const emotionalResonance = calculateEmotionalResonance(utteranceLower, pattern);
     const structuralResonance = calculateStructuralResonance(input.utterance, pattern);
 
-    // Find strongest resonance type
     const resonanceTypes = [
       { type: 'direct' as const, strength: directResonance },
       { type: 'thematic' as const, strength: thematicResonance },
@@ -578,7 +540,6 @@ function calculatePatternResonance(
 }
 
 function calculateDirectResonance(utterance: string, pattern: UserPattern): number {
-  // Direct word overlap
   const patternWords = extractKeywords(pattern.description);
   let matches = 0;
 
@@ -590,12 +551,10 @@ function calculateDirectResonance(utterance: string, pattern: UserPattern): numb
 }
 
 function calculateThematicResonance(utterance: string, pattern: UserPattern): number {
-  // Same theme/topic area
   return matchPatternType(utterance, pattern.patternType);
 }
 
 function calculateEmotionalResonance(utterance: string, pattern: UserPattern): number {
-  // Emotional tone similarity
   const emotionWords = [
     'feel', 'feeling', 'felt', 'emotion', 'heart', 'gut',
     'scared', 'afraid', 'anxious', 'worried', 'nervous',
@@ -622,7 +581,6 @@ function calculateEmotionalResonance(utterance: string, pattern: UserPattern): n
 }
 
 function calculateStructuralResonance(utterance: string, pattern: UserPattern): number {
-  // Similar sentence structure patterns
   const structures = {
     'I always': /i always/i,
     'I never': /i never/i,
