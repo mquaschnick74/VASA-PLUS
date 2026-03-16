@@ -97,7 +97,7 @@ Only include patterns with confidence > 0.6. Focus on depth psychology. Be conci
 
     const response = await client.messages.create({
       model: 'claude-3-haiku-20240307',
-      max_tokens: 1200,
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     });
 
