@@ -10,8 +10,7 @@ import { generateEnhancedSessionSummary } from '../services/summary-service';
 import OpenAI from 'openai';
 import { sensingLayer, getCachedProfile } from '../services/sensing-layer';
 import { assembleSystemPrompt, assembleProfileBlock } from '../prompts/pca-core';
-import { formatGuidanceAsSystemMessage, formatEnhancedGuidanceAsSystemMessage } from '../services/sensing-layer/guidance-injector';
-import { EnhancedTherapeuticGuidance } from '../services/sensing-layer/types';
+import { formatSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
 const router = Router();
@@ -201,7 +200,7 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
 
       const exchangeCount = Math.floor(history.length / 2); // Each exchange = 1 user + 1 assistant
 
-      const guidance = await sensingLayer.processUtterance({
+      const turnInput = {
         utterance: message,
         sessionId,
         callId: sessionId,
@@ -212,15 +211,26 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
           content: m.content,
           timestamp: new Date().toISOString()
         }))
-      });
+      };
 
-      console.log(`🧠 [CHAT-SENSING] Guidance generated — Posture: ${guidance.posture}, Urgency: ${guidance.urgency}`);
+      // Fast path — blocks, produces session picture (mirrors voice path)
+      const fastResult = await sensingLayer.processFastUtterance(turnInput);
 
-      // Format guidance using the same formatter as the voice channel
-      const isEnhanced = 'anticipationGuidance' in guidance || 'enhancedPosture' in guidance;
-      const guidanceText = isEnhanced
-        ? formatEnhancedGuidanceAsSystemMessage(guidance as EnhancedTherapeuticGuidance)
-        : formatGuidanceAsSystemMessage(guidance);
+      // Full cascade — async, accumulates patterns for future turns
+      sensingLayer.processUtterance(turnInput).catch(err =>
+        console.error(`⚠️ [CHAT-SENSING] Background sensing error:`, err)
+      );
+
+      console.log(`🧠 [CHAT-SENSING] Guidance generated — Posture: ${fastResult.guidance.posture}, Register: ${fastResult.register.currentRegister}`);
+
+      const guidanceText = formatSessionPicture(
+        fastResult.guidance,
+        fastResult.register,
+        fastResult.movement,
+        fastResult.stateVector,
+        exchangeCount,
+        sessionId
+      );
 
       // Insert guidance as a system message between the base system prompt and the user message
       // Position: after system prompt [0], before current user message [last]
