@@ -37,36 +37,12 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <div className="relative origin-top scale-[0.65] sm:scale-[0.80] md:scale-100 -mb-52 sm:-mb-28 md:mb-0">
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
-              <div className="absolute -top-4 -left-14 flex flex-col items-start pointer-events-none select-none z-10">
-                {/* Label on top */}
-                <span className="text-sm font-medium text-primary/90 whitespace-nowrap ml-2 italic">
-                  Try a live session
-                </span>
-                {/* Arrow below, pointing right toward the phone */}
-                <svg
-                  width="30"
-                  height="25"
-                  viewBox="0 0 60 50"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-primary opacity-90 ml-8"
-                >
-                  <path
-                    d="M4 4 C4 30, 20 44, 54 44"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  <path
-                    d="M46 38 L55 44 L46 50"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                </svg>
+              <div className="absolute -top-8 -left-36 pointer-events-none select-none z-10">
+                <img
+                  src="/try-live-session.png"
+                  alt="Try a live session"
+                  className="w-48 opacity-90"
+                />
               </div>
               {/* Phone button */}
               <button
