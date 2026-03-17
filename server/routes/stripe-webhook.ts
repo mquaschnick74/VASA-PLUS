@@ -224,6 +224,7 @@ router.post('/', async (req, res) => {
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription & { current_period_end: number };
+        const previousAttributes = (event.data as any).previous_attributes || {};
 
         let status = 'active';
         if (subscription.status === 'canceled') status = 'canceled';
@@ -236,7 +237,38 @@ router.post('/', async (req, res) => {
           updated_at: new Date().toISOString(),
         };
 
-        if (status === 'active') {
+        // Detect plan change: Stripe includes 'items' in previous_attributes when the plan changed
+        const planChanged = !!previousAttributes.items;
+
+        if (planChanged && status === 'active') {
+          try {
+            const firstItem = subscription.items?.data?.[0];
+            const productId = typeof firstItem?.price?.product === 'string'
+              ? firstItem.price.product
+              : (firstItem?.price?.product as any)?.id;
+
+            if (productId) {
+              const product = await stripe.products.retrieve(productId);
+              const metadata = product.metadata || {};
+
+              const newTier = metadata.tier;
+              const newMinutesLimit = Number.parseInt(metadata.minutes_limit || '', 10);
+
+              if (newTier) updateData.subscription_tier = newTier;
+              if (!isNaN(newMinutesLimit) && newMinutesLimit > 0) updateData.usage_minutes_limit = newMinutesLimit;
+
+              logInfo('stripe_plan_change_detected', {
+                subscriptionId: subscription.id,
+                newTier,
+                newMinutesLimit,
+              });
+            }
+          } catch (e: any) {
+            logWarn('stripe_plan_change_metadata_lookup_failed', { message: e?.message });
+          }
+        }
+
+        if (status === 'active' && !planChanged) {
           const { data: currentSub } = await supabase
             .from('subscriptions')
             .select('current_period_end, plan_type, user_id')
