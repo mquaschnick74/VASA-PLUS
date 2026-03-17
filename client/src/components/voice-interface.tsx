@@ -127,6 +127,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     connectionStatus,
     onTranscript,
     speakingRole,
+    isAgentThinking,
+    isAgentSpeakingActive,
     error: vapiError,
     clearError
   } = useVapi({
@@ -569,8 +571,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     if (connectionStatus === 'connecting' || isLoading) return 'connecting';
     if (!isSessionActive) return 'idle';
     if (speakingRole === 'user') return 'user-speaking';
-    if (speakingRole === 'assistant') return 'agent-speaking';
-    return 'agent-thinking';
+    if (speakingRole === 'assistant' || isAgentSpeakingActive) return 'agent-speaking';
+    if (isAgentThinking) return 'agent-thinking';
+    return 'idle';
   };
 
   const formatTime = (seconds: number) => {

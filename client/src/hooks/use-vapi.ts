@@ -44,6 +44,8 @@ interface UseVapiReturn {
   onTranscript: (callback: (message: TranscriptMessage) => void) => void;
   onSpeechUpdate: (callback: (message: SpeechUpdateMessage) => void) => void;
   speakingRole: 'user' | 'assistant' | null;
+  isAgentThinking: boolean;
+  isAgentSpeakingActive: boolean;
   error: string | null;
   clearError: () => void;
 }
@@ -73,6 +75,8 @@ const useVapi = ({
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [speakingRole, setSpeakingRole] = useState<'user' | 'assistant' | null>(null);
+  const [isAgentThinking, setIsAgentThinking] = useState(false);
+  const [isAgentSpeakingActive, setIsAgentSpeakingActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const vapiRef = useRef<any>(null);
   const transcriptCallbackRef = useRef<((message: TranscriptMessage) => void) | null>(null);
@@ -114,6 +118,8 @@ const useVapi = ({
           setIsSessionActive(true);
           setConnectionStatus('connected');
           setIsLoading(false);
+          setIsAgentSpeakingActive(false);
+          setIsAgentThinking(false);
         });
 
         vapiInstance.on('call-end', () => {
@@ -123,11 +129,14 @@ const useVapi = ({
           setIsSessionActive(false);
           setConnectionStatus('disconnected');
           setSpeakingRole(null);
+          setIsAgentSpeakingActive(false);
+          setIsAgentThinking(false);
         });
 
         vapiInstance.on('speech-start', () => {
           console.log('🎤 User started speaking');
           setSpeakingRole('user');
+          setIsAgentSpeakingActive(false);
         });
 
         vapiInstance.on('speech-end', () => {
@@ -228,8 +237,12 @@ const useVapi = ({
             const role: 'assistant' | 'user' = message.role === 'assistant' ? 'assistant' : 'user';
             if (message.status === 'started') {
               setSpeakingRole(role);
+              if (role === 'assistant') setIsAgentSpeakingActive(true);
             } else if (message.status === 'stopped') {
               setSpeakingRole(null);
+              // Do NOT clear isAgentSpeakingActive here — VAPI fires multiple
+              // started/stopped pairs within a single agent response. The latch
+              // only clears when the user's mic activates or the call ends.
             }
             const speechUpdateMessage: SpeechUpdateMessage = {
               status: message.status,
@@ -639,6 +652,8 @@ Do NOT call the tool unless you actually need more context beyond what is alread
     onTranscript,
     onSpeechUpdate,
     speakingRole,
+    isAgentThinking,
+    isAgentSpeakingActive,
     error,
     clearError
   };
