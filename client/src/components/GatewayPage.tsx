@@ -71,7 +71,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
             <div className="flex flex-col gap-3 w-full sm:w-auto">
               <Button
                 size="lg"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto justify-start px-6 bg-emerald-500 hover:bg-emerald-600 border border-white/60"
                 onClick={() => setLocation('/signup/individual')}
               >
                 <Brain className="w-5 h-5" />
@@ -79,15 +79,14 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
               </Button>
               <Button
                 size="lg"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto justify-start px-6"
                 onClick={() => setLocation('/ai-assisted-therapy')}
               >
                 <Users className="w-5 h-5" />
                 AI-Assisted Therapy with a Real Human
               </Button>
               <Button
-                variant="outline"
-                className="w-full sm:w-auto mt-1"
+                className="w-full sm:w-auto mt-1 justify-start px-6 shadow-[0_0_25px_rgba(0,208,98,0.7),0_0_50px_rgba(0,208,98,0.5),0_0_80px_rgba(0,208,98,0.3)] hover:shadow-[0_0_35px_rgba(0,208,98,0.8),0_0_70px_rgba(0,208,98,0.6),0_0_100px_rgba(0,208,98,0.4)]"
                 onClick={() => setLocation('/signup/therapist')}
               >
                 <Building2 className="w-5 h-5" />
