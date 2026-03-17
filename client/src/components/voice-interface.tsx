@@ -921,12 +921,15 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                             className={`rounded-lg p-3 ${msg.role === 'assistant' ? 'bg-secondary/50' : 'bg-primary/20 ml-8'}`}
                           >
                             <div className="flex items-center space-x-2 mb-2">
-                              <span className="text-xs">{msg.source === 'voice' ? '🎤' : '💬'}</span>
                               <span className="text-sm font-medium">
                                 {msg.role === 'assistant' ? (selectedAgent?.name || 'Sarah') : 'You'}
                               </span>
                               <span className="text-xs text-muted-foreground">
-                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {new Date(msg.timestamp).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit'
+                                })}
                               </span>
                               {isTyping && <span className="text-xs text-muted-foreground italic ml-auto">typing...</span>}
                             </div>

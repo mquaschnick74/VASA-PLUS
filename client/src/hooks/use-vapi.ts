@@ -86,21 +86,10 @@ const useVapi = ({
   // Accumulates transcript fragments per role.
   // Flushed when speech-update:stopped fires for that role —
   // that event definitively marks end-of-turn for both user and assistant.
-  const pendingTranscriptRef = useRef<{
-    user: string;
-    assistant: string;
-  }>({
-    user: '',
-    assistant: '',
-  });
-
-  const flushPendingTranscript = useCallback((role: 'user' | 'assistant') => {
-    const content = pendingTranscriptRef.current[role].trim();
-    pendingTranscriptRef.current[role] = '';
-    if (content && transcriptCallbackRef.current) {
-      transcriptCallbackRef.current({ role, content, timestamp: new Date() });
-    }
-  }, []);
+  // Index of the last conversation turn we've fired to the transcript callback.
+  // A turn is only fired once the next turn from the other role appears in
+  // conversation-update — that's the only reliable signal of a complete turn.
+  const lastFiredIndexRef = useRef<number>(-1);
 
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
@@ -129,9 +118,7 @@ const useVapi = ({
 
         vapiInstance.on('call-end', () => {
           console.log('📴 Call ended');
-          // Flush any pending transcripts so the last message is never dropped
-          flushPendingTranscript('user');
-          flushPendingTranscript('assistant');
+          lastFiredIndexRef.current = -1;
           sessionActiveRef.current = false;
           setIsSessionActive(false);
           setConnectionStatus('disconnected');
@@ -146,10 +133,6 @@ const useVapi = ({
         vapiInstance.on('speech-end', () => {
           console.log('🎤 User stopped speaking');
           setSpeakingRole(null);
-          // speech-end is the definitive end-of-turn signal for the user.
-          // VAPI's speech-update message event is unreliable for user role —
-          // flush accumulated user transcript here instead.
-          flushPendingTranscript('user');
         });
 
         vapiInstance.on('error', (error: any) => {
@@ -208,28 +191,45 @@ const useVapi = ({
         vapiInstance.on('message', (message: any) => {
           console.log('📨 VAPI message:', message);
 
-          // Accumulate final transcript fragments per role.
-          // Do NOT fire the callback here — wait for speech-update:stopped
-          // which marks definitive end-of-turn for both user and assistant.
-          if (message.type === 'transcript' && message.transcriptType === 'final') {
-            const role: 'user' | 'assistant' = message.role === 'assistant' ? 'assistant' : 'user';
-            const incoming = String(message.transcript || '').trim();
-            if (!incoming) return;
+          // conversation-update contains the full conversation array.
+          // A turn is complete when the next message from the other role exists.
+          // Fire the callback for each newly completed turn in order.
+          if (message.type === 'conversation-update' && Array.isArray(message.conversation)) {
+            const conversation = message.conversation as Array<{ role: string; content: string }>;
 
-            pendingTranscriptRef.current[role] = pendingTranscriptRef.current[role]
-              ? `${pendingTranscriptRef.current[role]} ${incoming}`
-              : incoming;
+            for (let i = lastFiredIndexRef.current + 1; i < conversation.length - 1; i++) {
+              const turn = conversation[i];
+              const next = conversation[i + 1];
+
+              // Turn is complete when the role changes (other party has started)
+              if (turn.role !== next.role) {
+                const role: 'user' | 'assistant' = turn.role === 'assistant' ? 'assistant' : 'user';
+                const content = String(turn.content || '').trim();
+
+                // Filter out injected system content that leaks into conversation array:
+                // 1. System prompt (contains greeting instruction block)
+                // 2. Silence monitor injections
+                // 3. Sensing layer session picture injections
+                const isSystemPrompt = content.includes('GREETING GENERATION INSTRUCTION');
+                const isSilenceInject = content.startsWith('[SILENCE —');
+                const isSessionPicture = content.startsWith('[SESSION PICTURE]') || content.startsWith('[SENSING]') || content.startsWith('POSTURE:') || content.startsWith('SESSION STATE:');
+
+                if (content && !isSystemPrompt && !isSilenceInject && !isSessionPicture && transcriptCallbackRef.current) {
+                  transcriptCallbackRef.current({ role, content, timestamp: new Date() });
+                }
+
+                lastFiredIndexRef.current = i;
+              }
+            }
           }
 
-          // speech-update:stopped = end of turn for that role.
-          // Flush accumulated transcript and fire the callback as one complete message.
+          // speech-update drives speakingRole state only — no transcript flushing
           if (message.type === 'speech-update') {
             const role: 'assistant' | 'user' = message.role === 'assistant' ? 'assistant' : 'user';
             if (message.status === 'started') {
               setSpeakingRole(role);
             } else if (message.status === 'stopped') {
               setSpeakingRole(null);
-              flushPendingTranscript(role);
             }
             const speechUpdateMessage: SpeechUpdateMessage = {
               status: message.status,
@@ -250,11 +250,11 @@ const useVapi = ({
     initializeVapi();
 
     return () => {
-      if (vapiRef.current) {
-        vapiRef.current.stop();
-      }
-    };
-  }, [flushPendingTranscript]);
+        if (vapiRef.current) {
+          vapiRef.current.stop();
+        }
+      };
+    }, []);
 
   const startSession = useCallback(async () => {
     if (!vapi || isLoading || !selectedAgent) {
