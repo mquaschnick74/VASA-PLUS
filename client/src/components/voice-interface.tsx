@@ -44,9 +44,9 @@ interface OnboardingData {
 interface UserContext {
   profile: any;
   memoryContext: string;
-  displayMemoryContext?: string;  // NEW: Optional field for cleaner UI display
-  lastSessionSummary?: string | null;  // ADD: Session continuity
-  shouldReferenceLastSession?: boolean; // ADD: Session continuity
+  displayMemoryContext?: string;
+  lastSessionSummary?: string | null;
+  shouldReferenceLastSession?: boolean;
   hasUnaddressedUpload?: boolean;
   uploadAddressed?: boolean;
   uploadContext?: string | null;
@@ -63,17 +63,22 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [callTimer, setCallTimer] = useState(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
-  const [selectedAgentId, setSelectedAgentId] = useState('sarah'); // Default to Sarah
+  const [selectedAgentId, setSelectedAgentId] = useState('sarah');
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const [showDurationWarning, setShowDurationWarning] = useState(false);
-  const [sessionDurationLimit, setSessionDurationLimit] = useState(7200); // Default: 2 hours in seconds
+  const [sessionDurationLimit, setSessionDurationLimit] = useState(7200);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+
+  // Tracks whether the agent is actively processing a user turn.
+  // Set true when a user transcript arrives (agent now processing),
+  // set false when the agent transcript arrives (response complete).
+  // Driven by transcript events — stable and event-driven, not derived
+  // from speakingRole which re-evaluates on every render and causes flickering.
+  const [isAgentThinking, setIsAgentThinking] = useState(false);
 
   const [, setLocation] = useLocation();
 
-  // NEW: Transcript and text messaging state
   const [transcript, setTranscript] = useState<ExtendedTranscriptMessage[]>(() => {
-    // Restore transcript from localStorage on mount
     const saved = localStorage.getItem('vasa_text_transcript');
     return saved ? JSON.parse(saved) : [];
   });
@@ -81,20 +86,17 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   const [isSendingText, setIsSendingText] = useState(false);
   const [isStoppingSession, setIsStoppingSession] = useState(false);
   const [activeTextSessionId, setActiveTextSessionId] = useState<string | null>(() => {
-    // Restore active session ID from localStorage on mount
     return localStorage.getItem('vasa_text_session_id');
   });
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Typewriter effect state
   const [typewriterMessageId, setTypewriterMessageId] = useState<string | null>(null);
   const [displayedContent, setDisplayedContent] = useState<Record<string, string>>({});
   const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Persist text session state to localStorage
   useEffect(() => {
     if (activeTextSessionId) {
       localStorage.setItem('vasa_text_session_id', activeTextSessionId);
@@ -105,10 +107,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     }
   }, [activeTextSessionId, transcript]);
 
-  // Auto-focus text input when component mounts with active session (after navigation)
   useEffect(() => {
     if (activeTextSessionId && textInputRef.current) {
-      // Small delay to ensure component is fully rendered
       const timer = setTimeout(() => {
         textInputRef.current?.focus();
       }, 100);
@@ -124,6 +124,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     startSession,
     endSession,
     connectionStatus,
+    onTranscript,
     speakingRole,
     error: vapiError,
     clearError
@@ -142,37 +143,50 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     onboarding: userContext?.onboarding || null
   });
 
-  // ADD subscription hook
+  // Wire voice transcript events to the transcript state.
+  // Also drives isAgentThinking:
+  //   user turn arrives   → agent is now processing   → true
+  //   assistant turn arrives → agent responded         → false
+  useEffect(() => {
+    onTranscript((message: TranscriptMessage) => {
+      const msgId = `voice-${Date.now()}-${message.role}-${Math.random().toString(36).substr(2, 6)}`;
+      setTranscript(prev => [...prev, {
+        id: msgId,
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp,
+        source: 'voice' as const,
+        agentId: message.role === 'assistant' ? selectedAgentId : undefined,
+      }]);
+
+      if (message.role === 'user') setIsAgentThinking(true);
+      if (message.role === 'assistant') setIsAgentThinking(false);
+    });
+  }, [onTranscript]);
+
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription(userId);
 
-  // Debug logging for subscription (safe - no sensitive data)
   safeLog('subscription_status', { tier: subscription?.limits?.subscription_tier, loading: subscriptionLoading });
 
-  // Clean up state when voice session ends to ensure text sessions work properly
   const prevSessionActive = useRef(isSessionActive);
   useEffect(() => {
-    // Detect when voice session transitions from active to inactive
     if (prevSessionActive.current && !isSessionActive) {
       console.log('📴 [VOICE] Voice session ended - cleaning up state for text session');
-      // Clear any stale transcript and text session state
       setTranscript([]);
       setActiveTextSessionId(null);
       setTypewriterMessageId(null);
       setDisplayedContent({});
-      // Clear localStorage to prevent stale data on refresh
+      setIsAgentThinking(false);
       localStorage.removeItem('vasa_text_session_id');
       localStorage.removeItem('vasa_text_transcript');
     }
     prevSessionActive.current = isSessionActive;
   }, [isSessionActive]);
 
-  // Auto-scroll to bottom when transcript updates (debounced to prevent jumping)
   const lastTranscriptLengthRef = useRef(0);
   useEffect(() => {
-    // Only scroll when a new message is actually added (not on every re-render)
     if (transcript.length > lastTranscriptLengthRef.current) {
       lastTranscriptLengthRef.current = transcript.length;
-      // Scroll the transcript container directly (not the whole page)
       requestAnimationFrame(() => {
         if (transcriptContainerRef.current) {
           transcriptContainerRef.current.scrollTop = transcriptContainerRef.current.scrollHeight;
@@ -181,10 +195,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     }
   }, [transcript.length]);
 
-  // Typewriter effect for assistant messages
   useEffect(() => {
     if (!typewriterMessageId) {
-      // Clear timeout when typewriter is done
       if (typewriterTimeoutRef.current) {
         clearTimeout(typewriterTimeoutRef.current);
         typewriterTimeoutRef.current = null;
@@ -198,13 +210,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     const fullContent = message.content;
     const currentDisplayed = displayedContent[typewriterMessageId] || '';
 
-    // If already fully displayed, stop
     if (currentDisplayed.length >= fullContent.length) {
       setTypewriterMessageId(null);
       return;
     }
 
-    // Clear any existing interval and timeout
     if (typewriterIntervalRef.current) {
       clearInterval(typewriterIntervalRef.current);
     }
@@ -212,47 +222,25 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       clearTimeout(typewriterTimeoutRef.current);
     }
 
-    // Typewriter animation: add 2-3 characters at a time for smooth flow
     const charsPerInterval = 2;
-    const intervalDelay = 30; // milliseconds (faster = more fluid)
-
-    // CRITICAL FIX: Add safety timeout to force-complete typewriter if it gets stuck
-    // Calculate expected duration: (fullContent.length / charsPerInterval) * intervalDelay + buffer
+    const intervalDelay = 30;
     const expectedDuration = (fullContent.length / charsPerInterval) * intervalDelay;
-    const safetyTimeout = Math.max(expectedDuration * 2, 15000); // At least 15 seconds
-
-    console.log('🎨 [TYPEWRITER] Starting animation:', {
-      messageId: typewriterMessageId,
-      contentLength: fullContent.length,
-      expectedDuration: `${Math.round(expectedDuration / 1000)}s`,
-      safetyTimeout: `${Math.round(safetyTimeout / 1000)}s`
-    });
+    const safetyTimeout = Math.max(expectedDuration * 2, 15000);
 
     typewriterTimeoutRef.current = setTimeout(() => {
       console.warn('⚠️ [TYPEWRITER] Safety timeout reached - force-completing animation');
-      console.warn('   Message ID:', typewriterMessageId);
-      console.warn('   Current length:', currentDisplayed.length, '/ Full length:', fullContent.length);
-
-      // Force-complete the typewriter
       if (typewriterIntervalRef.current) {
         clearInterval(typewriterIntervalRef.current);
         typewriterIntervalRef.current = null;
       }
-
-      setDisplayedContent(prev => ({
-        ...prev,
-        [typewriterMessageId]: fullContent
-      }));
-
+      setDisplayedContent(prev => ({ ...prev, [typewriterMessageId]: fullContent }));
       setTypewriterMessageId(null);
     }, safetyTimeout);
 
     typewriterIntervalRef.current = setInterval(() => {
       setDisplayedContent(prev => {
         const current = prev[typewriterMessageId] || '';
-
         if (current.length >= fullContent.length) {
-          // Animation complete
           if (typewriterIntervalRef.current) {
             clearInterval(typewriterIntervalRef.current);
             typewriterIntervalRef.current = null;
@@ -262,100 +250,57 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
             typewriterTimeoutRef.current = null;
           }
           setTypewriterMessageId(null);
-          console.log('✅ [TYPEWRITER] Animation completed normally for:', typewriterMessageId);
           return prev;
         }
-
-        // Add next batch of characters
         const nextLength = Math.min(current.length + charsPerInterval, fullContent.length);
-        return {
-          ...prev,
-          [typewriterMessageId]: fullContent.substring(0, nextLength)
-        };
+        return { ...prev, [typewriterMessageId]: fullContent.substring(0, nextLength) };
       });
     }, intervalDelay);
 
     return () => {
-      if (typewriterIntervalRef.current) {
-        clearInterval(typewriterIntervalRef.current);
-      }
-      if (typewriterTimeoutRef.current) {
-        clearTimeout(typewriterTimeoutRef.current);
-      }
+      if (typewriterIntervalRef.current) clearInterval(typewriterIntervalRef.current);
+      if (typewriterTimeoutRef.current) clearTimeout(typewriterTimeoutRef.current);
     };
   }, [typewriterMessageId, transcript, displayedContent]);
 
-
-  // Warn user before leaving with unsaved text session (browser close/refresh only)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Only show warning if there's an active text session with messages
-      // Don't prevent navigation or try to save here - that causes freezing
       if (activeTextSessionId && transcript.length > 0) {
         const message = 'You have an active text session. Click "Stop Text Session" to save your conversation.';
         e.returnValue = message;
         return message;
       }
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [activeTextSessionId, transcript]);
 
-  // NEW: Text session management
   const startTextSession = () => {
     const sessionId = crypto.randomUUID();
     setActiveTextSessionId(sessionId);
-    setTranscript([]); // Clear previous transcript
+    setTranscript([]);
     console.log('📝 [TEXT] Started new text session:', sessionId);
   };
 
   const stopTextSession = async () => {
-    if (!activeTextSessionId) {
-      console.log('⚠️ [TEXT] Cannot stop session - no active session');
-      return;
-    }
-
-    // Get only text messages
+    if (!activeTextSessionId) return;
     const textMessages = transcript.filter(msg => msg.source === 'text');
-
     if (textMessages.length === 0) {
-      console.log('⚠️ [TEXT] No text messages to save, just clearing session');
       setActiveTextSessionId(null);
       setTranscript([]);
       return;
     }
-
-    if (isStoppingSession) {
-      console.log('⚠️ [TEXT] Session stop already in progress, ignoring duplicate click');
-      return;
-    }
+    if (isStoppingSession) return;
 
     setIsStoppingSession(true);
-    console.log('📝 [TEXT] Stopping text session:', activeTextSessionId);
-    console.log('📝 [TEXT] Saving', textMessages.length, 'messages to database...');
-
     try {
-      // Get authentication token
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
       if (sessionError || !sessionData?.session?.access_token) {
-        console.error('❌ [TEXT] Failed to get session:', sessionError);
         throw new Error('Authentication error. Please refresh the page.');
       }
-
       const token = sessionData.session.access_token;
-
-      // Send transcript to backend for processing and storage with timeout
-      console.log('🧠 [TEXT] Processing therapeutic analysis for session...');
-      safeLog('text_end_session_request', {
-        isNativeApp,
-        apiUrl: getApiUrl('/api/chat/end-session'),
-        hasSession: Boolean(sessionData?.session),
-      });
-
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       const response = await fetch(getApiUrl('/api/chat/end-session'), {
         method: 'POST',
@@ -378,148 +323,71 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
 
       clearTimeout(timeoutId);
 
-      console.log('📥 [TEXT] Response status:', response.status, response.statusText);
-
       if (response.ok) {
-        // Try to parse as JSON, but handle text responses gracefully
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const result = await response.json();
           console.log('✅ [TEXT] Session processing completed:', result);
-          console.log(`📊 CSS Stage: ${result.cssStage}, Patterns: ${result.patternsDetected}`);
-        } else {
-          const text = await response.text();
-          console.log('✅ [TEXT] Session ended:', text);
         }
-      } else {
-        const errorText = await response.text();
-        console.error('❌ [TEXT] Failed to process session end:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        });
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.error('❌ [TEXT] Request timed out after 30 seconds');
       } else {
-        console.error('❌ [TEXT] Error stopping session:', {
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        });
+        console.error('❌ [TEXT] Error stopping session:', error.message);
       }
     } finally {
       setIsStoppingSession(false);
-      // Always clear the session state
       setActiveTextSessionId(null);
-      // Clear transcript after saving
       setTranscript([]);
     }
   };
 
-  // Load memory context
-  // Load memory context and session duration limit
   useEffect(() => {
     const loadUserContext = async () => {
-      console.log('🎯 [VOICE-INTERFACE] loadUserContext called with userId:', userId);
       if (!userId) return;
-
       setMemoryLoading(true);
       try {
-        // Always get fresh session token
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
         if (sessionError || !session) {
-          console.error('❌ [VOICE] No valid session, signing out');
           handleLogout(setUserId);
           return;
         }
-
         const authToken = session.access_token;
-        const headers: Record<string, string> = {
-          'Authorization': `Bearer ${authToken}`
-        };
-
-        // Note: Removed 'cache: no-store' and 'Cache-Control' header as they cause
-        // iOS WebView to reject the request. Adding timestamp param prevents caching instead.
+        const headers: Record<string, string> = { 'Authorization': `Bearer ${authToken}` };
         const timestamp = Date.now();
-        const userContextUrl = getApiUrl(`/api/auth/user-context/${userId}?_t=${timestamp}`);
-        console.log('🔍 [DEBUG] User context URL:', userContextUrl);
-        console.log('🔍 [DEBUG] isNativeApp:', isNativeApp);
-        console.log('🔍 [DEBUG] API_BASE_URL:', API_BASE_URL);
-
-        const response = await fetch(userContextUrl, {
+        const response = await fetch(getApiUrl(`/api/auth/user-context/${userId}?_t=${timestamp}`), {
           method: 'GET',
           headers
         });
-        console.log('🔍 [DEBUG] Response status:', response.status, response.statusText);
 
         if (response.ok) {
           const data = await response.json();
           setUserContext(data);
-          console.log(`✅ Loaded ${data.sessionCount} previous sessions`);
-
-          // Log session continuity info if available
-          if (data.shouldReferenceLastSession && data.lastSessionSummary) {
-            console.log('📝 Session continuity enabled - will reference previous session');
-          }
-        } else {
-          console.error('Failed to fetch user context');
-
-          // If user not found (deleted from database), clear local storage and reload
-          if (response.status === 404) {
-            safeLog('user_not_found_clearing_session');
-            localStorage.removeItem('userId');
-            setUserId(null);
-            return;
-          }
+        } else if (response.status === 404) {
+          localStorage.removeItem('userId');
+          setUserId(null);
+          return;
         }
 
-        // Check if user is a therapist's client and get their session duration limit
-        const relationshipResponse = await fetch(getApiUrl(`/api/therapist/client-settings/${userId}`), {
-          headers
-        });
-
-        console.log('⏱️ FETCH CLIENT SETTINGS - Status:', relationshipResponse.status);
-
+        const relationshipResponse = await fetch(getApiUrl(`/api/therapist/client-settings/${userId}`), { headers });
         if (relationshipResponse.ok) {
           const relationshipData = await relationshipResponse.json();
-          console.log('⏱️ FETCH CLIENT SETTINGS - Data:', relationshipData);
-
           if (relationshipData.session_duration_limit) {
             setSessionDurationLimit(relationshipData.session_duration_limit);
-            console.log(`⏱️ SET CLIENT LIMIT: ${relationshipData.session_duration_limit} seconds`);
           }
-        } else {
-          console.log(`⏱️ NOT A CLIENT - Using default: 7200 seconds`);
         }
-
       } catch (error: any) {
-        console.error('❌ [VOICE-INTERFACE] Fetch error details:', {
-          message: error?.message,
-          name: error?.name,
-          stack: error?.stack
-        });
+        console.error('❌ [VOICE-INTERFACE] Fetch error:', error?.message);
       } finally {
         setMemoryLoading(false);
       }
     };
-
     loadUserContext();
   }, [userId]);
 
-  // Call timer effect with VAPI 10-minute limitation warning
-  // VAPI Platform Limitation: Calls automatically disconnect after 10 minutes (600 seconds)
-  // We show a warning at 9 minutes (540 seconds) and auto-end at 10 minutes
-  // Call timer effect with dynamic duration warning
-  // Warning shows at 90% of session duration limit
-  // For 2-hour default: warns at 110 minutes (6600 seconds)
-  // For therapist-set limits: warns at 90% of that limit
   useEffect(() => {
     if (isSessionActive) {
-      // Calculate warning threshold: 90% of duration limit for short sessions,
-      // or 10 minutes before end for long sessions (whichever comes first)
       const tenMinutesBeforeEnd = sessionDurationLimit - 600;
       const ninetyPercent = Math.floor(sessionDurationLimit * 0.9);
       const warningThreshold = Math.min(tenMinutesBeforeEnd, ninetyPercent);
@@ -527,16 +395,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       const interval = setInterval(() => {
         setCallTimer(prev => {
           const newTimer = prev + 1;
-
-          // Show warning at calculated threshold
           if (newTimer >= warningThreshold && !showDurationWarning) {
             setShowDurationWarning(true);
-            console.log(`⚠️ Session duration warning: ${sessionDurationLimit - newTimer} seconds remaining`);
           }
-
-          // Note: Vapi will automatically end the call at maxDurationSeconds
-          // We don't need to manually end it here anymore
-
           return newTimer;
         });
       }, 1000);
@@ -549,28 +410,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       setCallTimer(0);
       setShowDurationWarning(false);
     }
-
-    return () => {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-      }
-    };
+    return () => { if (timerInterval) clearInterval(timerInterval); };
   }, [isSessionActive, showDurationWarning, sessionDurationLimit]);
 
   const handleStartSession = () => {
-    // DEBUG: Log exactly what we're checking
-    console.log('=== START SESSION CLICKED ===');
-    console.log('1. subscription object:', subscription);
-    console.log('2. subscription.limits:', subscription?.limits);
-    console.log('3. can_use_voice value:', subscription?.limits?.can_use_voice);
-    console.log('4. !can_use_voice (what we check):', !subscription?.limits?.can_use_voice);
-
     if (subscription && subscription.limits?.can_use_voice === false) {
-      console.error('❌ Cannot start session:', {
-        minutes_remaining: subscription.limits.minutes_remaining,
-        is_using_therapist_subscription: subscription.limits.is_using_therapist_subscription
-      });
-
       alert(
         subscription.limits.is_using_therapist_subscription
           ? `Your therapist's subscription has no minutes remaining. They need to upgrade.`
@@ -578,44 +422,21 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       );
       return;
     }
-
-    console.log('6. PASSED subscription check');
-    console.log('7. memoryLoading:', memoryLoading);
-    console.log('8. userContext exists:', !!userContext);
-    console.log('9. selectedAgent:', selectedAgent);
-
     if (!memoryLoading && userContext && selectedAgent) {
-      console.log('10. STARTING SESSION');
       const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       setCurrentCallId(callId);
       startSession();
-    } else {
-      console.log('10. BLOCKED by other conditions');
     }
   };
 
   const handleEndCall = async () => {
-    if (!currentCallId) {
-      // If no call ID, just use regular endSession
-      endSession();
-      return;
-    }
-
+    if (!currentCallId) { endSession(); return; }
     try {
-      // Stop the vapi session
       endSession();
-
-      // Get fresh auth token
       const { data: { session } } = await supabase.auth.getSession();
       const authToken = session?.access_token;
-      
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
       await fetch(getApiUrl('/api/vapi/webhook'), {
         method: 'POST',
         headers,
@@ -628,236 +449,115 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
           }
         })
       });
-
-      console.log('📴 Call ended by user');
       setCurrentCallId(null);
     } catch (error) {
-      console.error('Error ending call:', error);
       endSession();
       setCurrentCallId(null);
     }
   };
 
-
-  // Handle opening Stripe Customer Portal for subscription management
   const handleManageSubscription = async () => {
     try {
-      // Get authentication token
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !sessionData?.session?.access_token) {
-        console.error('❌ Failed to get session:', sessionError);
-        // Redirect to pricing if session fails
-        setLocation('/pricing');
-        return;
-      }
-
+      if (sessionError || !sessionData?.session?.access_token) { setLocation('/pricing'); return; }
       const token = sessionData.session.access_token;
-
       const response = await fetch(getApiUrl('/api/stripe/create-portal-session'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         credentials: 'include',
       });
-
       if (!response.ok) {
         const error = await response.json();
-        console.error('❌ Portal error:', error);
-        // If no subscription found (404), redirect to pricing instead of showing alert
-        if (response.status === 404) {
-          setLocation('/pricing');
-          return;
-        }
+        if (response.status === 404) { setLocation('/pricing'); return; }
         alert(error.error || 'Failed to open subscription management. Please try again.');
         return;
       }
-
       const { url } = await response.json();
-
-      // Redirect to Stripe Customer Portal
       window.location.href = url;
-    } catch (error) {
-      console.error('❌ Error opening subscription portal:', error);
-      // Fallback to pricing page on any error
-      setLocation('/pricing');
-    }
+    } catch { setLocation('/pricing'); }
   };
 
-  // NEW: Handle sending text messages
   const handleSendTextMessage = async () => {
     if (!textInput.trim() || isSessionActive || !activeTextSessionId) return;
-
     const userMessage = textInput.trim();
-    setTextInput(''); // Clear input immediately
-
-    // Optimistic update - add user message to transcript
+    setTextInput('');
     const userMsgId = `msg-${Date.now()}-user`;
     setTranscript(prev => [...prev, {
-      id: userMsgId,
-      role: 'user',
-      content: userMessage,
-      timestamp: new Date(),
-      source: 'text',
+      id: userMsgId, role: 'user', content: userMessage,
+      timestamp: new Date(), source: 'text',
     }]);
-
     setIsSendingText(true);
-
     try {
-      // Get fresh session with better error handling
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error('❌ [TEXT] Session error:', sessionError);
-        throw new Error('Failed to get authentication session');
-      }
-
+      if (sessionError) throw new Error('Failed to get authentication session');
       const token = sessionData?.session?.access_token;
       const authenticatedUserId = sessionData?.session?.user?.id;
-
-      safeLog('text_auth_check', {
-        hasSession: Boolean(sessionData?.session),
-        hasToken: Boolean(token),
-        userIdMatch: userId === authenticatedUserId,
-      });
-
-      if (!token || !authenticatedUserId) {
-        throw new Error('Not authenticated - please refresh the page');
-      }
-
-      // Validate token format (should be JWT with 3 parts)
+      if (!token || !authenticatedUserId) throw new Error('Not authenticated - please refresh the page');
       const tokenParts = token.split('.');
-      if (tokenParts.length !== 3) {
-        safeLog('text_malformed_token', { parts: tokenParts.length, expected: 3 });
-        throw new Error('Invalid authentication token - please sign in again');
-      }
+      if (tokenParts.length !== 3) throw new Error('Invalid authentication token - please sign in again');
 
-      // Use the authenticated user ID from the session, not the prop
-      const requestUserId = authenticatedUserId;
-
-      // Call backend chat endpoint
-      // Send conversation history to maintain context
       const conversationHistory = transcript
-        .filter(msg => msg.source === 'text') // Only text messages, not voice
-        .map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }));
+        .filter(msg => msg.source === 'text')
+        .map(msg => ({ role: msg.role, content: msg.content }));
 
       const response = await fetch(getApiUrl('/api/chat/send-message'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         credentials: 'include',
         body: JSON.stringify({
-          userId: requestUserId,
+          userId: authenticatedUserId,
           sessionId: activeTextSessionId,
           agentId: selectedAgentId,
           agentName: selectedAgent?.name,
           systemPrompt: selectedAgent?.systemPrompt,
           modelConfig: selectedAgent?.model,
           message: userMessage,
-          conversationHistory, // Include previous messages for context
+          conversationHistory,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ [TEXT] Server error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        });
-
-        // Handle specific error types
-        if (response.status === 401) {
-          throw new Error('Authentication expired - please refresh the page and sign in again');
-        } else if (response.status === 403) {
-          throw new Error('Authentication error - please refresh the page');
-        } else {
-          throw new Error(errorText || 'Failed to send message');
-        }
+        if (response.status === 401) throw new Error('Authentication expired - please refresh the page and sign in again');
+        if (response.status === 403) throw new Error('Authentication error - please refresh the page');
+        throw new Error(errorText || 'Failed to send message');
       }
 
-      // Handle streaming response (Server-Sent Events)
-      // Buffer complete response for typewriter effect
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-
       let assistantContent = '';
       const assistantMsgId = `msg-${Date.now()}-assistant`;
 
-      // Collect the complete response without displaying it
       while (true) {
         const { done, value } = await reader!.read();
         if (done) break;
-
         const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
+        for (const line of chunk.split('\n')) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
             if (data === '[DONE]') continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              assistantContent += parsed.content;
-            } catch (e) {
-              // Skip invalid JSON
-            }
+            try { assistantContent += JSON.parse(data).content; } catch {}
           }
         }
       }
 
-      console.log('✅ [TEXT] Complete response received, starting typewriter effect');
-
-      // Add complete message to transcript (but will display with typewriter effect)
       setTranscript(prev => [...prev, {
-        id: assistantMsgId,
-        role: 'assistant',
-        content: assistantContent,
-        timestamp: new Date(),
-        source: 'text',
-        agentId: selectedAgentId,
+        id: assistantMsgId, role: 'assistant', content: assistantContent,
+        timestamp: new Date(), source: 'text', agentId: selectedAgentId,
       }]);
-
-      // Initialize displayed content as empty and trigger typewriter animation
-      setDisplayedContent(prev => ({
-        ...prev,
-        [assistantMsgId]: ''
-      }));
+      setDisplayedContent(prev => ({ ...prev, [assistantMsgId]: '' }));
       setTypewriterMessageId(assistantMsgId);
-
     } catch (error: any) {
-      console.error('❌ [TEXT] Failed to send message:', error);
-
-      // Show detailed error message in transcript
-      const errorMessage = error.message?.includes('OpenAI API key')
-        ? '⚠️ Server configuration error: OpenAI API key not configured. Please contact support.'
-        : error.message?.includes('not configured')
-        ? '⚠️ Server configuration error. Please contact support.'
-        : error.message?.includes('authenticated')
+      const errorMessage = error.message?.includes('authenticated')
         ? '⚠️ Authentication error. Please refresh the page and try again.'
         : '⚠️ Sorry, I encountered an error sending your message. Please try again.';
-
       setTranscript(prev => [...prev, {
-        id: `msg-${Date.now()}-error`,
-        role: 'assistant',
-        content: errorMessage,
-        timestamp: new Date(),
-        source: 'text',
+        id: `msg-${Date.now()}-error`, role: 'assistant', content: errorMessage,
+        timestamp: new Date(), source: 'text',
       }]);
     } finally {
       setIsSendingText(false);
-      // Refocus the textarea after sending message
-      setTimeout(() => {
-        textInputRef.current?.focus();
-      }, 100);
+      setTimeout(() => { textInputRef.current?.focus(); }, 100);
     }
   };
 
@@ -866,7 +566,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     if (!isSessionActive) return 'idle';
     if (speakingRole === 'user') return 'user-speaking';
     if (speakingRole === 'assistant') return 'agent-speaking';
-    // Session active, no one speaking = sensing layer processing
     return 'agent-thinking';
   };
 
@@ -876,34 +575,20 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Helper function to get display insights
   const getDisplayInsights = () => {
-    // Use displayMemoryContext if available, otherwise fall back to memoryContext
     const contextToDisplay = userContext?.displayMemoryContext || userContext?.memoryContext || '';
-
-    // If the displayMemoryContext is a simple paragraph (not multi-line structured data), return it directly
     if (contextToDisplay && !contextToDisplay.includes('\n\n') && contextToDisplay.length > 50) {
       return [contextToDisplay];
     }
-
-    // Otherwise, filter out technical/JSON content and empty lines
     const lines = contextToDisplay.split('\n').filter(line => {
       const trimmed = line.trim();
       if (!trimmed) return false;
-
-      // Skip lines that look like technical metadata
       const lowerLine = trimmed.toLowerCase();
-      return !lowerLine.includes('exchangecount') && 
-             !lowerLine.includes('narrativedepth') &&
-             !lowerLine.includes('therapeuticarc') &&
-             !lowerLine.includes('dominantmovement') &&
-             !lowerLine.includes('"processinsights"') &&
-             !lowerLine.includes('"emotionalrange"') &&
-             !trimmed.startsWith('{') &&
-             !trimmed.startsWith('}');
+      return !lowerLine.includes('exchangecount') && !lowerLine.includes('narrativedepth') &&
+             !lowerLine.includes('therapeuticarc') && !lowerLine.includes('dominantmovement') &&
+             !lowerLine.includes('"processinsights"') && !lowerLine.includes('"emotionalrange"') &&
+             !trimmed.startsWith('{') && !trimmed.startsWith('}');
     });
-
-    // Return filtered lines if they exist, otherwise return the fallback
     return lines.length > 0 ? lines : ['Starting your therapeutic journey'];
   };
 
@@ -920,11 +605,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     );
   }
 
+  const auraState = getAuraState();
+
   return (
     <div>
-      {/* Main Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Welcome Bar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:gap-4 glass rounded-lg p-3 sm:p-4">
           <div className="glass rounded-full px-3 sm:px-4 py-1 sm:py-2">
             <span className="text-xs sm:text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
@@ -932,23 +617,17 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
         </div>
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
 
-          {/* Voice Assistant Interface - Main Column */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
 
-            {/* ADD Subscription Status Card */}
             {subscriptionLoading && (
               <Card className="glass-strong rounded-xl sm:rounded-2xl border-0">
-                <CardContent className="p-4">
-                  <p>Loading subscription...</p>
-                </CardContent>
+                <CardContent className="p-4"><p>Loading subscription...</p></CardContent>
               </Card>
             )}
 
             {!subscriptionLoading && !subscription && (
               <Card className="glass-strong rounded-xl sm:rounded-2xl border-0">
-                <CardContent className="p-4">
-                  <p className="text-red-500">Failed to load subscription data</p>
-                </CardContent>
+                <CardContent className="p-4"><p className="text-red-500">Failed to load subscription data</p></CardContent>
               </Card>
             )}
 
@@ -958,10 +637,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className={`w-10 h-10 rounded-full ${
-                        subscription.limits.minutes_remaining > 10 ? 'bg-green-500/20' : 
+                        subscription.limits.minutes_remaining > 10 ? 'bg-green-500/20' :
                         subscription.limits.minutes_remaining > 0 ? 'bg-yellow-500/20' : 'bg-red-500/20'
                       } flex items-center justify-center`}>
-                        {subscription.limits.minutes_remaining > 10 ? 
+                        {subscription.limits.minutes_remaining > 10 ?
                           <CheckCircle className="w-5 h-5 text-green-500" /> :
                           subscription.limits.minutes_remaining > 0 ?
                           <Clock className="w-5 h-5 text-yellow-500" /> :
@@ -970,7 +649,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                       </div>
                       <div>
                         <p className="text-sm font-medium">
-                          {subscription.limits.subscription_tier === 'trial' ? 'Trial Account' : 
+                          {subscription.limits.subscription_tier === 'trial' ? 'Trial Account' :
                            subscription.limits.subscription_tier === 'pro' ? 'Pro Account' : 'Premium Account'}
                           {subscription.limits.is_using_therapist_subscription && (
                             <span className="ml-2 text-xs text-muted-foreground">(via therapist)</span>
@@ -983,72 +662,45 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                             </span>
                           )}
                           <span className="block">{subscription.limits.minutes_remaining} minutes remaining</span>
-                          <span className="block">{subscription.limits.minutes_remaining} minutes remaining</span>
                           {subscription.limits.is_using_therapist_subscription && subscription.limits.subscription_owner_email && (
                             <span className="block mt-1">Therapist: {subscription.limits.subscription_owner_email}</span>
                           )}
                         </p>
                       </div>
                     </div>
-
                     {!subscription.limits.is_using_therapist_subscription && (
                       subscription.limits.subscription_tier === 'trial' ? (
-                        // Trial users - go to pricing to subscribe
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => setLocation('/pricing')}
-                        >
-                          Upgrade
-                        </Button>
+                        <Button variant="outline" size="sm" className="text-xs" onClick={() => setLocation('/pricing')}>Upgrade</Button>
                       ) : (
-                        // Subscribed users - go to Stripe Portal to manage
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={handleManageSubscription}
-                        >
-                          Manage
-                        </Button>
+                        <Button variant="outline" size="sm" className="text-xs" onClick={handleManageSubscription}>Manage</Button>
                       )
                     )}
                   </div>
-
-                  {/* Progress Bar */}
                   <div className="mt-4">
                     <div className="bg-secondary/20 rounded-full h-2 overflow-hidden">
-                      <div 
+                      <div
                         className={`h-2 rounded-full transition-all ${
                           ((subscription.limits.minutes_used / subscription.limits.minutes_limit) * 100) > 80 ? 'bg-red-500' :
-                          ((subscription.limits.minutes_used / subscription.limits.minutes_limit) * 100) > 50 ? 'bg-yellow-500' : 
-                          'bg-green-500'
+                          ((subscription.limits.minutes_used / subscription.limits.minutes_limit) * 100) > 50 ? 'bg-yellow-500' : 'bg-green-500'
                         }`}
                         style={{ width: `${(subscription.limits.minutes_used / subscription.limits.minutes_limit) * 100}%` }}
                       />
                     </div>
                     <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                      <span>
-                        {subscription.limits.minutes_used} used
-                        {subscription.limits.is_using_therapist_subscription && ' by ALL clients'}
-                      </span>
+                      <span>{subscription.limits.minutes_used} used{subscription.limits.is_using_therapist_subscription && ' by ALL clients'}</span>
                       <span>{subscription.limits.minutes_limit} total</span>
                     </div>
                   </div>
-
                   {subscription.limits.minutes_remaining <= 5 && subscription.limits.minutes_remaining > 0 && (
                     <Alert className="mt-3 bg-yellow-500/10 border-yellow-500/50">
                       <AlertTriangle className="h-4 w-4 text-yellow-500" />
                       <AlertDescription className="text-xs">
                         {subscription.limits.is_using_therapist_subscription
                           ? `Your therapist has ${subscription.limits.minutes_remaining} minutes left.`
-                          : `You have ${subscription.limits.minutes_remaining} minutes left. Upgrade to continue after your limit.`
-                        }
+                          : `You have ${subscription.limits.minutes_remaining} minutes left. Upgrade to continue after your limit.`}
                       </AlertDescription>
                     </Alert>
                   )}
-
                   {subscription.limits.minutes_remaining === 0 && (
                     <Alert className="mt-3 bg-red-500/10 border-red-500/50">
                       <XCircle className="h-4 w-4 text-red-500" />
@@ -1063,61 +715,40 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
               </Card>
             )}
 
-            {/* Technical Support Card */}
             <TechnicalSupportCard />
 
-            {/* Agent Selection */}
-            <AgentSelector 
+            <AgentSelector
               selectedAgentId={selectedAgentId}
               onSelectAgent={setSelectedAgentId}
               disabled={isSessionActive || isLoading}
             />
 
-            {/* VAPI Error Alert */}
             {vapiError && (
               <Alert className="glass-strong border-red-500/50 rounded-xl sm:rounded-2xl">
                 <XCircle className="h-4 w-4 text-red-500" />
                 <AlertDescription className="text-sm sm:text-base">
                   <div className="flex items-start justify-between">
-                    <div>
-                      <strong>Session Error:</strong> {vapiError}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearError}
-                      className="ml-2 h-6 px-2"
-                    >
-                      Dismiss
-                    </Button>
+                    <div><strong>Session Error:</strong> {vapiError}</div>
+                    <Button variant="ghost" size="sm" onClick={clearError} className="ml-2 h-6 px-2">Dismiss</Button>
                   </div>
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* Session Duration Warning Alert - shows based on session limit */}
             {showDurationWarning && isSessionActive && (
               <Alert className="glass-strong border-yellow-500/50 rounded-xl sm:rounded-2xl">
                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
                 <AlertDescription className="text-sm sm:text-base">
                   <strong>Session Time Limit:</strong> Your session will automatically end in {Math.floor((sessionDurationLimit - callTimer) / 60)} minutes ({sessionDurationLimit - callTimer} seconds).
-                  Please wrap up your conversation or start a new session after this one ends.
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* Unified Voice & Text Chat Interface */}
             <Card className="glass-strong rounded-2xl sm:rounded-3xl border-0">
               <CardContent className="p-4 sm:p-6 lg:p-8">
-                {/* Agent Avatar and Status */}
                 <div className="text-center space-y-4 mb-6">
                   <div className="relative inline-flex items-center justify-center" style={{ padding: '18px' }}>
-                    {/* Aura animation — sits behind avatar, expands into padding area */}
-                    <AvatarAura
-                      state={getAuraState()}
-                      agentColor={selectedAgent?.color}
-                    />
-                    {/* Avatar image */}
+                    <AvatarAura state={auraState} agentColor={selectedAgent?.color} />
                     <div
                       className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full shadow-lg border-4 border-${selectedAgent?.color || 'primary'}/30 overflow-hidden`}
                       style={{ position: 'relative', zIndex: 1 }}
@@ -1128,7 +759,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    {/* Online status dot */}
                     <div
                       className="absolute -bottom-0 -right-0 w-6 h-6 sm:w-7 sm:h-7 bg-green-500 rounded-full border-4 border-background flex items-center justify-center"
                       style={{ zIndex: 2 }}
@@ -1136,14 +766,17 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                       <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-green-400 rounded-full animate-pulse"></div>
                     </div>
                   </div>
-
                   <div className="space-y-1">
                     <h2 className="text-xl sm:text-2xl font-bold">{selectedAgent?.name || 'Sarah'}</h2>
                     <p className="text-xs sm:text-sm text-muted-foreground">{selectedAgent?.description || 'Your Therapeutic Voice Assistant'}</p>
                   </div>
                 </div>
 
-                {/* Session Mode Status */}
+                {/* Session Mode Status
+                  isAgentThinking is driven by transcript events — stable, no flickering.
+                  true  = user turn arrived, waiting for agent response
+                  false = agent turn arrived, response complete
+                */}
                 <div className="flex items-center justify-center mb-4">
                   <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
                     isSessionActive
@@ -1153,11 +786,15 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                       : 'bg-accent/20 border border-accent/50'
                   }`}>
                     <div className={`w-2 h-2 rounded-full animate-pulse ${
-                      isSessionActive ? 'bg-red-500' : activeTextSessionId ? 'bg-blue-500' : 'bg-accent'
+                      isSessionActive
+                        ? isAgentThinking ? 'bg-amber-400' : 'bg-red-500'
+                        : activeTextSessionId ? 'bg-blue-500' : 'bg-accent'
                     }`}></div>
                     <span className="text-xs sm:text-sm font-medium" data-testid="status-call">
                       {isSessionActive
-                        ? `🎤 Voice: Connected with ${selectedAgent?.name}`
+                        ? isAgentThinking
+                          ? `${selectedAgent?.name} is with you...`
+                          : `🎤 Voice: Connected with ${selectedAgent?.name}`
                         : activeTextSessionId
                         ? `💬 Text: Chatting with ${selectedAgent?.name}`
                         : 'Ready to start'}
@@ -1165,9 +802,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                   </div>
                 </div>
 
-                {/* Session Controls */}
                 <div className="space-y-3 mb-6">
-                  {/* Voice Session Button */}
                   {!activeTextSessionId && (
                     <div className="flex justify-center">
                       <Button
@@ -1185,30 +820,22 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                         <span className="text-xs sm:text-sm group-hover:scale-105 transition-transform duration-200">
                           {isLoading ? 'Connecting...' :
                            isSessionActive ? '🎤 End Voice Session' :
-                            subscription && subscription.limits.minutes_remaining === 0 ? 'Upgrade Required' :
+                           subscription && subscription.limits.minutes_remaining === 0 ? 'Upgrade Required' :
                            '🎤 Start Voice Session'}
                         </span>
                       </Button>
                     </div>
                   )}
 
-                  {/* Text Session Button */}
                   {!isSessionActive && !activeTextSessionId && (
                     <div className="flex flex-col items-center gap-2">
-                      <Button
-                        onClick={startTextSession}
-                        variant="outline"
-                        className="px-6 py-2 sm:px-8 sm:py-3 rounded-full"
-                      >
+                      <Button onClick={startTextSession} variant="outline" className="px-6 py-2 sm:px-8 sm:py-3 rounded-full">
                         <span className="text-xs sm:text-sm">💬 Start Text Session</span>
                       </Button>
-                      <p className="text-xs text-emerald-500/80 text-center">
-                        ✨ Text conversations are unlimited and free
-                      </p>
+                      <p className="text-xs text-emerald-500/80 text-center">✨ Text conversations are unlimited and free</p>
                     </div>
                   )}
 
-                  {/* Stop Text Session Button - Prominent placement */}
                   {activeTextSessionId && (
                     <div className="flex justify-center">
                       <Button
@@ -1223,33 +850,27 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                               <span>Saving...</span>
                             </span>
-                          ) : (
-                            '⏹️ Stop Text Session'
-                          )}
+                          ) : '⏹️ Stop Text Session'}
                         </span>
                       </Button>
                     </div>
                   )}
 
-                  {/* Call Duration Display */}
                   {isSessionActive && (
-                    <div className={`flex justify-center`}>
+                    <div className="flex justify-center">
                       <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg glass ${showDurationWarning ? 'border-2 border-yellow-500/50' : ''}`}>
                         <div className={`w-2 h-2 ${showDurationWarning ? 'bg-yellow-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
                         <span className={`text-sm sm:text-base font-mono ${showDurationWarning ? 'text-yellow-500' : ''}`} data-testid="text-callTimer">
                           {formatTime(callTimer)}
                         </span>
                         {showDurationWarning && (
-                          <span className="text-xs text-yellow-500">
-                            (Max: {Math.floor(sessionDurationLimit / 60)}m)
-                          </span>
+                          <span className="text-xs text-yellow-500">(Max: {Math.floor(sessionDurationLimit / 60)}m)</span>
                         )}
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Conversation Area */}
                 <div className="border-t border-border pt-4">
                   <div className="flex items-center space-x-2 mb-3">
                     <i className="fas fa-comments text-accent text-sm"></i>
@@ -1259,105 +880,100 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                   </div>
 
                   <div ref={transcriptContainerRef} className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="transcript-container">
-                  {transcript.length === 0 ? (
-                    // Placeholder when no messages
-                    <>
-                      <div className="bg-secondary/50 rounded-lg p-3">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-sm font-medium text-accent">{selectedAgent?.name || 'Sarah'}</span>
-                          <span className="text-xs text-muted-foreground">AI Therapist</span>
-                        </div>
-                        <p className="text-sm">
-                          {userContext.shouldReferenceLastSession && userContext.lastSessionSummary
-                            ? `Continuing from our last session...`
-                            : `Hello! I'm ${selectedAgent?.name || 'Sarah'}, your therapeutic voice assistant. How are you feeling today?`}
-                        </p>
-                      </div>
-
-                      <div className="bg-primary/20 rounded-lg p-3 ml-8">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-sm font-medium text-primary-foreground">You</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground italic">
-                          {isSessionActive
-                            ? "Voice session active - speak naturally with your assistant"
-                            : "Start a voice session or send a text message to begin"}
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    // Real transcript messages
-                    transcript.map((msg) => {
-                      // Use typewriter effect for all assistant messages (voice and text)
-                      const isTyping = msg.id === typewriterMessageId;
-                      const shouldAnimate = msg.role === 'assistant';
-                      const displayContent = shouldAnimate && displayedContent[msg.id] !== undefined
-                        ? displayedContent[msg.id]
-                        : msg.content;
-
-                      return (
-                        <div
-                          key={msg.id}
-                          className={`rounded-lg p-3 ${
-                            msg.role === 'assistant'
-                              ? 'bg-secondary/50'
-                              : 'bg-primary/20 ml-8'
-                          }`}
-                        >
+                    {transcript.length === 0 ? (
+                      <>
+                        <div className="bg-secondary/50 rounded-lg p-3">
                           <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-xs">
-                              {msg.source === 'voice' ? '🎤' : '💬'}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {msg.role === 'assistant'
-                                ? (selectedAgent?.name || 'Sarah')
-                                : 'You'}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(msg.timestamp).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                            {isTyping && (
-                              <span className="text-xs text-muted-foreground italic ml-auto">
-                                typing...
-                              </span>
-                            )}
+                            <span className="text-sm font-medium text-accent">{selectedAgent?.name || 'Sarah'}</span>
+                            <span className="text-xs text-muted-foreground">AI Therapist</span>
                           </div>
-                          <p className="text-sm whitespace-pre-wrap">
-                            {displayContent}
-                            {isTyping && <span className="inline-block w-1 h-4 bg-accent ml-0.5 animate-pulse" />}
+                          <p className="text-sm">
+                            {userContext.shouldReferenceLastSession && userContext.lastSessionSummary
+                              ? `Continuing from our last session...`
+                              : `Hello! I'm ${selectedAgent?.name || 'Sarah'}, your therapeutic voice assistant. How are you feeling today?`}
                           </p>
                         </div>
-                      );
-                    })
-                  )}
-                    {/* Auto-scroll anchor */}
-                    <div ref={transcriptEndRef} />
-                  </div>
+                        <div className="bg-primary/20 rounded-lg p-3 ml-8">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-sm font-medium text-primary-foreground">You</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground italic">
+                            {isSessionActive
+                              ? "Voice session active - speak naturally with your assistant"
+                              : "Start a voice session or send a text message to begin"}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      transcript.map((msg) => {
+                        const isTyping = msg.id === typewriterMessageId;
+                        const shouldAnimate = msg.role === 'assistant';
+                        const displayContent = shouldAnimate && displayedContent[msg.id] !== undefined
+                          ? displayedContent[msg.id]
+                          : msg.content;
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`rounded-lg p-3 ${msg.role === 'assistant' ? 'bg-secondary/50' : 'bg-primary/20 ml-8'}`}
+                          >
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="text-xs">{msg.source === 'voice' ? '🎤' : '💬'}</span>
+                              <span className="text-sm font-medium">
+                                {msg.role === 'assistant' ? (selectedAgent?.name || 'Sarah') : 'You'}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              {isTyping && <span className="text-xs text-muted-foreground italic ml-auto">typing...</span>}
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {displayContent}
+                              {isTyping && <span className="inline-block w-1 h-4 bg-accent ml-0.5 animate-pulse" />}
+                            </p>
+                          </div>
+                        );
+                      })
+                    )}
+                    {/* Typing indicator — shown while agent is formulating a text reply */}
+                    {isSendingText && activeTextSessionId && (
+                      <div className="rounded-lg p-3 bg-secondary/50">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-xs">💬</span>
+                          <span className="text-sm font-medium">{selectedAgent?.name || 'Sarah'}</span>
+                        </div>
+                        <div className="flex items-center space-x-1 py-1">
+                          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        </div>
+                      </div>
+                    )}
+                    {/* Typing indicator — shown while agent is formulating a text reply */}
+                      {isSendingText && activeTextSessionId && (
+                        <div className="rounded-lg p-3 bg-secondary/50">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-xs">💬</span>
+                            <span className="text-sm font-medium">{selectedAgent?.name || 'Sarah'}</span>
+                          </div>
+                          <div className="flex items-center space-x-1 py-1">
+                            <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={transcriptEndRef} />
+                    </div>
 
-                  {/* Text Input Section - Active Text Session */}
                   {!isSessionActive && activeTextSessionId && (
                     <div className="mt-4 pt-4 border-t border-border">
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          handleSendTextMessage();
-                        }}
-                        className="space-y-3"
-                      >
+                      <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="space-y-3">
                         <div className="flex items-end space-x-2">
                           <textarea
                             ref={textInputRef}
                             value={textInput}
                             onChange={(e) => setTextInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendTextMessage();
-                              }
-                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } }}
                             placeholder={`Send a text message to ${selectedAgent?.name}...`}
                             className="flex-1 px-3 py-2 rounded-lg glass border border-white/10 resize-none text-sm"
                             rows={2}
@@ -1365,28 +981,17 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                             data-testid="input-text-message"
                             autoFocus={!!activeTextSessionId}
                           />
-                          <Button
-                            type="submit"
-                            disabled={!textInput.trim() || isSendingText}
-                            className="px-4 py-2 h-auto"
-                          >
-                            {isSendingText ? (
-                              <div className="flex items-center space-x-1">
-                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              </div>
-                            ) : (
-                              <span>💬</span>
-                            )}
+                          <Button type="submit" disabled={!textInput.trim() || isSendingText} className="px-4 py-2 h-auto">
+                            {isSendingText
+                              ? <div className="flex items-center space-x-1"><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
+                              : <span>💬</span>}
                           </Button>
                         </div>
-                        <div className="text-xs text-muted-foreground text-center">
-                          Press Enter to send, Shift+Enter for new line
-                        </div>
+                        <div className="text-xs text-muted-foreground text-center">Press Enter to send, Shift+Enter for new line</div>
                       </form>
                     </div>
                   )}
 
-                  {/* Voice Mode Indicator */}
                   {isSessionActive && (
                     <div className="mt-4 pt-3 border-t border-border">
                       <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-center">
@@ -1401,12 +1006,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                     </div>
                   )}
 
-                  {/* Idle State Hint */}
                   {!isSessionActive && !activeTextSessionId && transcript.length === 0 && (
                     <div className="mt-4 pt-3 border-t border-border">
-                      <p className="text-xs text-center text-muted-foreground">
-                        Choose voice or text session to begin your conversation
-                      </p>
+                      <p className="text-xs text-center text-muted-foreground">Choose voice or text session to begin your conversation</p>
                     </div>
                   )}
                 </div>
@@ -1414,25 +1016,18 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
             </Card>
           </div>
 
-          {/* Sidebar - Session History and Insights */}
           <div className="space-y-4 sm:space-y-6">
-
-            {/* Session Stats */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center space-x-2">
                   <i className="fas fa-chart-bar text-accent text-sm sm:text-base"></i>
                   <span>Your Progress</span>
                 </h3>
-
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Total Sessions</span>
-                    <span className="text-2xl font-bold text-accent" data-testid="text-sessionCount">
-                      {userContext.sessionCount}
-                    </span>
+                    <span className="text-2xl font-bold text-accent" data-testid="text-sessionCount">{userContext.sessionCount}</span>
                   </div>
-
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">This Week</span>
                     <span className="text-lg font-semibold">
@@ -1444,16 +1039,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                       }).length}
                     </span>
                   </div>
-
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Average Duration</span>
                     <span className="text-lg font-semibold">
-                      {userContext.sessions.length > 0 
+                      {userContext.sessions.length > 0
                         ? Math.round(userContext.sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / userContext.sessions.length / 60)
                         : 0} min
                     </span>
                   </div>
-
                   <div className="w-full bg-muted rounded-full h-2 mt-4">
                     <div className="bg-gradient-to-r from-primary to-accent h-2 rounded-full w-3/4"></div>
                   </div>
@@ -1462,14 +1055,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
               </CardContent>
             </Card>
 
-            {/* Memory Context - MODIFIED to use cleaner display */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center space-x-2">
                   <i className="fas fa-brain text-accent text-sm sm:text-base"></i>
                   <span>Session Memory</span>
                 </h3>
-
                 <div className="space-y-3">
                   {getDisplayInsights().map((line, index) => (
                     <div key={index} className="bg-secondary/30 rounded-lg p-3">
@@ -1477,7 +1068,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                     </div>
                   ))}
                 </div>
-
                 <Button
                   variant="ghost"
                   className="mt-4 text-sm text-accent hover:text-accent hover:bg-accent/10 transition-colors duration-200 p-0"
@@ -1488,31 +1078,24 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
               </CardContent>
             </Card>
 
-            {/* Recent Sessions */}
             <Card className="glass rounded-xl sm:rounded-2xl border-0">
               <CardContent className="p-4 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center space-x-2">
                   <i className="fas fa-history text-accent text-sm sm:text-base"></i>
                   <span>Recent Sessions</span>
                 </h3>
-
                 <div className="space-y-3">
                   {userContext.sessions.slice(0, 3).map((session, index) => (
                     <div key={session.id} className="flex items-center justify-between py-2 border-b border-border/50">
                       <div>
-                        <p className="text-sm font-medium">
-                          {new Date(session.created_at).toLocaleDateString()}
-                        </p>
+                        <p className="text-sm font-medium">{new Date(session.created_at).toLocaleDateString()}</p>
                         <p className="text-xs text-muted-foreground">
                           {session.duration_seconds ? Math.floor(session.duration_seconds / 60) : 0} minutes
                         </p>
                       </div>
-                      <div className="text-right">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      </div>
+                      <div className="text-right"><div className="w-2 h-2 bg-green-500 rounded-full"></div></div>
                     </div>
                   ))}
-
                   {userContext.sessions.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No sessions yet. Start your first conversation with {selectedAgent?.name || 'Sarah'}!
@@ -1525,7 +1108,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
         </div>
       </div>
 
-      {/* Session History Dialog */}
       <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -1533,13 +1115,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
               <i className="fas fa-brain text-accent"></i>
               <span>Session History</span>
             </DialogTitle>
-            <DialogDescription>
-              Complete memory context and session details
-            </DialogDescription>
+            <DialogDescription>Complete memory context and session details</DialogDescription>
           </DialogHeader>
-
           <div className="space-y-6 mt-4">
-            {/* Memory Context Section */}
             <div>
               <h4 className="text-sm font-semibold mb-3 flex items-center space-x-2">
                 <i className="fas fa-lightbulb text-accent"></i>
@@ -1547,9 +1125,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
               </h4>
               <div className="space-y-2">
                 {userContext?.memoryContext?.split('\n').filter(line => line.trim()).map((line, index) => (
-                  <div key={index} className="bg-secondary/30 rounded-lg p-3">
-                    <p className="text-sm">{line}</p>
-                  </div>
+                  <div key={index} className="bg-secondary/30 rounded-lg p-3"><p className="text-sm">{line}</p></div>
                 ))}
                 {(!userContext?.memoryContext || userContext.memoryContext.trim() === '') && (
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -1558,8 +1134,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                 )}
               </div>
             </div>
-
-            {/* All Sessions Section */}
             <div>
               <h4 className="text-sm font-semibold mb-3 flex items-center space-x-2">
                 <i className="fas fa-history text-accent"></i>
@@ -1573,65 +1147,29 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <p className="text-sm font-medium">
-                              Session {userContext.sessions.length - index}
-                            </p>
+                            <p className="text-sm font-medium">Session {userContext.sessions.length - index}</p>
                           </div>
                           <div className="space-y-1 text-xs text-muted-foreground">
-                            <p>
-                              <i className="fas fa-calendar mr-2"></i>
-                              {new Date(session.created_at).toLocaleDateString('en-US', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </p>
-                            <p>
-                              <i className="fas fa-clock mr-2"></i>
-                              {new Date(session.created_at).toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                            <p>
-                              <i className="fas fa-hourglass-half mr-2"></i>
-                              Duration: {session.duration_seconds ? Math.floor(session.duration_seconds / 60) : 0} minutes
-                            </p>
-                            {session.agent_name && (
-                              <p>
-                                <i className="fas fa-user-md mr-2"></i>
-                                Agent: {session.agent_name}
-                              </p>
-                            )}
+                            <p><i className="fas fa-calendar mr-2"></i>{new Date(session.created_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <p><i className="fas fa-clock mr-2"></i>{new Date(session.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p><i className="fas fa-hourglass-half mr-2"></i>Duration: {session.duration_seconds ? Math.floor(session.duration_seconds / 60) : 0} minutes</p>
+                            {session.agent_name && <p><i className="fas fa-user-md mr-2"></i>Agent: {session.agent_name}</p>}
                           </div>
                         </div>
                         <div className="flex flex-col items-end space-y-1">
-                          {session.has_transcript && (
-                            <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">
-                              <i className="fas fa-file-alt mr-1"></i>Transcript
-                            </span>
-                          )}
-                          {session.has_summary && (
-                            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
-                              <i className="fas fa-file-text mr-1"></i>Summary
-                            </span>
-                          )}
+                          {session.has_transcript && <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded"><i className="fas fa-file-alt mr-1"></i>Transcript</span>}
+                          {session.has_summary && <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded"><i className="fas fa-file-text mr-1"></i>Summary</span>}
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="bg-secondary/20 rounded-lg p-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No sessions yet. Start your first conversation!
-                    </p>
+                    <p className="text-sm text-muted-foreground">No sessions yet. Start your first conversation!</p>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Session Statistics */}
             {userContext?.sessions && userContext.sessions.length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold mb-3 flex items-center space-x-2">
@@ -1645,16 +1183,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                   </div>
                   <div className="bg-secondary/20 rounded-lg p-4">
                     <p className="text-xs text-muted-foreground mb-1">Total Time</p>
-                    <p className="text-2xl font-bold">
-                      {Math.round(userContext.sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / 60)} min
-                    </p>
+                    <p className="text-2xl font-bold">{Math.round(userContext.sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / 60)} min</p>
                   </div>
                   <div className="bg-secondary/20 rounded-lg p-4">
                     <p className="text-xs text-muted-foreground mb-1">Average Duration</p>
                     <p className="text-2xl font-bold">
-                      {userContext.sessions.length > 0
-                        ? Math.round(userContext.sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / userContext.sessions.length / 60)
-                        : 0} min
+                      {userContext.sessions.length > 0 ? Math.round(userContext.sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / userContext.sessions.length / 60) : 0} min
                     </p>
                   </div>
                   <div className="bg-secondary/20 rounded-lg p-4">

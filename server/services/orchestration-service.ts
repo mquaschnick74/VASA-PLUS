@@ -3,7 +3,7 @@ import { detectCSSPatterns, assessPatternConfidence } from './css-pattern-servic
 import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
-import { generateEnhancedSessionSummary } from './summary-service'; // ADD THIS IMPORT
+import { generateEnhancedSessionSummary } from './summary-service';
 
 interface SessionState {
   userId: string;
@@ -11,16 +11,16 @@ interface SessionState {
   agentName: string;
   currentCSSStage: string;
   sessionStartTime: Date;
-  processedTranscripts: Set<string>; // Track processed transcript hashes
-  exchangeCount: number; // Track number of exchanges
-  narrativePhase: 'narrative_collection' | 'css_entry_assessment' | 'css_active'; // Track narrative phase
-  uploadId?: string | null; // Track upload ID addressed in this session
+  processedTranscripts: Set<string>;
+  exchangeCount: number;
+  narrativePhase: 'narrative_collection' | 'css_entry_assessment' | 'css_active';
+  uploadId?: string | null;
 }
 
 // Two-tier cache system
 const activeSessions = new Map<string, SessionState>();
-const checkedSessions = new Set<string>(); // Track which sessions we've already checked in DB
-const initializationLocks = new Map<string, Promise<SessionState | null>>(); // Prevent race conditions
+const checkedSessions = new Set<string>();
+const initializationLocks = new Map<string, Promise<SessionState | null>>();
 
 // Cleanup stale sessions every 30 minutes
 setInterval(() => {
@@ -40,26 +40,19 @@ setInterval(() => {
   });
 }, 30 * 60 * 1000);
 
-/**
- * Ensures a session exists, initializing if necessary
- * Handles server restarts and missing call-started events efficiently
- */
 export async function ensureSession(
   callId: string,
   userId?: string,
   agentName?: string
 ): Promise<SessionState | null> {
-  // Fast path: already active
   if (activeSessions.has(callId)) {
     return activeSessions.get(callId)!;
   }
 
-  // If initialization is already in progress, wait for it
   if (initializationLocks.has(callId)) {
     return await initializationLocks.get(callId)!;
   }
 
-  // Start initialization with lock
   const initPromise = ensureSessionInternal(callId, userId, agentName);
   initializationLocks.set(callId, initPromise);
 
@@ -76,16 +69,13 @@ async function ensureSessionInternal(
   userId?: string,
   agentName?: string
 ): Promise<SessionState | null> {
-  // Avoid repeated DB checks for non-existent sessions
   if (checkedSessions.has(callId)) {
     console.log(`⚠️ Session ${callId} already checked, not found in DB`);
     return null;
   }
 
-  // Mark as checked
   checkedSessions.add(callId);
 
-  // Check database once
   const { data: existing } = await supabase
     .from('therapeutic_sessions')
     .select('user_id, agent_name, start_time')
@@ -94,7 +84,6 @@ async function ensureSessionInternal(
 
   if (existing) {
     console.log(`♻️ Restored session from DB: ${callId}`);
-    // Restore to active sessions
     const session: SessionState = {
       userId: existing.user_id,
       callId,
@@ -109,13 +98,11 @@ async function ensureSessionInternal(
     return session;
   }
 
-  // Need userId to create new session
   if (!userId) {
     console.warn(`❌ Cannot create session ${callId}: no userId provided`);
     return null;
   }
 
-  // Initialize new session
   console.log(`🆕 Creating new session: ${callId}`);
   return await initializeSession(userId, callId, agentName || 'Unknown');
 }
@@ -125,7 +112,6 @@ export async function initializeSession(
   callId: string,
   agentName: string
 ): Promise<SessionState> {
-  // CRITICAL FIX: Validate user exists before creating session
   console.log(`🔍 Validating user exists: ${userId}`);
 
   const { data: userExists, error: userCheckError } = await supabase
@@ -141,7 +127,6 @@ export async function initializeSession(
     console.error(`   Call ID: ${callId}`);
     console.error(`   Agent: ${agentName}`);
 
-    // Still create in-memory session for backward compatibility, but log the issue
     const session: SessionState = {
       userId,
       callId,
@@ -177,7 +162,6 @@ export async function initializeSession(
   checkedSessions.add(callId);
 
   try {
-    // ENHANCED LOGGING: Log what we're about to insert
     console.log(`🔄 Attempting to save session to database:`, {
       call_id: callId,
       user_id: userId,
@@ -210,32 +194,28 @@ export async function initializeSession(
       console.error(`   Call ID: ${callId}`);
       console.error(`   Full error object: ${JSON.stringify(error, null, 2)}`);
 
-      // Log specific error types
       if (error.code === '23503') {
         console.error(`   🔥 FOREIGN KEY VIOLATION: User ${userId} reference is invalid!`);
       } else if (error.code === '23505') {
         console.error(`   🔥 UNIQUE CONSTRAINT VIOLATION: Session with call_id ${callId} already exists!`);
       }
-
-      // Don't throw - keep session in memory even if DB fails
     } else {
       console.log(`✅ Session saved to database successfully!`);
       console.log(`   Session ID: ${data?.[0]?.id}`);
       console.log(`   Call ID: ${data?.[0]?.call_id}`);
       console.log(`   User: ${userExists.email}`);
 
-      // If we have an uploadId in memory, mark it as addressed now that session is saved
       if (session.uploadId) {
         console.log(`🏷️ Marking upload ${session.uploadId} as addressed for call ${callId}`);
         await supabase
           .from('therapeutic_context')
-          .update({ 
-            metadata: { 
-              ...(data?.[0]?.metadata || {}), 
+          .update({
+            metadata: {
+              ...(data?.[0]?.metadata || {}),
               addressed_in_session: true,
               addressed_at: new Date().toISOString(),
               addressed_call_id: callId
-            } 
+            }
           })
           .eq('id', session.uploadId);
       }
@@ -246,7 +226,6 @@ export async function initializeSession(
     console.error(`   Exception message: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
     console.error(`   User ID: ${userId}`);
     console.error(`   Call ID: ${callId}`);
-    // Continue with in-memory session even if DB fails
   }
 
   console.log(`✅ Session initialized: ${callId} for user ${userId} (${userExists.email})`);
@@ -260,7 +239,6 @@ export async function processTranscript(
   userId?: string,
   agentName?: string
 ): Promise<void> {
-  // Try to ensure session exists (defensive programming)
   let session = activeSessions.get(callId);
 
   if (!session && userId) {
@@ -274,29 +252,24 @@ export async function processTranscript(
     return;
   }
 
-  // Handle assistant messages with new speak/meta parsing
   if (role === 'assistant') {
     const parsed = parseAssistantOutput(transcript);
 
-    // Extract CSS stage from metadata if available
     const metaStage = extractCSSStage(parsed.meta);
     if (metaStage && metaStage !== 'NONE') {
       session.currentCSSStage = metaStage.toLowerCase();
       console.log(`📊 Assistant meta CSS stage: ${metaStage}`);
     }
 
-    // Update narrative phase if present in metadata
     if (parsed.meta && 'phase' in parsed.meta) {
       session.narrativePhase = (parsed.meta as any).phase;
       console.log(`📖 Narrative phase: ${(parsed.meta as any).phase}`);
     }
 
-    // Update exchange count if present
     if (parsed.meta && 'exchange_count' in parsed.meta) {
       session.exchangeCount = (parsed.meta as any).exchange_count;
     }
 
-    // Store metadata in database if present
     if (parsed.meta && parsed.meta.css?.stage && parsed.meta.css.stage !== 'NONE') {
       await supabase
         .from('css_patterns')
@@ -312,30 +285,22 @@ export async function processTranscript(
           detected_at: new Date().toISOString()
         });
 
-      // Check for safety interventions
       if (needsSafetyIntervention(parsed.meta)) {
-        // Check for safety interventions
         if (needsSafetyIntervention(parsed.meta)) {
           console.log(`🚨 Safety intervention triggered: ${(parsed.meta.safety as any)?.reason || 'Safety flag detected'}`);
-          // TODO: Trigger safety protocol workflow
         }
-        // TODO: Trigger safety protocol workflow
       }
     }
 
-    // Don't store assistant transcripts individually
     return;
   }
 
-  // Process user transcripts as before
   if (role !== 'user') {
     return;
   }
 
-  // Increment exchange count for user messages
   session.exchangeCount++;
 
-  // Check if we've already processed this exact transcript
   const transcriptHash = Buffer.from(transcript).toString('base64').substring(0, 50);
   if (session.processedTranscripts.has(transcriptHash)) {
     console.log(`⏭️ Skipping duplicate transcript for ${callId}`);
@@ -343,11 +308,6 @@ export async function processTranscript(
   }
   session.processedTranscripts.add(transcriptHash);
 
-  // Don't store individual transcripts - only detect patterns
-  // Full transcript will be stored at end-of-call
-
-  // Always detect CSS patterns regardless of emotional state
-  // Always detect CSS patterns regardless of emotional state
   const patterns = detectCSSPatterns(transcript, false);
 
   if (patterns.currentStage !== session.currentCSSStage) {
@@ -356,7 +316,6 @@ export async function processTranscript(
     const previousStage = session.currentCSSStage;
     session.currentCSSStage = patterns.currentStage;
 
-    // Record the progression in css_progressions table
     await supabase
       .from('css_progressions')
       .insert({
@@ -388,13 +347,12 @@ export async function processEndOfCall(
       .single();
 
     if (!dbSession) {
-      // Try multiple paths to extract userId
-      const userId = callMetadata?.metadata?.userId || 
+      const userId = callMetadata?.metadata?.userId ||
                      callMetadata?.userId ||
                      callMetadata?.customer?.userId ||
                      callMetadata?.user?.id;
 
-      const agentName = callMetadata?.metadata?.agentName || 
+      const agentName = callMetadata?.metadata?.agentName ||
                         callMetadata?.agentName ||
                         callMetadata?.assistant?.name?.replace('VASA-', '') ||
                         'Sarah';
@@ -456,22 +414,19 @@ export async function processEndOfCall(
     })
     .eq('call_id', callId);
 
-  // Process full transcript and get patterns for summary generation
   let cssPatterns = null;
   if (fullTranscript) {
     cssPatterns = await processFullTranscript(session, fullTranscript);
   }
 
-  // ENHANCED: Generate both basic and conversational summaries for session continuity
   if (summary || fullTranscript) {
     try {
-      // Generate the enhanced summary using Phase 1 generator
       await generateEnhancedSessionSummary({
         userId: session.userId,
         callId: callId,
         transcript: fullTranscript,
         cssPatterns: cssPatterns,
-        agentName: session.agentName,  // Already passing agent name here
+        agentName: session.agentName,
         duration: duration
       });
 
@@ -479,17 +434,13 @@ export async function processEndOfCall(
     } catch (error) {
       console.error('Failed to generate enhanced summary:', error);
 
-      // FIXED: Pass agent name in fallback case too
       if (summary) {
         await storeSessionContext(session.userId, callId, summary, 'call_summary', session.agentName);
       }
     }
   }
 
-  // Mark the SPECIFIC upload that was presented to the agent as addressed
-  // Only mark if there was meaningful engagement (at least 4 exchanges)
   try {
-    // Get uploadId from VAPI metadata (passed through from client)
     const presentedUploadId = callMetadata?.metadata?.uploadId || null;
 
     if (presentedUploadId) {
@@ -497,7 +448,6 @@ export async function processEndOfCall(
       const sessionExchanges = session.exchangeCount || 0;
 
       if (sessionExchanges >= minExchanges) {
-        // Fetch the specific upload to preserve existing metadata
         const { data: upload } = await supabase
           .from('therapeutic_context')
           .select('id, metadata')
@@ -534,13 +484,11 @@ export async function processEndOfCall(
     console.error('Failed to mark upload as addressed:', err);
   }
 
-  // Cleanup from both caches
   activeSessions.delete(callId);
   checkedSessions.delete(callId);
   console.log(`✅ Session completed and cleaned up: ${callId}`);
 }
 
-// MODIFIED: Return patterns for use in summary generation
 async function processFullTranscript(session: SessionState, transcript: string): Promise<any> {
   const patterns = detectCSSPatterns(transcript, true);
   const { confidence, reasoning } = assessPatternConfidence(patterns);
@@ -549,7 +497,6 @@ async function processFullTranscript(session: SessionState, transcript: string):
   console.log(`  CSS Stage: ${patterns.currentStage}`);
   console.log(`  Patterns: CVDC=${patterns.cvdcPatterns.length}, IBM=${patterns.ibmPatterns.length}`);
 
-  // Store the complete transcript (this is the only transcript we store)
   await supabase
     .from('session_transcripts')
     .insert({
@@ -573,7 +520,6 @@ async function processFullTranscript(session: SessionState, transcript: string):
       detected_at: new Date().toISOString()
     });
 
-  // Return patterns for use in summary generation
   return patterns;
 }
 
@@ -586,7 +532,7 @@ async function storeCSSPatterns(session: SessionState, patterns: any): Promise<v
       call_id: session.callId,
       pattern_type: 'CVDC',
       content: cvdc,
-      extracted_contradiction: cvdc.includes('but') 
+      extracted_contradiction: cvdc.includes('but')
         ? cvdc.split('but').map((s: string) => s.trim()).join(' BUT ')
         : cvdc,
       css_stage: patterns.currentStage,

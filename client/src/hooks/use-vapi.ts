@@ -28,7 +28,7 @@ interface UseVapiProps {
   hasUnaddressedUpload?: boolean;
   uploadAddressed?: boolean;
   uploadContext?: string | null;
-  uploadId?: string | null;             // ID of the upload_analysis record presented to agent
+  uploadId?: string | null;
   firstName: string;
   selectedAgent: TherapeuticAgent;
   sessionDurationLimit?: number;
@@ -47,6 +47,13 @@ interface UseVapiReturn {
   error: string | null;
   clearError: () => void;
 }
+
+// How long to wait after the last final transcript from a speaker before
+// firing the callback. Deepgram may send multiple consecutive 'final'
+// transcripts for a single thought if the speaker pauses mid-sentence
+// (endpointing: 500ms means a 600ms pause triggers a premature final).
+// 1200ms accumulates those fragments into one complete message.
+const TRANSCRIPT_DEBOUNCE_MS = 1200;
 
 const useVapi = ({
   userId,
@@ -73,6 +80,33 @@ const useVapi = ({
   const speechUpdateCallbackRef = useRef<((message: SpeechUpdateMessage) => void) | null>(null);
   const sessionActiveRef = useRef(false);
 
+  // Per-role pending transcript accumulation.
+  // Each entry holds the accumulated text and the active debounce timer.
+  // When a final transcript arrives, the timer resets and content appends.
+  // When the timer fires, the full accumulated message is sent to the callback.
+  const pendingTranscriptRef = useRef<{
+    user: { content: string; timer: ReturnType<typeof setTimeout> | null };
+    assistant: { content: string; timer: ReturnType<typeof setTimeout> | null };
+  }>({
+    user: { content: '', timer: null },
+    assistant: { content: '', timer: null },
+  });
+
+  // Flush any pending transcript immediately for a given role.
+  // Called on call-end to ensure the last message is never lost.
+  const flushPendingTranscript = useCallback((role: 'user' | 'assistant') => {
+    const pending = pendingTranscriptRef.current[role];
+    if (pending.timer) {
+      clearTimeout(pending.timer);
+      pending.timer = null;
+    }
+    const content = pending.content.trim();
+    pending.content = '';
+    if (content && transcriptCallbackRef.current) {
+      transcriptCallbackRef.current({ role, content, timestamp: new Date() });
+    }
+  }, []);
+
   useEffect(() => {
     const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
 
@@ -83,7 +117,6 @@ const useVapi = ({
       return;
     }
 
-    // Dynamically import VAPI when needed
     const initializeVapi = async () => {
       try {
         const { default: Vapi } = await import('@vapi-ai/web');
@@ -91,7 +124,6 @@ const useVapi = ({
         vapiRef.current = vapiInstance;
         setVapi(vapiInstance);
 
-        // Set up event listeners
         vapiInstance.on('call-start', () => {
           console.log('✅ Call started');
           sessionActiveRef.current = true;
@@ -102,13 +134,15 @@ const useVapi = ({
 
         vapiInstance.on('call-end', () => {
           console.log('📴 Call ended');
+          // Flush any pending transcripts so the last message is never dropped
+          flushPendingTranscript('user');
+          flushPendingTranscript('assistant');
           sessionActiveRef.current = false;
           setIsSessionActive(false);
           setConnectionStatus('disconnected');
           setSpeakingRole(null);
         });
 
-        // Add more event listeners for debugging
         vapiInstance.on('speech-start', () => {
           console.log('🎤 User started speaking');
           setSpeakingRole('user');
@@ -117,10 +151,6 @@ const useVapi = ({
         vapiInstance.on('speech-end', () => {
           console.log('🎤 User stopped speaking');
           setSpeakingRole(null);
-        });
-
-        vapiInstance.on('message', (message: any) => {
-          console.log('📨 VAPI message:', message);
         });
 
         vapiInstance.on('error', (error: any) => {
@@ -134,7 +164,6 @@ const useVapi = ({
             'error.toString()': error?.toString?.()
           });
 
-          // Try to extract the most useful error message
           let errorMessage = '';
 
           if (error?.error?.message) {
@@ -147,25 +176,19 @@ const useVapi = ({
             errorMessage = `VAPI returned status code ${error.statusCode}`;
           }
 
-          // Determine if this was a mid-session disconnection vs a startup failure
           const wasSessionActive = sessionActiveRef.current;
-
-          // Check for silence/inactivity patterns
           const lowerMsg = errorMessage.toLowerCase();
           const isSilenceOrInactivity = lowerMsg.includes('silence') ||
             lowerMsg.includes('inactive') ||
             lowerMsg.includes('not active') ||
             lowerMsg.includes('timeout');
 
-          // If session was active and error is unknown or silence-related, show friendly message
           if (wasSessionActive && (!errorMessage || isSilenceOrInactivity)) {
             console.log('📴 Session ended (likely silence timeout or inactivity)');
             setError('Your session ended due to inactivity. Click "Start Voice Session" to reconnect.');
           } else if (!errorMessage) {
-            // Unknown error during startup
             setError('VAPI Error: An unknown error occurred. Please try again.');
           } else {
-            // Add helpful context based on known error types
             if (lowerMsg.includes('api key') || lowerMsg.includes('unauthorized')) {
               errorMessage += ' - Check your VAPI_PUBLIC_KEY or OpenAI API key';
             } else if (lowerMsg.includes('timeout')) {
@@ -182,22 +205,39 @@ const useVapi = ({
           setIsSessionActive(false);
         });
 
-        // Listen for transcript messages and speech updates
+        // Single message handler — handles transcript accumulation and speech updates
         vapiInstance.on('message', (message: any) => {
           console.log('📨 VAPI message:', message);
 
-          // Handle transcript events
+          // Handle transcript events — final only, debounced per role
           if (message.type === 'transcript' && message.transcriptType === 'final') {
-            const transcriptMessage: TranscriptMessage = {
-              role: message.role === 'assistant' ? 'assistant' : 'user',
-              content: message.transcript || '',
-              timestamp: new Date()
-            };
+            const role: 'user' | 'assistant' = message.role === 'assistant' ? 'assistant' : 'user';
+            const incoming = (message.transcript || '').trim();
+            if (!incoming) return;
 
-            // Call the transcript callback if it exists
-            if (transcriptCallbackRef.current) {
-              transcriptCallbackRef.current(transcriptMessage);
+            const pending = pendingTranscriptRef.current[role];
+
+            // Cancel the existing debounce timer for this role
+            if (pending.timer) {
+              clearTimeout(pending.timer);
+              pending.timer = null;
             }
+
+            // Append to accumulated content for this role
+            pending.content = pending.content
+              ? `${pending.content} ${incoming}`
+              : incoming;
+
+            // Start a new debounce timer — fires callback when speaker pauses
+            pending.timer = setTimeout(() => {
+              const content = pendingTranscriptRef.current[role].content.trim();
+              pendingTranscriptRef.current[role].content = '';
+              pendingTranscriptRef.current[role].timer = null;
+
+              if (content && transcriptCallbackRef.current) {
+                transcriptCallbackRef.current({ role, content, timestamp: new Date() });
+              }
+            }, TRANSCRIPT_DEBOUNCE_MS);
           }
 
           // Handle speech-update events
@@ -212,8 +252,6 @@ const useVapi = ({
               status: message.status,
               role,
             };
-
-            // Call the speech update callback if it exists
             if (speechUpdateCallbackRef.current) {
               speechUpdateCallbackRef.current(speechUpdateMessage);
             }
@@ -229,11 +267,16 @@ const useVapi = ({
     initializeVapi();
 
     return () => {
+      // Clean up all pending debounce timers on unmount
+      const { user, assistant } = pendingTranscriptRef.current;
+      if (user.timer) clearTimeout(user.timer);
+      if (assistant.timer) clearTimeout(assistant.timer);
+
       if (vapiRef.current) {
         vapiRef.current.stop();
       }
     };
-  }, []);
+  }, [flushPendingTranscript]);
 
   const startSession = useCallback(async () => {
     if (!vapi || isLoading || !selectedAgent) {
@@ -243,33 +286,25 @@ const useVapi = ({
       return;
     }
 
-    setError(null); // Clear any previous errors
+    setError(null);
     setIsLoading(true);
     setConnectionStatus('connecting');
 
     try {
-      // iOS AUDIO UNLOCK: iOS WebView requires audio context to be "unlocked" by user gesture
-      // This must happen BEFORE vapi.start() to allow audio playback
-      // IMPORTANT: Do NOT await these calls - they must be fire-and-forget to avoid blocking
       if (isNativeApp) {
         console.log('🔊 [iOS] Unlocking audio context for WebView...');
         try {
           const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
           if (AudioContext) {
             const audioContext = new AudioContext();
-
-            // Create a silent buffer and play it (this unlocks audio on iOS)
             const buffer = audioContext.createBuffer(1, 1, 22050);
             const source = audioContext.createBufferSource();
             source.buffer = buffer;
             source.connect(audioContext.destination);
             source.start(0);
-
-            // Resume audio context if suspended (fire-and-forget, don't await)
             if (audioContext.state === 'suspended') {
               audioContext.resume().catch(() => {});
             }
-
             console.log('🔊 [iOS] Audio context unlocked successfully');
           }
         } catch (audioError) {
@@ -277,12 +312,10 @@ const useVapi = ({
         }
       }
 
-      // Build system prompt with agent-specific configuration
       const hasMemory = memoryContext && memoryContext.length > 50;
 
       let systemPrompt = selectedAgent.systemPrompt;
 
-      // CHANGE 1: Add greeting generation instructions
       systemPrompt = `GREETING GENERATION INSTRUCTION:
 Your first message should be a warm, brief greeting. Follow these rules strictly:
 
@@ -309,7 +342,6 @@ Just respond naturally with your therapeutic conversation.
 
 ` + systemPrompt;
 
-      // INJECT ONBOARDING CONTEXT - Only if exists and not skipped
       const hasOnboarding = onboarding && !onboarding.wasSkipped;
       const hasOnboardingContent = hasOnboarding && (
         (onboarding.voice && onboarding.voice.trim().length > 0) ||
@@ -318,29 +350,23 @@ Just respond naturally with your therapeutic conversation.
 
       if (hasOnboardingContent) {
         let onboardingContext = "\n\n===== IMPORTANT: USER'S INITIAL CONTEXT =====\n\n";
-
         if (onboarding.voice && onboarding.voice.trim().length > 0) {
           onboardingContext += `What they want to discuss (Your Voice):\n"${onboarding.voice}"\n\n`;
         }
-
         if (onboarding.journey && onboarding.journey.trim().length > 0) {
           onboardingContext += `Their journey and experiences (Your Journey):\n"${onboarding.journey}"\n\n`;
         }
-
         onboardingContext += `INSTRUCTIONS:
 - Reference this context naturally in your introduction
 - Use specific details they mentioned to personalize the conversation
 - Don't simply repeat what they wrote; engage thoughtfully with their input
 - Show that you truly heard and understood what they shared
 ===== END USER CONTEXT =====\n`;
-
         systemPrompt += onboardingContext;
       } else if (hasOnboarding && (!onboarding.voice?.trim() && !onboarding.journey?.trim())) {
-        // User submitted blank onboarding
         systemPrompt += "\n\nNote: The user chose not to provide initial context. Start with open-ended, welcoming exploration.\n";
       }
 
-      // ENHANCED: Add session continuity context if available
       if (shouldReferenceLastSession && lastSessionSummary) {
         systemPrompt += `\n\n===== LAST SESSION CONTEXT =====
 ${lastSessionSummary}
@@ -349,14 +375,12 @@ FOR YOUR GREETING: Pick ONE thread from this context — the most unfinished or 
 ===== END LAST SESSION =====\n`;
       }
 
-      // Add upload context - either for proactive engagement (unaddressed) or available for revisit (addressed)
       if (uploadContext && (hasUnaddressedUpload || uploadAddressed)) {
         systemPrompt += `\n\n===== CONTENT THE USER SHARED FOR DISCUSSION =====
 ${uploadContext}
 ===== END SHARED CONTENT =====\n`;
 
         if (hasUnaddressedUpload) {
-          // UNADDRESSED: Agent should proactively engage with the upload
           systemPrompt += `
 ===== UPLOAD ENGAGEMENT INSTRUCTIONS =====
 The user uploaded this content and chose to have it analyzed. It is ONE possible thread for your greeting — potentially the most relevant one if it is recent and unaddressed.
@@ -372,7 +396,6 @@ WHEN THE USER WANTS TO DISCUSS THE UPLOAD: You have both the clinical analysis A
 ===== END UPLOAD INSTRUCTIONS =====\n`;
           console.log('📤 [VAPI] Unaddressed upload detected - adding proactive engagement context');
         } else {
-          // ADDRESSED: Upload was previously discussed but available for revisit
           systemPrompt += `
 ===== PREVIOUSLY SHARED CONTENT — AVAILABLE FOR DISCUSSION =====
 This content was previously discussed in an earlier session but remains fully available. Do NOT proactively bring it up in your greeting. However, if the user references this material, asks about it, or wants to revisit it:
@@ -386,7 +409,6 @@ This content was previously discussed in an earlier session but remains fully av
         }
       }
 
-      // Add regular memory context if available
       if (hasMemory) {
         systemPrompt += `\n\n===== PREVIOUS SESSION HISTORY =====
 ${memoryContext}
@@ -394,8 +416,6 @@ ${memoryContext}
 
 This history is for YOUR reference during the conversation. Do NOT try to reference it all in your greeting. If LAST SESSION CONTEXT is also present above, use that for your greeting instead — it is more recent and specific. Do not make up or hallucinate any details not explicitly mentioned above.`;
       } else if (!lastSessionSummary) {
-        // FIRST SESSION: Inject the first session introduction talk track
-        // This gives the agent a specific opening script to use
         const firstSessionIntro = FIRST_SESSION_INTRODUCTION.replace(/\{firstName\}/g, firstName);
         systemPrompt += `\n\n${firstSessionIntro}`;
         console.log('🎬 [VAPI] First session detected - injecting introduction script');
@@ -407,13 +427,10 @@ Do NOT call the tool unless you actually need more context beyond what is alread
 
       systemPrompt += `\n\nThe user's name is ${firstName}. Use their name naturally but not excessively.`;
 
-      // CHANGE 2: REMOVED the firstMessageTemplate call - no more hardcoded greetings
-
-      // === PHASE 1C AUDIT: Log systemPrompt size breakdown ===
       const basePromptLen = selectedAgent.systemPrompt.length;
       const greetingInstructionsLen = systemPrompt.indexOf(selectedAgent.systemPrompt) > 0
         ? systemPrompt.indexOf(selectedAgent.systemPrompt)
-        : 250; // Approximate greeting instructions length
+        : 250;
       const onboardingLen = hasOnboardingContent
         ? (onboarding?.voice?.length || 0) + (onboarding?.journey?.length || 0) + 300
         : 0;
@@ -435,9 +452,6 @@ Do NOT call the tool unless you actually need more context beyond what is alread
       console.log(`📏 TOTAL systemPrompt:      ${totalPromptLen} chars (~${estimatedTokens} tokens)`);
       console.log('===== END PROMPT SIZE AUDIT =====\n');
 
-      // Get the current server URL for webhook configuration
-      // VAPI webhook must always use the full HTTPS URL because VAPI's servers need to reach it
-      // getAbsoluteUrl() always returns an absolute URL (with origin) for external services
       const serverUrl = getAbsoluteUrl('/api/vapi/webhook');
       const toolsUrl = getAbsoluteUrl('/api/vapi/tools');
 
@@ -454,15 +468,9 @@ Do NOT call the tool unless you actually need more context beyond what is alread
       console.log('════════════════════════════════════════════════════════════════');
       console.log('');
 
-      // VAPI configuration with dynamic agent settings
-      // Session duration is controlled by maxDurationSeconds property
-      // - Individual users: 2 hours (7200 seconds) by default
-      // - Therapist clients: Custom duration set by therapist per client
-      // - All users: Also limited by subscription minutes remaining
       const assistantConfig = {
         name: `VASA-${selectedAgent.name}`,
         model: {
-          // CUSTOM LLM PROXY — full prompt sent from client, routed through our server to OpenAI
           provider: 'custom-llm',
           url: getAbsoluteUrl('/api/custom-llm'),
           model: selectedAgent.model.model,
@@ -517,32 +525,25 @@ Do NOT call the tool unless you actually need more context beyond what is alread
                 generationConfig: selectedAgent.voice.generationConfig
               })
             },
-        // 🎯 Therapeutic Speech Configuration
-        // Deepgram Flux handles primary endpointing via eotThreshold/eotTimeoutMs above.
-        // customEndpointingRules extend the wait after emotionally loaded questions.
-        // waitSeconds is a FINAL delay after LLM+TTS are done, before audio plays — keep low.
         startSpeakingPlan: {
           waitSeconds: 0.6,
           customEndpointingRules: [
             {
-              // After the agent asks a probing/emotional question, give the user up to 8 seconds
               type: 'assistant' as const,
               regex: '(feel|body|inside you|imagine|what happens|remind you|what.?s that about|where do you notice|what comes up|what shifted|say more about|sit with)',
               timeoutSeconds: 8.0
             },
             {
-              // When user's speech ends with a trailing thought (comma, ellipsis, dash)
               type: 'customer' as const,
               regex: '(,\\s*$|\\.{2,}\\s*$|—\\s*$|-\\s*$)',
               timeoutSeconds: 6.0
             }
           ]
         },
-        // Make agent harder to interrupt - requires deliberate user speech
         stopSpeakingPlan: {
-          numWords: 5,          // Requires 5 words to interrupt (prevents accidental cut-ins)
-          voiceSeconds: 0.5,    // Requires 0.5s of sustained voice activity
-          backoffSeconds: 2     // After interruption, wait 2s before agent can resume
+          numWords: 5,
+          voiceSeconds: 0.5,
+          backoffSeconds: 2
         },
         serverUrl: serverUrl,
         serverMessages: [
@@ -561,15 +562,11 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         ],
         server: {
           url: serverUrl,
-          timeoutSeconds: 20,  // This is for webhook timeout, not call duration
+          timeoutSeconds: 20,
           secret: import.meta.env.VITE_VAPI_SERVER_SECRET || undefined
         },
-        firstMessage: null,  // MUST be null, not undefined or omitted
+        firstMessage: null,
         firstMessageMode: "assistant-speaks-first-with-model-generated-message",
-        // 🎯 Therapeutic Speech Configuration
-        // Deepgram nova-2 handles transcription with 1500ms silence endpointing.
-        // customEndpointingRules in startSpeakingPlan extend the wait after emotionally loaded questions.
-        // waitSeconds is a FINAL delay after LLM+TTS are done, before audio plays — keep low.
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
@@ -583,8 +580,8 @@ Do NOT call the tool unless you actually need more context beyond what is alread
             enabled: true
           }
         },
-        maxDurationSeconds: sessionDurationLimit,  // Vapi will enforce this limit
-        silenceTimeoutSeconds: 300,                // 5 min — let sensing layer handle silence, not Vapi's default 30s
+        maxDurationSeconds: sessionDurationLimit,
+        silenceTimeoutSeconds: 300,
         metadata: {
           userId: userId,
           agentName: selectedAgent.name,
@@ -605,7 +602,6 @@ Do NOT call the tool unless you actually need more context beyond what is alread
 
       console.log('🔍 FULL ASSISTANT CONFIG:', JSON.stringify(assistantConfig, null, 2));
 
-      // Warn about potential configuration issues
       console.log('⚠️ Configuration checks:');
       console.log('  - VAPI Public Key:', import.meta.env.VITE_VAPI_PUBLIC_KEY ? '✅ Set' : '❌ Missing');
       console.log('  - Webhook URL:', serverUrl);
@@ -616,7 +612,6 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         console.log('🚀 Calling vapi.start()...');
         await vapi.start(assistantConfig);
         console.log('✅ vapi.start() completed successfully');
-        // Since VAPI.start() succeeded, consider the session active
         setIsSessionActive(true);
         setConnectionStatus('connected');
         setIsLoading(false);
@@ -624,7 +619,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
         console.error('❌ VAPI start failed:', error);
         const errorMsg = error?.message || error?.error?.message || 'Failed to start voice session';
         setError(`Unable to start session: ${errorMsg}. Please check your microphone permissions and try again.`);
-        throw error; // Re-throw to be caught by outer try-catch
+        throw error;
       }
 
     } catch (error: any) {
