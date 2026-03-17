@@ -74,7 +74,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   // set false when the agent transcript arrives (response complete).
   // Driven by transcript events — stable and event-driven, not derived
   // from speakingRole which re-evaluates on every render and causes flickering.
-  const [isAgentThinking, setIsAgentThinking] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
   const [, setLocation] = useLocation();
@@ -161,9 +160,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
         source: 'voice' as const,
         agentId: message.role === 'assistant' ? selectedAgentId : undefined,
       }]);
-
-      if (message.role === 'user') setIsAgentThinking(true);
-      if (message.role === 'assistant') setIsAgentThinking(false);
     });
   }, [onTranscript]);
 
@@ -178,7 +174,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       setActiveTextSessionId(null);
       setTypewriterMessageId(null);
       setDisplayedContent({});
-      setIsAgentThinking(false);
       setShowTranscript(true);
       localStorage.removeItem('vasa_text_session_id');
       localStorage.removeItem('vasa_text_transcript');
