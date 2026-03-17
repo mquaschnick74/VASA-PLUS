@@ -255,22 +255,62 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    // Stream chunks with look-ahead footer stripping.
+    // The agent appends ---STATE:{...}--- to every response.
+    // We hold back 8 chars (LOOK_AHEAD) per chunk to catch the delimiter
+    // even if it arrives split across chunk boundaries.
+    const FOOTER_DELIMITER = '---STATE:';
+    const LOOK_AHEAD = FOOTER_DELIMITER.length - 1; // 8 chars
+
+    let pendingBuffer = '';
+    let footerBuffer = '';
+    let inFooter = false;
     let fullResponse = '';
 
-    // Stream chunks back to client
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        fullResponse += content;
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      if (!content) continue;
+
+      if (inFooter) {
+        footerBuffer += content;
+        continue;
       }
+
+      pendingBuffer += content;
+
+      const delimIdx = pendingBuffer.indexOf(FOOTER_DELIMITER);
+      if (delimIdx !== -1) {
+        const toSend = pendingBuffer.slice(0, delimIdx);
+        footerBuffer = pendingBuffer.slice(delimIdx);
+        pendingBuffer = '';
+        inFooter = true;
+
+        if (toSend) {
+          fullResponse += toSend;
+          res.write(`data: ${JSON.stringify({ content: toSend })}\n\n`);
+        }
+        continue;
+      }
+
+      if (pendingBuffer.length > LOOK_AHEAD) {
+        const toSend = pendingBuffer.slice(0, pendingBuffer.length - LOOK_AHEAD);
+        pendingBuffer = pendingBuffer.slice(pendingBuffer.length - LOOK_AHEAD);
+        fullResponse += toSend;
+        res.write(`data: ${JSON.stringify({ content: toSend })}\n\n`);
+      }
+    }
+
+    // Flush remainder if no footer was found
+    if (pendingBuffer && !inFooter) {
+      fullResponse += pendingBuffer;
+      res.write(`data: ${JSON.stringify({ content: pendingBuffer })}\n\n`);
     }
 
     // Send completion signal
     res.write('data: [DONE]\n\n');
     res.end();
 
-    console.log('✅ [CHAT] Response streamed successfully');
+    console.log('✅ [CHAT] Response streamed successfully, sent:', fullResponse.length, 'chars');
 
     // DO NOT save to database here - messages stay in memory until session ends
 

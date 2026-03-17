@@ -9,7 +9,7 @@ import {
   clearFooterState,
   type FooterState,
 } from '../prompts/pca-core';
-import { formatGuidanceAsSystemMessage, formatSessionPicture } from '../services/sensing-layer/guidance-injector';
+import { formatSessionPicture } from '../services/sensing-layer/guidance-injector';
 
 const router = Router();
 
@@ -29,41 +29,12 @@ export function clearCustomLLMCache(callId: string): void {
   clearFooterState(callId);
 }
 
-// ─── Footer stripping ─────────────────────────────────────────────────────────
+// ─── Footer constants ─────────────────────────────────────────────────────────
 
 const FOOTER_DELIMITER = '---STATE:';
-
-function stripFooter(fullContent: string): { clean: string; footerState: FooterState | null } {
-  const idx = fullContent.indexOf(FOOTER_DELIMITER);
-  if (idx === -1) {
-    return { clean: fullContent, footerState: null };
-  }
-
-  const clean = fullContent.slice(0, idx);
-  const footerStr = fullContent.slice(idx);
-  const match = footerStr.match(/^---STATE:(\{[\s\S]*?\})---/);
-
-  if (!match) {
-    console.warn(`[CUSTOM-LLM] Footer delimiter found but JSON extraction failed`);
-    return { clean, footerState: null };
-  }
-
-  try {
-    const parsed = JSON.parse(match[1]);
-    const footerState: FooterState = {
-      register: parsed.register || 'imaginary',
-      posture: parsed.posture || 'prescripting',
-      css: parsed.css || 'pointed-origin',
-      movement: parsed.movement || 'stable',
-      flag: parsed.flag || null,
-      cvdc: parsed.cvdc || null,
-    };
-    return { clean, footerState };
-  } catch (e) {
-    console.warn(`[CUSTOM-LLM] Footer JSON parse failed: ${e}`);
-    return { clean, footerState: null };
-  }
-}
+// Hold back this many chars while streaming to catch delimiters
+// that arrive split across chunk boundaries.
+const LOOK_AHEAD = FOOTER_DELIMITER.length - 1; // 8 chars
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
@@ -132,7 +103,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   streamingCallIds.add(callId);
 
   // Step 4a: Fast sensing cascade (same-turn, heuristic only)
-  // Full processUtterance runs async for longitudinal accumulation
   const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content;
   if (currentUtterance && numUserTurns > 0) {
     try {
@@ -150,10 +120,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         conversationHistory,
       };
 
-      // Fast path — blocks ~16ms, produces session picture
       const fastResult = await sensingLayer.processFastUtterance(turnInput);
 
-      // Full cascade — async, accumulates patterns for future turns
       sensingLayer.processUtterance(turnInput).catch(err =>
         console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
       );
@@ -180,8 +148,22 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     }
   }
 
+  // Set SSE headers once — before OpenAI stream.
+  // Nothing below may call res.setHeader again.
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
   try {
-    // Step 5: Stream from OpenAI, buffer full response for footer stripping
+    // Step 5: Stream from OpenAI with look-ahead footer detection.
+    //
+    // Chunks are sent to VAPI as they arrive, holding back LOOK_AHEAD chars
+    // to catch the ---STATE: delimiter even if it arrives split across chunks.
+    // When ---STATE: is found, everything before it has already been sent.
+    // Everything from ---STATE: onward accumulates in footerBuffer for parsing
+    // after the stream ends. setLastFooterState is called once at the end —
+    // consumed by the NEXT request for this callId, so cross-turn timing unchanged.
+
     const completion = await openai.chat.completions.create({
       model: req.body.model || 'gpt-4o',
       messages: modifiedMessages,
@@ -190,67 +172,99 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       stream: true,
     });
 
-    let fullContent = '';
+    let pendingBuffer = '';  // chars held back for look-ahead
+    let footerBuffer = '';   // accumulates everything from ---STATE: onward
+    let inFooter = false;    // true once ---STATE: has been found
     let firstChunkId = '';
     let lastChunkId = '';
+    let totalSentLength = 0;
 
     for await (const chunk of completion) {
       if (!firstChunkId) firstChunkId = chunk.id;
       lastChunkId = chunk.id;
       const delta = chunk.choices?.[0]?.delta?.content;
-      if (delta) fullContent += delta;
+      if (!delta) continue;
+
+      if (inFooter) {
+        footerBuffer += delta;
+        continue;
+      }
+
+      pendingBuffer += delta;
+
+      const delimIdx = pendingBuffer.indexOf(FOOTER_DELIMITER);
+      if (delimIdx !== -1) {
+        const toSend = pendingBuffer.slice(0, delimIdx);
+        footerBuffer = pendingBuffer.slice(delimIdx);
+        pendingBuffer = '';
+        inFooter = true;
+
+        if (toSend) {
+          res.write(
+            `data: ${JSON.stringify({
+              id: firstChunkId,
+              object: 'chat.completion.chunk',
+              choices: [{ index: 0, delta: { content: toSend }, finish_reason: null }],
+            })}\n\n`
+          );
+          totalSentLength += toSend.length;
+        }
+        continue;
+      }
+
+      // Delimiter not yet seen — flush all but last LOOK_AHEAD chars
+      if (pendingBuffer.length > LOOK_AHEAD) {
+        const toSend = pendingBuffer.slice(0, pendingBuffer.length - LOOK_AHEAD);
+        pendingBuffer = pendingBuffer.slice(pendingBuffer.length - LOOK_AHEAD);
+
+        res.write(
+          `data: ${JSON.stringify({
+            id: firstChunkId,
+            object: 'chat.completion.chunk',
+            choices: [{ index: 0, delta: { content: toSend }, finish_reason: null }],
+          })}\n\n`
+        );
+        totalSentLength += toSend.length;
+      }
     }
 
-    // Strip footer
-    const { clean: cleanContent, footerState } = stripFooter(fullContent);
-
-    if (footerState) {
-      setLastFooterState(callId, footerState);
-      console.log(
-        `🔵 [CUSTOM-LLM] Footer stripped: register=${footerState.register} posture=${footerState.posture} css=${footerState.css} movement=${footerState.movement}`
-      );
-    } else if (fullContent.includes(FOOTER_DELIMITER)) {
-      // Footer delimiter found but parsing failed — block the response
-      console.error(`🔴 [CUSTOM-LLM] Footer strip failure for call=${callId} — response blocked`);
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.write(
-        `data: ${JSON.stringify({
-          id: 'blocked',
-          object: 'chat.completion.chunk',
-          choices: [{ index: 0, delta: { content: 'Something went wrong. Can you say that again?' }, finish_reason: null }],
-        })}\n\n`
-      );
-      res.write(
-        `data: ${JSON.stringify({
-          id: 'blocked',
-          object: 'chat.completion.chunk',
-          choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-        })}\n\n`
-      );
-      res.write('data: [DONE]\n\n');
-      res.end();
-      return;
-    } else {
-      console.warn(
-        `🔵 [CUSTOM-LLM] No footer in response for call=${callId} turn=${numUserTurns}`
-      );
-    }
-
-    // Stream clean content back to VAPI
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    if (cleanContent) {
+    // Flush remaining pendingBuffer (no footer case)
+    if (pendingBuffer && !inFooter) {
       res.write(
         `data: ${JSON.stringify({
           id: firstChunkId || 'resp',
           object: 'chat.completion.chunk',
-          choices: [{ index: 0, delta: { content: cleanContent }, finish_reason: null }],
+          choices: [{ index: 0, delta: { content: pendingBuffer }, finish_reason: null }],
         })}\n\n`
       );
+      totalSentLength += pendingBuffer.length;
+      console.warn(`🔵 [CUSTOM-LLM] No footer in response for call=${callId} turn=${numUserTurns}`);
+    }
+
+    // Parse footer after stream ends
+    if (inFooter && footerBuffer) {
+      const match = footerBuffer.match(/^---STATE:(\{[\s\S]*?\})---/);
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[1]);
+          const footerState: FooterState = {
+            register: parsed.register || 'imaginary',
+            posture: parsed.posture || 'prescripting',
+            css: parsed.css || 'pointed-origin',
+            movement: parsed.movement || 'stable',
+            flag: parsed.flag || null,
+            cvdc: parsed.cvdc || null,
+          };
+          setLastFooterState(callId, footerState);
+          console.log(
+            `🔵 [CUSTOM-LLM] Footer parsed: register=${footerState.register} posture=${footerState.posture} css=${footerState.css} movement=${footerState.movement}`
+          );
+        } catch (e) {
+          console.warn(`🔵 [CUSTOM-LLM] Footer JSON parse failed: ${e}`);
+        }
+      } else {
+        console.warn(`🔵 [CUSTOM-LLM] Footer delimiter found but regex extraction failed for call=${callId}`);
+      }
     }
 
     res.write(
@@ -265,7 +279,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
     const totalTime = Date.now() - requestStartTime;
     console.log(
-      `🔵 [CUSTOM-LLM] Complete: call=${callId} turns=${numUserTurns}/${numAssistantTurns} total=${totalTime}ms length=${cleanContent.length}`
+      `🔵 [CUSTOM-LLM] Complete: call=${callId} turns=${numUserTurns}/${numAssistantTurns} total=${totalTime}ms sent=${totalSentLength} chars`
     );
   } catch (error: any) {
     console.error(`🔴 [CUSTOM-LLM] OpenAI error: ${error.message}`, { callId, userId, agentId });
