@@ -142,6 +142,7 @@ const useVapi = ({
         vapiInstance.on('speech-end', () => {
           console.log('🎤 User stopped speaking');
           setSpeakingRole(null);
+          setIsAgentThinking(true);
         });
 
         vapiInstance.on('error', (error: any) => {
@@ -227,6 +228,10 @@ const useVapi = ({
                   transcriptCallbackRef.current({ role, content, timestamp: new Date() });
                 }
 
+                // Drive thinking indicator from completed turns:
+                // user turn complete → agent is now processing → thinking = true
+                // assistant turn complete → agent responded → thinking = false
+
                 lastFiredIndexRef.current = i;
               }
             }
@@ -237,7 +242,10 @@ const useVapi = ({
             const role: 'assistant' | 'user' = message.role === 'assistant' ? 'assistant' : 'user';
             if (message.status === 'started') {
               setSpeakingRole(role);
-              if (role === 'assistant') setIsAgentSpeakingActive(true);
+              if (role === 'assistant') {
+                setIsAgentSpeakingActive(true);
+                setIsAgentThinking(false);
+              }
             } else if (message.status === 'stopped') {
               setSpeakingRole(null);
               // Do NOT clear isAgentSpeakingActive here — VAPI fires multiple

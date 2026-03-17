@@ -244,6 +244,34 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
       {/* Outer glow ring — outside the clip boundary */}
       <div style={glowStyle} />
 
+      {/* Segmented arc spinner — thinking state only */}
+      <svg
+        width={orbSize + 24}
+        height={orbSize + 24}
+        viewBox="0 0 184 184"
+        style={{
+          position: 'absolute',
+          pointerEvents: 'none',
+          zIndex: 2,
+          opacity: state === 'agent-thinking' ? 1 : 0,
+          transition: 'opacity 0.5s ease',
+          animation: state === 'agent-thinking' ? 'orb-rotate 2.8s linear infinite' : 'none',
+        }}
+      >
+        {/* 6 equal segments: circumference of r=72 is ~452px. Each segment = 52px arc, 23.5px gap */}
+        <circle
+          cx="92"
+          cy="92"
+          r="72"
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="52 23.5"
+          opacity="0.95"
+        />
+      </svg>
+
       {/* Clipped fluid orb */}
       <div style={containerStyle}>
         <div style={thinkingRotateStyle}>
