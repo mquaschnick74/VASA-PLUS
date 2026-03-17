@@ -111,8 +111,9 @@ async function handleSilenceTimeout(callId: string, armedGeneration?: number): P
   timer.silenceEventCount++;
   console.log(`🔇 [SILENCE] Silence event #${timer.silenceEventCount} for call ${callId}`);
 
-  const silenceDurationMs = callState.lastUserUtteranceAt
-    ? Date.now() - callState.lastUserUtteranceAt.getTime()
+  const lastActivityAt = callState.lastUserUtteranceAt ?? callState.lastAgentUtteranceAt ?? null;
+  const silenceDurationMs = lastActivityAt
+    ? Date.now() - lastActivityAt.getTime()
     : 0;
   const silenceDurationSeconds = Math.round(silenceDurationMs / 1000);
 
