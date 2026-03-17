@@ -41,6 +41,11 @@ const KEYFRAMES = `
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+@keyframes orb-thinking-pulse {
+  0%   { transform: scale(1.0); opacity: 0.75; }
+  50%  { transform: scale(1.12); opacity: 1.0; }
+  100% { transform: scale(1.0); opacity: 0.75; }
+}
 `;
 
 const COLOR_MAP: Record<string, string> = {
@@ -161,7 +166,8 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     zIndex: 0,
     opacity: cfg.opacity,
     transform: `scale(${cfg.scale})`,
-    transition: 'opacity 0.6s ease, transform 0.6s ease',
+    transition: state === 'agent-thinking' ? 'none' : 'opacity 0.6s ease, transform 0.6s ease',
+    animation: state === 'agent-thinking' ? 'orb-thinking-pulse 1.8s ease-in-out infinite' : 'none',
   };
 
   // Outer soft glow ring — sits outside the clipped container
@@ -193,7 +199,7 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '18px',
     background: `radial-gradient(circle at 40% 40%, ${lighter} 0%, ${light} 40%, ${color} 100%)`,
     filter: `blur(${cfg.blur}px)`,
-    animation: `orb-blob-1 ${cfg.speed}s ease-in-out infinite`,
+    animation: state === 'agent-thinking' ? 'none' : `orb-blob-1 5s ease-in-out infinite`,
     animationDelay: '0s',
   };
 
@@ -206,8 +212,8 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '40px',
     background: `radial-gradient(circle at 60% 60%, ${color} 0%, ${dark} 100%)`,
     filter: `blur(${cfg.blur + 4}px)`,
-    animation: `orb-blob-2 ${cfg.speed * 1.3}s ease-in-out infinite`,
-    animationDelay: `-${cfg.speed * 0.4}s`,
+    animation: state === 'agent-thinking' ? 'none' : `orb-blob-2 6.5s ease-in-out infinite`,
+    animationDelay: '-2s',
   };
 
   // Blob 3 — lighter accent, bottom
@@ -219,8 +225,8 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '35px',
     background: `radial-gradient(circle at 50% 30%, ${lighter} 0%, ${light} 60%, transparent 100%)`,
     filter: `blur(${cfg.blur - 4}px)`,
-    animation: `orb-blob-3 ${cfg.speed * 0.85}s ease-in-out infinite`,
-    animationDelay: `-${cfg.speed * 0.6}s`,
+    animation: state === 'agent-thinking' ? 'none' : `orb-blob-3 4.25s ease-in-out infinite`,
+    animationDelay: '-3s',
   };
 
   // Thinking state: add slow rotation on top of blob movement
@@ -228,7 +234,7 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     ? {
         position: 'absolute',
         inset: 0,
-        animation: `orb-rotate ${cfg.speed * 2.5}s linear infinite`,
+        animation: `orb-rotate 12s linear infinite`,
       }
     : { position: 'absolute', inset: 0 };
 
@@ -237,6 +243,34 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
       {/* Outer glow ring — outside the clip boundary */}
       <div style={glowStyle} />
+
+      {/* Segmented arc spinner — thinking state only */}
+      <svg
+        width={orbSize + 24}
+        height={orbSize + 24}
+        viewBox="0 0 184 184"
+        style={{
+          position: 'absolute',
+          pointerEvents: 'none',
+          zIndex: 2,
+          opacity: state === 'agent-thinking' ? 1 : 0,
+          transition: 'opacity 0.5s ease',
+          animation: state === 'agent-thinking' ? 'orb-rotate 2.8s linear infinite' : 'none',
+        }}
+      >
+        {/* 6 equal segments: circumference of r=72 is ~452px. Each segment = 52px arc, 23.5px gap */}
+        <circle
+          cx="92"
+          cy="92"
+          r="72"
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="52 23.5"
+          opacity="0.95"
+        />
+      </svg>
 
       {/* Clipped fluid orb */}
       <div style={containerStyle}>

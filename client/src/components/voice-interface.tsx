@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle, Mic, MessageSquare } from 'lucide-react';
 import useVapi from '@/hooks/use-vapi';
 import AvatarAura, { AuraState } from '@/components/AvatarAura';
 import AgentSelector from './AgentSelector';
@@ -58,6 +58,19 @@ interface UserContext {
   onboarding?: OnboardingData | null;
 }
 
+const AGENT_COLOR_MAP: Record<string, string> = {
+  primary: '#7c3aed', violet: '#7c3aed', purple: '#9333ea',
+  indigo: '#4f8ef7',
+  blue: '#3b82f6', cyan: '#06b6d4', teal: '#14b8a6',
+  green: '#22c55e', amber: '#f59e0b', orange: '#f97316',
+  rose: '#f43f5e', red: '#ef4444',
+};
+function resolveAgentColor(color?: string): string {
+  if (!color) return '#7c3aed';
+  if (color.startsWith('#')) return color;
+  return AGENT_COLOR_MAP[color.toLowerCase()] ?? '#7c3aed';
+}
+
 export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _hideLogoutButton }: VoiceInterfaceProps) {
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [memoryLoading, setMemoryLoading] = useState(false);
@@ -74,7 +87,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   // set false when the agent transcript arrives (response complete).
   // Driven by transcript events — stable and event-driven, not derived
   // from speakingRole which re-evaluates on every render and causes flickering.
-  const [isAgentThinking, setIsAgentThinking] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
   const [, setLocation] = useLocation();
@@ -127,6 +139,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     connectionStatus,
     onTranscript,
     speakingRole,
+    isAgentThinking,
+    isAgentSpeakingActive,
     error: vapiError,
     clearError
   } = useVapi({
@@ -159,9 +173,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
         source: 'voice' as const,
         agentId: message.role === 'assistant' ? selectedAgentId : undefined,
       }]);
-
-      if (message.role === 'user') setIsAgentThinking(true);
-      if (message.role === 'assistant') setIsAgentThinking(false);
     });
   }, [onTranscript]);
 
@@ -176,7 +187,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       setActiveTextSessionId(null);
       setTypewriterMessageId(null);
       setDisplayedContent({});
-      setIsAgentThinking(false);
       setShowTranscript(true);
       localStorage.removeItem('vasa_text_session_id');
       localStorage.removeItem('vasa_text_transcript');
@@ -569,8 +579,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     if (connectionStatus === 'connecting' || isLoading) return 'connecting';
     if (!isSessionActive) return 'idle';
     if (speakingRole === 'user') return 'user-speaking';
-    if (speakingRole === 'assistant') return 'agent-speaking';
-    return 'agent-thinking';
+    if (speakingRole === 'assistant' || isAgentSpeakingActive) return 'agent-speaking';
+    if (isAgentThinking) return 'agent-thinking';
+    return 'idle';
   };
 
   const formatTime = (seconds: number) => {
@@ -782,60 +793,88 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                   false = agent turn arrived, response complete
                 */}
                 <div className="flex items-center justify-center mb-4">
-                  <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
-                    isSessionActive
-                      ? 'bg-red-500/20 border border-red-500/50'
-                      : activeTextSessionId
-                      ? 'bg-blue-500/20 border border-blue-500/50'
-                      : 'bg-accent/20 border border-accent/50'
-                  }`}>
-                    <div className={`w-2 h-2 rounded-full animate-pulse ${
+                  {(isSessionActive || activeTextSessionId) ? (
+                    <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
                       isSessionActive
-                        ? isAgentThinking ? 'bg-amber-400' : 'bg-red-500'
-                        : activeTextSessionId ? 'bg-blue-500' : 'bg-accent'
-                    }`}></div>
-                    <span className="text-xs sm:text-sm font-medium" data-testid="status-call">
-                      {isSessionActive
-                        ? isAgentThinking
-                          ? `${selectedAgent?.name} is with you...`
-                          : `🎤 Voice: Connected with ${selectedAgent?.name}`
-                        : activeTextSessionId
-                        ? `💬 Text: Chatting with ${selectedAgent?.name}`
-                        : 'Ready to start'}
-                    </span>
-                  </div>
+                        ? 'bg-red-500/20 border border-red-500/50'
+                        : 'bg-blue-500/20 border border-blue-500/50'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${
+                        isSessionActive
+                          ? isAgentThinking ? 'bg-amber-400' : 'bg-red-500'
+                          : 'bg-blue-500'
+                      }`}></div>
+                      <span className="text-xs sm:text-sm font-medium" data-testid="status-call">
+                        {isSessionActive
+                          ? isAgentThinking
+                            ? `${selectedAgent?.name} is with you...`
+                            : `Voice: Connected with ${selectedAgent?.name}`
+                          : `Text: Chatting with ${selectedAgent?.name}`}
+                      </span>
+                    </div>
+    ) : (
+      <span data-testid="status-call" />
+    )}
                 </div>
 
                 <div className="space-y-3 mb-6">
                   {!activeTextSessionId && (
                     <div className="flex justify-center">
-                      <Button
-                        onClick={isSessionActive ? handleEndCall : handleStartSession}
-                        disabled={isLoading || memoryLoading || (subscription?.limits.minutes_remaining === 0)}
-                        className={`group relative px-6 py-2 sm:px-8 sm:py-3 rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-center font-medium text-white ${
-                          isSessionActive
-                            ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-red-500/25'
-                            : subscription && subscription.limits.minutes_remaining === 0
-                            ? 'bg-gray-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-primary to-accent hover:shadow-primary/25'
-                        }`}
-                        data-testid="button-call"
-                      >
-                        <span className="text-xs sm:text-sm group-hover:scale-105 transition-transform duration-200">
-                          {isLoading ? 'Connecting...' :
-                           isSessionActive ? '🎤 End Voice Session' :
-                           subscription && subscription.limits.minutes_remaining === 0 ? 'Upgrade Required' :
-                           '🎤 Start Voice Session'}
-                        </span>
-                      </Button>
+                      {isSessionActive ? (
+                        <button
+                          onClick={handleEndCall}
+                          className="group relative flex items-center gap-2 px-8 py-3 rounded-full font-medium text-sm text-white transition-all duration-300 hover:scale-105 active:scale-95"
+                          style={{
+                            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                            boxShadow: '0 0 24px rgba(239,68,68,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
+                          }}
+                          data-testid="button-call"
+                        >
+                          <Mic className="w-4 h-4" />
+                          <span>End Session</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleStartSession}
+                          disabled={isLoading || memoryLoading || (subscription?.limits.minutes_remaining === 0)}
+                          className="group relative flex items-center gap-3 px-8 py-3 rounded-full font-medium text-sm text-white transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                          style={{
+                            background: subscription?.limits.minutes_remaining === 0
+                              ? 'linear-gradient(135deg, #6b7280, #4b5563)'
+                              : `linear-gradient(135deg, ${resolveAgentColor(selectedAgent?.color)}, ${resolveAgentColor(selectedAgent?.color)}cc)`,
+                            boxShadow: subscription?.limits.minutes_remaining === 0
+                              ? 'none'
+                              : `0 0 28px ${resolveAgentColor(selectedAgent?.color)}55, inset 0 1px 0 rgba(255,255,255,0.2)`,
+                            border: `1px solid ${resolveAgentColor(selectedAgent?.color)}44`,
+                          }}
+                          data-testid="button-call"
+                        >
+                          <Mic className="w-4 h-4 shrink-0" />
+                          <span>
+                            {isLoading ? 'Connecting...' :
+                             subscription?.limits.minutes_remaining === 0 ? 'Upgrade Required' :
+                             'Start Voice Session'}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   )}
 
                   {!isSessionActive && !activeTextSessionId && (
                     <div className="flex flex-col items-center gap-2">
-                      <Button onClick={startTextSession} variant="outline" className="px-6 py-2 sm:px-8 sm:py-3 rounded-full">
-                        <span className="text-xs sm:text-sm">💬 Start Text Session</span>
-                      </Button>
+                      <button
+                        onClick={startTextSession}
+                        className="group flex items-center gap-3 px-8 py-2.5 rounded-full text-sm font-medium transition-all duration-300 hover:scale-105 active:scale-95"
+                        style={{
+                          background: 'transparent',
+                          border: `1px solid ${resolveAgentColor(selectedAgent?.color)}66`,
+                          color: resolveAgentColor(selectedAgent?.color),
+                          boxShadow: `inset 0 0 12px ${resolveAgentColor(selectedAgent?.color)}11`,
+                        }}
+                      >
+                        <MessageSquare className="w-4 h-4 shrink-0" />
+                        <span>Start Text Session</span>
+                      </button>
                       <p className="text-xs text-emerald-500/80 text-center">✨ Text conversations are unlimited and free</p>
                     </div>
                   )}
