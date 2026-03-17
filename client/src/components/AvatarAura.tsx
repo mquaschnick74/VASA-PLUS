@@ -41,6 +41,11 @@ const KEYFRAMES = `
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+@keyframes orb-thinking-pulse {
+  0%   { transform: scale(1.0); opacity: 0.75; }
+  50%  { transform: scale(1.12); opacity: 1.0; }
+  100% { transform: scale(1.0); opacity: 0.75; }
+}
 `;
 
 const COLOR_MAP: Record<string, string> = {
@@ -161,7 +166,8 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     zIndex: 0,
     opacity: cfg.opacity,
     transform: `scale(${cfg.scale})`,
-    transition: 'opacity 0.6s ease, transform 0.6s ease',
+    transition: state === 'agent-thinking' ? 'none' : 'opacity 0.6s ease, transform 0.6s ease',
+    animation: state === 'agent-thinking' ? 'orb-thinking-pulse 1.8s ease-in-out infinite' : 'none',
   };
 
   // Outer soft glow ring — sits outside the clipped container
@@ -193,7 +199,7 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '18px',
     background: `radial-gradient(circle at 40% 40%, ${lighter} 0%, ${light} 40%, ${color} 100%)`,
     filter: `blur(${cfg.blur}px)`,
-    animation: `orb-blob-1 5s ease-in-out infinite`,
+    animation: state === 'agent-thinking' ? 'none' : `orb-blob-1 5s ease-in-out infinite`,
     animationDelay: '0s',
   };
 
@@ -206,7 +212,7 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '40px',
     background: `radial-gradient(circle at 60% 60%, ${color} 0%, ${dark} 100%)`,
     filter: `blur(${cfg.blur + 4}px)`,
-    animation: `orb-blob-2 6.5s ease-in-out infinite`,
+    animation: state === 'agent-thinking' ? 'none' : `orb-blob-2 6.5s ease-in-out infinite`,
     animationDelay: '-2s',
   };
 
@@ -219,7 +225,7 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '35px',
     background: `radial-gradient(circle at 50% 30%, ${lighter} 0%, ${light} 60%, transparent 100%)`,
     filter: `blur(${cfg.blur - 4}px)`,
-    animation: `orb-blob-3 4.25s ease-in-out infinite`,
+    animation: state === 'agent-thinking' ? 'none' : `orb-blob-3 4.25s ease-in-out infinite`,
     animationDelay: '-3s',
   };
 
