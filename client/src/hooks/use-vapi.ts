@@ -53,7 +53,6 @@ interface UseVapiReturn {
 // transcripts for a single thought if the speaker pauses mid-sentence
 // (endpointing: 500ms means a 600ms pause triggers a premature final).
 // 1200ms accumulates those fragments into one complete message.
-const TRANSCRIPT_DEBOUNCE_MS = 1200;
 
 const useVapi = ({
   userId,
@@ -84,24 +83,20 @@ const useVapi = ({
   // Each entry holds the accumulated text and the active debounce timer.
   // When a final transcript arrives, the timer resets and content appends.
   // When the timer fires, the full accumulated message is sent to the callback.
+  // Accumulates transcript fragments per role.
+  // Flushed when speech-update:stopped fires for that role —
+  // that event definitively marks end-of-turn for both user and assistant.
   const pendingTranscriptRef = useRef<{
-    user: { content: string; timer: ReturnType<typeof setTimeout> | null };
-    assistant: { content: string; timer: ReturnType<typeof setTimeout> | null };
+    user: string;
+    assistant: string;
   }>({
-    user: { content: '', timer: null },
-    assistant: { content: '', timer: null },
+    user: '',
+    assistant: '',
   });
 
-  // Flush any pending transcript immediately for a given role.
-  // Called on call-end to ensure the last message is never lost.
   const flushPendingTranscript = useCallback((role: 'user' | 'assistant') => {
-    const pending = pendingTranscriptRef.current[role];
-    if (pending.timer) {
-      clearTimeout(pending.timer);
-      pending.timer = null;
-    }
-    const content = pending.content.trim();
-    pending.content = '';
+    const content = pendingTranscriptRef.current[role].trim();
+    pendingTranscriptRef.current[role] = '';
     if (content && transcriptCallbackRef.current) {
       transcriptCallbackRef.current({ role, content, timestamp: new Date() });
     }
@@ -151,6 +146,10 @@ const useVapi = ({
         vapiInstance.on('speech-end', () => {
           console.log('🎤 User stopped speaking');
           setSpeakingRole(null);
+          // speech-end is the definitive end-of-turn signal for the user.
+          // VAPI's speech-update message event is unreliable for user role —
+          // flush accumulated user transcript here instead.
+          flushPendingTranscript('user');
         });
 
         vapiInstance.on('error', (error: any) => {
@@ -209,44 +208,28 @@ const useVapi = ({
         vapiInstance.on('message', (message: any) => {
           console.log('📨 VAPI message:', message);
 
-          // Handle transcript events — final only, debounced per role
+          // Accumulate final transcript fragments per role.
+          // Do NOT fire the callback here — wait for speech-update:stopped
+          // which marks definitive end-of-turn for both user and assistant.
           if (message.type === 'transcript' && message.transcriptType === 'final') {
             const role: 'user' | 'assistant' = message.role === 'assistant' ? 'assistant' : 'user';
-            const incoming = (message.transcript || '').trim();
+            const incoming = String(message.transcript || '').trim();
             if (!incoming) return;
 
-            const pending = pendingTranscriptRef.current[role];
-
-            // Cancel the existing debounce timer for this role
-            if (pending.timer) {
-              clearTimeout(pending.timer);
-              pending.timer = null;
-            }
-
-            // Append to accumulated content for this role
-            pending.content = pending.content
-              ? `${pending.content} ${incoming}`
+            pendingTranscriptRef.current[role] = pendingTranscriptRef.current[role]
+              ? `${pendingTranscriptRef.current[role]} ${incoming}`
               : incoming;
-
-            // Start a new debounce timer — fires callback when speaker pauses
-            pending.timer = setTimeout(() => {
-              const content = pendingTranscriptRef.current[role].content.trim();
-              pendingTranscriptRef.current[role].content = '';
-              pendingTranscriptRef.current[role].timer = null;
-
-              if (content && transcriptCallbackRef.current) {
-                transcriptCallbackRef.current({ role, content, timestamp: new Date() });
-              }
-            }, TRANSCRIPT_DEBOUNCE_MS);
           }
 
-          // Handle speech-update events
+          // speech-update:stopped = end of turn for that role.
+          // Flush accumulated transcript and fire the callback as one complete message.
           if (message.type === 'speech-update') {
             const role: 'assistant' | 'user' = message.role === 'assistant' ? 'assistant' : 'user';
             if (message.status === 'started') {
               setSpeakingRole(role);
             } else if (message.status === 'stopped') {
               setSpeakingRole(null);
+              flushPendingTranscript(role);
             }
             const speechUpdateMessage: SpeechUpdateMessage = {
               status: message.status,
@@ -267,11 +250,6 @@ const useVapi = ({
     initializeVapi();
 
     return () => {
-      // Clean up all pending debounce timers on unmount
-      const { user, assistant } = pendingTranscriptRef.current;
-      if (user.timer) clearTimeout(user.timer);
-      if (assistant.timer) clearTimeout(assistant.timer);
-
       if (vapiRef.current) {
         vapiRef.current.stop();
       }

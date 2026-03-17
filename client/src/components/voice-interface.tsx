@@ -75,6 +75,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   // Driven by transcript events — stable and event-driven, not derived
   // from speakingRole which re-evaluates on every render and causes flickering.
   const [isAgentThinking, setIsAgentThinking] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
 
   const [, setLocation] = useLocation();
 
@@ -171,12 +172,12 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   const prevSessionActive = useRef(isSessionActive);
   useEffect(() => {
     if (prevSessionActive.current && !isSessionActive) {
-      console.log('📴 [VOICE] Voice session ended - cleaning up state for text session');
-      setTranscript([]);
+      console.log('📴 [VOICE] Voice session ended - preserving transcript for post-call display');
       setActiveTextSessionId(null);
       setTypewriterMessageId(null);
       setDisplayedContent({});
       setIsAgentThinking(false);
+      setShowTranscript(true);
       localStorage.removeItem('vasa_text_session_id');
       localStorage.removeItem('vasa_text_transcript');
     }
@@ -423,8 +424,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       return;
     }
     if (!memoryLoading && userContext && selectedAgent) {
+      console.log('10. STARTING SESSION');
       const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       setCurrentCallId(callId);
+      setTranscript([]);
+      setShowTranscript(false);
       startSession();
     }
   };
@@ -880,7 +884,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                   </div>
 
                   <div ref={transcriptContainerRef} className="space-y-3 max-h-96 overflow-y-auto mb-4" data-testid="transcript-container">
-                    {transcript.length === 0 ? (
+                    {!showTranscript || transcript.length === 0 ? (
                       <>
                         <div className="bg-secondary/50 rounded-lg p-3">
                           <div className="flex items-center space-x-2 mb-2">
