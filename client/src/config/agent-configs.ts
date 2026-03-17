@@ -77,7 +77,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     description: 'Wise life guide with experience',
     icon: '👱🏽‍♀️',
     image: '/agents/sarah.jpg',
-    color: 'purple',
+    color: 'rose',
     model: { temperature: 0.7, model: 'gpt-5.2' },
     voice: {
       provider: '11labs',
@@ -152,7 +152,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     description: 'Narrative coherence and deep understanding',
     icon: '🔮',
     image: '/agents/una.jpg',
-    color: 'indigo',
+    color: 'cyan',
     model: { temperature: 0.9, model: 'gpt-5.2' },
     voice: {
       provider: '11labs',

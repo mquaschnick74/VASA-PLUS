@@ -60,6 +60,7 @@ interface UserContext {
 
 const AGENT_COLOR_MAP: Record<string, string> = {
   primary: '#7c3aed', violet: '#7c3aed', purple: '#9333ea',
+  indigo: '#4f8ef7',
   blue: '#3b82f6', cyan: '#06b6d4', teal: '#14b8a6',
   green: '#22c55e', amber: '#f59e0b', orange: '#f97316',
   rose: '#f43f5e', red: '#ef4444',
@@ -792,28 +793,28 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                   false = agent turn arrived, response complete
                 */}
                 <div className="flex items-center justify-center mb-4">
-                  <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
-                    isSessionActive
-                      ? 'bg-red-500/20 border border-red-500/50'
-                      : activeTextSessionId
-                      ? 'bg-blue-500/20 border border-blue-500/50'
-                      : 'bg-accent/20 border border-accent/50'
-                  }`}>
-                    <div className={`w-2 h-2 rounded-full animate-pulse ${
+                  {(isSessionActive || activeTextSessionId) ? (
+                    <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
                       isSessionActive
-                        ? isAgentThinking ? 'bg-amber-400' : 'bg-red-500'
-                        : activeTextSessionId ? 'bg-blue-500' : 'bg-accent'
-                    }`}></div>
-                    <span className="text-xs sm:text-sm font-medium" data-testid="status-call">
-                      {isSessionActive
-                        ? isAgentThinking
-                          ? `${selectedAgent?.name} is with you...`
-                          : `🎤 Voice: Connected with ${selectedAgent?.name}`
-                        : activeTextSessionId
-                        ? `💬 Text: Chatting with ${selectedAgent?.name}`
-                        : 'Ready to start'}
-                    </span>
-                  </div>
+                        ? 'bg-red-500/20 border border-red-500/50'
+                        : 'bg-blue-500/20 border border-blue-500/50'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${
+                        isSessionActive
+                          ? isAgentThinking ? 'bg-amber-400' : 'bg-red-500'
+                          : 'bg-blue-500'
+                      }`}></div>
+                      <span className="text-xs sm:text-sm font-medium" data-testid="status-call">
+                        {isSessionActive
+                          ? isAgentThinking
+                            ? `${selectedAgent?.name} is with you...`
+                            : `Voice: Connected with ${selectedAgent?.name}`
+                          : `Text: Chatting with ${selectedAgent?.name}`}
+                      </span>
+                    </div>
+    ) : (
+      <span data-testid="status-call" />
+    )}
                 </div>
 
                 <div className="space-y-3 mb-6">
