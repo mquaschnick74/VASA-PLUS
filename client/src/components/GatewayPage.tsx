@@ -88,7 +88,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
               Get to the Core of the Problem.
             </h1>
             <p className="text-lg text-muted-foreground mt-3 mb-8">
-              Depth therapy, powered by AI. Finally.
+              Human Depth, powered by AI. Finally.
             </p>
 
             {/* CTA buttons */}
