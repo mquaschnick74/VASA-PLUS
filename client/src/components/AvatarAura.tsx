@@ -193,7 +193,7 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '18px',
     background: `radial-gradient(circle at 40% 40%, ${lighter} 0%, ${light} 40%, ${color} 100%)`,
     filter: `blur(${cfg.blur}px)`,
-    animation: `orb-blob-1 ${cfg.speed}s ease-in-out infinite`,
+    animation: `orb-blob-1 5s ease-in-out infinite`,
     animationDelay: '0s',
   };
 
@@ -206,8 +206,8 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '40px',
     background: `radial-gradient(circle at 60% 60%, ${color} 0%, ${dark} 100%)`,
     filter: `blur(${cfg.blur + 4}px)`,
-    animation: `orb-blob-2 ${cfg.speed * 1.3}s ease-in-out infinite`,
-    animationDelay: `-${cfg.speed * 0.4}s`,
+    animation: `orb-blob-2 6.5s ease-in-out infinite`,
+    animationDelay: '-2s',
   };
 
   // Blob 3 — lighter accent, bottom
@@ -219,8 +219,8 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     left: '35px',
     background: `radial-gradient(circle at 50% 30%, ${lighter} 0%, ${light} 60%, transparent 100%)`,
     filter: `blur(${cfg.blur - 4}px)`,
-    animation: `orb-blob-3 ${cfg.speed * 0.85}s ease-in-out infinite`,
-    animationDelay: `-${cfg.speed * 0.6}s`,
+    animation: `orb-blob-3 4.25s ease-in-out infinite`,
+    animationDelay: '-3s',
   };
 
   // Thinking state: add slow rotation on top of blob movement
@@ -228,7 +228,7 @@ export default function AvatarAura({ state, agentColor }: AvatarAuraProps) {
     ? {
         position: 'absolute',
         inset: 0,
-        animation: `orb-rotate ${cfg.speed * 2.5}s linear infinite`,
+        animation: `orb-rotate 12s linear infinite`,
       }
     : { position: 'absolute', inset: 0 };
 
