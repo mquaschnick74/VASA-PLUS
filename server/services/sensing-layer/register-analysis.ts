@@ -12,6 +12,7 @@ import {
   RegisterIndicators,
   RegisterHistoryEntry
 } from './types';
+import { getSessionState } from './session-state';
 
 /**
  * Real Register Markers
@@ -126,10 +127,14 @@ export async function analyzeRegister(
   const sessionDominance = calculateSessionDominance(input, profile.registerHistory, currentRegister);
 
   // 5. Calculate stuckness and fluidity
+  const sessionAccumulator = getSessionState(input.callId);
+  const inSessionReadings = sessionAccumulator?.registerReadings ?? [];
+
   const { stucknessScore, fluidityScore } = calculateFluidityMetrics(
     input,
     profile.registerHistory,
-    currentRegister
+    currentRegister,
+    inSessionReadings
   );
 
   // 6. Determine register movement
@@ -291,20 +296,54 @@ function calculateSessionDominance(
 function calculateFluidityMetrics(
   input: TurnInput,
   registerHistory: RegisterHistoryEntry[],
-  currentRegister: Register
+  currentRegister: Register,
+  inSessionReadings: Array<{ exchange: number; register: Register; timestamp: Date }> = []
 ): { stucknessScore: number; fluidityScore: number } {
-  // Get recent history for this session
+  // Primary: use in-session readings if sufficient
+  if (inSessionReadings.length >= 2) {
+    const readings = [...inSessionReadings, {
+      exchange: input.exchangeCount,
+      register: currentRegister,
+      timestamp: new Date()
+    }];
+
+    let transitions = 0;
+    let consecutiveSame = 0;
+    let maxConsecutive = 0;
+    let prevRegister = readings[0].register;
+
+    for (let i = 1; i < readings.length; i++) {
+      if (readings[i].register !== prevRegister) {
+        transitions++;
+        consecutiveSame = 0;
+      } else {
+        consecutiveSame++;
+        maxConsecutive = Math.max(maxConsecutive, consecutiveSame);
+      }
+      prevRegister = readings[i].register;
+    }
+
+    const stucknessScore = Math.min(1, maxConsecutive / 4);
+    const transitionRate = transitions / (readings.length - 1);
+    let fluidityScore: number;
+    if (transitionRate < 0.2) fluidityScore = transitionRate * 2.5;
+    else if (transitionRate > 0.6) fluidityScore = 1 - (transitionRate - 0.6);
+    else fluidityScore = 0.5 + (transitionRate - 0.2) * 1.25;
+
+    return { stucknessScore, fluidityScore };
+  }
+
+  // Fallback: use cross-session database history
   const sessionHistory = registerHistory
     .filter(entry => entry.sessionId === input.sessionId)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 10);
 
   if (sessionHistory.length < 3) {
-    // Not enough data
     return { stucknessScore: 0.3, fluidityScore: 0.5 };
   }
 
-  // Calculate stuckness: how many consecutive same registers
+  let transitions = 0;
   let consecutiveSame = 0;
   let maxConsecutive = 0;
   let prevRegister = currentRegister;
@@ -319,22 +358,20 @@ function calculateFluidityMetrics(
     prevRegister = entry.dominantRegister;
   }
 
-  // Stuckness increases with consecutive same registers
   const stucknessScore = Math.min(1, maxConsecutive / 6);
 
-  // Calculate fluidity: how many register transitions
-  let transitions = 0;
+  let transitionsDb = 0;
   let lastRegister = currentRegister;
-
   for (const entry of sessionHistory) {
-    if (entry.dominantRegister !== lastRegister) {
-      transitions++;
-    }
+    if (entry.dominantRegister !== lastRegister) transitionsDb++;
     lastRegister = entry.dominantRegister;
   }
 
-  // Fluidity based on transition rate
-  const fluidityScore = Math.min(1, transitions / (sessionHistory.length * 0.5));
+  const transitionRate = transitionsDb / (sessionHistory.length - 1);
+  let fluidityScore: number;
+  if (transitionRate < 0.2) fluidityScore = transitionRate * 2.5;
+  else if (transitionRate > 0.6) fluidityScore = 1 - (transitionRate - 0.6);
+  else fluidityScore = 0.5 + (transitionRate - 0.2) * 1.25;
 
   return { stucknessScore, fluidityScore };
 }

@@ -278,6 +278,7 @@ export function formatSessionPicture(
     lines.splice(1, 0, `⚠️ STRUCTURAL: ${structuralFlag}`);
   }
 
+  console.log(`📋 [SESSION PICTURE]\n${lines.join('\n')}`);
   return lines.join('\n');
 }
 
