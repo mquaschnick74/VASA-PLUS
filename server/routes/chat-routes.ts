@@ -9,7 +9,7 @@ import { detectCSSPatterns, assessPatternConfidence } from '../services/css-patt
 import { generateEnhancedSessionSummary } from '../services/summary-service';
 import OpenAI from 'openai';
 import { sensingLayer, getCachedProfile } from '../services/sensing-layer';
-import { assembleSystemPrompt, assembleProfileBlock } from '../prompts/pca-core';
+import { assembleSystemPrompt, assembleProfileBlock, setLastFooterState, clearFooterState } from '../prompts/pca-core';
 import { formatSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
@@ -310,6 +310,26 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
     res.write('data: [DONE]\n\n');
     res.end();
 
+    // Parse and cache footer state for CVDC visibility in subsequent session picture
+    if (inFooter && footerBuffer) {
+      const footerMatch = footerBuffer.match(/^---STATE:(\{[\s\S]*?\})---/);
+      if (footerMatch) {
+        try {
+          const parsed = JSON.parse(footerMatch[1]);
+          setLastFooterState(sessionId, {
+            register: parsed.register || 'imaginary',
+            posture: parsed.posture || 'prescripting',
+            css: parsed.css || 'pointed-origin',
+            movement: parsed.movement || 'stable',
+            flag: parsed.flag || null,
+            cvdc: parsed.cvdc || null,
+          });
+        } catch (e) {
+          // Non-fatal — footer parse failure does not affect session
+        }
+      }
+    }
+
     console.log('✅ [CHAT] Response streamed successfully, sent:', fullResponse.length, 'chars');
 
     // DO NOT save to database here - messages stay in memory until session ends
@@ -374,6 +394,9 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
       // Non-fatal: log and continue with CSS pattern storage and summary generation
       console.error(`⚠️ [CHAT-SENSING] Failed to finalize sensing session (non-fatal):`, sensingFinalizeError.message);
     }
+
+    // Clear cached footer state for this text session
+    clearFooterState(sessionId);
 
     console.log('🏁 [CHAT] Processing text session end:', {
       sessionId,
