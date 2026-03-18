@@ -38,7 +38,7 @@ import {
   isCallActive,
   setSensingProcessing
 } from '../services/sensing-layer/call-state';
-import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor, suppressSilenceMonitor } from '../services/sensing-layer/silence-monitor';
+import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor, suppressSilenceMonitor, clearPostInterventionSuppression } from '../services/sensing-layer/silence-monitor';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
 const router = Router();
@@ -640,6 +640,9 @@ router.post('/webhook', async (req, res) => {
               }
             }
             lastProcessedMessageIndex.set(callId, formattedConversation.length);
+
+            // Clear post-intervention suppression immediately when user speaks
+            clearPostInterventionSuppression(callId);
 
             // SILENCE MONITOR: Reset timer on each confirmed user utterance
             resetSilenceTimer(callId);

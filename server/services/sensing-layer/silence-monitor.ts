@@ -34,6 +34,14 @@ export function suppressSilenceMonitor(callId: string, durationMs: number = 4500
   console.log(`🔇 [SILENCE] Post-intervention suppression set for call ${callId} (${durationMs}ms)`);
 }
 
+export function clearPostInterventionSuppression(callId: string): void {
+  const suppressedUntil = postInterventionSuppressedUntil.get(callId);
+  if (suppressedUntil && Date.now() < suppressedUntil) {
+    postInterventionSuppressedUntil.delete(callId);
+    console.log(`🔇 [SILENCE] Post-intervention suppression cleared (user spoke) for call ${callId}`);
+  }
+}
+
 function isStale(callId: string, generation: number): boolean {
   const timer = silenceTimers.get(callId);
   if (!timer) return true;
