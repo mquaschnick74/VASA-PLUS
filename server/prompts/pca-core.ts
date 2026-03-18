@@ -111,7 +111,7 @@ function assemblePatterns(profile: UserTherapeuticProfile): string {
   if (!profile.patterns || profile.patterns.length === 0) {
     return 'Patterns: No patterns recorded.';
   }
-  const lines = profile.patterns.slice(0, 3).map(p => p.description).join('\n');
+  const lines = profile.patterns.slice(0, 8).map(p => p.description).join('\n');
   return `Patterns: ${lines}`;
 }
 export function assembleProfileBlock(

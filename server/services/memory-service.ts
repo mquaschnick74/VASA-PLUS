@@ -572,10 +572,23 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     auditSizes['css_stage_guidance'] = 0;
 
     // ========================================
-    // NEW: Add PCA Clinical Context if available
-    // This injects unique therapeutic guidance from master PCA analysis
+    // PCA Clinical Context — synthesized cross-session guidance
     // ========================================
-    auditSizes['pca_context'] = 0;
+    const prePCALen = memoryContext.length;
+    try {
+      const pcaContext = await getPCAContextForAgent(userId, 2000);
+      if (pcaContext) {
+        memoryContext += `\n\n===== CLINICAL CONTEXT =====\n`;
+        memoryContext += pcaContext;
+        memoryContext += `\n===== END CLINICAL CONTEXT =====\n`;
+        console.log(`✅ [Memory] PCA context injected: ${pcaContext.length} chars`);
+      } else {
+        console.log(`📋 [Memory] No PCA context available for user ${userId}`);
+      }
+    } catch (pcaError) {
+      console.warn('[Memory] Error fetching PCA context:', pcaError);
+    }
+    auditSizes['pca_context'] = memoryContext.length - prePCALen;
 
     // ========================================
     // UPLOAD ANALYSES (from "Analyze" mode uploads)
