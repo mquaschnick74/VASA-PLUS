@@ -214,13 +214,10 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       }
       return;
     }
-
     const message = transcript.find(m => m.id === typewriterMessageId);
     if (!message) return;
-
     const fullContent = message.content;
     const currentDisplayed = displayedContent[typewriterMessageId] || '';
-
     if (currentDisplayed.length >= fullContent.length) {
       setTypewriterMessageId(null);
       return;
@@ -290,6 +287,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     const sessionId = crypto.randomUUID();
     setActiveTextSessionId(sessionId);
     setTranscript([]);
+    setShowTranscript(true); // ADD THIS LINE
     console.log('📝 [TEXT] Started new text session:', sessionId);
   };
 
@@ -542,18 +540,41 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       let assistantContent = '';
       const assistantMsgId = `msg-${Date.now()}-assistant`;
 
+      // Buffer to accumulate partial SSE data across read boundaries
+      // SSE chunks can be split at arbitrary byte boundaries by the network,
+      // so we must buffer until we see the \n\n event terminator
+      let sseBuffer = '';
+
       while (true) {
         const { done, value } = await reader!.read();
         if (done) break;
-        const chunk = decoder.decode(value);
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-            try { assistantContent += JSON.parse(data).content; } catch {}
+
+        sseBuffer += decoder.decode(value, { stream: true });
+
+        let eventEnd;
+        while ((eventEnd = sseBuffer.indexOf('\n\n')) !== -1) {
+          const event = sseBuffer.slice(0, eventEnd);
+          sseBuffer = sseBuffer.slice(eventEnd + 2);
+
+          for (const line of event.split('\n')) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  assistantContent += parsed.content;
+                }
+              } catch (e) {
+                console.error('❌ [TEXT] Failed to parse SSE data:', data, e);
+              }
+            }
           }
         }
       }
+
+      sseBuffer += decoder.decode();
+      console.log('🏁 [SSE] Final assistantContent:', assistantContent.length, 'chars, content:', assistantContent);
 
       setTranscript(prev => [...prev, {
         id: assistantMsgId, role: 'assistant', content: assistantContent,
