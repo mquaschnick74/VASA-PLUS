@@ -1015,20 +1015,6 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                         </div>
                       </div>
                     )}
-                    {/* Typing indicator — shown while agent is formulating a text reply */}
-                      {isSendingText && activeTextSessionId && (
-                        <div className="rounded-lg p-3 bg-secondary/50">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-xs">💬</span>
-                            <span className="text-sm font-medium">{selectedAgent?.name || 'Sarah'}</span>
-                          </div>
-                          <div className="flex items-center space-x-1 py-1">
-                            <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                          </div>
-                        </div>
-                      )}
                       <div ref={transcriptEndRef} />
                     </div>
 
