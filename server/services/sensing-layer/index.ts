@@ -38,6 +38,8 @@ import {
   TherapeuticStateVector
 } from './state-vector';
 import { persistSessionProfile } from './profile-writer';
+import { fastSense } from './fast-sense';
+import type { ResonanceResult } from './narrative-web';
 import {
   TurnInput,
   UserTherapeuticProfile,
@@ -393,6 +395,7 @@ export class SensingLayerService {
     register: RegisterAnalysisResult;
     movement: MovementAssessmentResult;
     stateVector: TherapeuticStateVector;
+    resonance: ResonanceResult | null;
   }> {
     const fastStart = Date.now();
 
@@ -458,7 +461,8 @@ export class SensingLayerService {
           },
           velocity: { registerShiftRate: 0, deepeningAcceleration: 0, resistanceTrajectory: 0, symbolicActivationRate: 0 },
           exchangeNumber: 0, timestamp: new Date()
-        }
+        },
+        resonance: null
       };
     }
 
@@ -528,12 +532,29 @@ export class SensingLayerService {
     };
 
     const guidance = await generateGuidance(fastOSR, input);
+
+    let resonance: ResonanceResult | null = null;
+    try {
+      const fastSenseResult = await fastSense({
+        userId: input.userId,
+        callId: input.callId,
+        sessionId: input.sessionId,
+        utterance: input.utterance,
+        exchangeCount: input.exchangeCount,
+        agentName: 'marcus'
+      });
+      resonance = fastSenseResult.resonance;
+    } catch (err) {
+      console.warn('[sensing] fastSense resonance query failed, continuing without narrative context:', err);
+    }
+
     console.log(`⚡ [FAST] Sensing complete in ${Date.now() - fastStart}ms: posture=${guidance.posture}`);
     return {
       guidance,
       register,
       movement,
-      stateVector
+      stateVector,
+      resonance
     };
   }
 

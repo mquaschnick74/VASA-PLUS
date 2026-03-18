@@ -3,6 +3,7 @@
 
 import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance, RegisterAnalysisResult, MovementAssessmentResult } from './types';
 import { TherapeuticStateVector } from './state-vector';
+import type { ResonanceResult } from './narrative-web';
 import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
 import { getSessionState, getActiveIBMCandidates } from './session-state';
 import { getLastFooterState } from '../../prompts/pca-core';
@@ -196,7 +197,8 @@ export function formatSessionPicture(
   movement: MovementAssessmentResult,
   stateVector: TherapeuticStateVector,
   exchangeCount: number,
-  callId: string
+  callId: string,
+  resonance?: ResonanceResult | null
 ): string {
   const cssStageLabels: Record<string, string> = {
     pointed_origin: 'Pointed Origin',
@@ -267,7 +269,22 @@ export function formatSessionPicture(
       const accumulating = ibmCandidates[0];
       return `IBM: ${accumulating.hypothesis} — held [accumulation: ${accumulating.weightedAccumulation.toFixed(2)}/2.0]`;
     })(),
-    `Narrative: not yet mapped`,
+    (() => {
+      if (!resonance || resonance.matchedFragments.length === 0) {
+        return 'Narrative: no resonance detected';
+      }
+      const top = resonance.matchedFragments[0];
+      const stage = top.css_stage_at_disclosure
+        ? ` [${top.css_stage_at_disclosure}]`
+        : '';
+      const signals = top.investment_signals?.length > 0
+        ? ` — ${top.investment_signals.slice(0, 2).join(', ')}`
+        : '';
+      const constellation = resonance.isConstellationActive
+        ? ' ◈ constellation active'
+        : '';
+      return `Narrative: ${top.content_summary}${stage}${signals}${constellation}`;
+    })(),
     `Patterns: ${patternSummary}`,
     `Confidence: ${confidenceLabel}`,
     toolAvailability,
