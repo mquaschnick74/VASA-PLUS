@@ -14,37 +14,35 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if we have a valid recovery session
-    const checkRecoverySession = async () => {
+    // With PKCE flow (Supabase JS v2 default), the ?code= param in the URL
+    // is automatically exchanged for a session by the Supabase client singleton
+    // at initialization time — before this component mounts.
+    // We listen for PASSWORD_RECOVERY first, then fall back to getSession().
+
+    let sessionConfirmed = false;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' && session) {
+        sessionConfirmed = true;
+        setIsValidSession(true);
+        setError('');
+        setCheckingSession(false);
+      }
+    });
+
+    // Give the auth state change listener a tick to catch the event
+    // if it fires synchronously during initialization, then fall back
+    // to checking the stored session directly.
+    const timer = setTimeout(async () => {
+      if (sessionConfirmed) return;
+
       try {
-        // First, check if there's a hash fragment with recovery tokens
-        // Supabase will automatically process this and create a session
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const type = hashParams.get('type');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (accessToken && type === 'recovery') {
-          // Supabase should have already processed this, but let's verify we have a session
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-          if (session && !sessionError) {
-            setIsValidSession(true);
-            // Clean up the URL hash without triggering a page reload
-            window.history.replaceState(null, '', window.location.pathname);
-          } else {
-            setError('Recovery link has expired or is invalid. Please request a new password reset.');
-          }
+        if (session && !sessionError) {
+          setIsValidSession(true);
         } else {
-          // No hash params - check if there's an existing session from a recovery
-          const { data: { session } } = await supabase.auth.getSession();
-
-          if (session) {
-            // We have a session - this could be from a recovery or a normal login
-            // We'll allow password reset if they got here
-            setIsValidSession(true);
-          } else {
-            setError('No valid recovery session found. Please request a new password reset.');
-          }
+          setError('Recovery link has expired or is invalid. Please request a new password reset.');
         }
       } catch (err) {
         console.error('Error checking recovery session:', err);
@@ -52,25 +50,11 @@ export default function ResetPassword() {
       } finally {
         setCheckingSession(false);
       }
-    };
-
-    // Listen for PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth event in reset-password:', event);
-
-      if (event === 'PASSWORD_RECOVERY') {
-        console.log('PASSWORD_RECOVERY event detected');
-        setIsValidSession(true);
-        setCheckingSession(false);
-        // Clean up the URL hash
-        window.history.replaceState(null, '', window.location.pathname);
-      }
-    });
-
-    checkRecoverySession();
+    }, 100);
 
     return () => {
       subscription.unsubscribe();
+      clearTimeout(timer);
     };
   }, []);
 
@@ -78,7 +62,6 @@ export default function ResetPassword() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (password.length < 8) {
       setError('Password must be at least 8 characters long.');
       return;
@@ -92,6 +75,31 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
+      // On iOS, the PKCE exchange writes the session to localStorage but does
+      // not always populate Supabase's internal in-memory currentSession.
+      // updateUser() checks in-memory state and fails with "Auth session missing!"
+      // Calling setSession() first forces the stored session into memory.
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (!session || sessionError) {
+        setError('Your recovery session has expired. Please request a new password reset.');
+        setLoading(false);
+        return;
+      }
+
+      // Force the session into Supabase's in-memory state before calling updateUser
+      const { error: setSessionError } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+
+      if (setSessionError) {
+        console.error('Error restoring session:', setSessionError);
+        setError('Your recovery session has expired. Please request a new password reset.');
+        setLoading(false);
+        return;
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
@@ -102,13 +110,11 @@ export default function ResetPassword() {
         return;
       }
 
-      // Success!
       toast({
         title: "Password Updated",
         description: "Your password has been successfully changed. Redirecting to dashboard...",
       });
 
-      // Redirect to dashboard after a short delay so user can see the toast
       setTimeout(() => {
         setLocation('/dashboard');
       }, 2000);
@@ -125,7 +131,6 @@ export default function ResetPassword() {
     setLocation('/login');
   };
 
-  // Loading state while checking session
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
@@ -137,7 +142,6 @@ export default function ResetPassword() {
     );
   }
 
-  // Error state - no valid session
   if (!isValidSession) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">
@@ -157,7 +161,6 @@ export default function ResetPassword() {
     );
   }
 
-  // Valid session - show password reset form
   return (
     <div className="min-h-screen flex items-center justify-center gradient-bg">
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20 w-full max-w-md">
