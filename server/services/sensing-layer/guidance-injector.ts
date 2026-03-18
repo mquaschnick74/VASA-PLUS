@@ -5,6 +5,7 @@ import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance, R
 import { TherapeuticStateVector } from './state-vector';
 import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
 import { getSessionState, getActiveIBMCandidates } from './session-state';
+import { getLastFooterState } from '../../prompts/pca-core';
 
 // Pending guidance queue: holds guidance deferred while agent is speaking
 const pendingGuidance = new Map<string, TherapeuticGuidance | EnhancedTherapeuticGuidance>();
@@ -251,7 +252,11 @@ export function formatSessionPicture(
     `Register: ${register.currentRegister} foregrounded. ${stuckLabel}.`,
     `Movement: ${movementLabel}.`,
     `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
-    `CVDC: not yet visible`,
+    (() => {
+      const footerCvdc = getLastFooterState(callId)?.cvdc;
+      if (!footerCvdc) return `CVDC: not yet visible`;
+      return `CVDC: ${footerCvdc}`;
+    })(),
     (() => {
       const ibmCandidates = getActiveIBMCandidates(callId);
       if (ibmCandidates.length === 0) return `IBM: none detected`;

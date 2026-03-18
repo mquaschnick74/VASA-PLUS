@@ -38,7 +38,7 @@ import {
   isCallActive,
   setSensingProcessing
 } from '../services/sensing-layer/call-state';
-import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor } from '../services/sensing-layer/silence-monitor';
+import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor, suppressSilenceMonitor } from '../services/sensing-layer/silence-monitor';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
 const router = Router();
@@ -842,9 +842,15 @@ router.post('/webhook', async (req, res) => {
           setAgentSpeakingState(callId, isSpeaking);
           console.log(`🎙️ [SPEECH] Agent speaking state: ${speechStatus} for call ${callId}`);
 
-          // When agent stops speaking, flush any queued guidance
           if (speechStatus === 'stopped') {
             flushPendingGuidance(callId);
+
+            // Post-intervention suppression: if agent spoke, suppress silence monitor
+            // to protect processing silence after a clinical move
+            if (isCallActive(callId)) {
+              suppressSilenceMonitor(callId, 45000);
+              console.log(`🔇 [SILENCE] Agent speech ended — silence monitor suppressed for 45s (call ${callId})`);
+            }
           }
         }
         break;
