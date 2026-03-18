@@ -19,6 +19,29 @@ interface SilenceTimer {
 
 const silenceTimers = new Map<string, SilenceTimer>();
 
+const postInterventionSuppressedUntil = new Map<string, number>();
+
+function isPostInterventionSuppressed(callId: string): boolean {
+  const suppressedUntil = postInterventionSuppressedUntil.get(callId);
+  if (!suppressedUntil) return false;
+  if (Date.now() < suppressedUntil) return true;
+  postInterventionSuppressedUntil.delete(callId);
+  return false;
+}
+
+export function suppressSilenceMonitor(callId: string, durationMs: number = 45000): void {
+  postInterventionSuppressedUntil.set(callId, Date.now() + durationMs);
+  console.log(`🔇 [SILENCE] Post-intervention suppression set for call ${callId} (${durationMs}ms)`);
+}
+
+export function clearPostInterventionSuppression(callId: string): void {
+  const suppressedUntil = postInterventionSuppressedUntil.get(callId);
+  if (suppressedUntil && Date.now() < suppressedUntil) {
+    postInterventionSuppressedUntil.delete(callId);
+    console.log(`🔇 [SILENCE] Post-intervention suppression cleared (user spoke) for call ${callId}`);
+  }
+}
+
 function isStale(callId: string, generation: number): boolean {
   const timer = silenceTimers.get(callId);
   if (!timer) return true;
@@ -84,6 +107,12 @@ async function handleSilenceTimeout(callId: string, armedGeneration?: number): P
 
   if (isStale(callId, generation)) {
     console.log(`🔇 [SILENCE] Aborting stale timeout for call ${callId}`);
+    return;
+  }
+
+  if (isPostInterventionSuppressed(callId)) {
+    console.log(`🔇 [SILENCE] Post-intervention suppression active for call ${callId}, re-arming`);
+    armTimer(callId);
     return;
   }
 
@@ -194,6 +223,7 @@ export function stopSilenceMonitor(callId: string): void {
     silenceTimers.delete(callId);
     console.log(`🔇 [SILENCE] Stopped monitoring for call ${callId}`);
   }
+  postInterventionSuppressedUntil.delete(callId);
 }
 
 export function getActiveSilenceMonitorCount(): number {

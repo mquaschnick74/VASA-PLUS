@@ -742,8 +742,9 @@ export class SensingLayerService {
           .select('*')
           .eq('user_id', userId)
           .eq('active', true)
+          .order('occurrences', { ascending: false })
           .order('last_observed', { ascending: false })
-          .limit(20),
+          .limit(50),
 
         supabase
           .from('user_historical_material')

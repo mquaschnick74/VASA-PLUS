@@ -23,9 +23,13 @@ const streamingCallIds = new Set<string>();
 // Track whether a session has been initialized for a given callId
 const initializedCalls = new Set<string>();
 
+// Reserved for future per-request gating of post-intervention state
+const postInterventionActive = new Map<string, boolean>();
+
 export function clearCustomLLMCache(callId: string): void {
   streamingCallIds.delete(callId);
   initializedCalls.delete(callId);
+  postInterventionActive.delete(callId);
   clearFooterState(callId);
 }
 
