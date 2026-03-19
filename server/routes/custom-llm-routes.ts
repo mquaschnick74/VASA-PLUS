@@ -9,6 +9,7 @@ import {
   clearFooterState,
   type FooterState,
 } from '../prompts/pca-core';
+import { getPCAContextForAgent } from '../services/memory-service';
 import { formatSessionPicture } from '../services/sensing-layer/guidance-injector';
 
 const router = Router();
@@ -73,7 +74,20 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
   const isFirstSession = lastSessionSummary === null;
 
-  const profileBlock = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
+  let pcaContext: string | null = null;
+  if (userId && userId !== 'unknown') {
+    try {
+      pcaContext = await getPCAContextForAgent(userId);
+    } catch (err) {
+      console.warn(`🔵 [CUSTOM-LLM] PCA context unavailable (non-fatal):`, err);
+      pcaContext = null;
+    }
+  }
+
+  const profileBlockBase = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
+  const profileBlock = pcaContext
+    ? `${profileBlockBase}\n\n[CLINICAL CONTEXT]\n${pcaContext}`
+    : profileBlockBase;
   const fullSystemPrompt = assembleSystemPrompt(agentId, firstName, profileBlock, isFirstSession, lastSessionSummary);
 
   const modifiedMessages = JSON.parse(JSON.stringify(messages));
