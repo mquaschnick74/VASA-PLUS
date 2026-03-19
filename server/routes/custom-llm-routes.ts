@@ -100,15 +100,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
   console.log(`🔵 [CUSTOM-LLM] Request: call=${callId} user=${userId} agent=${agentId} firstName=${firstName} turns=${numUserTurns}/${numAssistantTurns}`);
 
-  // Step 2: Initialize session on first turn
+  // Step 2: Startup ownership is webhook-owned; custom-llm must not duplicate init side effects
   if (!initializedCalls.has(callId)) {
     initializedCalls.add(callId);
-    try {
-      await sensingLayer.initializeCallSession(callId, userId, sessionId);
-    } catch (err) {
-      console.error(`🔵 [CUSTOM-LLM] Session init error:`, err);
-    }
-    console.log(`🔵 [CUSTOM-LLM] Session initialized for call ${callId}`);
+    console.log(`[STARTUP SKIP] call=${callId} custom-llm init skipped; webhook already owns startup`);
   }
 
   // Step 3: Assemble full PCA system prompt

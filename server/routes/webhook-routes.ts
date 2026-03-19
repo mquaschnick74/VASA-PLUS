@@ -385,6 +385,7 @@ router.post('/webhook', async (req, res) => {
         }
 
         processedCallStarts.add(callId);
+        console.log(`[STARTUP OWNER] call=${callId} owner=webhook`);
 
         try {
         console.log(`🚀 CALL-STARTED event received for call: ${callId}`);
