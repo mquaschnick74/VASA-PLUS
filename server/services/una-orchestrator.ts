@@ -8,7 +8,16 @@ export interface OrchestrationDecision {
   narrativeFocus: 'none' | 'light' | 'active';
   hypothesisHandling: 'implicit' | 'cautious' | 'explicit';
   pacing: 'steady' | 'slowed';
+  silenceFocus: 'none' | 'watch' | 'active';
+  responseInitiation: 'normal' | 'gentle';
   reason: string;
+}
+
+export interface UNASilenceSignal {
+  durationSeconds: number;
+  eventCount: number;
+  register: 'real' | 'imaginary' | 'symbolic' | 'unknown';
+  repeatedExtendedPause: boolean;
 }
 
 interface UNAInput {
@@ -17,6 +26,7 @@ interface UNAInput {
   movement: MovementAssessmentResult;
   stateVector: TherapeuticStateVector;
   resonance?: ResonanceResult | null;
+  silence?: UNASilenceSignal | null;
 }
 
 export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
@@ -34,6 +44,14 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
     input.resonance && (input.resonance.isConstellationActive || resonanceStrength >= 0.55)
   );
   const ibmHeavy = resistance >= 0.55 || input.movement.indicators.intellectualizing >= 0.55 || looping >= 0.6;
+  const silence = input.silence ?? null;
+  const silencePresent = Boolean(silence);
+  const silenceDuration = silence?.durationSeconds ?? 0;
+  const silenceWatch = silencePresent && (silenceDuration >= 18 || (silence?.eventCount ?? 0) >= 2);
+  const symbolicOrImaginarySilence = silencePresent && (silence?.register === 'symbolic' || silence?.register === 'imaginary');
+  const silenceActive = silencePresent && (silence?.repeatedExtendedPause === true || (silenceDuration >= 30 && symbolicOrImaginarySilence));
+  const silenceFocus: OrchestrationDecision['silenceFocus'] = silenceActive ? 'active' : silenceWatch ? 'watch' : 'none';
+  const responseInitiation: OrchestrationDecision['responseInitiation'] = silenceActive ? 'gentle' : 'normal';
 
   if (flooding >= 0.65 || input.guidance.urgency === 'immediate') {
     return {
@@ -41,8 +59,12 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       depth: 'surface',
       narrativeFocus: resonanceActive ? 'light' : 'none',
       hypothesisHandling: 'cautious',
-      pacing: 'slowed',
-      reason: 'high_flooding_or_immediate_urgency',
+      pacing: silencePresent ? 'slowed' : 'steady',
+      silenceFocus,
+      responseInitiation: silencePresent ? 'gentle' : 'normal',
+      reason: silencePresent
+        ? 'high_flooding_with_silence_or_immediate_urgency'
+        : 'high_flooding_or_immediate_urgency',
     };
   }
 
@@ -53,7 +75,9 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       narrativeFocus: resonanceActive ? 'light' : 'none',
       hypothesisHandling: ibmHeavy ? 'cautious' : 'implicit',
       pacing: 'steady',
-      reason: 'high_stuckness_low_flooding',
+      silenceFocus,
+      responseInitiation,
+      reason: silenceActive ? 'high_stuckness_low_flooding_with_silence' : 'high_stuckness_low_flooding',
     };
   }
 
@@ -63,17 +87,23 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       depth: deepening >= 0.7 || integration >= 0.7 ? 'deep' : 'moderate',
       narrativeFocus: resonanceActive ? 'active' : 'light',
       hypothesisHandling: ibmHeavy ? 'cautious' : 'implicit',
-      pacing: 'steady',
-      reason: 'movement_signal_or_resonance_supports_depth',
+      pacing: silencePresent && flooding >= 0.45 ? 'slowed' : 'steady',
+      silenceFocus,
+      responseInitiation,
+      reason: silenceActive
+        ? 'movement_signal_or_resonance_with_active_silence'
+        : 'movement_signal_or_resonance_supports_depth',
     };
   }
 
   return {
-    mode: 'observe',
+    mode: silencePresent && (flooding >= 0.45 || input.guidance.urgency === 'high') ? 'support' : 'observe',
     depth: 'moderate',
     narrativeFocus: resonanceActive ? 'light' : 'none',
     hypothesisHandling: ibmHeavy ? 'cautious' : 'implicit',
-    pacing: 'steady',
-    reason: 'default_observational_or_mixed_state',
+    pacing: silencePresent && flooding >= 0.45 ? 'slowed' : 'steady',
+    silenceFocus,
+    responseInitiation,
+    reason: silencePresent ? 'default_with_silence_signal' : 'default_observational_or_mixed_state',
   };
 }
