@@ -693,8 +693,9 @@ router.post('/webhook', async (req, res) => {
           console.warn(`⚠️ [STATUS-UPDATE] No controlUrl found in monitor object for call ${callId}`);
         }
 
-        // Ensure session exists for this call
-        await ensureSession(callId, userId, agentName);
+        // Status updates should refresh call metadata only.
+        // Startup/session-init side effects are owned by call-started path.
+        console.log(`[STATUS UPDATE SKIP] call=${callId} startup side effects skipped`);
 
         break;
       }
