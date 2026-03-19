@@ -136,7 +136,19 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const profileBlock = pcaContext
     ? `${profileBlockBase}\n\n[CLINICAL CONTEXT]\n${pcaContext}`
     : profileBlockBase;
-  const fullSystemPrompt = assembleSystemPrompt(agentId, firstName, profileBlock, isFirstSession, lastSessionSummary);
+  const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content ?? '';
+  const trimmedUtterance = currentUtterance.trim();
+  const utteranceWordCount = trimmedUtterance ? trimmedUtterance.split(/\s+/).length : 0;
+  const isUltraShortUtterance = trimmedUtterance.length > 0 && (trimmedUtterance.length <= 24 || utteranceWordCount <= 3);
+  const shouldTrimPromptForEarlyTurn = numUserTurns <= 2 || isUltraShortUtterance;
+  const fullSystemPrompt = assembleSystemPrompt(
+    agentId,
+    firstName,
+    profileBlock,
+    isFirstSession,
+    lastSessionSummary,
+    { trimForEarlyTurn: shouldTrimPromptForEarlyTurn }
+  );
 
   const modifiedMessages = JSON.parse(JSON.stringify(messages));
   let liveSilenceSignal: LiveSilenceSignal | null = null;
@@ -187,7 +199,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   streamingCallIds.add(callId);
 
   // Step 4a: Fast sensing cascade (same-turn, heuristic only)
-  const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content;
   if (currentUtterance && numUserTurns > 0) {
     try {
       const conversationHistory = modifiedMessages
@@ -206,9 +217,13 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
       const fastResult = await sensingLayer.processFastUtterance(turnInput);
 
-      sensingLayer.processUtterance(turnInput).catch(err =>
-        console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
-      );
+      if (!isUltraShortUtterance) {
+        sensingLayer.processUtterance(turnInput).catch(err =>
+          console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
+        );
+      } else {
+        console.log(`🔵 [CUSTOM-LLM] Ultra-short fast path: skipped background sensing for call=${callId} turn=${numUserTurns}`);
+      }
 
       // Custom-LLM route injects observational state only; policy/directive interpretation is not injected here.
       const guidanceMessage = formatObservationalSessionPicture(
