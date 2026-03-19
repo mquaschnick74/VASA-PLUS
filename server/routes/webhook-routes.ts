@@ -174,6 +174,8 @@ export { trackInfluencerConversion };
 
 // Track processed message count per call to prevent duplicate history entries
 const lastProcessedMessageIndex = new Map<string, number>();
+// Startup dedupe: suppress duplicate/replayed call-start events per callId
+const processedCallStarts = new Set<string>();
 // Turn-time therapeutic sensing injection authority lives in /api/custom-llm.
 // Webhook route intentionally does not own per-turn guidance injection.
 function cleanupCallCaches(callId: string) {
@@ -377,6 +379,15 @@ router.post('/webhook', async (req, res) => {
     switch (eventType) {
       case 'call-started':
       case 'assistant.started':
+        if (processedCallStarts.has(callId)) {
+          console.log(`[STARTUP DEDUPE] call=${callId} duplicate call-start suppressed`);
+          break;
+        }
+
+        processedCallStarts.add(callId);
+        console.log(`[STARTUP OWNER] call=${callId} owner=webhook`);
+
+        try {
         console.log(`🚀 CALL-STARTED event received for call: ${callId}`);
         console.log(`   User ID: ${userId}`);
         console.log(`   Agent Name: ${agentName}`);
@@ -425,6 +436,10 @@ router.post('/webhook', async (req, res) => {
         console.log(`📞 Initializing session for call-started event...`);
         await initializeSession(userId, callId, agentName);
         console.log(`✅ call-started event processed successfully`);
+        } catch (startupError) {
+          processedCallStarts.delete(callId);
+          throw startupError;
+        }
         break;
 
       case 'conversation-update': {
@@ -572,6 +587,7 @@ router.post('/webhook', async (req, res) => {
 
       // DUPLICATE HISTORY: Clean up message index tracker
       lastProcessedMessageIndex.delete(callId);
+      processedCallStarts.delete(callId);
 
       // SENSING LAYER: Clean up call state and caches
       clearControlUrl(callId);
@@ -677,8 +693,9 @@ router.post('/webhook', async (req, res) => {
           console.warn(`⚠️ [STATUS-UPDATE] No controlUrl found in monitor object for call ${callId}`);
         }
 
-        // Ensure session exists for this call
-        await ensureSession(callId, userId, agentName);
+        // Status updates should refresh call metadata only.
+        // Startup/session-init side effects are owned by call-started path.
+        console.log(`[STATUS UPDATE SKIP] call=${callId} startup side effects skipped`);
 
         break;
       }
