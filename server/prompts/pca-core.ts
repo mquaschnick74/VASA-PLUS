@@ -174,10 +174,12 @@ export function assembleSystemPrompt(
   firstName: string,
   profileBlock: string,
   isFirstSession: boolean = true,
-  lastSessionSummary: string | null = null
+  lastSessionSummary: string | null = null,
+  options?: { trimForEarlyTurn?: boolean }
 ): string {
   const prefix = AGENT_PREFIXES[agentId.toLowerCase()] ?? AGENT_PREFIXES['marcus'] ?? '';
   const personalizedPrefix = prefix.replace(/\{firstName\}/g, firstName);
+  const trimForEarlyTurn = options?.trimForEarlyTurn === true;
 
   const parts: string[] = [];
 
@@ -186,21 +188,35 @@ export function assembleSystemPrompt(
     parts.push('');
   }
 
-  parts.push(
-    personalizedPrefix,
-    '',
-    profileBlock,
-    '',
-    LAYER_2,
-    '',
-    LAYER_3,
-    '',
-    LAYER_4,
-    '',
-    HSFB_PROTOCOL,
-    '',
-    LAYER_6,
-  );
+  if (trimForEarlyTurn) {
+    parts.push(
+      personalizedPrefix,
+      '',
+      profileBlock,
+      '',
+      LAYER_2,
+      '',
+      LAYER_4,
+      '',
+      LAYER_6,
+    );
+  } else {
+    parts.push(
+      personalizedPrefix,
+      '',
+      profileBlock,
+      '',
+      LAYER_2,
+      '',
+      LAYER_3,
+      '',
+      LAYER_4,
+      '',
+      HSFB_PROTOCOL,
+      '',
+      LAYER_6,
+    );
+  }
 
   return parts.join('\n');
 }

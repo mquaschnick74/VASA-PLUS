@@ -390,7 +390,10 @@ export class SensingLayerService {
    * Runs register analysis + movement assessment only (no LLM calls).
    * Used by the custom-LLM route for same-turn guidance injection.
    */
-  async processFastUtterance(input: TurnInput): Promise<{
+  async processFastUtterance(
+    input: TurnInput,
+    options: { skipResonance?: boolean } = {}
+  ): Promise<{
     guidance: TherapeuticGuidance;
     register: RegisterAnalysisResult;
     movement: MovementAssessmentResult;
@@ -534,18 +537,22 @@ export class SensingLayerService {
     const guidance = await generateGuidance(fastOSR, input);
 
     let resonance: ResonanceResult | null = null;
-    try {
-      const fastSenseResult = await fastSense({
-        userId: input.userId,
-        callId: input.callId,
-        sessionId: input.sessionId,
-        utterance: input.utterance,
-        exchangeCount: input.exchangeCount,
-        agentName: 'marcus'
-      });
-      resonance = fastSenseResult.resonance;
-    } catch (err) {
-      console.warn('[sensing] fastSense resonance query failed, continuing without narrative context:', err);
+    if (!options.skipResonance) {
+      try {
+        const fastSenseResult = await fastSense({
+          userId: input.userId,
+          callId: input.callId,
+          sessionId: input.sessionId,
+          utterance: input.utterance,
+          exchangeCount: input.exchangeCount,
+          agentName: 'marcus'
+        });
+        resonance = fastSenseResult.resonance;
+      } catch (err) {
+        console.warn('[sensing] fastSense resonance query failed, continuing without narrative context:', err);
+      }
+    } else {
+      console.log(`⚡ [FAST] Resonance lookup skipped for ultra-short utterance: call=${input.callId} exchange=${input.exchangeCount}`);
     }
 
     console.log(`⚡ [FAST] Sensing complete in ${Date.now() - fastStart}ms: posture=${guidance.posture}`);
