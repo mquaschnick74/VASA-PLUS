@@ -11,6 +11,7 @@ import {
 } from '../prompts/pca-core';
 import { getPCAContextForAgent } from '../services/memory-service';
 import { formatObservationalSessionPicture } from '../services/sensing-layer/guidance-injector';
+import { decideUNAOrchestration } from '../services/una-orchestrator';
 
 const router = Router();
 
@@ -154,6 +155,22 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         callId,
         fastResult.resonance
       );
+      const orchestrationDecision = decideUNAOrchestration({
+        guidance: fastResult.guidance,
+        register: fastResult.register,
+        movement: fastResult.movement,
+        stateVector: fastResult.stateVector,
+        resonance: fastResult.resonance ?? null,
+      });
+
+      const unaOrchestrationBlock = [
+        '[UNA ORCHESTRATION]',
+        `Mode: ${orchestrationDecision.mode}`,
+        `Depth: ${orchestrationDecision.depth}`,
+        `Narrative focus: ${orchestrationDecision.narrativeFocus}`,
+        `Hypothesis handling: ${orchestrationDecision.hypothesisHandling}`,
+        `Pacing: ${orchestrationDecision.pacing}`,
+      ].join('\n');
 
       let lastUserIdx = -1;
       for (let i = modifiedMessages.length - 1; i >= 0; i--) {
@@ -161,8 +178,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       }
       if (lastUserIdx !== -1) {
         modifiedMessages.splice(lastUserIdx, 0, { role: 'system', content: guidanceMessage });
+        modifiedMessages.splice(lastUserIdx + 1, 0, { role: 'system', content: unaOrchestrationBlock });
       }
       console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${fastResult.register.currentRegister} movement=${fastResult.movement.trajectory}`);
+      console.log(`🔵 [CUSTOM-LLM] UNA orchestration: call=${callId} mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrative=${orchestrationDecision.narrativeFocus} hypothesis=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} reason=${orchestrationDecision.reason}`);
     } catch (err) {
       console.error(`🔵 [CUSTOM-LLM] Fast guidance error (non-fatal):`, err);
     }
