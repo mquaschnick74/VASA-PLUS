@@ -223,6 +223,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         `Silence focus: ${orchestrationDecision.silenceFocus}`,
         `Response initiation: ${orchestrationDecision.responseInitiation}`,
         `Speaker mode: ${orchestrationDecision.speakerMode}`,
+        `Turn type: ${orchestrationDecision.turnType === 'silence_reengagement' ? 'silence re-engagement' : 'normal'}`,
+        ...(orchestrationDecision.turnType === 'silence_reengagement'
+          ? ['Response goal: brief check-back, not content continuation']
+          : []),
       ].join('\n');
 
       let lastUserIdx = -1;
@@ -236,7 +240,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       }
       console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${fastResult.register.currentRegister} movement=${fastResult.movement.trajectory}`);
       console.log(
-        `[UNA] mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrativeFocus=${orchestrationDecision.narrativeFocus} hypothesisHandling=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} silenceFocus=${orchestrationDecision.silenceFocus} responseInitiation=${orchestrationDecision.responseInitiation} speakerMode=${orchestrationDecision.speakerMode}`
+        `[UNA] mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrativeFocus=${orchestrationDecision.narrativeFocus} hypothesisHandling=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} silenceFocus=${orchestrationDecision.silenceFocus} responseInitiation=${orchestrationDecision.responseInitiation} speakerMode=${orchestrationDecision.speakerMode} turnType=${orchestrationDecision.turnType}`
       );
       console.log(`🔵 [CUSTOM-LLM] UNA orchestration: call=${callId} mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrative=${orchestrationDecision.narrativeFocus} hypothesis=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} reason=${orchestrationDecision.reason}`);
     } catch (err) {
