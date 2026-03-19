@@ -10,6 +10,7 @@ export interface OrchestrationDecision {
   pacing: 'steady' | 'slowed';
   silenceFocus: 'none' | 'watch' | 'active';
   responseInitiation: 'normal' | 'gentle';
+  speakerMode: 'mathew' | 'una' | 'supportive' | 'clarifying';
   reason: string;
 }
 
@@ -62,6 +63,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       pacing: silencePresent ? 'slowed' : 'steady',
       silenceFocus,
       responseInitiation: silencePresent ? 'gentle' : 'normal',
+      speakerMode: 'supportive',
       reason: silencePresent
         ? 'high_flooding_with_silence_or_immediate_urgency'
         : 'high_flooding_or_immediate_urgency',
@@ -77,6 +79,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       pacing: 'steady',
       silenceFocus,
       responseInitiation,
+      speakerMode: 'clarifying',
       reason: silenceActive ? 'high_stuckness_low_flooding_with_silence' : 'high_stuckness_low_flooding',
     };
   }
@@ -90,6 +93,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       pacing: silencePresent && flooding >= 0.45 ? 'slowed' : 'steady',
       silenceFocus,
       responseInitiation,
+      speakerMode: 'una',
       reason: silenceActive
         ? 'movement_signal_or_resonance_with_active_silence'
         : 'movement_signal_or_resonance_supports_depth',
@@ -104,6 +108,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
     pacing: silencePresent && flooding >= 0.45 ? 'slowed' : 'steady',
     silenceFocus,
     responseInitiation,
+    speakerMode: 'mathew',
     reason: silencePresent ? 'default_with_silence_signal' : 'default_observational_or_mixed_state',
   };
 }

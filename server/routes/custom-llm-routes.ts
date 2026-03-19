@@ -213,6 +213,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         `Pacing: ${orchestrationDecision.pacing}`,
         `Silence focus: ${orchestrationDecision.silenceFocus}`,
         `Response initiation: ${orchestrationDecision.responseInitiation}`,
+        `Speaker mode: ${orchestrationDecision.speakerMode}`,
       ].join('\n');
 
       let lastUserIdx = -1;
@@ -220,10 +221,14 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         if (modifiedMessages[i].role === 'user') { lastUserIdx = i; break; }
       }
       if (lastUserIdx !== -1) {
+        // UNA selects response mode/persona here, while runtime remains a single speaking pipeline.
         modifiedMessages.splice(lastUserIdx, 0, { role: 'system', content: guidanceMessage });
         modifiedMessages.splice(lastUserIdx + 1, 0, { role: 'system', content: unaOrchestrationBlock });
       }
       console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${fastResult.register.currentRegister} movement=${fastResult.movement.trajectory}`);
+      console.log(
+        `[UNA] mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrativeFocus=${orchestrationDecision.narrativeFocus} hypothesisHandling=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} silenceFocus=${orchestrationDecision.silenceFocus} responseInitiation=${orchestrationDecision.responseInitiation} speakerMode=${orchestrationDecision.speakerMode}`
+      );
       console.log(`🔵 [CUSTOM-LLM] UNA orchestration: call=${callId} mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrative=${orchestrationDecision.narrativeFocus} hypothesis=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} reason=${orchestrationDecision.reason}`);
     } catch (err) {
       console.error(`🔵 [CUSTOM-LLM] Fast guidance error (non-fatal):`, err);
