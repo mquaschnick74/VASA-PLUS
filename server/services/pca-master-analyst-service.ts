@@ -4,6 +4,8 @@
 // fetch is built into Node.js - no dependencies needed!
 import { supabase } from './supabase-service';
 import { STREAMLINED_ANALYSIS_PROMPT } from '../prompts/master-pc-analyst.js';
+import type { SessionSummary } from './sensing-layer/session-state';
+import { shouldRunPCAMasterAnalysis } from './pca-master-trigger';
 
 interface TranscriptData {
   call_id: string;
@@ -527,3 +529,56 @@ export class PCAMasterAnalystService {
 
 // Export the class for on-demand instantiation
 // No singleton export to avoid module-load-time initialization issues with Replit Secrets
+
+
+async function hasRecentPCAMasterAnalysis(userId: string, withinHours: number = 24): Promise<boolean> {
+  const since = new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('pca_master_analysis')
+    .select('analysis_id, created_at')
+    .eq('user_id', userId)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.warn(`[PCA MASTER TRIGGER] user=${userId} recent-analysis-check failed: ${error.message}`);
+    return false;
+  }
+
+  return Array.isArray(data) && data.length > 0;
+}
+
+export async function triggerPCAMasterAnalysisFromFinalize(summary: SessionSummary, sessionCount: number = 3): Promise<void> {
+  try {
+    const hasRecentAnalysis = await hasRecentPCAMasterAnalysis(summary.userId);
+
+    const decision = shouldRunPCAMasterAnalysis({
+      exchangeCount: summary.exchangeCount,
+      significantMomentCount: summary.significantMoments.length,
+      structuredPatternCount: summary.structuredPatterns.length,
+      structuredHistoricalCount: summary.structuredHistorical.length,
+      structuredConnectionCount: summary.structuredConnections.length,
+      finalCSSStage: summary.finalCSSStage,
+      finalCSSStageConfidence: summary.finalCSSStageConfidence,
+      hasRecentAnalysis
+    });
+
+    console.log(
+      `[PCA MASTER TRIGGER] user=${summary.userId} call=${summary.callId} shouldRun=${decision.shouldRun} category=${decision.category} reason=${decision.reason}`
+    );
+
+    if (!decision.shouldRun) {
+      return;
+    }
+
+    const service = new PCAMasterAnalystService();
+    void service.performAnalysis(summary.userId, sessionCount).then((result) => {
+      console.log(`[PCA MASTER TRIGGER] user=${summary.userId} analysis completed analysisId=${result.analysisId}`);
+    }).catch((error: any) => {
+      console.error(`[PCA MASTER TRIGGER] user=${summary.userId} analysis failed: ${error?.message || error}`);
+    });
+  } catch (error: any) {
+    console.error(`[PCA MASTER TRIGGER] user=${summary.userId} trigger evaluation failed: ${error?.message || error}`);
+  }
+}

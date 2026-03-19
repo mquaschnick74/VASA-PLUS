@@ -11,6 +11,7 @@ import OpenAI from 'openai';
 import { sensingLayer, getCachedProfile } from '../services/sensing-layer';
 import { assembleSystemPrompt, assembleProfileBlock, setLastFooterState, clearFooterState } from '../prompts/pca-core';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
+import { triggerPCAMasterAnalysisFromFinalize } from '../services/pca-master-analyst-service';
 
 const router = Router();
 
@@ -336,6 +337,8 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
         console.log(`   📈 Dominant register: ${sensingSessionSummary.dominantRegister}`);
         console.log(`   ⭐ Significant moments: ${sensingSessionSummary.significantMoments.length}`);
         console.log(`   🔄 Patterns detected: ${sensingSessionSummary.patternsDetected.length}`);
+
+        await triggerPCAMasterAnalysisFromFinalize(sensingSessionSummary);
       } else {
         console.warn(`⚠️ [CHAT-SENSING] No sensing session state found for ${sessionId} — session may not have used sensing layer`);
       }

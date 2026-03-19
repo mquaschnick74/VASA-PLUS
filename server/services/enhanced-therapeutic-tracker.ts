@@ -3,6 +3,7 @@
 // FIXED: Now properly separates therapeutic movements from CSS stages
 
 import { supabase } from './supabase-service';
+import { isPresenceCheckUtterance } from './presence-check-utterance';
 
 interface ConversationExchange {
   role: 'user' | 'assistant';
@@ -73,8 +74,12 @@ class EnhancedTherapeuticTracker {
 
       // Skip if we've already processed this exact content
       if (processed.has(contentHash)) {
-        console.log(`⏭️ Skipping duplicate content for ${callId}`);
-        return;
+        if (isPresenceCheckUtterance(lastUserMessage.content)) {
+          console.log(`🔁 presence-check bypassed duplicate suppression for ${callId}`);
+        } else {
+          console.log(`⏭️ Skipping duplicate content for ${callId}`);
+          return;
+        }
       }
 
       // Mark as processed

@@ -2,6 +2,8 @@
 // CSS Pattern Detection Service
 // Detects CVDC, IBM, Thend, CYVC patterns in therapeutic conversations
 
+import { isPresenceCheckUtterance } from './presence-check-utterance';
+
 export interface CSSPatterns {
   cvdcPatterns: string[];
   ibmPatterns: string[];
@@ -34,7 +36,7 @@ function extractUserStatements(transcript: string, debug: boolean = false): stri
   const sentences = transcript
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
-    .filter(s => s.length > 10);
+    .filter(s => s.length > 10 || isPresenceCheckUtterance(s));
 
   if (debug) {
     console.log(`📝 Split into ${sentences.length} sentences`);
@@ -50,16 +52,17 @@ function extractUserStatements(transcript: string, debug: boolean = false): stri
 
     // Skip questions (likely agent) - but not all questions
     const isQuestion = sentence.trim().endsWith('?') && !sentence.includes('I');
+    const isPresenceCheck = isPresenceCheckUtterance(sentence);
 
     // Prefer statements starting with "I" (likely user)
     const startsWithI = /^I\s/i.test(sentence.trim());
 
     // Include if it seems like a user statement
-    if (!isAgentResponse && (!isQuestion || startsWithI)) {
+    if (!isAgentResponse && (!isQuestion || startsWithI || isPresenceCheck)) {
       userStatements.push(sentence.trim());
       if (debug) console.log(`✅ User statement: "${sentence.substring(0, 50)}..."`);
     } else if (debug) {
-      console.log(`❌ Filtered out: "${sentence.substring(0, 50)}..." (agent:${isAgentResponse}, question:${isQuestion})`);
+      console.log(`❌ Filtered out: "${sentence.substring(0, 50)}..." (agent:${isAgentResponse}, question:${isQuestion}, presenceCheck:${isPresenceCheck})`);
     }
   }
 

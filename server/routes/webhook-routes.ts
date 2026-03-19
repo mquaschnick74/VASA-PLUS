@@ -36,6 +36,7 @@ import {
 } from '../services/sensing-layer/call-state';
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor, suppressSilenceMonitor, clearPostInterventionSuppression } from '../services/sensing-layer/silence-monitor';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
+import { triggerPCAMasterAnalysisFromFinalize } from '../services/pca-master-analyst-service';
 
 const router = Router();
 
@@ -545,6 +546,7 @@ router.post('/webhook', async (req, res) => {
         console.log(`   📈 Dominant register: ${sensingSessionSummary.dominantRegister}`);
         console.log(`   ⭐ Significant moments: ${sensingSessionSummary.significantMoments.length}`);
         console.log(`   🔄 Patterns detected: ${sensingSessionSummary.patternsDetected.length}`);
+        await triggerPCAMasterAnalysisFromFinalize(sensingSessionSummary);
       } else {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
       }
