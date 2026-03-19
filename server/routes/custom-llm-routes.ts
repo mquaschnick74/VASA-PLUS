@@ -51,14 +51,25 @@ type LiveSilenceSignal = {
 
 type SpeakerMode = 'mathew' | 'una' | 'supportive' | 'clarifying';
 
-function getSilenceFallbackText(speakerMode: SpeakerMode): string {
-  const fallbackByMode: Record<SpeakerMode, string> = {
+function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSilenceSignal | null): string {
+  const firstSilenceEvent = (silenceSignal?.eventCount ?? 0) <= 1;
+  if (firstSilenceEvent) {
+    const firstEventByMode: Record<SpeakerMode, string> = {
+      supportive: "I'm here with you. Take your time.",
+      clarifying: "I'm here with you. What's happening right now?",
+      una: "I'm right here with you. We can stay with this moment.",
+      mathew: "I'm here. Take a breath—what's here right now?",
+    };
+    return firstEventByMode[speakerMode];
+  }
+
+  const repeatedEventByMode: Record<SpeakerMode, string> = {
     supportive: "I'm here with you. Take your time.",
-    clarifying: "I'm still here.",
-    una: "I'm here. You can take a moment.",
-    mathew: "I'm still here.",
+    clarifying: "I'm here.",
+    una: "I'm here. Take a moment.",
+    mathew: "I'm here.",
   };
-  return fallbackByMode[speakerMode];
+  return repeatedEventByMode[speakerMode];
 }
 
 function parseSilenceSignalFromSystemMessage(content: string): LiveSilenceSignal | null {
@@ -145,6 +156,13 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   } else {
     modifiedMessages.unshift({ role: 'system', content: fullSystemPrompt });
     console.warn(`🔵 [CUSTOM-LLM] No system message from VAPI — inserted assembled prompt`);
+  }
+
+  if (numUserTurns === 0 && numAssistantTurns === 0) {
+    modifiedMessages.unshift({
+      role: 'system',
+      content: '[OPENING TURN]\nFor the first opening line, give one brief present invitation (not a generic shell greeting).',
+    });
   }
 
   console.log(`🔵 [CUSTOM-LLM] Prompt size: ${fullSystemPrompt.length} chars (~${Math.round(fullSystemPrompt.length / 4)} tokens)`);
@@ -347,7 +365,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
     const sentTrimmedLength = sentContent.trim().length;
     if (liveSilenceSignal && sentTrimmedLength === 0) {
-      const fallbackText = getSilenceFallbackText(silenceSpeakerMode);
+      const fallbackText = getSilenceFallbackText(silenceSpeakerMode, liveSilenceSignal);
       res.write(
         `data: ${JSON.stringify({
           id: firstChunkId || 'resp',
