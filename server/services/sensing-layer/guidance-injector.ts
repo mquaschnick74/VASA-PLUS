@@ -300,6 +300,100 @@ export function formatSessionPicture(
 }
 
 /**
+ * Format an observational-only session picture for model-facing custom-LLM injection.
+ * Contains state/signal context only; excludes directives/policy instructions.
+ */
+export function formatObservationalSessionPicture(
+  guidance: TherapeuticGuidance,
+  register: RegisterAnalysisResult,
+  movement: MovementAssessmentResult,
+  stateVector: TherapeuticStateVector,
+  exchangeCount: number,
+  callId: string,
+  resonance?: ResonanceResult | null
+): string {
+  const cssStageLabels: Record<string, string> = {
+    pointed_origin: 'Pointed Origin',
+    focus_bind: 'Focus/Bind',
+    suspension: 'Suspension',
+    gesture_toward: 'Gesture Toward',
+    completion: 'Completion',
+    terminal: 'Terminal'
+  };
+
+  const stuckLabel = register.stucknessScore > 0.6 ? 'high stuckness' :
+                     register.stucknessScore > 0.35 ? 'moderate stuckness' : 'fluid';
+
+  const movementLabel = movement.trajectory === 'toward_mastery' ? 'deepening' :
+                        movement.trajectory === 'away_from_mastery' ? 'resisting' :
+                        movement.trajectory === 'cycling' ? 'cycling' : 'holding';
+
+  const cssLabel = cssStageLabels[stateVector.coupled.cssStage] ?? stateVector.coupled.cssStage;
+  const proximity = stateVector.coupled.phaseTransitionProximity.toFixed(2);
+  const confidenceLabel = guidance.confidence >= 0.7 ? 'high' :
+                          guidance.confidence >= 0.45 ? 'moderate' : 'low';
+
+  const sessionState = getSessionState(callId);
+  const accumulatedPatterns = sessionState?.patternsThisSession ?? [];
+
+  const psychoticFlags = ['hallucination', 'psychotic', 'dissociative', 'voices', 'reality'];
+  const structuralFlag = accumulatedPatterns.some(p =>
+    psychoticFlags.some(flag => p.toLowerCase().includes(flag))
+  ) ? 'Symbolic impairment signals present' : null;
+
+  const patternSummary = accumulatedPatterns.length > 0
+    ? accumulatedPatterns.slice(-3).join('; ')
+    : 'none accumulated yet';
+
+  const lines = [
+    `[SESSION PICTURE — Exchange ${exchangeCount}]`,
+    `Register: ${register.currentRegister} foregrounded. ${stuckLabel}.`,
+    `Movement: ${movementLabel}.`,
+    `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
+    (() => {
+      const footerCvdc = getLastFooterState(callId)?.cvdc;
+      if (!footerCvdc) return `CVDC: not yet visible`;
+      return `CVDC: ${footerCvdc}`;
+    })(),
+    (() => {
+      const ibmCandidates = getActiveIBMCandidates(callId);
+      if (ibmCandidates.length === 0) return `Hypothesis: no active IBM pattern`;
+      const viable = ibmCandidates.find(c => c.status === 'viable');
+      if (viable) {
+        return `Hypothesis: ${viable.hypothesis} [viable, register: ${viable.viableRegister}]`;
+      }
+      const accumulating = ibmCandidates[0];
+      return `Hypothesis: ${accumulating.hypothesis} [accumulating ${accumulating.weightedAccumulation.toFixed(2)}/2.0]`;
+    })(),
+    (() => {
+      if (!resonance || resonance.matchedFragments.length === 0) {
+        return 'Narrative: no resonance detected';
+      }
+      const top = resonance.matchedFragments[0];
+      const stage = top.css_stage_at_disclosure
+        ? ` [${top.css_stage_at_disclosure}]`
+        : '';
+      const signals = top.investment_signals?.length > 0
+        ? ` — ${top.investment_signals.slice(0, 2).join(', ')}`
+        : '';
+      const constellation = resonance.isConstellationActive
+        ? ' ◈ constellation active'
+        : '';
+      return `Narrative: ${top.content_summary}${stage}${signals}${constellation}`;
+    })(),
+    `Patterns: ${patternSummary}`,
+    `Confidence signal: ${confidenceLabel}`,
+  ];
+
+  if (structuralFlag) {
+    lines.splice(1, 0, `⚠️ STRUCTURAL: ${structuralFlag}`);
+  }
+
+  console.log(`📋 [SESSION PICTURE OBSERVATIONAL]\n${lines.join('\n')}`);
+  return lines.join('\n');
+}
+
+/**
  * Format EnhancedTherapeuticGuidance with anticipation as a system message
  */
 export function formatEnhancedGuidanceAsSystemMessage(guidance: EnhancedTherapeuticGuidance): string {
