@@ -99,33 +99,28 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const numAssistantTurns = messages.filter((m) => m.role === 'assistant').length;
   const cachedProfileBeforeInit = getCachedProfile(callId);
 
-  console.log(`🔵 [CUSTOM-LLM] Request: call=${callId} user=${userId} agent=${agentId} firstName=${firstName} turns=${numUserTurns}/${numAssistantTurns}`);
+console.log(`🔵 [CUSTOM-LLM] Request: call=${callId} user=${userId} agent=${agentId} firstName=${firstName} turns=${numUserTurns}/${numAssistantTurns}`);
 
-  // Step 2: Initialize session on first turn
-  if (!initializedCalls.has(callId) && !cachedProfileBeforeInit) {
-    initializedCalls.add(callId);
-    try {
-      await sensingLayer.initializeCallSession(callId, userId, sessionId);
-    } catch (err) {
-      console.error(`🔵 [CUSTOM-LLM] Session init error:`, err);
-    }
-    console.log(`🔵 [CUSTOM-LLM] Session initialized for call ${callId}`);
+// Step 2: Startup ownership is webhook-owned; custom-llm must not duplicate init side effects
+if (!initializedCalls.has(callId)) {
+  initializedCalls.add(callId);
+  console.log(`[STARTUP SKIP] call=${callId} custom-llm init skipped; webhook already owns startup`);
+}
+
+// Step 3: Assemble full PCA system prompt
+const cachedProfile = getCachedProfile(callId);
+const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
+const isFirstSession = lastSessionSummary === null;
+
+let pcaContext: string | null = null;
+if (userId && userId !== 'unknown') {
+  try {
+    pcaContext = await getPCAContextForAgent(userId);
+  } catch (err) {
+    console.warn(`🔵 [CUSTOM-LLM] PCA context unavailable (non-fatal):`, err);
+    pcaContext = null;
   }
-
-  // Step 3: Assemble full PCA system prompt
-  const cachedProfile = getCachedProfile(callId);
-  const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
-  const isFirstSession = lastSessionSummary === null;
-
-  let pcaContext: string | null = null;
-  if (userId && userId !== 'unknown') {
-    try {
-      pcaContext = await getPCAContextForAgent(userId);
-    } catch (err) {
-      console.warn(`🔵 [CUSTOM-LLM] PCA context unavailable (non-fatal):`, err);
-      pcaContext = null;
-    }
-  }
+}
 
   const profileBlockBase = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
   const profileBlock = pcaContext
