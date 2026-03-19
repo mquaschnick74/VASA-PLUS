@@ -8,6 +8,8 @@ import { getLastFooterState } from '../../prompts/pca-core';
 const MAX_MONITOR_DURATION_MS = 45 * 60 * 1000;
 const AGENT_QUIET_BUFFER_MS = 3000;
 const MAX_SILENCE_EVENTS = 4;
+const DEFAULT_POST_INTERVENTION_SUPPRESSION_MS = 12000;
+const MAX_POST_INTERVENTION_SUPPRESSION_MS = 15000;
 
 interface SilenceTimer {
   timeout: NodeJS.Timeout;
@@ -29,9 +31,13 @@ function isPostInterventionSuppressed(callId: string): boolean {
   return false;
 }
 
-export function suppressSilenceMonitor(callId: string, durationMs: number = 45000): void {
-  postInterventionSuppressedUntil.set(callId, Date.now() + durationMs);
-  console.log(`🔇 [SILENCE] Post-intervention suppression set for call ${callId} (${durationMs}ms)`);
+export function suppressSilenceMonitor(callId: string, durationMs: number = DEFAULT_POST_INTERVENTION_SUPPRESSION_MS): void {
+  const requestedDurationMs = Number.isFinite(durationMs) ? Math.max(0, durationMs) : DEFAULT_POST_INTERVENTION_SUPPRESSION_MS;
+  const effectiveDurationMs = Math.min(requestedDurationMs, MAX_POST_INTERVENTION_SUPPRESSION_MS);
+  postInterventionSuppressedUntil.set(callId, Date.now() + effectiveDurationMs);
+  console.log(
+    `🔇 [SILENCE] Post-intervention suppression set for call ${callId} (requested=${requestedDurationMs}ms effective=${effectiveDurationMs}ms)`
+  );
 }
 
 export function clearPostInterventionSuppression(callId: string): void {

@@ -49,6 +49,18 @@ type LiveSilenceSignal = {
   repeatedExtendedPause: boolean;
 };
 
+type SpeakerMode = 'mathew' | 'una' | 'supportive' | 'clarifying';
+
+function getSilenceFallbackText(speakerMode: SpeakerMode): string {
+  const fallbackByMode: Record<SpeakerMode, string> = {
+    supportive: "I'm here with you. Take your time.",
+    clarifying: "I'm still here.",
+    una: "I'm here. You can take a moment.",
+    mathew: "I'm still here.",
+  };
+  return fallbackByMode[speakerMode];
+}
+
 function parseSilenceSignalFromSystemMessage(content: string): LiveSilenceSignal | null {
   if (!content.startsWith('[SILENCE')) return null;
 
@@ -122,6 +134,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
   const modifiedMessages = JSON.parse(JSON.stringify(messages));
   let liveSilenceSignal: LiveSilenceSignal | null = null;
+  let silenceSpeakerMode: SpeakerMode = 'mathew';
   for (let i = modifiedMessages.length - 1; i >= 0; i--) {
     const msg = modifiedMessages[i];
     if (msg.role !== 'system' || typeof msg.content !== 'string') continue;
@@ -202,6 +215,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         resonance: fastResult.resonance ?? null,
         silence: liveSilenceSignal,
       });
+      silenceSpeakerMode = orchestrationDecision.speakerMode;
 
       // Silence state is interpreted through UNA; it is not injected as a separate policy message.
       const unaOrchestrationBlock = [
@@ -265,6 +279,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     let firstChunkId = '';
     let lastChunkId = '';
     let totalSentLength = 0;
+    let sentContent = '';
 
     for await (const chunk of completion) {
       if (!firstChunkId) firstChunkId = chunk.id;
@@ -295,6 +310,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
             })}\n\n`
           );
           totalSentLength += toSend.length;
+          sentContent += toSend;
         }
         continue;
       }
@@ -312,6 +328,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
           })}\n\n`
         );
         totalSentLength += toSend.length;
+        sentContent += toSend;
       }
     }
 
@@ -325,7 +342,25 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         })}\n\n`
       );
       totalSentLength += pendingBuffer.length;
+      sentContent += pendingBuffer;
       console.warn(`🔵 [CUSTOM-LLM] No footer in response for call=${callId} turn=${numUserTurns}`);
+    }
+
+    const sentTrimmedLength = sentContent.trim().length;
+    if (liveSilenceSignal && sentTrimmedLength === 0) {
+      const fallbackText = getSilenceFallbackText(silenceSpeakerMode);
+      res.write(
+        `data: ${JSON.stringify({
+          id: firstChunkId || 'resp',
+          object: 'chat.completion.chunk',
+          choices: [{ index: 0, delta: { content: fallbackText }, finish_reason: null }],
+        })}\n\n`
+      );
+      totalSentLength += fallbackText.length;
+      sentContent += fallbackText;
+      console.log(
+        `[SILENCE FALLBACK] call=${callId} speakerMode=${silenceSpeakerMode} text="${fallbackText}"`
+      );
     }
 
     // Parse footer after stream ends
