@@ -42,6 +42,35 @@ const FOOTER_DELIMITER = '---STATE:';
 // that arrive split across chunk boundaries.
 const LOOK_AHEAD = FOOTER_DELIMITER.length - 1; // 8 chars
 
+type LiveSilenceSignal = {
+  durationSeconds: number;
+  eventCount: number;
+  register: 'real' | 'imaginary' | 'symbolic' | 'unknown';
+  repeatedExtendedPause: boolean;
+};
+
+function parseSilenceSignalFromSystemMessage(content: string): LiveSilenceSignal | null {
+  if (!content.startsWith('[SILENCE')) return null;
+
+  const durationMatch = content.match(/—\s*(\d+)\s*seconds/i);
+  const eventMatch = content.match(/Silence event:\s*(first|second|third|fourth)/i);
+  const registerMatch = content.match(/Register:\s*(real|imaginary|symbolic)/i);
+  const repeatedExtendedPause = /repeated extended pause/i.test(content);
+  const durationSeconds = durationMatch ? Number.parseInt(durationMatch[1], 10) : 0;
+
+  const eventWord = (eventMatch?.[1] || '').toLowerCase();
+  const eventCountByWord: Record<string, number> = { first: 1, second: 2, third: 3, fourth: 4 };
+  const eventCount = eventCountByWord[eventWord] ?? 1;
+  const register = (registerMatch?.[1]?.toLowerCase() as LiveSilenceSignal['register']) || 'unknown';
+
+  return {
+    durationSeconds,
+    eventCount,
+    register,
+    repeatedExtendedPause,
+  };
+}
+
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 router.post('/chat/completions', async (req: Request, res: Response) => {
@@ -92,6 +121,16 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const fullSystemPrompt = assembleSystemPrompt(agentId, firstName, profileBlock, isFirstSession, lastSessionSummary);
 
   const modifiedMessages = JSON.parse(JSON.stringify(messages));
+  let liveSilenceSignal: LiveSilenceSignal | null = null;
+  for (let i = modifiedMessages.length - 1; i >= 0; i--) {
+    const msg = modifiedMessages[i];
+    if (msg.role !== 'system' || typeof msg.content !== 'string') continue;
+    const parsedSilenceSignal = parseSilenceSignalFromSystemMessage(msg.content);
+    if (!parsedSilenceSignal) continue;
+    if (!liveSilenceSignal) liveSilenceSignal = parsedSilenceSignal;
+    modifiedMessages.splice(i, 1);
+  }
+
   const systemMessageIdx = modifiedMessages.findIndex((m: any) => m.role === 'system');
   if (systemMessageIdx !== -1) {
     modifiedMessages[systemMessageIdx].content = fullSystemPrompt;
@@ -161,8 +200,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         movement: fastResult.movement,
         stateVector: fastResult.stateVector,
         resonance: fastResult.resonance ?? null,
+        silence: liveSilenceSignal,
       });
 
+      // Silence state is interpreted through UNA; it is not injected as a separate policy message.
       const unaOrchestrationBlock = [
         '[UNA ORCHESTRATION]',
         `Mode: ${orchestrationDecision.mode}`,
@@ -170,6 +211,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         `Narrative focus: ${orchestrationDecision.narrativeFocus}`,
         `Hypothesis handling: ${orchestrationDecision.hypothesisHandling}`,
         `Pacing: ${orchestrationDecision.pacing}`,
+        `Silence focus: ${orchestrationDecision.silenceFocus}`,
+        `Response initiation: ${orchestrationDecision.responseInitiation}`,
       ].join('\n');
 
       let lastUserIdx = -1;
