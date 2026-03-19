@@ -61,13 +61,12 @@ function buildSilenceSignal(callId: string, silenceEventCount: number, silenceDu
   const footer = getLastFooterState(callId);
 
   if (silenceEventCount >= 3) {
-    return `[SILENCE — ${silenceDurationSeconds} seconds. Third event. Session may require closure or grounding. Respond now.]`;
+    return `[SILENCE — ${silenceDurationSeconds} seconds. Silence event: third. Silence state: repeated extended pause.]`;
   }
 
   const register = footer?.register || 'imaginary';
-  const posture = footer?.posture || 'prescripting';
 
-  return `[SILENCE — ${silenceDurationSeconds} seconds. Register: ${register}. Posture: ${posture}. Respond now.]`;
+  return `[SILENCE — ${silenceDurationSeconds} seconds. Register: ${register}. Silence state: sustained pause.]`;
 }
 
 const TIER4_MESSAGES = [
