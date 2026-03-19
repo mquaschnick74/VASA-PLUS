@@ -10,7 +10,6 @@ import { generateEnhancedSessionSummary } from '../services/summary-service';
 import OpenAI from 'openai';
 import { sensingLayer, getCachedProfile } from '../services/sensing-layer';
 import { assembleSystemPrompt, assembleProfileBlock, setLastFooterState, clearFooterState } from '../prompts/pca-core';
-import { formatSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 
 const router = Router();
@@ -189,57 +188,7 @@ router.post('/send-message', requireAuth, async (req: AuthRequest, res) => {
       totalMessages: messages.length
     });
 
-    // SENSING LAYER: Run before OpenAI call so guidance shapes the response
-    // Text chat uses synchronous sensing (unlike voice which is async via controlUrl)
-    try {
-      // Initialize session state on first message of a new text session
-      if (history.length === 0) {
-        await sensingLayer.initializeCallSession(sessionId, userId, sessionId);
-        console.log(`🧠 [CHAT-SENSING] Initialized session state for text session: ${sessionId}`);
-      }
-
-      const exchangeCount = Math.floor(history.length / 2); // Each exchange = 1 user + 1 assistant
-
-      const turnInput = {
-        utterance: message,
-        sessionId,
-        callId: sessionId,
-        userId,
-        exchangeCount,
-        conversationHistory: history.map((m: { role: string; content: string }) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-          timestamp: new Date().toISOString()
-        }))
-      };
-
-      const { guidance, register, movement, stateVector } =
-        await sensingLayer.processUtterance(turnInput);
-
-      console.log(`🧠 [CHAT-SENSING] Guidance generated — Posture: ${guidance.posture}, Register: ${register.currentRegister}`);
-
-      const guidanceText = formatSessionPicture(
-        guidance,
-        register,
-        movement,
-        stateVector,
-        exchangeCount,
-        sessionId
-      );
-
-      // Insert guidance as a system message between the base system prompt and the user message
-      // Position: after system prompt [0], before current user message [last]
-      messages.splice(messages.length - 1, 0, {
-        role: 'system',
-        content: guidanceText
-      });
-
-      console.log(`🧠 [CHAT-SENSING] Guidance injected into messages array (${messages.length} total messages)`);
-
-    } catch (sensingError: any) {
-      // Non-fatal: log and continue. The agent still responds, just without sensing guidance.
-      console.error(`⚠️ [CHAT-SENSING] Sensing layer failed (non-fatal, continuing):`, sensingError.message);
-    }
+    // Turn-time therapeutic sensing injection is owned by /api/custom-llm.
 
     // Call OpenAI with streaming
     const stream = await openai.chat.completions.create({
