@@ -10,7 +10,7 @@ import {
   type FooterState,
 } from '../prompts/pca-core';
 import { getPCAContextForAgent } from '../services/memory-service';
-import { formatSessionPicture } from '../services/sensing-layer/guidance-injector';
+import { formatObservationalSessionPicture } from '../services/sensing-layer/guidance-injector';
 
 const router = Router();
 
@@ -144,7 +144,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
       );
 
-      const guidanceMessage = formatSessionPicture(
+      // Custom-LLM route injects observational state only; policy/directive interpretation is not injected here.
+      const guidanceMessage = formatObservationalSessionPicture(
         fastResult.guidance,
         fastResult.register,
         fastResult.movement,
