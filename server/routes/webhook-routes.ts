@@ -24,19 +24,15 @@ import { queryKnowledgeBase, buildRetrievedContext } from '../services/sensing-l
 
 // SENSING LAYER IMPORTS - Real-time therapeutic guidance
 import { sensingLayer } from '../services/sensing-layer';
-import { injectGuidance, flushPendingGuidance, clearPendingGuidance } from '../services/sensing-layer/guidance-injector';
+import { flushPendingGuidance, clearPendingGuidance } from '../services/sensing-layer/guidance-injector';
 import {
   setControlUrl,
-  getControlUrl,
   clearControlUrl,
   addToConversationHistory,
-  getConversationHistory,
-  getExchangeCount,
   updateCallState,
   setAgentSpeakingState,
   trackVapiCall,
   isCallActive,
-  setSensingProcessing
 } from '../services/sensing-layer/call-state';
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor, suppressSilenceMonitor, clearPostInterventionSuppression } from '../services/sensing-layer/silence-monitor';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
@@ -175,164 +171,12 @@ export { trackInfluencerConversion };
 // SENSING LAYER - Async Processing Helper with RATE LIMITING
 // ============================================================================
 
-// Rate limiting: track last processing time per call
-const lastProcessingTime = new Map<string, number>();
-
-// Synchronous lock to prevent concurrent processing for the same call
-// This prevents the TOCTOU race condition where two webhooks both pass
-// the rate limit check before either sets the timestamp
-const processingLock = new Map<string, boolean>();
-
 // Track processed message count per call to prevent duplicate history entries
 const lastProcessedMessageIndex = new Map<string, number>();
-const RATE_LIMIT_MS = 5000; // Minimum 5 seconds between sensing layer calls
-
-// Guidance cache: reuse similar guidance
-const guidanceCache = new Map<string, { guidance: any; timestamp: number; utteranceHash: string }>();
-const CACHE_TTL_MS = 30000; // Cache valid for 30 seconds
-
-function hashUtterance(utterance: string): string {
-  // Simple hash for similarity checking
-  return utterance.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
-}
-
-/**
- * Process utterance through sensing layer asynchronously
- * This runs in the background to not block webhook responses
- * OPTIMIZED: Rate limiting + caching to reduce costs by 90%+
- */
-async function processSensingLayerAsync(
-  callId: string,
-  userId: string,
-  utterance: string,
-  conversationHistory: Array<{ role: string; content: string }>
-): Promise<void> {
-  // Entry-point diagnostic log BEFORE try block to confirm function is called
-  console.log(`🔵 [SENSING-ENTRY] processSensingLayerAsync called for ${callId}`);
-  console.log(`   Utterance: "${utterance?.substring(0, 80)}${utterance?.length > 80 ? '...' : ''}"`);
-  console.log(`   History length: ${conversationHistory?.length ?? 'undefined'}`);
-  console.log(`   UserId: ${userId}`);
-
-  // SYNCHRONOUS LOCK: Prevent concurrent processing for the same call.
-  // This must happen BEFORE the try block and BEFORE any async work.
-  // If another webhook is already being processed for this call, skip entirely.
-  if (processingLock.get(callId)) {
-    console.log(`🔒 [SENSING] Skipping - already processing for call ${callId}`);
-    return;
-  }
-  processingLock.set(callId, true);
-
-  try {
-    const startTime = Date.now();
-
-    // Signal to silence monitor: sensing layer is working, don't fire yet
-    setSensingProcessing(callId, true);
-
-    // RATE LIMITING: Skip if processed too recently
-    const lastTime = lastProcessingTime.get(callId);
-    if (lastTime && (startTime - lastTime) < RATE_LIMIT_MS) {
-      console.log(`⏭️ [SENSING] Skipping - rate limited (${Math.round((startTime - lastTime) / 1000)}s since last)`);
-      return;
-    }
-
-    // CACHE CHECK: Reuse recent similar guidance
-    const utteranceHash = hashUtterance(utterance);
-    const cached = guidanceCache.get(callId);
-    if (cached && (startTime - cached.timestamp) < CACHE_TTL_MS) {
-      // Check if utterance is similar (same hash = similar content)
-      if (cached.utteranceHash === utteranceHash) {
-        console.log(`📦 [SENSING] Using cached guidance (${Math.round((startTime - cached.timestamp) / 1000)}s old)`);
-        // Still inject the cached guidance
-        const controlUrl = getControlUrl(callId);
-        if (controlUrl) {
-          await injectGuidance(callId, cached.guidance);
-        }
-        return;
-      }
-    }
-
-    console.log(`🧠 [SENSING] Processing utterance for call ${callId}...`);
-
-    // Check if controlUrl is available before processing
-    const controlUrl = getControlUrl(callId);
-    if (!controlUrl) {
-      console.warn(`⚠️ [SENSING] No controlUrl available for call ${callId} - call-started may not have fired yet`);
-      console.warn(`   This means VAPI did not provide a controlUrl, or events arrived out of order`);
-      // Continue processing anyway - guidance will still be generated for logging
-    }
-
-    // NOTE: Do NOT call initializeCallSession here.
-    // processUtterance (in index.ts) already checks for existing session state
-    // and only initializes if null. Calling it unconditionally here was WIPING
-    // the accumulated state vector history on every webhook, which is why
-    // velocity was always 0.00, 0.00, 0.00.
-
-    // Update rate limit timestamp
-    lastProcessingTime.set(callId, startTime);
-
-    // Get exchange count from call state
-    const exchangeCount = getExchangeCount(callId);
-
-    // Process through sensing layer
-    const { guidance } = await sensingLayer.processUtterance({
-      utterance,
-      sessionId: callId,
-      callId,
-      userId,
-      exchangeCount,
-      conversationHistory: conversationHistory.map(m => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-        timestamp: new Date().toISOString()
-      }))
-    });
-
-    const processingTime = Date.now() - startTime;
-    console.log(`🧠 [SENSING] Processed in ${processingTime}ms - Posture: ${guidance.posture}, Urgency: ${guidance.urgency}`);
-
-    // CACHE: Store guidance for potential reuse
-    guidanceCache.set(callId, {
-      guidance,
-      timestamp: Date.now(),
-      utteranceHash
-    });
-
-    // Only attempt injection if controlUrl is available
-    if (controlUrl) {
-      const injected = await injectGuidance(callId, guidance);
-      if (injected) {
-        console.log(`✅ [SENSING] Guidance injected successfully for call ${callId}`);
-      } else {
-        console.warn(`⚠️ [SENSING] Failed to inject guidance for call ${callId}`);
-      }
-    } else {
-      console.log(`📝 [SENSING] Guidance generated but NOT injected (no controlUrl): ${guidance.posture}`);
-    }
-
-
-  } catch (error) {
-    // Log but don't throw - we don't want to break the conversation
-    console.error(`❌ [SENSING] FATAL ERROR in processSensingLayerAsync for call ${callId}:`, error);
-    if (error instanceof Error) {
-      console.error(`   Message: ${error.message}`);
-      console.error(`   Stack: ${error.stack}`);
-    }
-  } finally {
-    // ALWAYS clear the sensing processing flag, regardless of exit path.
-    // This prevents the silence monitor from thinking the sensing layer is
-    // permanently stuck in "processing" state after a rate-limit skip or cache hit.
-    setSensingProcessing(callId, false);
-
-    // ALWAYS release the lock so the next webhook can be processed
-    processingLock.delete(callId);
-  }
-}
-
-// Clean up caches when call ends
+// Turn-time therapeutic sensing injection authority lives in /api/custom-llm.
+// Webhook route intentionally does not own per-turn guidance injection.
 function cleanupCallCaches(callId: string) {
-  lastProcessingTime.delete(callId);
-  guidanceCache.delete(callId);
-  processingLock.delete(callId);
+  void callId;
 }
 
 // ============================================================================
