@@ -4,6 +4,7 @@ import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
 import { generateEnhancedSessionSummary } from './summary-service';
+import { isPresenceCheckUtterance } from './presence-check-utterance';
 
 interface SessionState {
   userId: string;
@@ -303,8 +304,12 @@ export async function processTranscript(
 
   const transcriptHash = Buffer.from(transcript).toString('base64').substring(0, 50);
   if (session.processedTranscripts.has(transcriptHash)) {
-    console.log(`⏭️ Skipping duplicate transcript for ${callId}`);
-    return;
+    if (isPresenceCheckUtterance(transcript)) {
+      console.log(`🔁 preserved presence-check utterance for ${callId}`);
+    } else {
+      console.log(`⏭️ Skipping duplicate transcript for ${callId}`);
+      return;
+    }
   }
   session.processedTranscripts.add(transcriptHash);
 

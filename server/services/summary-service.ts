@@ -1,6 +1,7 @@
 import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import OpenAI from 'openai';
+import { isPresenceCheckUtterance } from './presence-check-utterance';
 
 // For Replit, we need to access the secret directly
 // Replit makes secrets available as process.env variables
@@ -282,7 +283,10 @@ async function extractNarrativeFromTranscript(
   for (const line of lines) {
     if (line.toLowerCase().includes('user:')) {
       const userText = line.substring(line.indexOf(':') + 1).trim();
-      if (userText.length > 20 && userText.length < 200) {
+      if ((userText.length > 20 && userText.length < 200) || isPresenceCheckUtterance(userText)) {
+        if (isPresenceCheckUtterance(userText)) {
+          console.log('📝 [SUMMARY] presence_check_preserved');
+        }
         userStatements.push(userText);
       }
     }
@@ -296,7 +300,7 @@ async function extractNarrativeFromTranscript(
     .filter(s => !s.toLowerCase().includes('yeah') && 
                  !s.toLowerCase().includes('okay') &&
                  !s.toLowerCase().includes('um') &&
-                 s.length > 30)
+                 (s.length > 30 || isPresenceCheckUtterance(s)))
     .slice(0, 3);
 
   if (meaningfulStatements.length > 0) {
