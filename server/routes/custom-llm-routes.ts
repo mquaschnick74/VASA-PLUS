@@ -108,14 +108,15 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const messages: Array<{ role: string; content: string }> = req.body.messages || [];
   const numUserTurns = messages.filter((m) => m.role === 'user').length;
   const numAssistantTurns = messages.filter((m) => m.role === 'assistant').length;
+  const cachedProfileBeforeInit = getCachedProfile(callId);
 
-  console.log(`🔵 [CUSTOM-LLM] Request: call=${callId} user=${userId} agent=${agentId} firstName=${firstName} turns=${numUserTurns}/${numAssistantTurns}`);
+console.log(`🔵 [CUSTOM-LLM] Request: call=${callId} user=${userId} agent=${agentId} firstName=${firstName} turns=${numUserTurns}/${numAssistantTurns}`);
 
-  // Step 2: Startup ownership is webhook-owned; custom-llm must not duplicate init side effects
-  if (!initializedCalls.has(callId)) {
-    initializedCalls.add(callId);
-    console.log(`[STARTUP SKIP] call=${callId} custom-llm init skipped; webhook already owns startup`);
-  }
+// Step 2: Startup ownership is webhook-owned; custom-llm must not duplicate init side effects
+if (!initializedCalls.has(callId)) {
+  initializedCalls.add(callId);
+  console.log(`[STARTUP SKIP] call=${callId} custom-llm init skipped; webhook already owns startup`);
+}
 
   // Step 3: Assemble full PCA system prompt
   const cachedProfile = getCachedProfile(callId);
@@ -135,15 +136,15 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   }
   const isFirstSession = lastSessionSummary === null;
 
-  let pcaContext: string | null = null;
-  if (userId && userId !== 'unknown') {
-    try {
-      pcaContext = await getPCAContextForAgent(userId);
-    } catch (err) {
-      console.warn(`🔵 [CUSTOM-LLM] PCA context unavailable (non-fatal):`, err);
-      pcaContext = null;
-    }
+let pcaContext: string | null = null;
+if (userId && userId !== 'unknown') {
+  try {
+    pcaContext = await getPCAContextForAgent(userId);
+  } catch (err) {
+    console.warn(`🔵 [CUSTOM-LLM] PCA context unavailable (non-fatal):`, err);
+    pcaContext = null;
   }
+}
 
   const profileBlockBase = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
   const profileBlock = pcaContext
@@ -228,7 +229,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         conversationHistory,
       };
 
-      const fastResult = await sensingLayer.processFastUtterance(turnInput);
+      const fastResult = await sensingLayer.processFastUtterance(turnInput, {
+        skipResonance: isUltraShortUtterance
+      });
 
       if (!isUltraShortUtterance) {
         sensingLayer.processUtterance(turnInput).catch(err =>
