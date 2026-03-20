@@ -121,6 +121,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const cachedProfile = getCachedProfile(callId);
   const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
   const isFirstSession = lastSessionSummary === null;
+  console.log(`🔵 [CUSTOM-LLM] isFirstSession=${isFirstSession} lastSessionSummary=${lastSessionSummary ? lastSessionSummary.slice(0, 80) : 'NULL'} call=${callId}`);
 
   let pcaContext: string | null = null;
   if (userId && userId !== 'unknown') {
@@ -170,7 +171,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     console.warn(`🔵 [CUSTOM-LLM] No system message from VAPI — inserted assembled prompt`);
   }
 
-  if (numUserTurns === 0 && numAssistantTurns === 0) {
+  if (numUserTurns === 0 && numAssistantTurns === 0 && isFirstSession) {
     modifiedMessages.unshift({
       role: 'system',
       content: '[OPENING TURN]\nFor the first opening line, give one brief present invitation (not a generic shell greeting).',
