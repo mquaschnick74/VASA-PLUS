@@ -121,7 +121,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const cachedProfile = getCachedProfile(callId);
   const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
   const isFirstSession = lastSessionSummary === null;
-  console.log(`🔵 [CUSTOM-LLM] isFirstSession=${isFirstSession} lastSessionSummary=${lastSessionSummary ? lastSessionSummary.slice(0, 80) : 'NULL'} call=${callId}`);
 
   let pcaContext: string | null = null;
   if (userId && userId !== 'unknown') {
