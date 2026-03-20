@@ -51,8 +51,13 @@ type LiveSilenceSignal = {
 
 type SpeakerMode = 'mathew' | 'una' | 'supportive' | 'clarifying';
 
-function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSilenceSignal | null): string {
+function getSilenceFallbackText(
+  speakerMode: SpeakerMode,
+  silenceSignal: LiveSilenceSignal | null,
+  lastUtterance?: string
+): string {
   const firstSilenceEvent = (silenceSignal?.eventCount ?? 0) <= 1;
+
   if (firstSilenceEvent) {
     const firstEventByMode: Record<SpeakerMode, string> = {
       supportive: "I'm here with you. Take your time.",
@@ -62,7 +67,6 @@ function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSil
     };
     return firstEventByMode[speakerMode];
   }
-
   const repeatedEventByMode: Record<SpeakerMode, string> = {
     supportive: "I'm here with you. Take your time.",
     clarifying: "I'm here.",
@@ -274,7 +278,13 @@ if (userId && userId !== 'unknown') {
         `Speaker mode: ${orchestrationDecision.speakerMode}`,
         `Turn type: ${orchestrationDecision.turnType === 'silence_reengagement' ? 'silence re-engagement' : 'normal'}`,
         ...(orchestrationDecision.turnType === 'silence_reengagement'
-          ? ['Response goal: brief check-back, not content continuation']
+          ? [
+              'Response goal: one sentence only.',
+              `The client last said: "${currentUtterance.slice(0, 120)}"`,
+              'Respond directly to that content. ' +
+              'Do not issue a generic check-in. ' +
+              'Do not ask if they are still there.',
+            ]
           : []),
       ].join('\n');
 
@@ -396,7 +406,7 @@ if (userId && userId !== 'unknown') {
 
     const sentTrimmedLength = sentContent.trim().length;
     if (liveSilenceSignal && sentTrimmedLength === 0) {
-      const fallbackText = getSilenceFallbackText(silenceSpeakerMode, liveSilenceSignal);
+      const fallbackText = getSilenceFallbackText(silenceSpeakerMode, liveSilenceSignal, currentUtterance || undefined);
       res.write(
         `data: ${JSON.stringify({
           id: firstChunkId || 'resp',

@@ -4,6 +4,7 @@
 import { getCallState, isCallActive } from './call-state';
 import { injectSilenceContext, injectSpokenReEngagement } from './guidance-injector';
 import { getLastFooterState } from '../../prompts/pca-core';
+import { getSessionState } from './session-state';
 
 const MAX_MONITOR_DURATION_MS = 45 * 60 * 1000;
 const AGENT_QUIET_BUFFER_MS = 3000;
@@ -38,11 +39,15 @@ export function suppressSilenceMonitor(
   const timer = silenceTimers.get(callId);
   if (!timer) return;
   const footer = getLastFooterState(callId);
+  const sessionState = getSessionState(callId);
+  const exchangeCount = sessionState?.exchangeCount ?? 0;
   const register = footer?.register?.toLowerCase() ?? 'unknown';
   const movement = footer?.movement?.toLowerCase() ?? 'unknown';
   const useExtended =
-    register === 'real' ||
-    movement === 'deepening';
+    exchangeCount > 2 && (
+      register === 'real' ||
+      movement === 'deepening'
+    );
   const effectiveDurationMs = useExtended ? 45000 : 15000;
   postInterventionSuppressedUntil.set(callId, Date.now() + effectiveDurationMs);
   console.log(
