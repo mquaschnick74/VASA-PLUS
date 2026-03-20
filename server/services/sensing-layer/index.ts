@@ -922,6 +922,24 @@ export class SensingLayerService {
   }
 }
 
+export async function fetchLastSessionSummary(
+  userId: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('therapeutic_context')
+      .select('content')
+      .eq('user_id', userId)
+      .eq('context_type', 'conversational_summary')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error || !data || data.length === 0) return null;
+    return data[0].content ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Export singleton instance
 export const sensingLayer = SensingLayerService.getInstance();
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import OpenAI from 'openai';
-import { sensingLayer, getCachedProfile } from '../services/sensing-layer/index';
+import { sensingLayer, getCachedProfile, fetchLastSessionSummary } from '../services/sensing-layer/index';
 import {
   assembleSystemPrompt,
   assembleProfileBlock,
@@ -119,7 +119,20 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
   // Step 3: Assemble full PCA system prompt
   const cachedProfile = getCachedProfile(callId);
-  const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
+  let lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
+  if (
+    lastSessionSummary === null &&
+    numUserTurns === 0 &&
+    userId !== 'unknown'
+  ) {
+    lastSessionSummary = await fetchLastSessionSummary(userId);
+    console.log(
+      `🔵 [CUSTOM-LLM] Turn-0 summary fetch: ` +
+      `userId=${userId} result=${lastSessionSummary
+        ? lastSessionSummary.slice(0, 60)
+        : 'NULL'}`
+    );
+  }
   const isFirstSession = lastSessionSummary === null;
 
   let pcaContext: string | null = null;
