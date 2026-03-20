@@ -174,6 +174,8 @@ export { trackInfluencerConversion };
 
 // Track processed message count per call to prevent duplicate history entries
 const lastProcessedMessageIndex = new Map<string, number>();
+// Track last user content per call to gate silence-related calls on genuinely new content
+const lastUserContent = new Map<string, string>();
 // Startup dedupe: suppress duplicate/replayed call-start events per callId
 const processedCallStarts = new Set<string>();
 // Turn-time therapeutic sensing injection authority lives in /api/custom-llm.
@@ -501,11 +503,22 @@ router.post('/webhook', async (req, res) => {
             }
             lastProcessedMessageIndex.set(callId, formattedConversation.length);
 
-            // Clear post-intervention suppression immediately when user speaks
-            clearPostInterventionSuppression(callId);
+            // Only fire silence-related calls when user content is genuinely new
+            const lastContent = lastUserContent.get(callId) ?? '';
+            const currentContent = latestUserMessage?.content?.trim() ?? '';
+            const isNewUserContent = currentContent.length > 0 &&
+              currentContent !== lastContent;
+            if (isNewUserContent) {
+              lastUserContent.set(callId, currentContent);
+            }
 
-            // SILENCE MONITOR: Reset timer on each confirmed user utterance
-            resetSilenceTimer(callId);
+            if (isNewUserContent) {
+              // Clear post-intervention suppression immediately when user speaks
+              clearPostInterventionSuppression(callId);
+
+              // SILENCE MONITOR: Reset timer on each confirmed user utterance
+              resetSilenceTimer(callId);
+            }
 
             // NOTE: Sensing layer processing is handled exclusively by the custom LLM
             // endpoint (server/routes/custom-llm-routes.ts). processSensingLayerAsync
@@ -587,6 +600,7 @@ router.post('/webhook', async (req, res) => {
 
       // DUPLICATE HISTORY: Clean up message index tracker
       lastProcessedMessageIndex.delete(callId);
+      lastUserContent.delete(callId);
       processedCallStarts.delete(callId);
 
       // SENSING LAYER: Clean up call state and caches
@@ -715,7 +729,7 @@ router.post('/webhook', async (req, res) => {
             // to protect processing silence after a clinical move
             if (isCallActive(callId)) {
               suppressSilenceMonitor(callId, 45000);
-              console.log(`🔇 [SILENCE] Agent speech ended — silence monitor suppressed for 45s (call ${callId})`);
+              console.log(`🔇 [SILENCE] Agent speech ended — silence monitor suppression requested (call ${callId})`);
             }
           }
         }
