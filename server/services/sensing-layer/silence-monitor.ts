@@ -65,14 +65,19 @@ function calculateSilenceThreshold(callId: string): number {
 
 function buildSilenceSignal(callId: string, silenceEventCount: number, silenceDurationSeconds: number): string {
   const footer = getLastFooterState(callId);
-
-  if (silenceEventCount >= 3) {
-    return `[SILENCE — ${silenceDurationSeconds} seconds. Silence event: third. Silence state: repeated extended pause.]`;
-  }
-
   const register = footer?.register || 'imaginary';
 
-  return `[SILENCE — ${silenceDurationSeconds} seconds. Register: ${register}. Silence state: sustained pause.]`;
+  const eventWord =
+    silenceEventCount === 1 ? 'first' :
+    silenceEventCount === 2 ? 'second' :
+    silenceEventCount === 3 ? 'third' :
+    'fourth';
+
+  const silenceState = silenceEventCount >= 3
+    ? 'repeated extended pause'
+    : 'sustained pause';
+
+  return `[SILENCE — ${silenceDurationSeconds} seconds. Silence event: ${eventWord}. Register: ${register}. Silence state: ${silenceState}.]`;
 }
 
 const TIER4_MESSAGES = [

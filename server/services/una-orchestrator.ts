@@ -11,6 +11,7 @@ export interface OrchestrationDecision {
   silenceFocus: 'none' | 'watch' | 'active';
   responseInitiation: 'normal' | 'gentle';
   speakerMode: 'mathew' | 'una' | 'supportive' | 'clarifying';
+  turnType: 'normal' | 'silence_reengagement';
   reason: string;
 }
 
@@ -53,6 +54,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
   const silenceActive = silencePresent && (silence?.repeatedExtendedPause === true || (silenceDuration >= 30 && symbolicOrImaginarySilence));
   const silenceFocus: OrchestrationDecision['silenceFocus'] = silenceActive ? 'active' : silenceWatch ? 'watch' : 'none';
   const responseInitiation: OrchestrationDecision['responseInitiation'] = silenceActive ? 'gentle' : 'normal';
+  const turnType: OrchestrationDecision['turnType'] = silencePresent ? 'silence_reengagement' : 'normal';
 
   if (flooding >= 0.65 || input.guidance.urgency === 'immediate') {
     return {
@@ -64,6 +66,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       silenceFocus,
       responseInitiation: silencePresent ? 'gentle' : 'normal',
       speakerMode: 'supportive',
+      turnType,
       reason: silencePresent
         ? 'high_flooding_with_silence_or_immediate_urgency'
         : 'high_flooding_or_immediate_urgency',
@@ -80,6 +83,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       silenceFocus,
       responseInitiation,
       speakerMode: 'clarifying',
+      turnType,
       reason: silenceActive ? 'high_stuckness_low_flooding_with_silence' : 'high_stuckness_low_flooding',
     };
   }
@@ -94,6 +98,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
       silenceFocus,
       responseInitiation,
       speakerMode: 'una',
+      turnType,
       reason: silenceActive
         ? 'movement_signal_or_resonance_with_active_silence'
         : 'movement_signal_or_resonance_supports_depth',
@@ -109,6 +114,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
     silenceFocus,
     responseInitiation,
     speakerMode: 'mathew',
+    turnType,
     reason: silencePresent ? 'default_with_silence_signal' : 'default_observational_or_mixed_state',
   };
 }

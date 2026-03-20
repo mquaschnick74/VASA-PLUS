@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import OpenAI from 'openai';
-import { sensingLayer, getCachedProfile } from '../services/sensing-layer/index';
+import { sensingLayer, getCachedProfile, fetchLastSessionSummary } from '../services/sensing-layer/index';
 import {
   assembleSystemPrompt,
   assembleProfileBlock,
@@ -51,14 +51,25 @@ type LiveSilenceSignal = {
 
 type SpeakerMode = 'mathew' | 'una' | 'supportive' | 'clarifying';
 
-function getSilenceFallbackText(speakerMode: SpeakerMode): string {
-  const fallbackByMode: Record<SpeakerMode, string> = {
+function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSilenceSignal | null): string {
+  const firstSilenceEvent = (silenceSignal?.eventCount ?? 0) <= 1;
+  if (firstSilenceEvent) {
+    const firstEventByMode: Record<SpeakerMode, string> = {
+      supportive: "I'm here with you. Take your time.",
+      clarifying: "I'm here with you. What's happening right now?",
+      una: "I'm right here with you. We can stay with this moment.",
+      mathew: "I'm here. Take a breath—what's here right now?",
+    };
+    return firstEventByMode[speakerMode];
+  }
+
+  const repeatedEventByMode: Record<SpeakerMode, string> = {
     supportive: "I'm here with you. Take your time.",
-    clarifying: "I'm still here.",
-    una: "I'm here. You can take a moment.",
-    mathew: "I'm still here.",
+    clarifying: "I'm here.",
+    una: "I'm here. Take a moment.",
+    mathew: "I'm here.",
   };
-  return fallbackByMode[speakerMode];
+  return repeatedEventByMode[speakerMode];
 }
 
 function parseSilenceSignalFromSystemMessage(content: string): LiveSilenceSignal | null {
@@ -107,10 +118,23 @@ if (!initializedCalls.has(callId)) {
   console.log(`[STARTUP SKIP] call=${callId} custom-llm init skipped; webhook already owns startup`);
 }
 
-// Step 3: Assemble full PCA system prompt
-const cachedProfile = getCachedProfile(callId);
-const lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
-const isFirstSession = lastSessionSummary === null;
+  // Step 3: Assemble full PCA system prompt
+  const cachedProfile = getCachedProfile(callId);
+  let lastSessionSummary = cachedProfile?.lastSessionSummary ?? null;
+  if (
+    lastSessionSummary === null &&
+    numUserTurns === 0 &&
+    userId !== 'unknown'
+  ) {
+    lastSessionSummary = await fetchLastSessionSummary(userId);
+    console.log(
+      `🔵 [CUSTOM-LLM] Turn-0 summary fetch: ` +
+      `userId=${userId} result=${lastSessionSummary
+        ? lastSessionSummary.slice(0, 60)
+        : 'NULL'}`
+    );
+  }
+  const isFirstSession = lastSessionSummary === null;
 
 let pcaContext: string | null = null;
 if (userId && userId !== 'unknown') {
@@ -158,6 +182,13 @@ if (userId && userId !== 'unknown') {
   } else {
     modifiedMessages.unshift({ role: 'system', content: fullSystemPrompt });
     console.warn(`🔵 [CUSTOM-LLM] No system message from VAPI — inserted assembled prompt`);
+  }
+
+  if (numUserTurns === 0 && numAssistantTurns === 0 && isFirstSession) {
+    modifiedMessages.unshift({
+      role: 'system',
+      content: '[OPENING TURN]\nFor the first opening line, give one brief present invitation (not a generic shell greeting).',
+    });
   }
 
   console.log(`🔵 [CUSTOM-LLM] Prompt size: ${fullSystemPrompt.length} chars (~${Math.round(fullSystemPrompt.length / 4)} tokens)`);
@@ -241,6 +272,10 @@ if (userId && userId !== 'unknown') {
         `Silence focus: ${orchestrationDecision.silenceFocus}`,
         `Response initiation: ${orchestrationDecision.responseInitiation}`,
         `Speaker mode: ${orchestrationDecision.speakerMode}`,
+        `Turn type: ${orchestrationDecision.turnType === 'silence_reengagement' ? 'silence re-engagement' : 'normal'}`,
+        ...(orchestrationDecision.turnType === 'silence_reengagement'
+          ? ['Response goal: brief check-back, not content continuation']
+          : []),
       ].join('\n');
 
       let lastUserIdx = -1;
@@ -254,7 +289,7 @@ if (userId && userId !== 'unknown') {
       }
       console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${fastResult.register.currentRegister} movement=${fastResult.movement.trajectory}`);
       console.log(
-        `[UNA] mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrativeFocus=${orchestrationDecision.narrativeFocus} hypothesisHandling=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} silenceFocus=${orchestrationDecision.silenceFocus} responseInitiation=${orchestrationDecision.responseInitiation} speakerMode=${orchestrationDecision.speakerMode}`
+        `[UNA] mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrativeFocus=${orchestrationDecision.narrativeFocus} hypothesisHandling=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} silenceFocus=${orchestrationDecision.silenceFocus} responseInitiation=${orchestrationDecision.responseInitiation} speakerMode=${orchestrationDecision.speakerMode} turnType=${orchestrationDecision.turnType}`
       );
       console.log(`🔵 [CUSTOM-LLM] UNA orchestration: call=${callId} mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrative=${orchestrationDecision.narrativeFocus} hypothesis=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} reason=${orchestrationDecision.reason}`);
     } catch (err) {
@@ -361,7 +396,7 @@ if (userId && userId !== 'unknown') {
 
     const sentTrimmedLength = sentContent.trim().length;
     if (liveSilenceSignal && sentTrimmedLength === 0) {
-      const fallbackText = getSilenceFallbackText(silenceSpeakerMode);
+      const fallbackText = getSilenceFallbackText(silenceSpeakerMode, liveSilenceSignal);
       res.write(
         `data: ${JSON.stringify({
           id: firstChunkId || 'resp',
