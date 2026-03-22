@@ -316,6 +316,8 @@ if (userId && userId !== 'unknown') {
         silence: liveSilenceSignal,
         clientMetaInstruction,
         previousMode: previousUNAMode.get(callId) ?? null,
+        registerSource: fastResult.register.assessmentSource,
+        movementSource: fastResult.movement.assessmentSource,
       });
       previousUNAMode.set(callId, orchestrationDecision.mode);
       silenceSpeakerMode = orchestrationDecision.speakerMode;

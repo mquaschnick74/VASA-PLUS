@@ -233,6 +233,8 @@ export interface RegisterAnalysisResult {
   fluidityScore: number;   // 0-1, higher = moving between registers
   registerMovement: RegisterMovement;
   indicators: RegisterIndicators;
+  assessmentSource: 'fast' | 'semantic';
+  structuralDescription: string | null;
 }
 
 export type Register = 'Real' | 'Imaginary' | 'Symbolic';
@@ -313,6 +315,8 @@ export interface MovementAssessmentResult {
   // Per-utterance CSS signals — low confidence, feed upward to session-level assessment
   // Do NOT use cssStage directly for guidance; use session state's sessionCSSStage instead
   cssSignals: CSSSignal[];
+  assessmentSource: 'fast' | 'semantic';
+  structuralDescription: string | null;
 }
 
 export type TherapeuticTrajectory =
