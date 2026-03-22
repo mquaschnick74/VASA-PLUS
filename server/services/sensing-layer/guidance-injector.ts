@@ -310,7 +310,8 @@ export function formatObservationalSessionPicture(
   stateVector: TherapeuticStateVector,
   exchangeCount: number,
   callId: string,
-  resonance?: ResonanceResult | null
+  resonance?: ResonanceResult | null,
+  originAdjacentPresent: boolean = false
 ): string {
   const cssStageLabels: Record<string, string> = {
     pointed_origin: 'Pointed Origin',
@@ -350,6 +351,9 @@ export function formatObservationalSessionPicture(
     `Register: ${register.currentRegister} foregrounded. ${stuckLabel}.`,
     `Movement: ${movementLabel}.`,
     `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
+    ...(originAdjacentPresent
+      ? ['Origin: adjacent material present — hold here']
+      : []),
     (() => {
       const footerCvdc = getLastFooterState(callId)?.cvdc;
       if (!footerCvdc) return `CVDC: not yet visible`;
