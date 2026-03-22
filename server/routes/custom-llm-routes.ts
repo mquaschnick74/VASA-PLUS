@@ -13,6 +13,7 @@ import { getPCAContextForAgent } from '../services/memory-service';
 import { formatObservationalSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { decideUNAOrchestration } from '../services/una-orchestrator';
 import { detectMetaInstruction } from '../services/sensing-layer/meta-instruction-detector';
+import { detectOriginAdjacency } from '../services/sensing-layer/origin-adjacency-detector';
 
 const router = Router();
 
@@ -256,7 +257,10 @@ if (userId && userId !== 'unknown') {
       const metaInstructionTimeout = new Promise<boolean>(
         (resolve) => setTimeout(() => resolve(false), 500)
       );
-      const [fastResult, metaInstructionPresent] =
+      const originAdjacencyTimeout = new Promise<boolean>(
+        (resolve) => setTimeout(() => resolve(false), 700)
+      );
+      const [fastResult, metaInstructionPresent, originAdjacentPresent] =
         await Promise.all([
           sensingLayer.processFastUtterance(
             turnInput,
@@ -265,6 +269,10 @@ if (userId && userId !== 'unknown') {
           Promise.race([
             detectMetaInstruction(currentUtterance),
             metaInstructionTimeout,
+          ]),
+          Promise.race([
+            detectOriginAdjacency(currentUtterance, conversationHistory),
+            originAdjacencyTimeout,
           ]),
         ]);
 
@@ -286,7 +294,8 @@ if (userId && userId !== 'unknown') {
         fastResult.stateVector,
         numUserTurns,
         callId,
-        fastResult.resonance
+        fastResult.resonance,
+        originAdjacentPresent
       );
       const orchestrationDecision = decideUNAOrchestration({
         guidance: fastResult.guidance,
