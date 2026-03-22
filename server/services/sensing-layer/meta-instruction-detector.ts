@@ -4,21 +4,15 @@
 
 const META_INSTRUCTION_PROMPT = `You are assessing the functional structure of a single utterance in a therapeutic conversation.
 
-Assess whether this utterance presents or describes material while simultaneously foreclosing interpretive engagement with that material. The speaker both offers content and pre-emptively declares it should not be interpreted, symbolized, or given meaning.
+Return true only when both of the following are structurally present in the utterance:
 
-This structural situation can appear as:
-- Stating something occurred while insisting it means nothing
-- Describing something with precision while declaring it insignificant
-- Reporting an experience while refusing any frame for it other than bare fact
-- Presenting an observation while explicitly prohibiting the listener from treating it as meaningful
+(1) The client offers material — describes, reports, or states something.
 
-The specific words used are not the signal. The structural situation is.
+(2) The client enacts a move aimed at the analyst's interpretive function — acting to prevent meaning-making from occurring, not merely describing content as factual. This move is directional: it is aimed at what the analyst might do with the material, not at the material itself. It forecloses the analytical function.
 
-Return true ONLY when both elements are present in the same utterance:
-  1. Material is offered (something is described, reported, or stated)
-  2. Interpretive foreclosure is enacted (the speaker pre-emptively declares the material should not be interpreted or given meaning)
+Foreclosure is an act aimed at the analyst, not a tone or a description of content. A client who speaks in matter-of-fact language, continues prior narrative, or is simply concise is oriented toward content. A client who is foreclosing is oriented against analysis. That orientation is the signal. Tone is not.
 
-Return false if the speaker is simply being brief, factual, or concise without the foreclosure structure. Brevity alone is not foreclosure.
+If both structural elements are not present, return false. If any ambiguity exists about whether element (2) is present, return false.
 
 Respond with a single JSON object and nothing else:
 {"metaInstructionPresent": true}
