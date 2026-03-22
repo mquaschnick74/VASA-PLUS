@@ -48,7 +48,17 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
   );
   const ibmHeavy = resistance >= 0.55 || input.movement.indicators.intellectualizing >= 0.55 || looping >= 0.6;
   const silence = input.silence ?? null;
-  const silencePresent = Boolean(silence);
+  // Silence signal is only treated as active
+  // if the current utterance is short enough
+  // to plausibly be a silence response.
+  // Utterances over 30 chars indicate the
+  // user has spoken substantively — the
+  // silence signal is stale and must be
+  // discarded from orchestration logic.
+  const utteranceLength =
+    (input.stateVector as any)?.lastUtteranceLength ?? 0;
+  const silencePresent =
+    Boolean(silence) && utteranceLength <= 30;
   const silenceDuration = silence?.durationSeconds ?? 0;
   const silenceWatch = silencePresent && (silenceDuration >= 18 || (silence?.eventCount ?? 0) >= 2);
   const symbolicOrImaginarySilence = silencePresent && (silence?.register === 'symbolic' || silence?.register === 'imaginary');
@@ -57,7 +67,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
   const responseInitiation: OrchestrationDecision['responseInitiation'] = silenceActive ? 'gentle' : 'normal';
   const turnType: OrchestrationDecision['turnType'] = silencePresent ? 'silence_reengagement' : 'normal';
 
-  // Frame-hold condition.
+// Frame-hold condition.
   // The client is presenting material while
   // simultaneously foreclosing interpretive
   // engagement with it. This is a structural

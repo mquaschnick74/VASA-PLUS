@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import OpenAI from 'openai';
-import { sensingLayer, getCachedProfile, fetchLastSessionSummary } from '../services/sensing-layer/index';
+import { sensingLayer, getCachedProfile, fetchLastSessionSummary, getSessionState } from '../services/sensing-layer/index';
 import {
   assembleSystemPrompt,
   assembleProfileBlock,
@@ -52,8 +52,13 @@ type LiveSilenceSignal = {
 
 type SpeakerMode = 'mathew' | 'una' | 'supportive' | 'clarifying' | 'marcus';
 
-function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSilenceSignal | null): string {
+function getSilenceFallbackText(
+  speakerMode: SpeakerMode,
+  silenceSignal: LiveSilenceSignal | null,
+  lastUtterance?: string
+): string {
   const firstSilenceEvent = (silenceSignal?.eventCount ?? 0) <= 1;
+
   if (firstSilenceEvent) {
     const firstEventByMode: Record<SpeakerMode, string> = {
       supportive: "I'm here with you. Take your time.",
@@ -64,7 +69,6 @@ function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSil
     };
     return firstEventByMode[speakerMode];
   }
-
   const repeatedEventByMode: Record<SpeakerMode, string> = {
     supportive: "I'm here with you. Take your time.",
     clarifying: "I'm here.",
@@ -179,6 +183,23 @@ if (userId && userId !== 'unknown') {
     modifiedMessages.splice(i, 1);
   }
 
+  // Discard stale silence signal when
+  // the user has spoken substantively.
+  // Silence messages are injected into
+  // VAPI's conversation history and
+  // persist in modifiedMessages on
+  // subsequent turns. A current utterance
+  // longer than 30 chars means the user
+  // has already responded — the signal
+  // is no longer live.
+  if (
+    liveSilenceSignal &&
+    currentUtterance &&
+    currentUtterance.length > 30
+  ) {
+    liveSilenceSignal = null;
+  }
+
   const systemMessageIdx = modifiedMessages.findIndex((m: any) => m.role === 'system');
   if (systemMessageIdx !== -1) {
     modifiedMessages[systemMessageIdx].content = fullSystemPrompt;
@@ -267,6 +288,28 @@ if (userId && userId !== 'unknown') {
         callId,
         fastResult.resonance
       );
+      const sessionState = getSessionState(callId);
+      const metaInstructionKeywords = [
+        'literal', 'literally',
+        'reject interpretation',
+        'resist interpretation',
+        'factual accuracy',
+        'stick to facts',
+        'hidden meaning',
+        'no interpretation',
+        'no meaning',
+        'reject alteration',
+        'record of events',
+      ];
+      const metaInstructionPatterns =
+        sessionState?.patternsThisSession?.filter(p =>
+          metaInstructionKeywords.some(kw =>
+            p.toLowerCase().includes(kw)
+          )
+        ) ?? [];
+      const clientMetaInstruction =
+        metaInstructionPatterns.length >= 2;
+
       const orchestrationDecision = decideUNAOrchestration({
         guidance: fastResult.guidance,
         register: fastResult.register,
@@ -291,7 +334,44 @@ if (userId && userId !== 'unknown') {
         `Speaker mode: ${orchestrationDecision.speakerMode}`,
         `Turn type: ${orchestrationDecision.turnType === 'silence_reengagement' ? 'silence re-engagement' : 'normal'}`,
         ...(orchestrationDecision.turnType === 'silence_reengagement'
-          ? ['Response goal: brief check-back, not content continuation']
+          ? [
+              'Response goal: one sentence only.',
+              `The client last said: "${currentUtterance.slice(0, 120)}"`,
+              'Respond directly to that content. ' +
+              'Do not issue a generic check-in. ' +
+              'Do not ask if they are still there.',
+            ]
+          : []),
+        ...(orchestrationDecision.mode === 'hold_frame'
+          ? [
+              'FRAME HOLD — clinical posture:',
+              'The client is issuing a repeated ' +
+                'instruction about how the work ' +
+                'should proceed. This instruction ' +
+                'is itself what is present in the ' +
+                'session — it is not a contract ' +
+                'to honor.',
+              'Hold the analytical position. ' +
+                'Acknowledge what the client is ' +
+                'saying without accepting their ' +
+                'framing of the work.',
+              'Do not mirror the client\'s language. ' +
+                'Do not use phrases like "a clean ' +
+                'record", "just the observation", ' +
+                'or "exactly as you reported it". ' +
+                'These phrases accept the meta-' +
+                'instruction and exit the analytical ' +
+                'function.',
+              'If the instruction has repeated across ' +
+                'turns, the repetition itself is ' +
+                'available as observable material — ' +
+                'name it without interpreting it: ' +
+                '"You\'ve come back to that several ' +
+                'times — the need for the record to ' +
+                'stay exactly as it is."',
+              'Remain present. Remain differentiated. ' +
+                'One sentence is sufficient.',
+            ]
           : []),
         ...(orchestrationDecision.mode === 'hold_frame'
           ? [
@@ -441,7 +521,7 @@ if (userId && userId !== 'unknown') {
 
     const sentTrimmedLength = sentContent.trim().length;
     if (liveSilenceSignal && sentTrimmedLength === 0) {
-      const fallbackText = getSilenceFallbackText(silenceSpeakerMode, liveSilenceSignal);
+      const fallbackText = getSilenceFallbackText(silenceSpeakerMode, liveSilenceSignal, currentUtterance || undefined);
       res.write(
         `data: ${JSON.stringify({
           id: firstChunkId || 'resp',

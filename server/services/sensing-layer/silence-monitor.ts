@@ -4,6 +4,7 @@
 import { getCallState, isCallActive } from './call-state';
 import { injectSilenceContext, injectSpokenReEngagement } from './guidance-injector';
 import { getLastFooterState } from '../../prompts/pca-core';
+import { getSessionState } from './session-state';
 
 const MAX_MONITOR_DURATION_MS = 45 * 60 * 1000;
 const AGENT_QUIET_BUFFER_MS = 3000;
@@ -31,12 +32,28 @@ function isPostInterventionSuppressed(callId: string): boolean {
   return false;
 }
 
-export function suppressSilenceMonitor(callId: string, durationMs: number = DEFAULT_POST_INTERVENTION_SUPPRESSION_MS): void {
-  const requestedDurationMs = Number.isFinite(durationMs) ? Math.max(0, durationMs) : DEFAULT_POST_INTERVENTION_SUPPRESSION_MS;
-  const effectiveDurationMs = Math.min(requestedDurationMs, MAX_POST_INTERVENTION_SUPPRESSION_MS);
+export function suppressSilenceMonitor(
+  callId: string,
+  _requestedDurationMs?: number
+): void {
+  const timer = silenceTimers.get(callId);
+  if (!timer) return;
+  const footer = getLastFooterState(callId);
+  const sessionState = getSessionState(callId);
+  const exchangeCount = sessionState?.exchangeCount ?? 0;
+  const register = footer?.register?.toLowerCase() ?? 'unknown';
+  const movement = footer?.movement?.toLowerCase() ?? 'unknown';
+  const useExtended =
+    exchangeCount > 2 && (
+      register === 'real' ||
+      movement === 'deepening'
+    );
+  const effectiveDurationMs = useExtended ? 45000 : 15000;
   postInterventionSuppressedUntil.set(callId, Date.now() + effectiveDurationMs);
   console.log(
-    `🔇 [SILENCE] Post-intervention suppression set for call ${callId} (requested=${requestedDurationMs}ms effective=${effectiveDurationMs}ms)`
+    `🔇 [SILENCE] Post-intervention suppression set for call ` +
+    `${callId} (register=${register} movement=${movement} ` +
+    `effective=${effectiveDurationMs}ms)`
   );
 }
 

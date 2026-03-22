@@ -704,6 +704,16 @@ export async function injectSilenceContext(
     return false;
   }
 
+  // Do not inject silence context while
+  // the agent is currently speaking.
+  // The timer may have armed before the
+  // agent began its response. Injecting
+  // now would interrupt the TTS stream.
+  if (getAgentSpeakingState(callId)) {
+    console.log(`🔇 [SILENCE-INJECT] Agent speaking, skipping injection for call ${callId}`);
+    return false;
+  }
+
   const controlUrl = (getControlUrl(callId) || '').trim().replace(/^<|>$/g, '');
   if (!controlUrl.startsWith('https://')) {
     console.error(`🛑 [SILENCE-INJECT] No valid controlUrl for call ${callId}`);
