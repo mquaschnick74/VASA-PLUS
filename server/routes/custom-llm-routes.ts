@@ -30,10 +30,14 @@ const initializedCalls = new Set<string>();
 // Reserved for future per-request gating of post-intervention state
 const postInterventionActive = new Map<string, boolean>();
 
+// Track previous UNA mode per callId so hold_frame can sustain through silence
+const previousUNAMode = new Map<string, string>();
+
 export function clearCustomLLMCache(callId: string): void {
   streamingCallIds.delete(callId);
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
+  previousUNAMode.delete(callId);
   clearFooterState(callId);
 }
 
@@ -155,8 +159,14 @@ if (userId && userId !== 'unknown') {
 }
 
   const profileBlockBase = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
-  const profileBlock = pcaContext
-    ? `${profileBlockBase}\n\n[CLINICAL CONTEXT]\n${pcaContext}`
+  const strippedPcaContext = pcaContext
+    ? pcaContext.replace(
+        /##\s*YOUR THERAPEUTIC APPROACH[\s\S]*$/i,
+        ''
+      ).trim()
+    : null;
+  const profileBlock = strippedPcaContext
+    ? `${profileBlockBase}\n\n[CLINICAL CONTEXT]\n${strippedPcaContext}`
     : profileBlockBase;
   const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content ?? '';
   const trimmedUtterance = currentUtterance.trim();
@@ -305,7 +315,9 @@ if (userId && userId !== 'unknown') {
         resonance: fastResult.resonance ?? null,
         silence: liveSilenceSignal,
         clientMetaInstruction,
+        previousMode: previousUNAMode.get(callId) ?? null,
       });
+      previousUNAMode.set(callId, orchestrationDecision.mode);
       silenceSpeakerMode = orchestrationDecision.speakerMode;
 
       // Silence state is interpreted through UNA; it is not injected as a separate policy message.

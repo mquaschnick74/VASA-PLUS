@@ -30,6 +30,7 @@ interface UNAInput {
   resonance?: ResonanceResult | null;
   silence?: UNASilenceSignal | null;
   clientMetaInstruction?: boolean;
+  previousMode?: string | null;
 }
 
 export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
@@ -66,6 +67,30 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
   const silenceFocus: OrchestrationDecision['silenceFocus'] = silenceActive ? 'active' : silenceWatch ? 'watch' : 'none';
   const responseInitiation: OrchestrationDecision['responseInitiation'] = silenceActive ? 'gentle' : 'normal';
   const turnType: OrchestrationDecision['turnType'] = silencePresent ? 'silence_reengagement' : 'normal';
+
+// Silence after hold_frame sustains the hold.
+  // A silence event must not break a clinical
+  // hold that was just issued. When the previous
+  // turn was hold_frame and silence is now
+  // present, re-issue hold_frame rather than
+  // routing to silence re-engagement.
+  if (
+    input.previousMode === 'hold_frame' &&
+    silencePresent
+  ) {
+    return {
+      mode: 'hold_frame',
+      depth: 'moderate',
+      narrativeFocus: 'none',
+      hypothesisHandling: 'tracked',
+      pacing: 'slowed',
+      silenceFocus: silenceFocus,
+      responseInitiation: 'gentle',
+      speakerMode: 'marcus',
+      turnType: 'silence_reengagement',
+      reason: 'hold_frame_sustained_through_silence',
+    };
+  }
 
 // Frame-hold condition.
   // The client is presenting material while
