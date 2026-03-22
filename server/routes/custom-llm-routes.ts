@@ -161,7 +161,7 @@ if (userId && userId !== 'unknown') {
   const profileBlockBase = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
   const strippedPcaContext = pcaContext
     ? pcaContext.replace(
-        /##\s*YOUR THERAPEUTIC APPROACH[\s\S]*$/i,
+        /##\s*YOUR\s+THERAPEUTIC\s+APPROACH\s+THIS\s+SESSION[\s\S]*$/i,
         ''
       ).trim()
     : null;
