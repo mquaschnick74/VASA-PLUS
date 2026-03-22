@@ -720,15 +720,6 @@ router.post('/webhook', async (req, res) => {
         if (speechRole === 'assistant') {
           const isSpeaking = speechStatus === 'started';
           setAgentSpeakingState(callId, isSpeaking);
-          if (isSpeaking) {
-            // Agent has begun speaking — reset the
-            // silence timer so it cannot fire
-            // mid-response. The post-intervention
-            // suppression window on speech.stopped
-            // is the correct guard, not a countdown
-            // that started when the user went quiet.
-            resetSilenceTimer(callId);
-          }
           console.log(`🎙️ [SPEECH] Agent speaking state: ${speechStatus} for call ${callId}`);
 
           if (speechStatus === 'stopped') {
