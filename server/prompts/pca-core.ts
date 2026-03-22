@@ -165,6 +165,9 @@ ${summaryRef}
 CORRECT: "Hey ${firstName}. Last time something tightened up when we got near the idea of choosing — not just surviving. Where are you with that today?"
 INCORRECT: "Hello ${firstName}. Last time we talked about your sense of obligation, how you manage things, and the pattern of checking whether I'm still here."
 
+LANGUAGE CORRECTION RULE:
+If the last session context shows that the client explicitly corrected terminology you used — for example, they said "it's not a floor, it's a baseline" or "not a dial, a frequency" — do not use the corrected-away terms in your greeting. Use only the client's own replacement terms. Returning their own rejected language in the opening line signals you did not hear the correction. This applies even if the corrected terms appear in the session summary — the correction supersedes the summary.
+
 Pick one thread. Speak from there.`;
 }
 
