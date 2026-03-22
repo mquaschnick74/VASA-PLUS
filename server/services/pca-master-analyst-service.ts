@@ -254,7 +254,7 @@ export class PCAMasterAnalystService {
     console.log('📝 Trimmed prompt length:', trimmedPrompt.length, 'characters');
 
     const requestBody = {
-      model: 'gpt-3.5-turbo-16k', // Using 16k context window for longer prompts
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -334,8 +334,13 @@ export class PCAMasterAnalystService {
     const fullAnalysis = analysisMatch?.[1]?.trim() || content;
 
     // Extract VASA context (OUTPUT 2)
+    // Tolerant of both delimiter formats the model may produce:
+    //   ===== THERAPEUTIC CONTEXT: ... ===== END CONTEXT =====
+    //   # VASA AGENT SESSION CONTEXT ... --- # END CONTEXT
     const contextMatch = content.match(
-      /===== THERAPEUTIC CONTEXT:[\s\S]*?===== END CONTEXT =====/
+      /(?:={5} THERAPEUTIC CONTEXT:|#{1,3} VASA AGENT SESSION CONTEXT)[\s\S]*?(?:={5} END CONTEXT ={5}|---\s*\n\s*#\s*END CONTEXT)/
+    ) || content.match(
+      /(?:VASA AGENT SESSION CONTEXT)[\s\S]*$/
     );
     const therapeuticContext = contextMatch?.[0] || '';
 
