@@ -33,11 +33,22 @@ const postInterventionActive = new Map<string, boolean>();
 // Track previous UNA mode per callId so hold_frame can sustain through silence
 const previousUNAMode = new Map<string, string>();
 
+// Confirmed semantic assessment from the previous turn — one turn of lag
+// with confirmed data is superior to never having confirmed data reach UNA.
+const lastSemanticAssessment = new Map<
+  string,
+  {
+    register: import('../services/sensing-layer/types').RegisterAnalysisResult;
+    movement: import('../services/sensing-layer/types').MovementAssessmentResult;
+  }
+>();
+
 export function clearCustomLLMCache(callId: string): void {
   streamingCallIds.delete(callId);
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
   previousUNAMode.delete(callId);
+  lastSemanticAssessment.delete(callId);
   clearFooterState(callId);
 }
 
@@ -289,7 +300,17 @@ if (userId && userId !== 'unknown') {
       const clientMetaInstruction = metaInstructionPresent === true;
 
       if (!isUltraShortUtterance) {
-        sensingLayer.processUtterance(turnInput).catch(err =>
+        sensingLayer.processUtterance(turnInput).then(fullResult => {
+          if (
+            fullResult.register.assessmentSource === 'semantic' &&
+            fullResult.movement.assessmentSource === 'semantic'
+          ) {
+            lastSemanticAssessment.set(callId, {
+              register: fullResult.register,
+              movement: fullResult.movement,
+            });
+          }
+        }).catch(err =>
           console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
         );
       } else {
@@ -307,17 +328,27 @@ if (userId && userId !== 'unknown') {
         fastResult.resonance,
         originAdjacentPresent
       );
+      // Use confirmed semantic assessment from previous turn if available;
+      // otherwise fall back to current turn's fast-path heuristic.
+      const confirmedAssessment = lastSemanticAssessment.get(callId);
+      const unaRegister = confirmedAssessment
+        ? confirmedAssessment.register
+        : fastResult.register;
+      const unaMovement = confirmedAssessment
+        ? confirmedAssessment.movement
+        : fastResult.movement;
+
       const orchestrationDecision = decideUNAOrchestration({
         guidance: fastResult.guidance,
-        register: fastResult.register,
-        movement: fastResult.movement,
+        register: unaRegister,
+        movement: unaMovement,
         stateVector: fastResult.stateVector,
         resonance: fastResult.resonance ?? null,
         silence: liveSilenceSignal,
         clientMetaInstruction,
         previousMode: previousUNAMode.get(callId) ?? null,
-        registerSource: fastResult.register.assessmentSource,
-        movementSource: fastResult.movement.assessmentSource,
+        registerSource: unaRegister.assessmentSource,
+        movementSource: unaMovement.assessmentSource,
       });
       previousUNAMode.set(callId, orchestrationDecision.mode);
       silenceSpeakerMode = orchestrationDecision.speakerMode;
