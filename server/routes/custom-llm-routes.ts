@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import OpenAI from 'openai';
-import { sensingLayer, getCachedProfile, fetchLastSessionSummary, getSessionState } from '../services/sensing-layer/index';
+import { sensingLayer, getCachedProfile, fetchLastSessionSummary } from '../services/sensing-layer/index';
 import {
   assembleSystemPrompt,
   assembleProfileBlock,
@@ -288,28 +288,6 @@ if (userId && userId !== 'unknown') {
         callId,
         fastResult.resonance
       );
-      const sessionState = getSessionState(callId);
-      const metaInstructionKeywords = [
-        'literal', 'literally',
-        'reject interpretation',
-        'resist interpretation',
-        'factual accuracy',
-        'stick to facts',
-        'hidden meaning',
-        'no interpretation',
-        'no meaning',
-        'reject alteration',
-        'record of events',
-      ];
-      const metaInstructionPatterns =
-        sessionState?.patternsThisSession?.filter(p =>
-          metaInstructionKeywords.some(kw =>
-            p.toLowerCase().includes(kw)
-          )
-        ) ?? [];
-      const clientMetaInstruction =
-        metaInstructionPatterns.length >= 2;
-
       const orchestrationDecision = decideUNAOrchestration({
         guidance: fastResult.guidance,
         register: fastResult.register,
