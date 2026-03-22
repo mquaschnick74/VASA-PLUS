@@ -136,7 +136,7 @@ function extractUniquePCASections(fullContext: string, safetyLevel?: string): st
   }
 
   // 4. THERAPEUTIC APPROACH - The most unique and valuable section
-  const approachMatch = fullContext.match(/## YOUR THERAPEUTIC APPROACH[\s\S]*?(?=\n===|$)/i);
+  const approachMatch = fullContext.match(/## YOUR\s+THERAPEUTIC\s+APPROACH\s+THIS\s+SESSION[\s\S]*?(?=\n===|$)/i);
   if (approachMatch) {
     extracted += approachMatch[0].trim() + '\n';
   }
