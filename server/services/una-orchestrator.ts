@@ -67,18 +67,22 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
   const responseInitiation: OrchestrationDecision['responseInitiation'] = silenceActive ? 'gentle' : 'normal';
   const turnType: OrchestrationDecision['turnType'] = silencePresent ? 'silence_reengagement' : 'normal';
 
-  // Frame-hold: client is issuing repeated
-  // meta-instructions about how the work
-  // should proceed — e.g. "don't interpret",
-  // "just facts", "no meaning".
-  // Two or more matching pattern-layer
-  // signals required.
-  // Imaginary register + high stuckness.
-  // Hold analytical position without
-  // compliance or confrontation.
+// Frame-hold condition.
+  // The client is presenting material while
+  // simultaneously foreclosing interpretive
+  // engagement with it. This is a structural
+  // situation detected semantically by a
+  // dedicated Haiku call on the fast path —
+  // not a behavioral pattern requiring
+  // accumulation across turns.
+  // The meta-instruction is itself the clinical
+  // material. It must not be honored as a
+  // directive about how the work proceeds.
+  // Stuckness threshold is not applied here:
+  // the semantic flag is sufficient on its own
+  // when register is Imaginary.
   if (
     input.clientMetaInstruction === true &&
-    stuckness >= 0.6 &&
     input.register.currentRegister === 'Imaginary'
   ) {
     return {

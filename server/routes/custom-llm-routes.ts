@@ -12,6 +12,7 @@ import {
 import { getPCAContextForAgent } from '../services/memory-service';
 import { formatObservationalSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { decideUNAOrchestration } from '../services/una-orchestrator';
+import { detectMetaInstruction } from '../services/sensing-layer/meta-instruction-detector';
 
 const router = Router();
 
@@ -252,9 +253,22 @@ if (userId && userId !== 'unknown') {
         conversationHistory,
       };
 
-      const fastResult = await sensingLayer.processFastUtterance(turnInput, {
-        skipResonance: isUltraShortUtterance
-      });
+      const metaInstructionTimeout = new Promise<boolean>(
+        (resolve) => setTimeout(() => resolve(false), 500)
+      );
+      const [fastResult, metaInstructionPresent] =
+        await Promise.all([
+          sensingLayer.processFastUtterance(
+            turnInput,
+            { skipResonance: isUltraShortUtterance }
+          ),
+          Promise.race([
+            detectMetaInstruction(currentUtterance),
+            metaInstructionTimeout,
+          ]),
+        ]);
+
+      const clientMetaInstruction = metaInstructionPresent === true;
 
       if (!isUltraShortUtterance) {
         sensingLayer.processUtterance(turnInput).catch(err =>
@@ -357,6 +371,34 @@ if (userId && userId !== 'unknown') {
                 'stay exactly as it is."',
               'Remain present. Remain differentiated. ' +
                 'One sentence is sufficient.',
+            ]
+          : []),
+        ...(orchestrationDecision.mode === 'hold_frame'
+          ? [
+              'FRAME HOLD — clinical posture:',
+              'The client is presenting material while ' +
+                'simultaneously declaring that it should ' +
+                'not be interpreted or given meaning. ' +
+                'This is the presenting structure — it ' +
+                'is not a contract to honor.',
+              'Do not accept the client\'s framing of ' +
+                'the work. Do not use the client\'s ' +
+                'language to describe what you are doing: ' +
+                'phrases like "a clean record", "just ' +
+                'the observation", "exactly as you ' +
+                'reported it" mirror the defense and ' +
+                'exit the analytical function.',
+              'Hold the differentiated position. ' +
+                'Acknowledge what the client is saying ' +
+                'without agreeing to the terms they are ' +
+                'setting for the work.',
+              'If the foreclosure has repeated across ' +
+                'turns, the repetition itself is ' +
+                'observable and nameable without ' +
+                'interpretation: "You\'ve come back to ' +
+                'that several times — the need for it ' +
+                'to stay exactly as it is."',
+              'Remain present. One sentence is enough.',
             ]
           : []),
       ].join('\n');
