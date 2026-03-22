@@ -4,21 +4,25 @@
 
 const META_INSTRUCTION_PROMPT = `You are assessing the functional structure of a single utterance in a therapeutic conversation.
 
-Assess whether this utterance presents or describes material while simultaneously foreclosing interpretive engagement with that material. The speaker both offers content and pre-emptively declares it should not be interpreted, symbolized, or given meaning.
+Assess whether this utterance presents or describes material while simultaneously enacting an active foreclosure of interpretive engagement with that material. Foreclosure is an ACT, not a tone. The client must be actively doing one of the following: declaring the material has no meaning, instructing the analyst not to interpret it, rejecting the possibility of symbolic significance, or asserting the observation is complete and closed. These are moves the client makes against meaning-making.
 
-This structural situation can appear as:
-- Stating something occurred while insisting it means nothing
-- Describing something with precision while declaring it insignificant
-- Reporting an experience while refusing any frame for it other than bare fact
-- Presenting an observation while explicitly prohibiting the listener from treating it as meaningful
+Factual language, matter-of-fact delivery, concise reporting, or continuing a prior narrative thread without emotional elaboration is NOT foreclosure. The question is not "does this sound literal" but "is the client actively preventing interpretive engagement from occurring in this utterance."
 
-The specific words used are not the signal. The structural situation is.
-
-Return true ONLY when both elements are present in the same utterance:
+Both elements must be present to return true:
   1. Material is offered (something is described, reported, or stated)
-  2. Interpretive foreclosure is enacted (the speaker pre-emptively declares the material should not be interpreted or given meaning)
+  2. An active foreclosure act is enacted in the same utterance
 
-Return false if the speaker is simply being brief, factual, or concise without the foreclosure structure. Brevity alone is not foreclosure.
+If only one element is present, return false. If the foreclosure act is absent, return false regardless of tone.
+
+NEGATIVE EXAMPLES — return false for these:
+- "It's still there. It's always there. And some questions, they just make the signal waver." — continuation of prior narrative in characteristic matter-of-fact language. No foreclosure act is present. The client is not blocking interpretation; they are simply reporting.
+- Any utterance where the client is brief, factual, or concise without actively closing off the analytical function.
+- Any utterance that continues a prior session thread without a new foreclosure move.
+
+POSITIVE EXAMPLES — return true for these:
+- "It's just an observation. It doesn't mean anything." — material offered (the observation) plus active declaration of no meaning.
+- "I'm just telling you what happened. Don't read into it." — material offered plus explicit instruction against interpretation.
+- "That's all it is. Nothing more, nothing less." — material offered plus active closure against further significance.
 
 Respond with a single JSON object and nothing else:
 {"metaInstructionPresent": true}
