@@ -130,25 +130,54 @@ export class PCAMasterAnalystService {
   }
 
   /**
-   * Check if user has recent analysis (within 24 hours)
+   * Check if the most recent analysis is still current.
+   * Returns the cached analysis row if no new substantive session
+   * has completed since it was produced; null otherwise.
    */
   private async checkRecentAnalysis(userId: string): Promise<any | null> {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    const { data, error } = await supabase
+    const { data: analysisRows, error: analysisError } = await supabase
       .from('pca_master_analysis')
       .select('*')
       .eq('user_id', userId)
-      .gte('created_at', oneDayAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(1);
 
-    if (error) {
-      console.error('Error checking recent analysis:', error);
+    if (analysisError) {
+      console.error('Error checking recent analysis:', analysisError);
       return null;
     }
 
-    return data && data.length > 0 ? data[0] : null;
+    if (!analysisRows || analysisRows.length === 0) {
+      return null;
+    }
+
+    const lastAnalysis = analysisRows[0];
+
+    const { data: summaryRows, error: summaryError } = await supabase
+      .from('therapeutic_context')
+      .select('created_at')
+      .eq('user_id', userId)
+      .eq('context_type', 'call_summary')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (summaryError) {
+      console.error('Error checking recent call_summary:', summaryError);
+      return null;
+    }
+
+    if (!summaryRows || summaryRows.length === 0) {
+      return lastAnalysis;
+    }
+
+    const summaryTime = new Date(summaryRows[0].created_at).getTime();
+    const analysisTime = new Date(lastAnalysis.created_at).getTime();
+
+    if (summaryTime > analysisTime) {
+      return null;
+    }
+
+    return lastAnalysis;
   }
 
   /**
@@ -536,22 +565,44 @@ export class PCAMasterAnalystService {
 // No singleton export to avoid module-load-time initialization issues with Replit Secrets
 
 
-async function hasRecentPCAMasterAnalysis(userId: string, withinHours: number = 24): Promise<boolean> {
-  const since = new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
+async function hasRecentPCAMasterAnalysis(userId: string): Promise<boolean> {
+  const { data: analysisRows, error: analysisError } = await supabase
     .from('pca_master_analysis')
-    .select('analysis_id, created_at')
+    .select('created_at')
     .eq('user_id', userId)
-    .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(1);
 
-  if (error) {
-    console.warn(`[PCA MASTER TRIGGER] user=${userId} recent-analysis-check failed: ${error.message}`);
+  if (analysisError) {
+    console.warn(`[PCA MASTER TRIGGER] user=${userId} recent-analysis-check failed: ${analysisError.message}`);
     return false;
   }
 
-  return Array.isArray(data) && data.length > 0;
+  if (!analysisRows || analysisRows.length === 0) {
+    return false;
+  }
+
+  const { data: summaryRows, error: summaryError } = await supabase
+    .from('therapeutic_context')
+    .select('created_at')
+    .eq('user_id', userId)
+    .eq('context_type', 'call_summary')
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (summaryError) {
+    console.warn(`[PCA MASTER TRIGGER] user=${userId} call-summary-check failed: ${summaryError.message}`);
+    return false;
+  }
+
+  if (!summaryRows || summaryRows.length === 0) {
+    return true;
+  }
+
+  const summaryTime = new Date(summaryRows[0].created_at).getTime();
+  const analysisTime = new Date(analysisRows[0].created_at).getTime();
+
+  return summaryTime <= analysisTime;
 }
 
 export async function triggerPCAMasterAnalysisFromFinalize(summary: SessionSummary, sessionCount: number = 3): Promise<void> {
