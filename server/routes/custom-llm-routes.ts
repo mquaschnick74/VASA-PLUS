@@ -182,6 +182,23 @@ if (userId && userId !== 'unknown') {
     modifiedMessages.splice(i, 1);
   }
 
+  // Discard stale silence signal when
+  // the user has spoken substantively.
+  // Silence messages are injected into
+  // VAPI's conversation history and
+  // persist in modifiedMessages on
+  // subsequent turns. A current utterance
+  // longer than 30 chars means the user
+  // has already responded — the signal
+  // is no longer live.
+  if (
+    liveSilenceSignal &&
+    currentUtterance &&
+    currentUtterance.length > 30
+  ) {
+    liveSilenceSignal = null;
+  }
+
   const systemMessageIdx = modifiedMessages.findIndex((m: any) => m.role === 'system');
   if (systemMessageIdx !== -1) {
     modifiedMessages[systemMessageIdx].content = fullSystemPrompt;
