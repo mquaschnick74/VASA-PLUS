@@ -12,6 +12,7 @@ import {
 import { getPCAContextForAgent } from '../services/memory-service';
 import { formatObservationalSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { decideUNAOrchestration } from '../services/una-orchestrator';
+import { detectMetaInstruction } from '../services/sensing-layer/meta-instruction-detector';
 
 const router = Router();
 
@@ -49,7 +50,7 @@ type LiveSilenceSignal = {
   repeatedExtendedPause: boolean;
 };
 
-type SpeakerMode = 'mathew' | 'una' | 'supportive' | 'clarifying';
+type SpeakerMode = 'mathew' | 'una' | 'supportive' | 'clarifying' | 'marcus';
 
 function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSilenceSignal | null): string {
   const firstSilenceEvent = (silenceSignal?.eventCount ?? 0) <= 1;
@@ -59,6 +60,7 @@ function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSil
       clarifying: "I'm here with you. What's happening right now?",
       una: "I'm right here with you. We can stay with this moment.",
       mathew: "I'm here. Take a breath—what's here right now?",
+      marcus: "I'm here. Take a breath—what's here right now?",
     };
     return firstEventByMode[speakerMode];
   }
@@ -68,6 +70,7 @@ function getSilenceFallbackText(speakerMode: SpeakerMode, silenceSignal: LiveSil
     clarifying: "I'm here.",
     una: "I'm here. Take a moment.",
     mathew: "I'm here.",
+    marcus: "I'm here.",
   };
   return repeatedEventByMode[speakerMode];
 }
@@ -229,9 +232,22 @@ if (userId && userId !== 'unknown') {
         conversationHistory,
       };
 
-      const fastResult = await sensingLayer.processFastUtterance(turnInput, {
-        skipResonance: isUltraShortUtterance
-      });
+      const metaInstructionTimeout = new Promise<boolean>(
+        (resolve) => setTimeout(() => resolve(false), 500)
+      );
+      const [fastResult, metaInstructionPresent] =
+        await Promise.all([
+          sensingLayer.processFastUtterance(
+            turnInput,
+            { skipResonance: isUltraShortUtterance }
+          ),
+          Promise.race([
+            detectMetaInstruction(currentUtterance),
+            metaInstructionTimeout,
+          ]),
+        ]);
+
+      const clientMetaInstruction = metaInstructionPresent === true;
 
       if (!isUltraShortUtterance) {
         sensingLayer.processUtterance(turnInput).catch(err =>
@@ -258,6 +274,7 @@ if (userId && userId !== 'unknown') {
         stateVector: fastResult.stateVector,
         resonance: fastResult.resonance ?? null,
         silence: liveSilenceSignal,
+        clientMetaInstruction,
       });
       silenceSpeakerMode = orchestrationDecision.speakerMode;
 
@@ -275,6 +292,34 @@ if (userId && userId !== 'unknown') {
         `Turn type: ${orchestrationDecision.turnType === 'silence_reengagement' ? 'silence re-engagement' : 'normal'}`,
         ...(orchestrationDecision.turnType === 'silence_reengagement'
           ? ['Response goal: brief check-back, not content continuation']
+          : []),
+        ...(orchestrationDecision.mode === 'hold_frame'
+          ? [
+              'FRAME HOLD — clinical posture:',
+              'The client is presenting material while ' +
+                'simultaneously declaring that it should ' +
+                'not be interpreted or given meaning. ' +
+                'This is the presenting structure — it ' +
+                'is not a contract to honor.',
+              'Do not accept the client\'s framing of ' +
+                'the work. Do not use the client\'s ' +
+                'language to describe what you are doing: ' +
+                'phrases like "a clean record", "just ' +
+                'the observation", "exactly as you ' +
+                'reported it" mirror the defense and ' +
+                'exit the analytical function.',
+              'Hold the differentiated position. ' +
+                'Acknowledge what the client is saying ' +
+                'without agreeing to the terms they are ' +
+                'setting for the work.',
+              'If the foreclosure has repeated across ' +
+                'turns, the repetition itself is ' +
+                'observable and nameable without ' +
+                'interpretation: "You\'ve come back to ' +
+                'that several times — the need for it ' +
+                'to stay exactly as it is."',
+              'Remain present. One sentence is enough.',
+            ]
           : []),
       ].join('\n');
 

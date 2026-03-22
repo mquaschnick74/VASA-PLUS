@@ -3,14 +3,14 @@ import type { TherapeuticStateVector } from './sensing-layer/state-vector';
 import type { ResonanceResult } from './sensing-layer/narrative-web';
 
 export interface OrchestrationDecision {
-  mode: 'observe' | 'clarify' | 'deepen' | 'support' | 'stabilize';
+  mode: 'observe' | 'clarify' | 'deepen' | 'support' | 'stabilize' | 'hold_frame';
   depth: 'surface' | 'moderate' | 'deep';
   narrativeFocus: 'none' | 'light' | 'active';
-  hypothesisHandling: 'implicit' | 'cautious' | 'explicit';
+  hypothesisHandling: 'implicit' | 'cautious' | 'explicit' | 'tracked';
   pacing: 'steady' | 'slowed';
   silenceFocus: 'none' | 'watch' | 'active';
   responseInitiation: 'normal' | 'gentle';
-  speakerMode: 'mathew' | 'una' | 'supportive' | 'clarifying';
+  speakerMode: 'mathew' | 'una' | 'supportive' | 'clarifying' | 'marcus';
   turnType: 'normal' | 'silence_reengagement';
   reason: string;
 }
@@ -29,6 +29,7 @@ interface UNAInput {
   stateVector: TherapeuticStateVector;
   resonance?: ResonanceResult | null;
   silence?: UNASilenceSignal | null;
+  clientMetaInstruction?: boolean;
 }
 
 export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
@@ -55,6 +56,38 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
   const silenceFocus: OrchestrationDecision['silenceFocus'] = silenceActive ? 'active' : silenceWatch ? 'watch' : 'none';
   const responseInitiation: OrchestrationDecision['responseInitiation'] = silenceActive ? 'gentle' : 'normal';
   const turnType: OrchestrationDecision['turnType'] = silencePresent ? 'silence_reengagement' : 'normal';
+
+  // Frame-hold condition.
+  // The client is presenting material while
+  // simultaneously foreclosing interpretive
+  // engagement with it. This is a structural
+  // situation detected semantically by a
+  // dedicated Haiku call on the fast path —
+  // not a behavioral pattern requiring
+  // accumulation across turns.
+  // The meta-instruction is itself the clinical
+  // material. It must not be honored as a
+  // directive about how the work proceeds.
+  // Stuckness threshold is not applied here:
+  // the semantic flag is sufficient on its own
+  // when register is Imaginary.
+  if (
+    input.clientMetaInstruction === true &&
+    input.register.currentRegister === 'Imaginary'
+  ) {
+    return {
+      mode: 'hold_frame',
+      depth: 'moderate',
+      narrativeFocus: 'none',
+      hypothesisHandling: 'tracked',
+      pacing: 'steady',
+      silenceFocus: silenceFocus,
+      responseInitiation: responseInitiation,
+      speakerMode: 'marcus',
+      turnType: turnType,
+      reason: 'client_meta_instruction_frame_hold',
+    };
+  }
 
   if (flooding >= 0.65 || input.guidance.urgency === 'immediate') {
     return {
