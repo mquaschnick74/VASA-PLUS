@@ -11,7 +11,6 @@ import {
 } from '../prompts/pca-core';
 import { getPCAContextForAgent } from '../services/memory-service';
 import { formatObservationalSessionPicture } from '../services/sensing-layer/guidance-injector';
-import { decideUNAOrchestration } from '../services/una-orchestrator';
 import { detectMetaInstruction } from '../services/sensing-layer/meta-instruction-detector';
 import { detectOriginAdjacency } from '../services/sensing-layer/origin-adjacency-detector';
 
@@ -30,25 +29,10 @@ const initializedCalls = new Set<string>();
 // Reserved for future per-request gating of post-intervention state
 const postInterventionActive = new Map<string, boolean>();
 
-// Track previous UNA mode per callId so hold_frame can sustain through silence
-const previousUNAMode = new Map<string, string>();
-
-// Confirmed semantic assessment from the previous turn — one turn of lag
-// with confirmed data is superior to never having confirmed data reach UNA.
-const lastSemanticAssessment = new Map<
-  string,
-  {
-    register: import('../services/sensing-layer/types').RegisterAnalysisResult;
-    movement: import('../services/sensing-layer/types').MovementAssessmentResult;
-  }
->();
-
 export function clearCustomLLMCache(callId: string): void {
   streamingCallIds.delete(callId);
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
-  previousUNAMode.delete(callId);
-  lastSemanticAssessment.delete(callId);
   clearFooterState(callId);
 }
 
@@ -300,19 +284,10 @@ if (userId && userId !== 'unknown') {
       const clientMetaInstruction = metaInstructionPresent === true;
 
       if (!isUltraShortUtterance) {
-        sensingLayer.processUtterance(turnInput).then(fullResult => {
-          if (
-            fullResult.register.assessmentSource === 'semantic' &&
-            fullResult.movement.assessmentSource === 'semantic'
-          ) {
-            lastSemanticAssessment.set(callId, {
-              register: fullResult.register,
-              movement: fullResult.movement,
-            });
-          }
-        }).catch(err =>
-          console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
-        );
+        sensingLayer.processUtterance(turnInput)
+          .catch(err =>
+            console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
+          );
       } else {
         console.log(`🔵 [CUSTOM-LLM] Ultra-short fast path: skipped background sensing for call=${callId} turn=${numUserTurns}`);
       }
@@ -328,127 +303,14 @@ if (userId && userId !== 'unknown') {
         fastResult.resonance,
         originAdjacentPresent
       );
-      // Use confirmed semantic assessment from previous turn if available;
-      // otherwise fall back to current turn's fast-path heuristic.
-      const confirmedAssessment = lastSemanticAssessment.get(callId);
-      const unaRegister = confirmedAssessment
-        ? confirmedAssessment.register
-        : fastResult.register;
-      const unaMovement = confirmedAssessment
-        ? confirmedAssessment.movement
-        : fastResult.movement;
-
-      const orchestrationDecision = decideUNAOrchestration({
-        guidance: fastResult.guidance,
-        register: unaRegister,
-        movement: unaMovement,
-        stateVector: fastResult.stateVector,
-        resonance: fastResult.resonance ?? null,
-        silence: liveSilenceSignal,
-        clientMetaInstruction,
-        previousMode: previousUNAMode.get(callId) ?? null,
-        registerSource: unaRegister.assessmentSource,
-        movementSource: unaMovement.assessmentSource,
-      });
-      previousUNAMode.set(callId, orchestrationDecision.mode);
-      silenceSpeakerMode = orchestrationDecision.speakerMode;
-
-      // Silence state is interpreted through UNA; it is not injected as a separate policy message.
-      const unaOrchestrationBlock = [
-        '[UNA ORCHESTRATION]',
-        `Mode: ${orchestrationDecision.mode}`,
-        `Depth: ${orchestrationDecision.depth}`,
-        `Narrative focus: ${orchestrationDecision.narrativeFocus}`,
-        `Hypothesis handling: ${orchestrationDecision.hypothesisHandling}`,
-        `Pacing: ${orchestrationDecision.pacing}`,
-        `Silence focus: ${orchestrationDecision.silenceFocus}`,
-        `Response initiation: ${orchestrationDecision.responseInitiation}`,
-        `Speaker mode: ${orchestrationDecision.speakerMode}`,
-        `Turn type: ${orchestrationDecision.turnType === 'silence_reengagement' ? 'silence re-engagement' : 'normal'}`,
-        ...(orchestrationDecision.turnType === 'silence_reengagement'
-          ? [
-              'Response goal: one sentence only.',
-              `The client last said: "${currentUtterance.slice(0, 120)}"`,
-              'Respond directly to that content. ' +
-              'Do not issue a generic check-in. ' +
-              'Do not ask if they are still there.',
-            ]
-          : []),
-        ...(orchestrationDecision.mode === 'hold_frame'
-          ? [
-              'FRAME HOLD — clinical posture:',
-              'The client is issuing a repeated ' +
-                'instruction about how the work ' +
-                'should proceed. This instruction ' +
-                'is itself what is present in the ' +
-                'session — it is not a contract ' +
-                'to honor.',
-              'Hold the analytical position. ' +
-                'Acknowledge what the client is ' +
-                'saying without accepting their ' +
-                'framing of the work.',
-              'Do not mirror the client\'s language. ' +
-                'Do not use phrases like "a clean ' +
-                'record", "just the observation", ' +
-                'or "exactly as you reported it". ' +
-                'These phrases accept the meta-' +
-                'instruction and exit the analytical ' +
-                'function.',
-              'If the instruction has repeated across ' +
-                'turns, the repetition itself is ' +
-                'available as observable material — ' +
-                'name it without interpreting it: ' +
-                '"You\'ve come back to that several ' +
-                'times — the need for the record to ' +
-                'stay exactly as it is."',
-              'Remain present. Remain differentiated. ' +
-                'One sentence is sufficient.',
-            ]
-          : []),
-        ...(orchestrationDecision.mode === 'hold_frame'
-          ? [
-              'FRAME HOLD — clinical posture:',
-              'The client is presenting material while ' +
-                'simultaneously declaring that it should ' +
-                'not be interpreted or given meaning. ' +
-                'This is the presenting structure — it ' +
-                'is not a contract to honor.',
-              'Do not accept the client\'s framing of ' +
-                'the work. Do not use the client\'s ' +
-                'language to describe what you are doing: ' +
-                'phrases like "a clean record", "just ' +
-                'the observation", "exactly as you ' +
-                'reported it" mirror the defense and ' +
-                'exit the analytical function.',
-              'Hold the differentiated position. ' +
-                'Acknowledge what the client is saying ' +
-                'without agreeing to the terms they are ' +
-                'setting for the work.',
-              'If the foreclosure has repeated across ' +
-                'turns, the repetition itself is ' +
-                'observable and nameable without ' +
-                'interpretation: "You\'ve come back to ' +
-                'that several times — the need for it ' +
-                'to stay exactly as it is."',
-              'Remain present. One sentence is enough.',
-            ]
-          : []),
-      ].join('\n');
-
       let lastUserIdx = -1;
       for (let i = modifiedMessages.length - 1; i >= 0; i--) {
         if (modifiedMessages[i].role === 'user') { lastUserIdx = i; break; }
       }
       if (lastUserIdx !== -1) {
-        // UNA selects response mode/persona here, while runtime remains a single speaking pipeline.
         modifiedMessages.splice(lastUserIdx, 0, { role: 'system', content: guidanceMessage });
-        modifiedMessages.splice(lastUserIdx + 1, 0, { role: 'system', content: unaOrchestrationBlock });
       }
       console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${fastResult.register.currentRegister} movement=${fastResult.movement.trajectory}`);
-      console.log(
-        `[UNA] mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrativeFocus=${orchestrationDecision.narrativeFocus} hypothesisHandling=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} silenceFocus=${orchestrationDecision.silenceFocus} responseInitiation=${orchestrationDecision.responseInitiation} speakerMode=${orchestrationDecision.speakerMode} turnType=${orchestrationDecision.turnType}`
-      );
-      console.log(`🔵 [CUSTOM-LLM] UNA orchestration: call=${callId} mode=${orchestrationDecision.mode} depth=${orchestrationDecision.depth} narrative=${orchestrationDecision.narrativeFocus} hypothesis=${orchestrationDecision.hypothesisHandling} pacing=${orchestrationDecision.pacing} reason=${orchestrationDecision.reason}`);
     } catch (err) {
       console.error(`🔵 [CUSTOM-LLM] Fast guidance error (non-fatal):`, err);
     }
