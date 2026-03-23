@@ -78,7 +78,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     icon: '👱🏽‍♀️',
     image: '/agents/sarah.jpg',
     color: 'rose',
-    model: { temperature: 0.7, model: 'gpt-5.2' },
+    model: { temperature: 0.7, model: 'gpt-5.4-mini' },
     voice: {
       provider: '11labs',
       voiceId: 'Tfv2PGiTliSQ4XSXrJmA',
@@ -103,7 +103,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     icon: '👨🏾‍🦳',
     image: '/agents/marcus.png',
     color: 'orange',
-    model: { temperature: 0.8, model: 'gpt-5.2' },
+    model: { temperature: 0.8, model: 'gpt-5.4-mini' },
     voice: {
       provider: '11labs',
       voiceId: 'pNInz6obpgDQGcFmaJgB',
@@ -128,7 +128,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     icon: '👨🏻‍💼',
     image: '/agents/mathew.jpg',
     color: 'blue',
-    model: { temperature: 0.9, model: 'gpt-5.2' },
+    model: { temperature: 0.9, model: 'gpt-5.4-mini' },
     voice: {
       provider: '11labs',
       voiceId: '2hsbsDeRu57rsKFAC7uE',
@@ -153,7 +153,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
     icon: '🔮',
     image: '/agents/una.jpg',
     color: 'cyan',
-    model: { temperature: 0.9, model: 'gpt-5.2' },
+    model: { temperature: 0.9, model: 'gpt-5.4-mini' },
     voice: {
       provider: '11labs',
       voiceId: 'wJqPPQ618aTW29mptyoc',
