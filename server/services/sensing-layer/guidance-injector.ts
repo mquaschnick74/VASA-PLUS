@@ -226,12 +226,6 @@ export function formatSessionPicture(
   const sessionState = getSessionState(callId);
   const accumulatedPatterns = sessionState?.patternsThisSession ?? [];
 
-  // Surface structural flags
-  const psychoticFlags = ['hallucination', 'psychotic', 'dissociative', 'voices', 'reality'];
-  const structuralFlag = accumulatedPatterns.some(p =>
-    psychoticFlags.some(flag => p.toLowerCase().includes(flag))
-  ) ? 'Symbolic impairment signals present — stabilization priority' : null;
-
   const patternSummary = accumulatedPatterns.length > 0
     ? accumulatedPatterns.slice(-3).join('; ')
     : 'none accumulated yet';
@@ -291,10 +285,6 @@ export function formatSessionPicture(
     ...(postureDirective ? [postureDirective] : []),
   ];
 
-  if (structuralFlag) {
-    lines.splice(1, 0, `⚠️ STRUCTURAL: ${structuralFlag}`);
-  }
-
   console.log(`📋 [SESSION PICTURE]\n${lines.join('\n')}`);
   return lines.join('\n');
 }
@@ -311,7 +301,8 @@ export function formatObservationalSessionPicture(
   exchangeCount: number,
   callId: string,
   resonance?: ResonanceResult | null,
-  originAdjacentPresent: boolean = false
+  originAdjacentPresent: boolean = false,
+  psychoticTier: 0 | 1 | 2 | 3 = 0
 ): string {
   const cssStageLabels: Record<string, string> = {
     pointed_origin: 'Pointed Origin',
@@ -337,10 +328,10 @@ export function formatObservationalSessionPicture(
   const sessionState = getSessionState(callId);
   const accumulatedPatterns = sessionState?.patternsThisSession ?? [];
 
-  const psychoticFlags = ['hallucination', 'psychotic', 'dissociative', 'voices', 'reality'];
-  const structuralFlag = accumulatedPatterns.some(p =>
-    psychoticFlags.some(flag => p.toLowerCase().includes(flag))
-  ) ? 'Symbolic impairment signals present' : null;
+  const structuralWarning =
+    (psychoticTier ?? 0) >= 2
+      ? `⚠️ STRUCTURAL: Tier ${psychoticTier} — paranoid escalation signals present`
+      : null;
 
   const patternSummary = accumulatedPatterns.length > 0
     ? accumulatedPatterns.slice(-3).join('; ')
@@ -348,6 +339,9 @@ export function formatObservationalSessionPicture(
 
   const lines = [
     `[SESSION PICTURE — Exchange ${exchangeCount}]`,
+    ...(structuralWarning
+      ? [structuralWarning]
+      : []),
     `Register: ${register.currentRegister} foregrounded. ${stuckLabel}.`,
     `Movement: ${movementLabel}.`,
     `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
@@ -388,10 +382,6 @@ export function formatObservationalSessionPicture(
     `Patterns: ${patternSummary}`,
     `Confidence signal: ${confidenceLabel}`,
   ];
-
-  if (structuralFlag) {
-    lines.splice(1, 0, `⚠️ STRUCTURAL: ${structuralFlag}`);
-  }
 
   console.log(`📋 [SESSION PICTURE OBSERVATIONAL]\n${lines.join('\n')}`);
   return lines.join('\n');

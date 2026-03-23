@@ -13,6 +13,8 @@ import { getPCAContextForAgent } from '../services/memory-service';
 import { formatObservationalSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { detectMetaInstruction } from '../services/sensing-layer/meta-instruction-detector';
 import { detectOriginAdjacency } from '../services/sensing-layer/origin-adjacency-detector';
+import { detectPsychoticStructure } from '../services/sensing-layer/psychotic-structure-detector';
+import { getSessionState } from '../services/sensing-layer/session-state';
 
 const router = Router();
 
@@ -270,7 +272,11 @@ if (userId && userId !== 'unknown') {
       const originAdjacencyTimeout = new Promise<boolean>(
         (resolve) => setTimeout(() => resolve(false), 700)
       );
-      const [fastResult, metaInstructionPresent, originAdjacentPresent] =
+      const sessionState = getSessionState(callId);
+      const psychoticTimeout = new Promise<{ tier: 0 | 1 | 2 | 3; agentInPersecution: boolean }>(
+        (resolve) => setTimeout(() => resolve({ tier: 0, agentInPersecution: false }), 700)
+      );
+      const [fastResult, metaInstructionPresent, originAdjacentPresent, psychoticResult] =
         await Promise.all([
           sensingLayer.processFastUtterance(
             turnInput,
@@ -283,6 +289,13 @@ if (userId && userId !== 'unknown') {
           Promise.race([
             detectOriginAdjacency(currentUtterance, conversationHistory),
             originAdjacencyTimeout,
+          ]),
+          Promise.race([
+            detectPsychoticStructure(
+              currentUtterance,
+              sessionState?.patternsThisSession ?? []
+            ),
+            psychoticTimeout,
           ]),
         ]);
 
@@ -306,7 +319,8 @@ if (userId && userId !== 'unknown') {
         numUserTurns,
         callId,
         fastResult.resonance,
-        originAdjacentPresent
+        originAdjacentPresent,
+        psychoticResult.tier
       );
       let lastUserIdx = -1;
       for (let i = modifiedMessages.length - 1; i >= 0; i--) {
@@ -316,6 +330,40 @@ if (userId && userId !== 'unknown') {
         modifiedMessages.splice(lastUserIdx, 0, { role: 'system', content: guidanceMessage });
       }
       console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${fastResult.register.currentRegister} movement=${fastResult.movement.trajectory}`);
+
+      // Clinical escalation: psychotic structure detection
+      if (psychoticResult.agentInPersecution || psychoticResult.tier >= 2) {
+        const tier = psychoticResult.tier;
+        const agentIn = psychoticResult.agentInPersecution;
+
+        if (tier >= 3 || agentIn) {
+          // Tier 3 or agent-in-persecution: hard stop, emergency referral
+          console.log(`⚠️ [PSYCH] Tier 3 / agent-in-persecution: call=${callId} tier=${tier} agentIn=${agentIn}`);
+          modifiedMessages.push({
+            role: 'system',
+            content:
+              '[CLINICAL ESCALATION — TIER 3]\n' +
+              'Stop the session immediately.\n' +
+              'Do not continue therapeutic work.\n' +
+              'Say exactly this, in your own voice:\n' +
+              'I need to stop us here. What\'s happening right now needs more support than this conversation can provide. Please call 911 or go to your nearest emergency room. You can also call or text 988 right now.\n' +
+              'Then stop. Do not add anything.',
+          });
+        } else {
+          // Tier 2: frame break, grounding attempt, crisis offering if continues
+          console.log(`⚠️ [PSYCH] Tier 2 escalation: call=${callId} tier=${tier}`);
+          modifiedMessages.push({
+            role: 'system',
+            content:
+              '[CLINICAL ESCALATION — TIER 2]\n' +
+              'Do not continue therapeutic work in this turn.\n' +
+              'Attempt one grounding move: name what you observe plainly and bring the client back to the immediate exchange. One sentence only.\n' +
+              'If the material continues to escalate in the next turn, the session must be suspended and crisis support offered: ' +
+              '"What you\'re describing right now is urgent. I want to make sure you have support that goes beyond what we can do here. You can call or text 988 right now."\n' +
+              'Do not attempt further analytical work this turn.',
+          });
+        }
+      }
     } catch (err) {
       console.error(`🔵 [CUSTOM-LLM] Fast guidance error (non-fatal):`, err);
     }
