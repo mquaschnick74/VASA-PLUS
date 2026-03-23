@@ -283,7 +283,7 @@ export class PCAMasterAnalystService {
     console.log('📝 Trimmed prompt length:', trimmedPrompt.length, 'characters');
 
     const requestBody = {
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
