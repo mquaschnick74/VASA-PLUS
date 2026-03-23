@@ -119,6 +119,25 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   const numAssistantTurns = messages.filter((m) => m.role === 'assistant').length;
   const cachedProfileBeforeInit = getCachedProfile(callId);
 
+  // Streaming lock gate — must run before any await to prevent duplicate LLM requests
+  if (streamingCallIds.has(callId)) {
+    console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId}`);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.write(
+      `data: ${JSON.stringify({
+        id: 'skip',
+        object: 'chat.completion.chunk',
+        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+      })}\n\n`
+    );
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return;
+  }
+  streamingCallIds.add(callId);
+
 console.log(`🔵 [CUSTOM-LLM] Request: call=${callId} user=${userId} agent=${agentId} firstName=${firstName} turns=${numUserTurns}/${numAssistantTurns}`);
 
 // Step 2: Startup ownership is webhook-owned; custom-llm must not duplicate init side effects
@@ -229,25 +248,6 @@ if (userId && userId !== 'unknown') {
   }
 
   console.log(`🔵 [CUSTOM-LLM] Prompt size: ${fullSystemPrompt.length} chars (~${Math.round(fullSystemPrompt.length / 4)} tokens)`);
-
-  // Step 4: Streaming lock gate
-  if (streamingCallIds.has(callId)) {
-    console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId}`);
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.write(
-      `data: ${JSON.stringify({
-        id: 'skip',
-        object: 'chat.completion.chunk',
-        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-      })}\n\n`
-    );
-    res.write('data: [DONE]\n\n');
-    res.end();
-    return;
-  }
-  streamingCallIds.add(callId);
 
   // Step 4a: Fast sensing cascade (same-turn, heuristic only)
   if (currentUtterance && numUserTurns > 0) {
