@@ -19,7 +19,9 @@ Tier definitions:
 
 agentInPersecution: true only when the client has made THIS specific therapeutic exchange, THIS agent, or THIS therapeutic relationship the object of the persecutory belief — treating this conversation, this agent, or this relationship as a threatening actor or as part of the surveillance or persecutory apparatus directed at them personally.
 
-Describing an external surveillance system TO the agent does not qualify. Using "you" as a generic referent while describing an external system does not qualify. The test is structural and relational: has the client folded THIS conversation or THIS agent into the threatening system, or treated THIS therapeutic exchange itself as a mechanism of surveillance, harm, or control aimed at them? Describing surveillance to the agent is not the same as describing the agent as the surveillance.`;
+Describing an external surveillance system TO the agent does not qualify. Using "you" as a generic referent while describing an external system does not qualify. The test is structural and relational: has the client folded THIS conversation or THIS agent into the threatening system, or treated THIS therapeutic exchange itself as a mechanism of surveillance, harm, or control aimed at them? Describing surveillance to the agent is not the same as describing the agent as the surveillance.
+
+A client asking what the agent thinks, expressing curiosity about the agent's perspective or interiority, or checking whether the agent is present — these are relational bids directed toward the agent, not persecution of the agent. They signal contact-seeking. They do not qualify regardless of what surrounds them in the utterance.`;
 
 interface PsychoticStructureResult {
   tier: 0 | 1 | 2 | 3;
