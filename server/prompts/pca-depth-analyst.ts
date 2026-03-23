@@ -110,8 +110,7 @@ Format it EXACTLY as follows, with no variation in delimiters:
 
 ## REGISTER DYNAMICS
 **Dominant register**: [Real / Imaginary / Symbolic]
-**Structural position**: [psychotic / obsessive-neurotic / hysteric-neurotic]
-[One paragraph: how the three registers are currently relating — which is foregrounded, which is suppressed, where movement is occurring or arrested]
+[One paragraph: describe behaviorally how the three registers are currently relating in this client's language — which is foregrounded, which is suppressed, what the dominant register is doing to the others, where movement is occurring or arrested. Do not use structural position labels (psychotic, obsessive-neurotic, hysteric-neurotic) in this section. Describe the register behavior directly from what the transcript shows.]
 
 ## ACCUMULATED PATTERNS
 [4-8 bullet points. Each bullet is one precise observational statement drawn directly from transcript evidence. No prescriptions. No interpretive excess. No recommendations.]
@@ -123,7 +122,7 @@ Format it EXACTLY as follows, with no variation in delimiters:
 
 DATABASE INTEGRATION VALUES
 current_css_stage: "[stage name in lowercase with underscore, e.g. pointed_origin]"
-register_dominance: "[structural position in lowercase, e.g. hysteric-neurotic]"
+register_dominance: "[dominant register in lowercase: real / imaginary / symbolic]"
 safety_assessment: "[clear / monitoring / elevated]"
 confidence: [0.0–1.0]
 `;
