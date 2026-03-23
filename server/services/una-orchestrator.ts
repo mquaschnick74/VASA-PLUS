@@ -31,9 +31,18 @@ interface UNAInput {
   silence?: UNASilenceSignal | null;
   clientMetaInstruction?: boolean;
   previousMode?: string | null;
+  registerSource?: 'fast' | 'semantic';
+  movementSource?: 'fast' | 'semantic';
 }
 
 export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
+  // Conservative mode on fast-path placeholder data. When register and
+  // movement assessments are unconfirmed, UNA defers to observe rather than
+  // making clinical routing decisions that depend on register identity.
+  const assessmentConfirmed =
+    input.registerSource === 'semantic' &&
+    input.movementSource === 'semantic';
+
   const flooding = input.movement.indicators.flooding;
   const stuckness = input.register.stucknessScore;
   const resistance = input.movement.indicators.resistance;
@@ -108,7 +117,8 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
   // when register is Imaginary.
   if (
     input.clientMetaInstruction === true &&
-    input.register.currentRegister === 'Imaginary'
+    input.register.currentRegister === 'Imaginary' &&
+    assessmentConfirmed
   ) {
     return {
       mode: 'hold_frame',
@@ -141,7 +151,7 @@ export function decideUNAOrchestration(input: UNAInput): OrchestrationDecision {
     };
   }
 
-  if (stuckness >= 0.7 && flooding < 0.45) {
+  if (stuckness >= 0.7 && flooding < 0.45 && assessmentConfirmed) {
     return {
       mode: input.register.currentRegister === 'Imaginary' ? 'clarify' : 'support',
       depth: 'surface',

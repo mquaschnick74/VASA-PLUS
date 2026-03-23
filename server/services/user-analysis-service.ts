@@ -7,7 +7,7 @@ import {
   INTENT_ANALYSIS_PROMPT,
   CONCEPT_INSIGHTS_PROMPT
 } from '../prompts/user-analysis-prompts';
-import { STREAMLINED_ANALYSIS_PROMPT } from '../prompts/master-pc-analyst';
+import { PCA_ANALYSIS_PROMPT } from '../prompts/pca-depth-analyst';
 
 // Types
 type AnalysisType = 'session_summary' | 'intent_analysis' | 'concept_insights' | 'pca_master';
@@ -319,7 +319,7 @@ ${t.text}
         basePrompt = CONCEPT_INSIGHTS_PROMPT;
         break;
       case 'pca_master':
-        basePrompt = STREAMLINED_ANALYSIS_PROMPT;
+        basePrompt = PCA_ANALYSIS_PROMPT;
         break;
       default:
         throw new Error(`Unknown analysis type: ${analysisType}`);
@@ -415,12 +415,13 @@ ${t.text}
   private async storePCATherapeuticContext(userId: string, fullResponse: string): Promise<void> {
     // Extract OUTPUT 2 (therapeutic context) from PCA response
     const contextMatch = fullResponse.match(
-      /===== THERAPEUTIC CONTEXT:[\s\S]*?===== END CONTEXT =====/
+      /={5} PCA FIELD PICTURE:[\s\S]*?={5} END FIELD PICTURE ={5}/
     );
     const therapeuticContext = contextMatch?.[0] || fullResponse.substring(0, 2000);
 
     // Extract CSS stage
-    const cssStageMatch = fullResponse.match(/CURRENT CSS STAGE:\s*([^\n]+)/i);
+    const cssStageMatch = fullResponse.match(/current_css_stage:\s*"([^"]+)"/i) ||
+      fullResponse.match(/## CSS STAGE:\s*([^\n]+)/i);
     const cssStage = cssStageMatch?.[1]?.trim().toLowerCase() || 'unknown';
 
     const { error } = await supabase.from('therapeutic_context').insert({

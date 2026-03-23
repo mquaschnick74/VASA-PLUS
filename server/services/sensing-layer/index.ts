@@ -6,6 +6,8 @@ import { detectPatterns, detectIBMWithLLM } from './pattern-detection';
 import { analyzeRegister } from './register-analysis';
 import { mapSymbolic } from './symbolic-mapping';
 import { assessMovement } from './movement-assessment';
+import { assessRegisterSemantic } from './semantic-register-assessment';
+import { assessMovementSemantic } from './semantic-movement-assessment';
 import { generateGuidance } from './guidance-generator';
 import {
   initializeSession,
@@ -124,13 +126,30 @@ export class SensingLayerService {
 
       // 3. Run sensing computations in parallel for speed
       const sensingStart = Date.now();
-      const [patterns, register, symbolic, movement, ibmDetection] = await Promise.all([
+      const [patterns, register, symbolic, movement, ibmDetection, semanticRegOverlay, semanticMovOverlay] = await Promise.all([
         detectPatterns(input, profile),
         analyzeRegister(input, profile),
         mapSymbolic(input, profile),
         assessMovement(input, profile),
-        detectIBMWithLLM(input)
+        detectIBMWithLLM(input),
+        assessRegisterSemantic(input.utterance, input.conversationHistory),
+        assessMovementSemantic(input.utterance, input.conversationHistory)
       ]);
+
+      // Merge semantic overlays — upgrade fast-path placeholder with confirmed assessment
+      if (semanticRegOverlay) {
+        register.currentRegister = semanticRegOverlay.currentRegister;
+        register.registerDistribution = semanticRegOverlay.registerDistribution;
+        register.assessmentSource = 'semantic';
+        register.structuralDescription = semanticRegOverlay.structuralDescription;
+      }
+      if (semanticMovOverlay) {
+        movement.indicators = semanticMovOverlay.indicators;
+        movement.trajectory = semanticMovOverlay.trajectory;
+        movement.assessmentSource = 'semantic';
+        movement.structuralDescription = semanticMovOverlay.structuralDescription;
+      }
+
       // ─── IBM Cross-Turn Evaluation ──────────────────────────────────────
       const ibmSignalStrength = computeIBMSignalStrength(
         movement.indicators.resistance,
@@ -346,7 +365,8 @@ export class SensingLayerService {
         currentRegister: 'Imaginary', sessionDominance: 'Imaginary',
         registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 },
         stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static',
-        indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] }
+        indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] },
+        assessmentSource: 'fast' as const, structuralDescription: null
       };
       const fallbackMovement: MovementAssessmentResult = {
         trajectory: 'holding',
@@ -362,7 +382,8 @@ export class SensingLayerService {
           timing: { phase: 'early_elaboration', waitReasons: [], readyIndicators: [], estimatedTurnsToReady: 5 },
           patience: { shouldWait: true, waitingFor: '', riskOfPrematureIntervention: '' }
         },
-        cssSignals: []
+        cssSignals: [],
+        assessmentSource: 'fast' as const, structuralDescription: null
       };
       const fallbackStateVector: TherapeuticStateVector = {
         raw: {
@@ -435,14 +456,16 @@ export class SensingLayerService {
           timing: { phase: 'early_elaboration', waitReasons: [], readyIndicators: [], estimatedTurnsToReady: 5 },
           patience: { shouldWait: true, waitingFor: '', riskOfPrematureIntervention: '' }
         },
-        cssSignals: []
+        cssSignals: [],
+        assessmentSource: 'fast' as const, structuralDescription: null
       };
 
       const cacheMissFallbackRegister: RegisterAnalysisResult = {
         currentRegister: 'Imaginary', sessionDominance: 'Imaginary',
         registerDistribution: { Real: 0.2, Imaginary: 0.6, Symbolic: 0.2 },
         stucknessScore: 0.3, fluidityScore: 0.3, registerMovement: 'static',
-        indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] }
+        indicators: { realIndicators: [], imaginaryIndicators: [], symbolicIndicators: [] },
+        assessmentSource: 'fast' as const, structuralDescription: null
       };
 
       return {

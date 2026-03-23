@@ -3,7 +3,7 @@
 // Using fetch instead of @anthropic-ai/sdk to avoid module resolution issues
 // fetch is built into Node.js - no dependencies needed!
 import { supabase } from './supabase-service';
-import { STREAMLINED_ANALYSIS_PROMPT } from '../prompts/master-pc-analyst.js';
+import { PCA_ANALYSIS_PROMPT } from '../prompts/pca-depth-analyst.js';
 import type { SessionSummary } from './sensing-layer/session-state';
 import { shouldRunPCAMasterAnalysis } from './pca-master-trigger';
 
@@ -82,7 +82,7 @@ export class PCAMasterAnalystService {
         .join('\n---NEXT SESSION---\n');
 
       // Build the prompt by replacing placeholder
-      const prompt = STREAMLINED_ANALYSIS_PROMPT.replace(
+      const prompt = PCA_ANALYSIS_PROMPT.replace(
         '[TRANSCRIPTS GO HERE]',
         formattedTranscripts
       );
@@ -362,14 +362,9 @@ export class PCAMasterAnalystService {
     );
     const fullAnalysis = analysisMatch?.[1]?.trim() || content;
 
-    // Extract VASA context (OUTPUT 2)
-    // Tolerant of both delimiter formats the model may produce:
-    //   ===== THERAPEUTIC CONTEXT: ... ===== END CONTEXT =====
-    //   # VASA AGENT SESSION CONTEXT ... --- # END CONTEXT
+    // Extract PCA Field Picture (OUTPUT 2)
     const contextMatch = content.match(
-      /(?:={5} THERAPEUTIC CONTEXT:|#{1,3} VASA AGENT SESSION CONTEXT)[\s\S]*?(?:={5} END CONTEXT ={5}|---\s*\n\s*#\s*END CONTEXT)/
-    ) || content.match(
-      /(?:VASA AGENT SESSION CONTEXT)[\s\S]*$/
+      /={5} PCA FIELD PICTURE:[\s\S]*?={5} END FIELD PICTURE ={5}/
     );
     const therapeuticContext = contextMatch?.[0] || '';
 
@@ -380,7 +375,7 @@ export class PCAMasterAnalystService {
 
     // Extract CSS stage
     const cssStageMatch = dbSection.match(/current_css_stage:\s*"([^"]+)"/i) ||
-                          content.match(/CURRENT CSS STAGE:\s*([^\n]+)/i);
+                          content.match(/## CSS STAGE:\s*([^\n]+)/i);
     const currentCssStage = cssStageMatch?.[1]?.trim().toLowerCase() || 'unknown';
 
     // Extract register dominance

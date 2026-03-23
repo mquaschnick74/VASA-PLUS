@@ -149,7 +149,9 @@ export async function analyzeRegister(
     stucknessScore,
     fluidityScore,
     registerMovement,
-    indicators
+    indicators,
+    assessmentSource: 'fast' as const,
+    structuralDescription: null,
   };
 }
 

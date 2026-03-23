@@ -116,7 +116,9 @@ export async function assessMovement(
     sessionPosition,
     movementQuality,
     anticipation,
-    cssSignals
+    cssSignals,
+    assessmentSource: 'fast' as const,
+    structuralDescription: null,
   };
 }
 

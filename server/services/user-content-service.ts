@@ -4,7 +4,7 @@
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from './supabase-service';
-import { MASTER_PC_ANALYST_PROMPT } from '../prompts/master-pc-analyst';
+import { PCA_ANALYST_IDENTITY } from '../prompts/pca-depth-analyst';
 
 const openai = new OpenAI();
 const anthropic = new Anthropic();
@@ -415,7 +415,7 @@ async function triggerUploadAnalysis(
   console.log(`[UploadAnalysis] Starting PCA analysis for content ${contentId}`);
 
   // Build the analysis prompt for uploaded content
-  const uploadAnalysisPrompt = `${MASTER_PC_ANALYST_PROMPT}
+  const uploadAnalysisPrompt = `${PCA_ANALYST_IDENTITY}
 
 You are analyzing content that a therapy client has shared for discussion with their VASA therapeutic agent.
 This is NOT a session transcript - it is content the user uploaded (a conversation, journal entry, or other personal content).
