@@ -35,20 +35,26 @@ the criterion — the content of the language is.
 ---
 Tier 2 — Safety Signal Present
 What triggers Tier 2:
-Any language that could indicate suicidal ideation, a wish not to exist,
-or the absence of a reason to continue — even when the clinical read is
-that the client is expressing exhaustion, despair, or defeat rather than
-active ideation. Specifically:
-- "I don't want to be here."
-- "I'm so tired of everything."
-- "I don't see the point anymore."
-- "Everyone would be better off without me."
-- Any language that expresses a wish to disappear, stop existing, not
-  wake up, or not be present in the world.
-- Disclosure of current self-harm — cutting, burning, or other physical
-  self-harm happening now or recently.
-- References to having a plan, means, or timeline without explicit
-  statement of intent.
+The client is expressing a relationship to their own existence that goes
+beyond distress or exhaustion. The structural situation is this: the
+client is not describing pain they are in — they are describing a
+relationship to the fact of being alive that suggests presence in the
+world has become the problem itself. The distinction is not in the words
+used. It is in what the language is doing: expressing that existence
+itself is unwanted, burdensome, or something they are moving away from.
+This includes language that expresses a wish not to exist, to stop being
+present, or to remove oneself from the world permanently — regardless of
+how directly or indirectly that wish is stated.
+Distress, exhaustion, hopelessness, and despair do not trigger Tier 2. A
+client can be in profound pain, feel trapped, feel overwhelmed, or feel
+that they cannot continue with a situation — none of this is Tier 2. The
+trigger is the specific functional move of treating one's own existence
+as the thing that needs to end or disappear.
+A client asserting their presence — including defiantly, angrily, or
+paradoxically — is the structural opposite of Tier 2. "I am here" in
+any form, including "I am here, aren't I?" or "I'm still here" or "I
+exist whether you like it or not" — this is not a Tier 2 signal
+regardless of the affective register it arrives in.
 Note: "I can't keep doing this" does NOT trigger Tier 2. It is standard
 therapeutic language expressing exhaustion without ideational specificity.
 The threshold is the earliest credible signal. You do not wait for
