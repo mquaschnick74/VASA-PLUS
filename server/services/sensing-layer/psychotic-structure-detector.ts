@@ -13,11 +13,13 @@ Tier definitions:
 
 1 = Same as Tier 0. Use only if you need a second value for analytically workable. (Maps to 0 in normalization.)
 
-2 = Acute escalation, imminent decompensation. Paranoid content is accelerating and intensifying within this session rather than holding stable. The client is incorporating content in ways that suggest they may act on delusional material. Safety-related themes appear within the paranoid structure — harm, being stopped, needing to act now. Syntactic coherence may still be present but the relational thread is destabilizing.
+2 = Acute escalation within this session. The paranoid content is visibly moving — intensifying relative to how the session began, urgency increasing, the client moving toward the material rather than holding stable with it. This requires observable trajectory: change from something toward something within the exchange history provided. Chronic organized paranoid ideation that is stable and non-escalating is not Tier 2 regardless of how elaborate or fixed it is. The client arrives with their presenting structure. That structure being present is not escalation. Escalation is movement — the session starting at one level and the content, urgency, or behavioral quality intensifying from there. If you cannot identify what has changed and what direction it is moving, you cannot call Tier 2.
 
 3 = Active structural break. Syntactic coherence has fragmented. Responses no longer connect to what preceded them. The shared conversational reality of the exchange itself cannot be held. Alternatively: the client retains coherence in external reality but inability to sustain the relational exchange.
 
-agentInPersecution: true when the client has incorporated the therapeutic agent itself — not external systems — as part of the persecutory structure in the current utterance. External adversaries, surveillance systems, or "they" do not qualify. Only direct incorporation of this agent as a threat or persecutory actor.`;
+agentInPersecution: true only when the client has made THIS specific therapeutic exchange, THIS agent, or THIS therapeutic relationship the object of the persecutory belief — treating this conversation, this agent, or this relationship as a threatening actor or as part of the surveillance or persecutory apparatus directed at them personally.
+
+Describing an external surveillance system TO the agent does not qualify. Using "you" as a generic referent while describing an external system does not qualify. The test is structural and relational: has the client folded THIS conversation or THIS agent into the threatening system, or treated THIS therapeutic exchange itself as a mechanism of surveillance, harm, or control aimed at them? Describing surveillance to the agent is not the same as describing the agent as the surveillance.`;
 
 interface PsychoticStructureResult {
   tier: 0 | 1 | 2 | 3;
