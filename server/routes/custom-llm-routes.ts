@@ -179,13 +179,17 @@ if (userId && userId !== 'unknown') {
 
   const modifiedMessages = JSON.parse(JSON.stringify(messages));
   let liveSilenceSignal: LiveSilenceSignal | null = null;
+  let freshSilenceSignal = false;
   let silenceSpeakerMode: SpeakerMode = 'mathew';
   for (let i = modifiedMessages.length - 1; i >= 0; i--) {
     const msg = modifiedMessages[i];
     if (msg.role !== 'system' || typeof msg.content !== 'string') continue;
     const parsedSilenceSignal = parseSilenceSignalFromSystemMessage(msg.content);
     if (!parsedSilenceSignal) continue;
-    if (!liveSilenceSignal) liveSilenceSignal = parsedSilenceSignal;
+    if (!liveSilenceSignal) {
+      liveSilenceSignal = parsedSilenceSignal;
+      freshSilenceSignal = true;
+    }
     modifiedMessages.splice(i, 1);
   }
 
@@ -200,6 +204,7 @@ if (userId && userId !== 'unknown') {
   // is no longer live.
   if (
     liveSilenceSignal &&
+    !freshSilenceSignal &&
     currentUtterance &&
     currentUtterance.length > 30
   ) {

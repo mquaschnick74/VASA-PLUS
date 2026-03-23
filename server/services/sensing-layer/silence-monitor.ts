@@ -94,7 +94,7 @@ function buildSilenceSignal(callId: string, silenceEventCount: number, silenceDu
     ? 'repeated extended pause'
     : 'sustained pause';
 
-  return `[SILENCE — ${silenceDurationSeconds} seconds. Silence event: ${eventWord}. Register: ${register}. Silence state: ${silenceState}.]`;
+  return `[SILENCE — ${silenceDurationSeconds} seconds. Silence event: ${eventWord}. Register: ${register}. Silence state: ${silenceState}. The client has not spoken. Respond to what was said before the silence. One sentence. Do not ask if they are still there. Do not check in. Hold the thread that was already in the room.]`;
 }
 
 const TIER4_MESSAGES = [

@@ -352,7 +352,7 @@ export function formatObservationalSessionPicture(
     `Movement: ${movementLabel}.`,
     `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
     ...(originAdjacentPresent
-      ? ['Origin: adjacent material present — hold here']
+      ? ['Origin: adjacent material present']
       : []),
     (() => {
       const footerCvdc = getLastFooterState(callId)?.cvdc;
