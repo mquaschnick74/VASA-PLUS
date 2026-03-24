@@ -113,12 +113,13 @@ Return empty arrays if no instances are present. Do not invent patterns that are
       return { cvdcPatterns: [], ibmPatterns: [] };
     }
 
-    let rawText = textBlock.text.trim();
-    if (rawText.startsWith('```')) {
-      rawText = rawText.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('🔬 [CSSPatterns] No JSON object found in LLM response');
+      return { cvdcPatterns: [], ibmPatterns: [] };
     }
 
-    const parsed = JSON.parse(rawText);
+    const parsed = JSON.parse(jsonMatch[0]);
 
     const cvdcPatterns = Array.isArray(parsed.cvdc)
       ? parsed.cvdc.map((item: any) => item.description || '').filter((d: string) => d.length > 0)
