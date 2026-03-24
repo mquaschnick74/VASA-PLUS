@@ -2,6 +2,10 @@
 // CSS Pattern Detection Service
 // Detects CVDC, IBM, Thend, CYVC patterns in therapeutic conversations
 
+import Anthropic from '@anthropic-ai/sdk';
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
 export interface CSSPatterns {
   cvdcPatterns: string[];
   ibmPatterns: string[];
@@ -44,7 +48,7 @@ function extractUserStatements(transcript: string, debug: boolean = false): stri
 
   for (const sentence of sentences) {
     // Skip if it's likely an agent response
-    const isAgentResponse = AGENT_MARKERS.some(marker => 
+    const isAgentResponse = AGENT_MARKERS.some(marker =>
       marker.test(sentence)
     );
 
@@ -71,9 +75,70 @@ function extractUserStatements(transcript: string, debug: boolean = false): stri
 }
 
 /**
+ * Detect CVDC and IBM patterns using semantic LLM analysis.
+ * Replaces keyword regex detection with structural situation assessment.
+ */
+async function detectClinicalPatternsWithLLM(userText: string): Promise<{ cvdcPatterns: string[]; ibmPatterns: string[] }> {
+  try {
+    const response = await (anthropic as any).messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{
+        role: 'user',
+        content: `You are analyzing a therapeutic conversation transcript to identify two specific clinical patterns.
+
+CLIENT SPEECH (extracted from session):
+"${userText.slice(0, 4000)}"
+
+CVDC (Constant Variably Determined Contradiction): Identify any instances where the client holds a position, belief, or stated reality, AND their own speech simultaneously contains material that contradicts or destabilizes that position from within. This is not the client saying "I feel two things" — it is a structural situation where the speech carries both the claim and the evidence against it. The client does not need to acknowledge the contradiction.
+
+IBM (Incoherent Behavior Matrix): Identify any instances where the client's speech reveals a gap between what they have stated they want, believe, or intend to do — AND what they are actually doing in this conversation or in the behaviors they describe. The stated position may be explicit or implicit from the pattern of their speech. The behavioral contradiction must be derivable from the client's own words.
+
+Return ONLY valid JSON, no preamble:
+{
+  "cvdc": [
+    { "description": "one sentence describing the structural contradiction", "evidence": "brief quote from transcript" }
+  ],
+  "ibm": [
+    { "description": "one sentence describing the position/behavior gap", "evidence": "brief quote from transcript" }
+  ]
+}
+Return empty arrays if no instances are present. Do not invent patterns that are not clearly present.`
+      }],
+    });
+
+    const textBlock = response.content.find((b: any) => b.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') {
+      console.error('🔬 [CSSPatterns] No text block in LLM response');
+      return { cvdcPatterns: [], ibmPatterns: [] };
+    }
+
+    let rawText = textBlock.text.trim();
+    if (rawText.startsWith('```')) {
+      rawText = rawText.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+    }
+
+    const parsed = JSON.parse(rawText);
+
+    const cvdcPatterns = Array.isArray(parsed.cvdc)
+      ? parsed.cvdc.map((item: any) => item.description || '').filter((d: string) => d.length > 0)
+      : [];
+
+    const ibmPatterns = Array.isArray(parsed.ibm)
+      ? parsed.ibm.map((item: any) => item.description || '').filter((d: string) => d.length > 0)
+      : [];
+
+    return { cvdcPatterns, ibmPatterns };
+  } catch (error) {
+    console.error('🔬 [CSSPatterns] LLM detection error:', error);
+    return { cvdcPatterns: [], ibmPatterns: [] };
+  }
+}
+
+/**
  * Detects CSS patterns in therapeutic conversation transcript
  */
-export function detectCSSPatterns(transcript: string, debug: boolean = false): CSSPatterns {
+export async function detectCSSPatterns(transcript: string, debug: boolean = false): Promise<CSSPatterns> {
   if (!transcript || transcript.trim().length === 0) {
     console.log('⚠️ Empty transcript provided to detectCSSPatterns');
     return {
@@ -97,8 +162,7 @@ export function detectCSSPatterns(transcript: string, debug: boolean = false): C
   // Also scan full transcript as fallback
   const textToAnalyze = userText || transcript;
 
-  const cvdcMatches = detectCVDC(textToAnalyze);
-  const ibmMatches = detectIBM(textToAnalyze);
+  const { cvdcPatterns: cvdcMatches, ibmPatterns: ibmMatches } = await detectClinicalPatternsWithLLM(textToAnalyze);
   const thendIndicators = detectThend(textToAnalyze);
   const cyvcPatterns = detectCYVC(textToAnalyze);
 
@@ -120,70 +184,6 @@ export function detectCSSPatterns(transcript: string, debug: boolean = false): C
     cyvcPatterns: cyvcPatterns,
     currentStage: currentStage
   };
-}
-
-/**
- * Detect CVDC (Contradiction) patterns
- */
-function detectCVDC(text: string): string[] {
-  const patterns = [
-    // Core contradiction patterns
-    /part of me.{0,50}(?:but|while|yet|however).{0,50}another part/gi,
-    /I want.{0,30}but.{0,30}I (?:also want|need|can't)/gi,
-    /torn between/gi,
-    /both.{0,20}and.{0,20}at the same time/gi,
-    /simultaneously/gi,
-    /on one hand.{0,50}on the other/gi,
-
-    // Emotional contradictions
-    /I feel.{0,30}but.{0,30}I also feel/gi,
-    /feeling both/gi,
-    /mixed feelings/gi,
-
-    // Enhanced patterns for "empty and heavy" type contradictions
-    /empty.{0,20}(?:and|but|yet).{0,20}heavy/gi,
-    /hollow.{0,20}(?:and|but|yet).{0,20}full/gi,
-    /numb.{0,20}(?:and|but|yet).{0,20}pain/gi,
-    /nothing.{0,20}(?:and|but|yet).{0,20}everything/gi
-  ];
-
-  const matches: string[] = [];
-
-  for (const pattern of patterns) {
-    const found = text.match(pattern);
-    if (found) {
-      matches.push(...found.map(m => m.substring(0, 100)));
-    }
-  }
-
-  return matches;
-}
-
-/**
- * Detect IBM (Intention-Behavior Mismatch) patterns
- */
-function detectIBM(text: string): string[] {
-  const patterns = [
-    /I (?:say|tell myself).{0,30}but.{0,30}I (?:do|act|behave)/gi,
-    /I know.{0,30}but.{0,30}I still/gi,
-    /I should.{0,30}but.{0,30}I/gi,
-    /my intention.{0,30}but.{0,30}my action/gi,
-    /I try to.{0,30}but.{0,30}end up/gi,
-    /I want to.{0,30}but.{0,30}I can't/gi,
-    /knowing.{0,30}but.{0,30}doing/gi,
-    /gap between.{0,30}(?:intention|what I want).{0,30}(?:action|what I do)/gi
-  ];
-
-  const matches: string[] = [];
-
-  for (const pattern of patterns) {
-    const found = text.match(pattern);
-    if (found) {
-      matches.push(...found.map(m => m.substring(0, 100)));
-    }
-  }
-
-  return matches;
 }
 
 /**
@@ -298,9 +298,9 @@ export function assessPatternConfidence(patterns: CSSPatterns): {
   confidence: number;
   reasoning: string;
 } {
-  const totalPatterns = patterns.cvdcPatterns.length + 
-                       patterns.ibmPatterns.length + 
-                       patterns.thendIndicators.length + 
+  const totalPatterns = patterns.cvdcPatterns.length +
+                       patterns.ibmPatterns.length +
+                       patterns.thendIndicators.length +
                        patterns.cyvcPatterns.length;
 
   if (totalPatterns === 0) {

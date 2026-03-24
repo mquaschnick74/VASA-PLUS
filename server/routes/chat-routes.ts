@@ -434,7 +434,7 @@ router.post('/end-session', requireAuth, async (req: AuthRequest, res) => {
       .filter((t: any) => t.role === 'user')
       .map((t: any) => t.content)
       .join('\n');
-    const patterns = detectCSSPatterns(userOnlyTranscript, true);
+    const patterns = await detectCSSPatterns(userOnlyTranscript, true);
     const { confidence, reasoning } = assessPatternConfidence(patterns);
 
     console.log('📊 [CHAT] CSS Analysis:', {

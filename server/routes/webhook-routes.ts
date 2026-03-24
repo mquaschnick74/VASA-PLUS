@@ -731,7 +731,7 @@ router.post('/test-css-patterns', async (req, res) => {
 
     const { detectCSSPatterns, assessPatternConfidence } = await import('../services/css-pattern-service');
 
-    const patterns = detectCSSPatterns(transcript, true);
+    const patterns = await detectCSSPatterns(transcript, true);
     const { confidence, reasoning } = assessPatternConfidence(patterns);
 
     res.json({
