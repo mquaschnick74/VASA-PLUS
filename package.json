@@ -15,7 +15,7 @@
     "cap:copy": "npx cap copy"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.1",
+    "@anthropic-ai/sdk": "^0.80.0",
     "@capacitor/app": "^7.1.1",
     "@capacitor/cli": "^7.4.5",
     "@capacitor/core": "^7.4.5",

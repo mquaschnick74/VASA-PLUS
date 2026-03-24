@@ -22,6 +22,11 @@ import {
   pushStateVector,
   getFieldSummary
 } from './state-vector';
+import {
+  FieldAssessmentOutput,
+  buildPriorFieldSummary,
+  DEFAULT_FIELD_ASSESSMENT,
+} from './field-assessment';
 
 /**
  * Accumulates session data in memory during a call
@@ -73,6 +78,9 @@ export interface SessionAccumulator {
     sessionCSSStageConfidence: number;    // Confidence in session-level stage
     lastCSSMilestoneExchange: number;     // Exchange number of last milestone assessment
     activeIBMCandidates: IBMCandidate[];
+
+  // Field assessments — rolling store for priorFieldSummary computation
+  fieldAssessments: FieldAssessmentOutput[];
   }
 
 /**
@@ -148,7 +156,8 @@ export function initializeSession(
       sessionCSSStage: priorCSSStage ?? 'pointed_origin',
       sessionCSSStageConfidence: priorCSSStageConfidence ?? 0.3,
       lastCSSMilestoneExchange: 0,
-      activeIBMCandidates: []
+      activeIBMCandidates: [],
+      fieldAssessments: [],
   };
 
   activeSessions.set(callId, accumulator);
@@ -401,23 +410,41 @@ export function getSessionSummary(callId: string): SessionSummary | null {
     return null;
   }
 
-  const totalRegister = session.registerTally.Real + session.registerTally.Imaginary + session.registerTally.Symbolic;
-
-  // Calculate dominant register
+  // Calculate dominant register from field assessments (semantic path)
+  // Falls back to registerTally (legacy keyword path) if no field assessments exist
   let dominantRegister: Register = 'Imaginary';
-  if (session.registerTally.Real >= session.registerTally.Imaginary &&
-      session.registerTally.Real >= session.registerTally.Symbolic) {
-    dominantRegister = 'Real';
-  } else if (session.registerTally.Symbolic >= session.registerTally.Imaginary) {
-    dominantRegister = 'Symbolic';
-  }
+  let registerDistribution: RegisterDistribution;
 
-  // Calculate register distribution percentages
-  const registerDistribution: RegisterDistribution = {
-    Real: totalRegister > 0 ? session.registerTally.Real / totalRegister : 0.33,
-    Imaginary: totalRegister > 0 ? session.registerTally.Imaginary / totalRegister : 0.33,
-    Symbolic: totalRegister > 0 ? session.registerTally.Symbolic / totalRegister : 0.34
-  };
+  if (session.fieldAssessments.length > 0) {
+    const tally = { Real: 0, Imaginary: 0, Symbolic: 0 };
+    for (const fa of session.fieldAssessments) {
+      tally[fa.register.current]++;
+    }
+    const total = session.fieldAssessments.length;
+    if (tally.Real >= tally.Imaginary && tally.Real >= tally.Symbolic) {
+      dominantRegister = 'Real';
+    } else if (tally.Symbolic >= tally.Imaginary) {
+      dominantRegister = 'Symbolic';
+    }
+    registerDistribution = {
+      Real: tally.Real / total,
+      Imaginary: tally.Imaginary / total,
+      Symbolic: tally.Symbolic / total,
+    };
+  } else {
+    const totalRegister = session.registerTally.Real + session.registerTally.Imaginary + session.registerTally.Symbolic;
+    if (session.registerTally.Real >= session.registerTally.Imaginary &&
+        session.registerTally.Real >= session.registerTally.Symbolic) {
+      dominantRegister = 'Real';
+    } else if (session.registerTally.Symbolic >= session.registerTally.Imaginary) {
+      dominantRegister = 'Symbolic';
+    }
+    registerDistribution = {
+      Real: totalRegister > 0 ? session.registerTally.Real / totalRegister : 0.33,
+      Imaginary: totalRegister > 0 ? session.registerTally.Imaginary / totalRegister : 0.33,
+      Symbolic: totalRegister > 0 ? session.registerTally.Symbolic / totalRegister : 0.34,
+    };
+  }
 
   // Calculate fluidity score based on register changes
   const fluidityScore = calculateFluidityScore(session.registerReadings);
@@ -639,7 +666,7 @@ export function getActiveIBMCandidates(callId: string): IBMCandidate[] {
   const session = activeSessions.get(callId);
   if (!session) return [];
   return session.activeIBMCandidates.filter(
-    c => c.status === 'accumulating' || c.status === 'viable'
+    c => c.status === 'accumulating' || c.status === 'viable' || c.status === 'resolved_client'
   );
 }
 
@@ -745,4 +772,87 @@ export function getSessionCSSStage(callId: string): { stage: CSSStage; confidenc
     stage: session?.sessionCSSStage ?? 'pointed_origin',
     confidence: session?.sessionCSSStageConfidence ?? 0.3
   };
+}
+
+/**
+ * Store a completed field assessment in the session accumulator.
+ * Called after runFieldAssessment completes (fires in background during agent speech).
+ * Also feeds CSS signals into the existing accumulator and drives IBM candidate logic.
+ */
+export function recordFieldAssessment(
+  callId: string,
+  assessment: FieldAssessmentOutput,
+  exchangeCount: number
+): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+  session.exchangeCount++;
+  session.fieldAssessments.push(assessment);
+  // Feed CSS signals into the existing accumulator
+  if (assessment.css_signals.length > 0) {
+    session.cssSignals.push(...assessment.css_signals.map(s => ({
+      stage: s.stage,
+      confidence: s.confidence,
+      indicatorType: 'field_assessment' as const,
+      evidence: s.functional_description,
+      exchangeNumber: exchangeCount,
+    })));
+  }
+
+  // IBM candidate management from field assessment
+  if (assessment.ibm.client_named) {
+    resolveIBMClientInitiated(callId);
+  } else if (assessment.ibm.behavioral_alignment_strength < 0.3 && !assessment.ibm.contradiction_present) {
+    // Strong disconfirmation — reduce accumulation
+    processIBMAlignment(callId, 1 - assessment.ibm.behavioral_alignment_strength, assessment.register.current);
+  } else if (assessment.ibm.contradiction_present && assessment.ibm.contradiction_strength > 0) {
+    const existingCandidates = getActiveIBMCandidates(callId);
+    if (existingCandidates.length === 0 && assessment.ibm.hypothesis) {
+      createIBMCandidate(
+        callId,
+        assessment.ibm.hypothesis,
+        assessment.ibm.stated_position || '',
+        exchangeCount,
+        assessment.ibm.contradiction_strength,
+        assessment.ibm.evidence,
+        0,
+        0
+      );
+    } else if (existingCandidates.length > 0) {
+      confirmIBMCandidates(
+        callId,
+        exchangeCount,
+        assessment.ibm.contradiction_strength,
+        assessment.ibm.evidence,
+        assessment.register.current
+      );
+    }
+  }
+
+  console.log(`🔬 [FieldAssessment] Recorded for exchange ${exchangeCount} — register: ${assessment.register.current}, IBM strength: ${assessment.ibm.contradiction_strength.toFixed(2)}, critical: ${assessment.critical_moment}`);
+}
+
+/**
+ * Get the most recent field assessment for a call.
+ * Returns DEFAULT_FIELD_ASSESSMENT if none exists yet (first turn).
+ */
+export function getLatestFieldAssessment(callId: string): FieldAssessmentOutput {
+  const session = activeSessions.get(callId);
+  if (!session || session.fieldAssessments.length === 0) {
+    return DEFAULT_FIELD_ASSESSMENT;
+  }
+  return session.fieldAssessments[session.fieldAssessments.length - 1];
+}
+
+/**
+ * Compute the prior field summary string for injection into the field assessment prompt.
+ * Reads from stored field assessments in the session accumulator.
+ * Returns 'none' on the first turn when no prior assessments exist.
+ */
+export function getPriorFieldSummary(callId: string): string {
+  const session = activeSessions.get(callId);
+  if (!session || session.fieldAssessments.length === 0) {
+    return 'none';
+  }
+  return buildPriorFieldSummary(session.fieldAssessments);
 }
