@@ -141,7 +141,8 @@ export type CSSSignalIndicator =
   // Terminal
   | 'observing_self'
   | 'historical_integration_ref'
-  | 'recursive_awareness';
+  | 'recursive_awareness'
+  | 'field_assessment';
 
 // IBM Detection Types
 export interface IBMSignalContribution {
