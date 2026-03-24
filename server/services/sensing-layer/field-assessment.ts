@@ -9,145 +9,9 @@ import { CSSStage } from './types';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface FieldAssessmentInput {
-  userId: string;
-  callId: string;
-  sessionId: string;
-  utterance: string;
-  exchangeCount: number;
-  agentName: string;
-  conversationHistory: { role: string; content: string }[];
-  cssStage: string;
-  priorFieldSummary: string;
-}
-
-export interface FieldAssessmentOutput {
-  register: {
-    current: 'Real' | 'Imaginary' | 'Symbolic';
-    functional_description: string;
-    stuckness: number | null;
-    movement: 'static' | 'toward_real' | 'toward_imaginary' | 'toward_symbolic' | 'fluid' | null;
-  };
-  contact_quality: {
-    type: 'present' | 'seeking_confirmation' | 'withdrawing' | 'testing' | 'absent';
-    contact_seeking_pattern: 'absent' | 'isolated' | 'recurring' | 'escalating' | 'clustered';
-    evidence: string;
-  };
-  hsfb_dominant: 'Hearing' | 'Seeing' | 'Feeling' | 'Breathing';
-  ibm: {
-    contradiction_present: boolean;
-    type: 'A' | 'B' | null;
-    hypothesis: string | null;
-    stated_position: string | null;
-    contradiction_strength: number;
-    behavioral_alignment_strength: number;
-    client_named: boolean;
-    evidence: string;
-  };
-  css_signals: Array<{
-    stage: CSSStage;
-    confidence: number;
-    functional_description: string;
-  }>;
-  investment: {
-    primary_material: string | null;
-    investment_type:
-      | 'elaboration_without_prompting'
-      | 'return_to_material'
-      | 'emotional_disproportionality'
-      | 'somatic_emergence'
-      | 'naming_attempt'
-      | 'register_shift'
-      | 'none';
-  };
-  critical_moment: boolean;
-  critical_moment_reason: string | null;
-}
-
-export const DEFAULT_FIELD_ASSESSMENT: FieldAssessmentOutput = {
-  register: {
-    current: 'Imaginary',
-    functional_description: 'Assessment unavailable — defaulting to Imaginary register',
-    stuckness: null,
-    movement: null,
-  },
-  contact_quality: {
-    type: 'present',
-    contact_seeking_pattern: 'absent',
-    evidence: 'Default — no assessment available',
-  },
-  hsfb_dominant: 'Hearing',
-  ibm: {
-    contradiction_present: false,
-    type: null,
-    hypothesis: null,
-    stated_position: null,
-    contradiction_strength: 0,
-    behavioral_alignment_strength: 0.5,
-    client_named: false,
-    evidence: 'Default — no assessment available',
-  },
-  css_signals: [],
-  investment: {
-    primary_material: null,
-    investment_type: 'none',
-  },
-  critical_moment: false,
-  critical_moment_reason: null,
-};
-
-// ─── Prior Field Summary ──────────────────────────────────────────────────────
-
-/**
- * Computes the structured summary string the prompt template expects.
- * Reads directly from stored FieldAssessmentOutput objects — no LLM call.
- * Covers the last 5 assessments for register/contact history.
- * Covers all assessments for css_signal_history accumulation.
- */
-export function buildPriorFieldSummary(
-  priorAssessments: FieldAssessmentOutput[],
-): string {
-  if (priorAssessments.length === 0) {
-    return 'none';
-  }
-
-  const window = priorAssessments.slice(-5);
-  const latest = window[window.length - 1];
-
-  const registerHistory = window.map(a => a.register.current);
-
-  const contactHistory = window.map(a => ({
-    type: a.contact_quality.type,
-    contact_seeking_pattern: a.contact_quality.contact_seeking_pattern,
-  }));
-
-  const ibmState = {
-    contradiction_strength: latest.ibm.contradiction_strength,
-    stated_position: latest.ibm.stated_position,
-    evidence_summary: latest.ibm.evidence,
-  };
-
-  // All distinct stage names that have accumulated signals across the full session
-  const allSignalStages = new Set<string>();
-  for (const assessment of priorAssessments) {
-    for (const signal of assessment.css_signals) {
-      allSignalStages.add(signal.stage);
-    }
-  }
-
-  return JSON.stringify({
-    register_history: registerHistory,
-    contact_history: contactHistory,
-    ibm_state: ibmState,
-    css_signal_history: Array.from(allSignalStages),
-  });
-}
-
-// ─── Prompt ───────────────────────────────────────────────────────────────────
-
-const FIELD_ASSESSMENT_PROMPT = `You are the clinical sensing layer for a depth psychology therapeutic platform built on
+// Split point for prompt caching — everything before this marker is static
+// and will be cached by Anthropic after the first call in a session.
+const FIELD_ASSESSMENT_SYSTEM = `You are the clinical sensing layer for a depth psychology therapeutic platform built on
 Psycho-Contextual Analysis (PCA). Your function is structural perception — reading what
 is happening in the clinical field from the client's speech. You produce a precise field
 picture that the therapeutic agent reads before making its next move.
@@ -163,45 +27,6 @@ You read only the client's utterances. The agent's speech is provided for contex
 understand what the client is responding to — but you make no assessments about the agent.
 Register, contact quality, investment, and all other assessments are properties of the
 client's relationship to their material, not properties of the agent.
-
-
-─────────────────────────────────────────────────────────────────────────────
-CONVERSATION CONTEXT
-─────────────────────────────────────────────────────────────────────────────
-
-Agent: {{agentName}}
-Exchange number: {{exchangeCount}}
-CSS stage at last milestone assessment: {{cssStage}}
-
-If cssStage reads "unassessed", no milestone assessment has been completed for this
-session. In that condition, assess CSS signals purely from the current exchange history
-with no prior stage anchoring. Do not infer a stage from the absence of data.
-
-Prior field summary:
-{{priorFieldSummary}}
-
-The prior field summary has this structure when data is available:
-
-  register_history: [last 5 register.current values, oldest first]
-  contact_history: [last 5 {type, contact_seeking_pattern} pairs, oldest first]
-  ibm_state: {
-    contradiction_strength: running value from last assessment,
-    stated_position: the position string from last assessment or null,
-    evidence_summary: brief string summarizing IBM evidence accumulated so far
-  }
-  css_signal_history: [stage names that have accumulated signals this session]
-
-When prior field summary reads "none", this is the first exchange of the session.
-In that condition, stuckness is null, movement is null, contact_seeking_pattern is
-"absent" unless the current utterance provides clear evidence otherwise, and IBM
-accumulation starts from zero.
-
-
-Recent conversation (most recent last):
-{{conversationHistory}}
-
-Current user utterance:
-"{{utterance}}"
 
 
 ─────────────────────────────────────────────────────────────────────────────
@@ -525,6 +350,142 @@ Begin your response with { and end with }.
   "critical_moment_reason": "one sentence or null"
 }`;
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface FieldAssessmentInput {
+  userId: string;
+  callId: string;
+  sessionId: string;
+  utterance: string;
+  exchangeCount: number;
+  agentName: string;
+  conversationHistory: { role: string; content: string }[];
+  cssStage: string;
+  priorFieldSummary: string;
+}
+
+export interface FieldAssessmentOutput {
+  register: {
+    current: 'Real' | 'Imaginary' | 'Symbolic';
+    functional_description: string;
+    stuckness: number | null;
+    movement: 'static' | 'toward_real' | 'toward_imaginary' | 'toward_symbolic' | 'fluid' | null;
+  };
+  contact_quality: {
+    type: 'present' | 'seeking_confirmation' | 'withdrawing' | 'testing' | 'absent';
+    contact_seeking_pattern: 'absent' | 'isolated' | 'recurring' | 'escalating' | 'clustered';
+    evidence: string;
+  };
+  hsfb_dominant: 'Hearing' | 'Seeing' | 'Feeling' | 'Breathing';
+  ibm: {
+    contradiction_present: boolean;
+    type: 'A' | 'B' | null;
+    hypothesis: string | null;
+    stated_position: string | null;
+    contradiction_strength: number;
+    behavioral_alignment_strength: number;
+    client_named: boolean;
+    evidence: string;
+  };
+  css_signals: Array<{
+    stage: CSSStage;
+    confidence: number;
+    functional_description: string;
+  }>;
+  investment: {
+    primary_material: string | null;
+    investment_type:
+      | 'elaboration_without_prompting'
+      | 'return_to_material'
+      | 'emotional_disproportionality'
+      | 'somatic_emergence'
+      | 'naming_attempt'
+      | 'register_shift'
+      | 'none';
+  };
+  critical_moment: boolean;
+  critical_moment_reason: string | null;
+}
+
+export const DEFAULT_FIELD_ASSESSMENT: FieldAssessmentOutput = {
+  register: {
+    current: 'Imaginary',
+    functional_description: 'Assessment unavailable — defaulting to Imaginary register',
+    stuckness: null,
+    movement: null,
+  },
+  contact_quality: {
+    type: 'present',
+    contact_seeking_pattern: 'absent',
+    evidence: 'Default — no assessment available',
+  },
+  hsfb_dominant: 'Hearing',
+  ibm: {
+    contradiction_present: false,
+    type: null,
+    hypothesis: null,
+    stated_position: null,
+    contradiction_strength: 0,
+    behavioral_alignment_strength: 0.5,
+    client_named: false,
+    evidence: 'Default — no assessment available',
+  },
+  css_signals: [],
+  investment: {
+    primary_material: null,
+    investment_type: 'none',
+  },
+  critical_moment: false,
+  critical_moment_reason: null,
+};
+
+// ─── Prior Field Summary ──────────────────────────────────────────────────────
+
+/**
+ * Computes the structured summary string the prompt template expects.
+ * Reads directly from stored FieldAssessmentOutput objects — no LLM call.
+ * Covers the last 5 assessments for register/contact history.
+ * Covers all assessments for css_signal_history accumulation.
+ */
+export function buildPriorFieldSummary(
+  priorAssessments: FieldAssessmentOutput[],
+): string {
+  if (priorAssessments.length === 0) {
+    return 'none';
+  }
+
+  const window = priorAssessments.slice(-5);
+  const latest = window[window.length - 1];
+
+  const registerHistory = window.map(a => a.register.current);
+
+  const contactHistory = window.map(a => ({
+    type: a.contact_quality.type,
+    contact_seeking_pattern: a.contact_quality.contact_seeking_pattern,
+  }));
+
+  const ibmState = {
+    contradiction_strength: latest.ibm.contradiction_strength,
+    stated_position: latest.ibm.stated_position,
+    evidence_summary: latest.ibm.evidence,
+  };
+
+  // All distinct stage names that have accumulated signals across the full session
+  const allSignalStages = new Set<string>();
+  for (const assessment of priorAssessments) {
+    for (const signal of assessment.css_signals) {
+      allSignalStages.add(signal.stage);
+    }
+  }
+
+  return JSON.stringify({
+    register_history: registerHistory,
+    contact_history: contactHistory,
+    ibm_state: ibmState,
+    css_signal_history: Array.from(allSignalStages),
+  });
+}
+
 // ─── LLM Call ─────────────────────────────────────────────────────────────────
 
 /**
@@ -539,25 +500,63 @@ export async function runFieldAssessment(
 
   try {
     const conversationText = input.conversationHistory
-      .slice(-10)
-      .map(m => `${m.role === 'assistant' ? 'Agent' : 'Client'}: ${m.content}`)
-      .join('\n');
+          .slice(-10)
+          .map(m => `${m.role === 'assistant' ? 'Agent' : 'Client'}: ${m.content}`)
+          .join('\n');
 
-    const prompt = FIELD_ASSESSMENT_PROMPT
-      .replace('{{agentName}}', input.agentName)
-      .replace('{{exchangeCount}}', String(input.exchangeCount))
-      .replace('{{cssStage}}', input.cssStage || 'unassessed')
-      .replace('{{priorFieldSummary}}', input.priorFieldSummary)
-      .replace('{{conversationHistory}}', conversationText || 'No prior conversation.')
-      .replace('{{utterance}}', input.utterance);
+        const dynamicUserMessage = `─────────────────────────────────────────────────────────────────────────────
+    CONVERSATION CONTEXT
+    ─────────────────────────────────────────────────────────────────────────────
 
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    Agent: ${input.agentName}
+    Exchange number: ${input.exchangeCount}
+    CSS stage at last milestone assessment: ${input.cssStage || 'unassessed'}
 
-    const textBlock = response.content.find(b => b.type === 'text');
+    If cssStage reads "unassessed", no milestone assessment has been completed for this
+    session. In that condition, assess CSS signals purely from the current exchange history
+    with no prior stage anchoring. Do not infer a stage from the absence of data.
+
+    Prior field summary:
+    ${input.priorFieldSummary}
+
+    The prior field summary has this structure when data is available:
+
+      register_history: [last 5 register.current values, oldest first]
+      contact_history: [last 5 {type, contact_seeking_pattern} pairs, oldest first]
+      ibm_state: {
+        contradiction_strength: running value from last assessment,
+        stated_position: the position string from last assessment or null,
+        evidence_summary: brief string summarizing IBM evidence accumulated so far
+      }
+      css_signal_history: [stage names that have accumulated signals this session]
+
+    When prior field summary reads "none", this is the first exchange of the session.
+    In that condition, stuckness is null, movement is null, contact_seeking_pattern is
+    "absent" unless the current utterance provides clear evidence otherwise, and IBM
+    accumulation starts from zero.
+
+
+    Recent conversation (most recent last):
+    ${conversationText || 'No prior conversation.'}
+
+    Current user utterance:
+    "${input.utterance}"`;
+
+        const response = await (anthropic as any).messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 800,
+          system: [
+            {
+              type: 'text',
+              text: FIELD_ASSESSMENT_SYSTEM,
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+          messages: [{ role: 'user', content: dynamicUserMessage }],
+          betas: ['prompt-caching-2024-07-31'],
+        });
+
+    const textBlock = response.content.find((b: any) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
       console.error('🔬 [FieldAssessment] No text block in response');
       return DEFAULT_FIELD_ASSESSMENT;
