@@ -7,7 +7,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { CSSStage } from './types';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  defaultHeaders: {
+    'anthropic-beta': 'prompt-caching-2024-07-31',
+  },
+});
 
 // Split point for prompt caching — everything before this marker is static
 // and will be cached by Anthropic after the first call in a session.
