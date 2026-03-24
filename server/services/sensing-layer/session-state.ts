@@ -769,7 +769,7 @@ export function recordFieldAssessment(
   const session = activeSessions.get(callId);
   if (!session) return;
 
-  session.fieldAssessments.push(assessment);
+  session.exchangeCount++;
 
   // Feed CSS signals into the existing accumulator
   if (assessment.css_signals.length > 0) {

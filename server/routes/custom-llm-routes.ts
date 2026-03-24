@@ -8,6 +8,7 @@ import {
   getPriorFieldSummary,
   recordFieldAssessment,
   getSessionCSSStage,
+  assessSessionCSSStage,
 } from '../services/sensing-layer/session-state';
 import {
   assembleSystemPrompt,
@@ -29,16 +30,19 @@ const openai = new OpenAI({
 // Per-call streaming lock — prevents duplicate streams from concurrent VAPI requests
 const streamingCallIds = new Set<string>();
 
+const postInterventionActive = new Map<string, boolean>();
+
 // Track whether a session has been initialized for a given callId
 const initializedCalls = new Set<string>();
 
 // Reserved for future per-request gating of post-intervention state
-const postInterventionActive = new Map<string, boolean>();
+const lastFieldAssessmentExchange = new Map<string, number>();
 
 export function clearCustomLLMCache(callId: string): void {
   streamingCallIds.delete(callId);
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
+  lastFieldAssessmentExchange.delete(callId);
   clearFooterState(callId);
 }
 
@@ -142,27 +146,29 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       const priorFieldSummary = getPriorFieldSummary(callId);
       const { stage: currentCSSStage } = getSessionCSSStage(callId);
 
-      // Fire field assessment for THIS turn in background — available for next turn
-      runFieldAssessment({
-        userId,
-        callId,
-        sessionId,
-        utterance: currentUtterance,
-        exchangeCount: numUserTurns,
-        agentName: agentId,
-        conversationHistory,
-        cssStage: currentCSSStage || 'unassessed',
-        priorFieldSummary,
-      }).then(assessment => {
-        recordFieldAssessment(callId, assessment, numUserTurns);
-        // Milestone CSS stage assessment
-        if (numUserTurns > 0 && numUserTurns % 5 === 0) {
-          const { assessSessionCSSStage } = require('../services/sensing-layer/session-state');
-          assessSessionCSSStage(callId);
-        }
-      }).catch(err =>
-        console.error(`🔵 [CUSTOM-LLM] Field assessment background error:`, err)
-      );
+      // Fire field assessment for THIS turn in background — once per exchange only
+      const lastAssessedExchange = lastFieldAssessmentExchange.get(callId) ?? -1;
+      if (numUserTurns > lastAssessedExchange) {
+        lastFieldAssessmentExchange.set(callId, numUserTurns);
+        runFieldAssessment({
+          userId,
+          callId,
+          sessionId,
+          utterance: currentUtterance,
+          exchangeCount: numUserTurns,
+          agentName: agentId,
+          conversationHistory,
+          cssStage: currentCSSStage || 'unassessed',
+          priorFieldSummary,
+        }).then(assessment => {
+          recordFieldAssessment(callId, assessment, numUserTurns);
+          if (numUserTurns > 0 && numUserTurns % 5 === 0) {
+            assessSessionCSSStage(callId);
+          }
+        }).catch(err =>
+          console.error(`🔵 [CUSTOM-LLM] Field assessment background error:`, err)
+        );
+      }
 
       // Fire narrative resonance query in background (narrative web survives architecture change)
       let resonance = null;
