@@ -542,19 +542,18 @@ export async function runFieldAssessment(
     Current user utterance:
     "${input.utterance}"`;
 
-        const response = await (anthropic as any).messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 800,
-          system: [
-            {
-              type: 'text',
-              text: FIELD_ASSESSMENT_SYSTEM,
-              cache_control: { type: 'ephemeral' },
-            },
-          ],
-          messages: [{ role: 'user', content: dynamicUserMessage }],
-          betas: ['prompt-caching-2024-07-31'],
-        });
+    const response = await (anthropic as any).messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      system: [
+        {
+          type: 'text',
+          text: FIELD_ASSESSMENT_SYSTEM,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [{ role: 'user', content: dynamicUserMessage }],
+    });
 
     const textBlock = response.content.find((b: any) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
