@@ -666,7 +666,7 @@ export function getActiveIBMCandidates(callId: string): IBMCandidate[] {
   const session = activeSessions.get(callId);
   if (!session) return [];
   return session.activeIBMCandidates.filter(
-    c => c.status === 'accumulating' || c.status === 'viable'
+    c => c.status === 'accumulating' || c.status === 'viable' || c.status === 'resolved_client'
   );
 }
 
@@ -786,9 +786,8 @@ export function recordFieldAssessment(
 ): void {
   const session = activeSessions.get(callId);
   if (!session) return;
-
   session.exchangeCount++;
-
+  session.fieldAssessments.push(assessment);
   // Feed CSS signals into the existing accumulator
   if (assessment.css_signals.length > 0) {
     session.cssSignals.push(...assessment.css_signals.map(s => ({
