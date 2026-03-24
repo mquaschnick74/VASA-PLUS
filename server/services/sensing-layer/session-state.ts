@@ -410,23 +410,41 @@ export function getSessionSummary(callId: string): SessionSummary | null {
     return null;
   }
 
-  const totalRegister = session.registerTally.Real + session.registerTally.Imaginary + session.registerTally.Symbolic;
-
-  // Calculate dominant register
+  // Calculate dominant register from field assessments (semantic path)
+  // Falls back to registerTally (legacy keyword path) if no field assessments exist
   let dominantRegister: Register = 'Imaginary';
-  if (session.registerTally.Real >= session.registerTally.Imaginary &&
-      session.registerTally.Real >= session.registerTally.Symbolic) {
-    dominantRegister = 'Real';
-  } else if (session.registerTally.Symbolic >= session.registerTally.Imaginary) {
-    dominantRegister = 'Symbolic';
-  }
+  let registerDistribution: RegisterDistribution;
 
-  // Calculate register distribution percentages
-  const registerDistribution: RegisterDistribution = {
-    Real: totalRegister > 0 ? session.registerTally.Real / totalRegister : 0.33,
-    Imaginary: totalRegister > 0 ? session.registerTally.Imaginary / totalRegister : 0.33,
-    Symbolic: totalRegister > 0 ? session.registerTally.Symbolic / totalRegister : 0.34
-  };
+  if (session.fieldAssessments.length > 0) {
+    const tally = { Real: 0, Imaginary: 0, Symbolic: 0 };
+    for (const fa of session.fieldAssessments) {
+      tally[fa.register.current]++;
+    }
+    const total = session.fieldAssessments.length;
+    if (tally.Real >= tally.Imaginary && tally.Real >= tally.Symbolic) {
+      dominantRegister = 'Real';
+    } else if (tally.Symbolic >= tally.Imaginary) {
+      dominantRegister = 'Symbolic';
+    }
+    registerDistribution = {
+      Real: tally.Real / total,
+      Imaginary: tally.Imaginary / total,
+      Symbolic: tally.Symbolic / total,
+    };
+  } else {
+    const totalRegister = session.registerTally.Real + session.registerTally.Imaginary + session.registerTally.Symbolic;
+    if (session.registerTally.Real >= session.registerTally.Imaginary &&
+        session.registerTally.Real >= session.registerTally.Symbolic) {
+      dominantRegister = 'Real';
+    } else if (session.registerTally.Symbolic >= session.registerTally.Imaginary) {
+      dominantRegister = 'Symbolic';
+    }
+    registerDistribution = {
+      Real: totalRegister > 0 ? session.registerTally.Real / totalRegister : 0.33,
+      Imaginary: totalRegister > 0 ? session.registerTally.Imaginary / totalRegister : 0.33,
+      Symbolic: totalRegister > 0 ? session.registerTally.Symbolic / totalRegister : 0.34,
+    };
+  }
 
   // Calculate fluidity score based on register changes
   const fluidityScore = calculateFluidityScore(session.registerReadings);

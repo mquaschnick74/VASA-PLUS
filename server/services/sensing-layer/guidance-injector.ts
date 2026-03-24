@@ -256,8 +256,12 @@ export function formatSessionPicture(
     `Movement: ${movementLabel}.`,
     `CSS: ${cssLabel} / Phase proximity: ${proximity}`,
     (() => {
-      const footerCvdc = getLastFooterState(callId)?.cvdc;
-      if (!footerCvdc) return `CVDC: not yet visible`;
+      const footerState = getLastFooterState(callId);
+      const cvdcLine = footerState?.cvdc
+        ? `CVDC: ${footerState.cvdc}`
+        : footerState?.posture === 'fissure' || footerState?.posture === 'impressionation'
+        ? `CVDC: articulable — not yet written to footer`
+        : 'CVDC: not yet visible';
       return `CVDC: ${footerCvdc}`;
     })(),
     (() => {
