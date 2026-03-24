@@ -505,8 +505,8 @@ export async function runFieldAssessment(
 
   try {
     const conversationText = input.conversationHistory
-          .slice(-10)
-          .map(m => `${m.role === 'assistant' ? 'Agent' : 'Client'}: ${m.content}`)
+          .slice(-6)
+          .map(m => `${m.role === 'assistant' ? 'Agent' : 'Client'}: ${m.content.slice(0, 200)}`)
           .join('\n');
 
         const dynamicUserMessage = `─────────────────────────────────────────────────────────────────────────────
