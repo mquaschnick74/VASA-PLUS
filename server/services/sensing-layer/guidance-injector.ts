@@ -5,7 +5,8 @@ import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance, R
 import { TherapeuticStateVector } from './state-vector';
 import type { ResonanceResult } from './narrative-web';
 import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
-import { getSessionState, getActiveIBMCandidates } from './session-state';
+import { getSessionState, getActiveIBMCandidates, getSessionCSSStage } from './session-state';
+import { FieldAssessmentOutput } from './field-assessment';
 import { getLastFooterState } from '../../prompts/pca-core';
 
 // Pending guidance queue: holds guidance deferred while agent is speaking
@@ -649,4 +650,111 @@ export async function injectSilenceContext(
     console.error(`❌ [SILENCE-INJECT] Error:`, error);
     return false;
   }
+}
+
+
+/**
+ * Format a session picture from a FieldAssessmentOutput.
+ * Replaces formatSessionPicture — reads from semantic field assessment
+ * instead of keyword-based module outputs.
+ * Called each turn using the PREVIOUS turn's field assessment
+ * (which completed during the agent's speech window).
+ */
+export function formatFieldSessionPicture(
+  fieldAssessment: FieldAssessmentOutput,
+  exchangeCount: number,
+  callId: string,
+  resonance?: ResonanceResult | null
+): string {
+  const cssStageLabels: Record<string, string> = {
+    pointed_origin: 'Pointed Origin',
+    focus_bind: 'Focus/Bind',
+    suspension: 'Suspension',
+    gesture_toward: 'Gesture Toward',
+    completion: 'Completion',
+    terminal: 'Terminal',
+  };
+
+  const { stage: sessionCSSStage } = getSessionCSSStage(callId);
+  const cssLabel = cssStageLabels[sessionCSSStage] ?? sessionCSSStage;
+
+  const stucknessLabel =
+    fieldAssessment.register.stuckness === null ? 'early session' :
+    fieldAssessment.register.stuckness > 0.6 ? 'high stuckness' :
+    fieldAssessment.register.stuckness > 0.35 ? 'moderate stuckness' : 'fluid';
+
+  const movementLabel = fieldAssessment.register.movement ?? 'unassessed';
+
+  // IBM state from candidate accumulator
+  const ibmCandidates = getActiveIBMCandidates(callId);
+  let ibmLine: string;
+  if (ibmCandidates.length === 0) {
+    ibmLine = 'IBM: none detected';
+  } else {
+    const viable = ibmCandidates.find(c => c.status === 'viable');
+    if (viable) {
+      ibmLine = `IBM: ${viable.hypothesis} — viable [register: ${viable.viableRegister}]`;
+    } else {
+      const accumulating = ibmCandidates[0];
+      ibmLine = `IBM: ${accumulating.hypothesis} — held [accumulation: ${accumulating.weightedAccumulation.toFixed(2)}/2.0]`;
+    }
+  }
+
+  // CVDC from footer state
+  const footerCvdc = getLastFooterState(callId)?.cvdc;
+  const cvdcLine = footerCvdc ? `CVDC: ${footerCvdc}` : 'CVDC: not yet visible';
+
+  // Narrative resonance
+  let narrativeLine: string;
+  if (!resonance || resonance.matchedFragments.length === 0) {
+    narrativeLine = 'Narrative: no resonance detected';
+  } else {
+    const top = resonance.matchedFragments[0];
+    const stage = top.css_stage_at_disclosure ? ` [${top.css_stage_at_disclosure}]` : '';
+    const signals = top.investment_signals?.length > 0
+      ? ` — ${top.investment_signals.slice(0, 2).join(', ')}`
+      : '';
+    const constellation = resonance.isConstellationActive ? ' ◈ constellation active' : '';
+    narrativeLine = `Narrative: ${top.content_summary}${stage}${signals}${constellation}`;
+  }
+
+  // Tool availability from session CSS stage
+  const toolAvailability =
+    sessionCSSStage === 'pointed_origin'
+      ? 'Tools: Prescripting only. HSFB not available. No somatic checks.'
+      : sessionCSSStage === 'focus_bind'
+      ? 'Tools: Prescripting. HSFB available if stuckness confirmed.'
+      : 'Tools: Prescripting. HSFB available.';
+
+  // Contact seeking trajectory — only surface if clinically significant
+  const contactLine =
+    fieldAssessment.contact_quality.contact_seeking_pattern === 'clustered'
+      ? `Contact: ${fieldAssessment.contact_quality.type} — ⚠️ CLUSTERED contact-seeking (acute relational anxiety)`
+      : fieldAssessment.contact_quality.contact_seeking_pattern === 'escalating'
+      ? `Contact: ${fieldAssessment.contact_quality.type} — escalating contact-seeking`
+      : `Contact: ${fieldAssessment.contact_quality.type}`;
+
+  const investmentLine = fieldAssessment.investment.investment_type !== 'none'
+    ? `Investment: ${fieldAssessment.investment.investment_type}${fieldAssessment.investment.primary_material ? ` — ${fieldAssessment.investment.primary_material}` : ''}`
+    : null;
+
+  const lines = [
+    `[SESSION PICTURE — Exchange ${exchangeCount}]`,
+    `Register: ${fieldAssessment.register.current}. ${fieldAssessment.register.functional_description}`,
+    `Stuckness: ${stucknessLabel} | Movement: ${movementLabel}`,
+    contactLine,
+    `HSFB: ${fieldAssessment.hsfb_dominant}`,
+    `CSS: ${cssLabel}`,
+    cvdcLine,
+    ibmLine,
+    ...(investmentLine ? [investmentLine] : []),
+    narrativeLine,
+    ...(fieldAssessment.critical_moment && fieldAssessment.critical_moment_reason
+      ? [`⚡ CRITICAL: ${fieldAssessment.critical_moment_reason}`]
+      : []),
+    toolAvailability,
+  ];
+
+  console.log(`📋 [SESSION PICTURE — field assessment]\n${lines.join('\n')}`);
+  return lines.join('\n');
 }

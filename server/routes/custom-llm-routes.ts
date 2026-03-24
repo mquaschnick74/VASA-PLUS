@@ -2,6 +2,13 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import OpenAI from 'openai';
 import { sensingLayer, getCachedProfile } from '../services/sensing-layer/index';
+import { runFieldAssessment } from '../services/sensing-layer/field-assessment';
+import {
+  getLatestFieldAssessment,
+  getPriorFieldSummary,
+  recordFieldAssessment,
+  getSessionCSSStage,
+} from '../services/sensing-layer/session-state';
 import {
   assembleSystemPrompt,
   assembleProfileBlock,
@@ -10,7 +17,8 @@ import {
   type FooterState,
 } from '../prompts/pca-core';
 import { getPCAContextForAgent } from '../services/memory-service';
-import { formatSessionPicture } from '../services/sensing-layer/guidance-injector';
+import { formatFieldSessionPicture } from '../services/sensing-layer/guidance-injector';
+import { findResonatingFragments } from '../services/sensing-layer/narrative-web';
 
 const router = Router();
 
@@ -120,7 +128,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   }
   streamingCallIds.add(callId);
 
-  // Step 4a: Fast sensing cascade (same-turn, heuristic only)
+  // Step 4a: Field assessment session picture + background sensing
   const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content;
   if (currentUtterance && numUserTurns > 0) {
     try {
@@ -129,29 +137,47 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         .slice(0, -1)
         .map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-      const turnInput = {
-        utterance: currentUtterance,
-        sessionId,
-        callId,
+      // Read field assessment from the PREVIOUS turn (completed during agent speech window)
+      const latestFieldAssessment = getLatestFieldAssessment(callId);
+      const priorFieldSummary = getPriorFieldSummary(callId);
+      const { stage: currentCSSStage } = getSessionCSSStage(callId);
+
+      // Fire field assessment for THIS turn in background — available for next turn
+      runFieldAssessment({
         userId,
+        callId,
+        sessionId,
+        utterance: currentUtterance,
         exchangeCount: numUserTurns,
+        agentName: agentId,
         conversationHistory,
-      };
-
-      const fastResult = await sensingLayer.processFastUtterance(turnInput);
-
-      sensingLayer.processUtterance(turnInput).catch(err =>
-        console.error(`🔵 [CUSTOM-LLM] Background sensing error:`, err)
+        cssStage: currentCSSStage || 'unassessed',
+        priorFieldSummary,
+      }).then(assessment => {
+        recordFieldAssessment(callId, assessment, numUserTurns);
+        // Milestone CSS stage assessment
+        if (numUserTurns > 0 && numUserTurns % 5 === 0) {
+          const { assessSessionCSSStage } = require('../services/sensing-layer/session-state');
+          assessSessionCSSStage(callId);
+        }
+      }).catch(err =>
+        console.error(`🔵 [CUSTOM-LLM] Field assessment background error:`, err)
       );
 
-      const guidanceMessage = formatSessionPicture(
-        fastResult.guidance,
-        fastResult.register,
-        fastResult.movement,
-        fastResult.stateVector,
+      // Fire narrative resonance query in background (narrative web survives architecture change)
+      let resonance = null;
+      try {
+        resonance = await findResonatingFragments(userId, currentUtterance);
+      } catch (err) {
+        console.warn(`🔵 [CUSTOM-LLM] Resonance query failed (non-fatal):`, err);
+      }
+
+      // Format session picture from previous turn's field assessment
+      const guidanceMessage = formatFieldSessionPicture(
+        latestFieldAssessment,
         numUserTurns,
         callId,
-        fastResult.resonance
+        resonance
       );
 
       let lastUserIdx = -1;
@@ -161,9 +187,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       if (lastUserIdx !== -1) {
         modifiedMessages.splice(lastUserIdx, 0, { role: 'system', content: guidanceMessage });
       }
-      console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${fastResult.register.currentRegister} movement=${fastResult.movement.trajectory}`);
+
+      console.log(`🔵 [CUSTOM-LLM] Session picture injected: call=${callId} turns=${numUserTurns} register=${latestFieldAssessment.register.current} contact=${latestFieldAssessment.contact_quality.type} critical=${latestFieldAssessment.critical_moment}`);
     } catch (err) {
-      console.error(`🔵 [CUSTOM-LLM] Fast guidance error (non-fatal):`, err);
+      console.error(`🔵 [CUSTOM-LLM] Sensing error (non-fatal):`, err);
     }
   }
 
