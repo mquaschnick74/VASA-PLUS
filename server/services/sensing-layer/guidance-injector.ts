@@ -718,12 +718,17 @@ export function formatFieldSessionPicture(
     cvdcLine = footerCvdc ? `CVDC: ${footerCvdc}` : 'CVDC: not yet visible';
   }
 
-  // Posture derived from IBM candidate state
+  // Posture derived from IBM candidate state, gated by CSS stage.
+  // Fissure and impressionation are not available during pointed_origin —
+  // IBM accumulates and reports, but the posture directive is suppressed
+  // until the map advances to focus_bind.
   let postureLine: string | null = null;
-  if (clientNamedCandidate) {
-    postureLine = `Posture: impressionation — client has named the contradiction. Hold the living tension.`;
-  } else if (viableCandidate) {
-    postureLine = `Posture: fissure — IBM viable, register gate satisfied. CVDC is articulable. Name the contradiction.`;
+  if (sessionCSSStage !== 'pointed_origin') {
+    if (clientNamedCandidate) {
+      postureLine = `Posture: impressionation — client has named the contradiction. Hold the living tension.`;
+    } else if (viableCandidate) {
+      postureLine = `Posture: fissure — IBM viable, register gate satisfied. CVDC is articulable. Name the contradiction.`;
+    }
   }
   // prescripting (default) — no posture line emitted
 
@@ -769,8 +774,8 @@ export function formatFieldSessionPicture(
     `HSFB: ${fieldAssessment.hsfb_dominant}`,
     `CSS: ${cssLabel}`,
     cvdcLine,
-    ...(postureLine ? [postureLine] : []),
     ibmLine,
+    ...(postureLine ? [postureLine] : []),
     ...(investmentLine ? [investmentLine] : []),
     narrativeLine,
     ...(fieldAssessment.critical_moment && fieldAssessment.critical_moment_reason
