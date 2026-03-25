@@ -549,7 +549,7 @@ export async function runFieldAssessment(
 
     const response = await (anthropic as any).messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
+      max_tokens: 1500,
       system: [
         {
           type: 'text',
