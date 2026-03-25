@@ -308,7 +308,7 @@ export async function processTranscript(
   }
   session.processedTranscripts.add(transcriptHash);
 
-  const patterns = detectCSSPatterns(transcript, false);
+  const patterns = await detectCSSPatterns(transcript, false);
 
   if (patterns.currentStage !== session.currentCSSStage) {
     console.log(`🎯 CSS Stage progression: ${session.currentCSSStage} → ${patterns.currentStage}`);
@@ -490,7 +490,7 @@ export async function processEndOfCall(
 }
 
 async function processFullTranscript(session: SessionState, transcript: string): Promise<any> {
-  const patterns = detectCSSPatterns(transcript, true);
+  const patterns = await detectCSSPatterns(transcript, true);
   const { confidence, reasoning } = assessPatternConfidence(patterns);
 
   console.log(`📊 Full transcript analysis:`);

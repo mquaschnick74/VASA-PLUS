@@ -50,7 +50,7 @@ export interface SessionAccumulator {
   // Only significant moments (not every utterance)
   significantMoments: Array<{
     exchange: number;
-    type: 'css_shift' | 'pattern_detected' | 'symbolic_connection' | 'flooding' | 'breakthrough' | 'resistance';
+    type: 'css_shift' | 'pattern_detected' | 'symbolic_connection' | 'flooding' | 'breakthrough' | 'resistance' | 'critical_moment';
     description: string;
     guidance?: TherapeuticGuidance;
   }>;
@@ -830,6 +830,14 @@ export function recordFieldAssessment(
   }
 
   console.log(`🔬 [FieldAssessment] Recorded for exchange ${exchangeCount} — register: ${assessment.register.current}, IBM strength: ${assessment.ibm.contradiction_strength.toFixed(2)}, critical: ${assessment.critical_moment}`);
+
+  if (assessment.critical_moment && assessment.critical_moment_reason) {
+    recordSignificantMoment(
+      callId,
+      'critical_moment',
+      assessment.critical_moment_reason
+    );
+  }
 }
 
 /**

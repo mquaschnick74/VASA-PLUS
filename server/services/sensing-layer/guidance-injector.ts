@@ -704,9 +704,28 @@ export function formatFieldSessionPicture(
     }
   }
 
-  // CVDC from footer state
-  const footerCvdc = getLastFooterState(callId)?.cvdc;
-  const cvdcLine = footerCvdc ? `CVDC: ${footerCvdc}` : 'CVDC: not yet visible';
+  // CVDC derived from IBM candidate state (current turn, not lagged footer)
+  let cvdcLine: string;
+  const clientNamedCandidate = ibmCandidates.find(c => c.status === 'resolved_client');
+  const viableCandidate = ibmCandidates.find(c => c.status === 'viable');
+  if (clientNamedCandidate) {
+    cvdcLine = `CVDC: named — client has identified the contradiction`;
+  } else if (viableCandidate) {
+    cvdcLine = `CVDC: articulable — ${viableCandidate.hypothesis}`;
+  } else {
+    // Fall back to prior footer state if available, otherwise not yet visible
+    const footerCvdc = getLastFooterState(callId)?.cvdc;
+    cvdcLine = footerCvdc ? `CVDC: ${footerCvdc}` : 'CVDC: not yet visible';
+  }
+
+  // Posture derived from IBM candidate state
+  let postureLine: string | null = null;
+  if (clientNamedCandidate) {
+    postureLine = `Posture: impressionation — client has named the contradiction. Hold the living tension.`;
+  } else if (viableCandidate) {
+    postureLine = `Posture: fissure — IBM viable, register gate satisfied. CVDC is articulable. Name the contradiction.`;
+  }
+  // prescripting (default) — no posture line emitted
 
   // Narrative resonance
   let narrativeLine: string;
@@ -750,6 +769,7 @@ export function formatFieldSessionPicture(
     `HSFB: ${fieldAssessment.hsfb_dominant}`,
     `CSS: ${cssLabel}`,
     cvdcLine,
+    ...(postureLine ? [postureLine] : []),
     ibmLine,
     ...(investmentLine ? [investmentLine] : []),
     narrativeLine,
