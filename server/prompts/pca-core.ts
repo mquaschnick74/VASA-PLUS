@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { UserTherapeuticProfile } from '../services/sensing-layer/types';
+import type { ArcPosition } from '../services/sensing-layer/arc-tracker';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,10 +115,31 @@ function assemblePatterns(profile: UserTherapeuticProfile): string {
   const lines = profile.patterns.slice(0, 8).map(p => p.description).join('\n');
   return `Patterns: ${lines}`;
 }
+function assembleArcPosition(arcPosition: ArcPosition | null): string {
+  if (!arcPosition || arcPosition.activePosition === 'pre_thend') {
+    return 'Therapeutic arc: Pre-Thend — CVDC accumulation phase.';
+  }
+
+  const positionLabels: Record<string, string> = {
+    thend_candidate:    'Thend — candidate (single detection, not yet cross-session confirmed)',
+    thend_confirmed:    'Thend — confirmed',
+    cyvc_candidate:     'CYVC — candidate (Thend confirmed; CYVC accumulating)',
+    cyvc_confirmed:     'CYVC — confirmed',
+  };
+
+  const label = positionLabels[arcPosition.activePosition] ?? arcPosition.activePosition;
+  const evidenceLine = arcPosition.thendEvidence && arcPosition.activePosition !== 'pre_thend'
+    ? `\nArc evidence: ${arcPosition.thendEvidence}`
+    : '';
+
+  return `Therapeutic arc: ${label}.${evidenceLine}`;
+}
+
 export function assembleProfileBlock(
   firstName: string,
   profile: UserTherapeuticProfile | null,
-  isFirstSession: boolean
+  isFirstSession: boolean,
+  arcPosition: ArcPosition | null = null
 ): string {
   if (!profile || isFirstSession) {
     return `[CLIENT CONTEXT — ${firstName}]
@@ -134,7 +156,7 @@ Prior significant moments: No prior sessions.`;
   const block = `[CLIENT CONTEXT — ${firstName}]
 ${assembleCSSStage(profile)}
 ${assembleRegisterPattern(profile)}
-Known CVDC: CVDC not yet identified — in active Prescripting.
+${assembleArcPosition(arcPosition)}
 ${assemblePatterns(profile)}
 ${lastSession}
 Prior significant moments: Not yet available — session finalizer build pending.`;

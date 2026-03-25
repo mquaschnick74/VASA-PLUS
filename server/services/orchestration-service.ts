@@ -4,6 +4,7 @@ import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
 import { generateEnhancedSessionSummary } from './summary-service';
+import { updateArcFromPatterns } from './sensing-layer/arc-tracker';
 
 interface SessionState {
   userId: string;
@@ -308,7 +309,9 @@ export async function processTranscript(
   }
   session.processedTranscripts.add(transcriptHash);
 
-  await storeCSSPatterns(session, await detectCSSPatterns(transcript, false));
+  const patterns311 = await detectCSSPatterns(transcript, false);
+  await storeCSSPatterns(session, patterns311);
+  await updateArcFromPatterns(session.userId, session.callId, patterns311.thendIndicators, patterns311.cyvcPatterns);
 }
 
 export async function processEndOfCall(
@@ -487,6 +490,7 @@ async function processFullTranscript(session: SessionState, transcript: string):
     });
 
   await storeCSSPatterns(session, patterns);
+  await updateArcFromPatterns(session.userId, session.callId, patterns.thendIndicators, patterns.cyvcPatterns);
 
   await supabase
     .from('css_patterns')

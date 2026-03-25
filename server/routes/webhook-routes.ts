@@ -36,6 +36,7 @@ import {
 } from '../services/sensing-layer/call-state';
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor, suppressSilenceMonitor, clearPostInterventionSuppression } from '../services/sensing-layer/silence-monitor';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
+import { updateArcFromTranscript } from '../services/sensing-layer/arc-tracker';
 
 const router = Router();
 
@@ -559,6 +560,18 @@ router.post('/webhook', async (req, res) => {
           })
           .catch(err => {
             console.error(`📦 [FRAGMENTS] Extraction failed for ${callId}:`, err);
+          });
+      }
+
+      // ARC TRACKER: Update therapeutic arc from session transcript (fire-and-forget)
+      if (transcriptForFragments && userId) {
+        const sessionIdForArc = message?.artifact?.call?.id || callId;
+        updateArcFromTranscript(userId, sessionIdForArc, transcriptForFragments)
+          .then(() => {
+            console.log(`🎯 [ARC] Arc update complete for session ${sessionIdForArc}`);
+          })
+          .catch(err => {
+            console.error(`🎯 [ARC] Arc update failed for ${callId}:`, err);
           });
       }
 
