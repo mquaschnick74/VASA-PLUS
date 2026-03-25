@@ -96,7 +96,7 @@ Only include patterns with confidence > 0.6. Focus on depth psychology. Be conci
     });
 
     const response = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -171,23 +171,20 @@ export async function detectPatterns(
   // 1. LLM-based semantic detection (works without existing profile)
   const llmResults = await detectSemanticPatternsWithLLM(input);
 
-  // 2. Check for user explicitly identifying a pattern (keyword-based)
-  const keywordExplicitIdentification = detectUserExplicitPattern(input.utterance);
-
-  // Merge explicit identifications (LLM takes priority if both exist)
-  const userExplicitIdentification = llmResults.explicitIdentification || keywordExplicitIdentification;
+  // 2. Check for user explicitly identifying a pattern
+  const userExplicitIdentification = llmResults.explicitIdentification;
 
   // 3. Match against existing patterns (only if profile has patterns)
   const profileMatches = profile.patterns.length > 0
     ? matchExistingPatterns(input, profile.patterns)
     : [];
 
-  // 4. Detect emerging patterns from conversation history (keyword-based)
-  const keywordEmerging = detectEmergingPatterns(input, profile.patterns);
+  // 4. Detect emerging patterns from conversation history (semantic LLM assessment)
+  const semanticEmerging = await detectEmergingPatterns(input, profile.patterns);
 
   // 5. Merge LLM and keyword-based results (remove duplicates)
   const activePatterns = mergePatternsDedup([...llmResults.patterns, ...profileMatches]);
-  const emergingPatterns = mergePatternsDedup([...llmResults.emerging, ...keywordEmerging]);
+  const emergingPatterns = mergePatternsDedup([...llmResults.emerging, ...semanticEmerging]);
 
   // 6. Calculate pattern resonance
   const patternResonance = calculatePatternResonance(input, profile.patterns);
@@ -223,53 +220,6 @@ function mergePatternsDedup<T extends { description: string }>(patterns: T[]): T
   }
 
   return merged;
-}
-
-/**
- * Detect when user explicitly identifies their own pattern
- */
-function detectUserExplicitPattern(utterance: string): UserExplicitPattern | null {
-  const lowerUtterance = utterance.toLowerCase();
-
-  const explicitPatternMarkers = [
-    { regex: /i always (do|feel|think|say|end up|find myself)/i, type: 'always' },
-    { regex: /i never (seem to|can|manage to|let myself)/i, type: 'never' },
-    { regex: /this is a pattern/i, type: 'direct' },
-    { regex: /i (notice|realize|see) (that )?i (always|tend to|keep)/i, type: 'insight' },
-    { regex: /this is (my|a) problem/i, type: 'problem' },
-    { regex: /i know i (shouldn't|should|need to) but/i, type: 'awareness' },
-    { regex: /i keep doing (this|the same thing)/i, type: 'repetition' },
-    { regex: /every time.{0,30}(i|the same thing happens)/i, type: 'repetition' },
-    { regex: /i have (this|a) (habit|tendency|pattern) of/i, type: 'labeled' },
-    { regex: /i'm (stuck|trapped) in/i, type: 'stuck' },
-    { regex: /i can't (stop|help|break)/i, type: 'compulsive' }
-  ];
-
-  for (const marker of explicitPatternMarkers) {
-    const match = utterance.match(marker.regex);
-    if (match) {
-      const markerEnd = match.index! + match[0].length;
-      const patternContext = utterance.substring(markerEnd, markerEnd + 100).trim();
-
-      return {
-        statement: match[0],
-        inferredPattern: patternContext || extractPatternFromStatement(utterance, match[0]),
-        confidence: marker.type === 'direct' || marker.type === 'labeled' ? 0.95 : 0.75
-      };
-    }
-  }
-
-  return null;
-}
-
-function extractPatternFromStatement(fullUtterance: string, matchedPortion: string): string {
-  const sentences = fullUtterance.split(/[.!?]+/);
-  for (const sentence of sentences) {
-    if (sentence.includes(matchedPortion.substring(0, 20))) {
-      return sentence.trim();
-    }
-  }
-  return matchedPortion;
 }
 
 function matchExistingPatterns(
@@ -390,117 +340,95 @@ function matchPatternType(utteranceLower: string, patternType: PatternType): num
   return indicators.length > 0 ? matches / indicators.length : 0;
 }
 
-function detectEmergingPatterns(
+async function detectEmergingPatterns(
   input: TurnInput,
   existingPatterns: UserPattern[]
-): EmergingPattern[] {
-  const emerging: EmergingPattern[] = [];
-  const existingDescriptions = new Set(existingPatterns.map(p => p.description.toLowerCase()));
-
+): Promise<EmergingPattern[]> {
   const userUtterances = input.conversationHistory
     .filter(turn => turn.role === 'user')
-    .map(turn => turn.content.toLowerCase());
+    .map(turn => turn.content);
+  userUtterances.push(input.utterance);
 
-  userUtterances.push(input.utterance.toLowerCase());
+  if (userUtterances.length < 2 || !process.env.ANTHROPIC_API_KEY) {
+    return [];
+  }
 
-  const themes = extractThemes(userUtterances);
+  const existingDescriptions = existingPatterns.length > 0
+    ? existingPatterns.map(p => p.description).join('; ')
+    : 'None established yet';
 
-  for (const [theme, occurrences] of Object.entries(themes)) {
-    if (occurrences.count >= 2 && occurrences.count <= 3) {
-      if (!existingDescriptions.has(theme)) {
-        emerging.push({
-          description: theme,
-          patternType: inferPatternType(theme),
-          occurrenceCount: occurrences.count,
-          examples: occurrences.examples.slice(0, 3),
-          potentialSignificance: assessSignificance(theme, occurrences.count)
-        });
-      }
+  const conversationText = userUtterances
+    .map((u, i) => `[${i + 1}] ${u}`)
+    .join('\n');
+
+  const prompt = `You are analyzing a therapeutic conversation to identify psychological themes that are structurally emerging across multiple user utterances.
+
+USER UTTERANCES FROM THIS SESSION (chronological):
+${conversationText}
+
+ALREADY ESTABLISHED PATTERNS FOR THIS CLIENT:
+${existingDescriptions}
+
+Your task: Identify themes that appear to be emerging — meaning they show up across more than one utterance, not just the most recent one. A theme qualifies as emerging only if there is structural or behavioral evidence for it across multiple utterances. You are looking for structural situations, not surface-level word repetition.
+
+Do not identify:
+- Anything already covered by the established patterns listed above
+- Themes present in only a single utterance
+- Themes derived from the therapist's speech (user utterances only)
+- Themes inferred from word frequency alone — there must be structural evidence
+
+A valid emerging theme describes what the client is doing psychologically across multiple moments — a relational position, a behavioral pattern, an avoidance strategy, a cognitive stance — derivable from the client's own words and not from labels or categories you are imposing.
+
+Respond ONLY with valid JSON, no preamble:
+{
+  "emergingThemes": [
+    {
+      "description": "Concise description of what the client is doing psychologically (under 15 words)",
+      "patternType": "behavioral|cognitive|relational|emotional|avoidance|protective",
+      "occurrenceCount": number of utterances where this is evidenced,
+      "examples": ["brief quote or paraphrase from utterance 1", "brief quote from utterance 2"],
+      "potentialSignificance": "one sentence on why this matters therapeutically"
     }
-  }
-
-  return emerging;
+  ]
 }
 
-function extractThemes(utterances: string[]): Record<string, { count: number; examples: string[] }> {
-  const themes: Record<string, { count: number; examples: string[] }> = {};
+Return an empty array if no themes meet the standard. Do not invent patterns.`;
 
-  const themePatterns = [
-    { regex: /feeling (alone|isolated|lonely)/gi, theme: 'isolation and loneliness' },
-    { regex: /(not|never) (good enough|worthy|deserving)/gi, theme: 'self-worth struggles' },
-    { regex: /(control|controlling|controlled)/gi, theme: 'control dynamics' },
-    { regex: /(trust|trusting|trusted|distrust)/gi, theme: 'trust issues' },
-    { regex: /(abandon|left|leaving|leave me)/gi, theme: 'abandonment fears' },
-    { regex: /(anger|angry|furious|rage)/gi, theme: 'anger patterns' },
-    { regex: /(anxious|anxiety|worried|worry)/gi, theme: 'anxiety patterns' },
-    { regex: /(sad|sadness|depressed|depression)/gi, theme: 'sadness patterns' },
-    { regex: /(guilt|guilty|shame|ashamed)/gi, theme: 'guilt and shame' },
-    { regex: /(perfecti|perfect|flawless)/gi, theme: 'perfectionism' },
-    { regex: /(please|pleasing|approval)/gi, theme: 'people pleasing' },
-    { regex: /(conflict|fight|argue|argument)/gi, theme: 'conflict patterns' },
-    { regex: /(boundary|boundaries|saying no)/gi, theme: 'boundary issues' },
-    { regex: /(compare|comparison|comparing)/gi, theme: 'comparison patterns' }
-  ];
+  try {
+    const anthropic = await import('@anthropic-ai/sdk');
+    const client = new anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  for (const utterance of utterances) {
-    for (const pattern of themePatterns) {
-      if (pattern.regex.test(utterance)) {
-        pattern.regex.lastIndex = 0;
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      messages: [{ role: 'user', content: prompt }]
+    });
 
-        if (!themes[pattern.theme]) {
-          themes[pattern.theme] = { count: 0, examples: [] };
-        }
-        themes[pattern.theme].count++;
-        if (themes[pattern.theme].examples.length < 3) {
-          themes[pattern.theme].examples.push(utterance.substring(0, 100));
-        }
-      }
+    const content = response.content[0];
+    if (content.type !== 'text') return [];
+
+    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      return [];
     }
+
+    return (parsed.emergingThemes || []).map((t: any) => ({
+      description: t.description || '',
+      patternType: validatePatternType(t.patternType),
+      occurrenceCount: Math.max(2, t.occurrenceCount || 2),
+      examples: Array.isArray(t.examples) ? t.examples.slice(0, 3) : [],
+      potentialSignificance: t.potentialSignificance || ''
+    })).filter((t: EmergingPattern) => t.description.length > 0);
+
+  } catch (error) {
+    console.error('🔍 [Emerging Pattern Detection] Error:', error);
+    return [];
   }
-
-  return themes;
-}
-
-function inferPatternType(theme: string): PatternType {
-  const themeLower = theme.toLowerCase();
-
-  if (themeLower.includes('feeling') || themeLower.includes('emotion') ||
-      themeLower.includes('anger') || themeLower.includes('anxiety') ||
-      themeLower.includes('sad') || themeLower.includes('guilt')) {
-    return 'emotional';
-  }
-
-  if (themeLower.includes('relationship') || themeLower.includes('trust') ||
-      themeLower.includes('abandon') || themeLower.includes('conflict') ||
-      themeLower.includes('boundary')) {
-    return 'relational';
-  }
-
-  if (themeLower.includes('avoid') || themeLower.includes('escape') ||
-      themeLower.includes('isolation')) {
-    return 'avoidance';
-  }
-
-  if (themeLower.includes('control') || themeLower.includes('perfect') ||
-      themeLower.includes('protect')) {
-    return 'protective';
-  }
-
-  if (themeLower.includes('think') || themeLower.includes('worry') ||
-      themeLower.includes('comparison')) {
-    return 'cognitive';
-  }
-
-  return 'behavioral';
-}
-
-function assessSignificance(theme: string, occurrences: number): string {
-  if (occurrences >= 3) {
-    return `This theme has appeared ${occurrences} times - may be a significant pattern worth exploring`;
-  } else if (occurrences === 2) {
-    return 'Recurring theme - monitor for further development';
-  }
-  return 'Initial observation';
 }
 
 function calculatePatternResonance(
@@ -653,7 +581,7 @@ clientNamed: true only if the client explicitly acknowledges or names the contra
       apiKey: process.env.ANTHROPIC_API_KEY
     });
     const response = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }]
     });

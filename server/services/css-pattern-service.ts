@@ -164,8 +164,8 @@ export async function detectCSSPatterns(transcript: string, debug: boolean = fal
   const textToAnalyze = userText || transcript;
 
   const { cvdcPatterns: cvdcMatches, ibmPatterns: ibmMatches } = await detectClinicalPatternsWithLLM(textToAnalyze);
-  const thendIndicators = detectThend(textToAnalyze);
-  const cyvcPatterns = detectCYVC(textToAnalyze);
+  const thendIndicators = await detectThend(textToAnalyze);
+  const cyvcPatterns = await detectCYVC(textToAnalyze);
 
   const currentStage = determineStage(cvdcMatches, ibmMatches, thendIndicators, cyvcPatterns);
 
@@ -187,61 +187,127 @@ export async function detectCSSPatterns(transcript: string, debug: boolean = fal
   };
 }
 
-/**
- * Detect Thend (Therapeutic End/Shift) indicators
- */
-function detectThend(text: string): string[] {
-  const patterns = [
-    /something.{0,20}(?:shifted|changed|different)/gi,
-    /I (?:realize|understand|see) now/gi,
-    /it just (?:clicked|hit me|came together)/gi,
-    /suddenly makes sense/gi,
-    /I can see.{0,20}differently/gi,
-    /perspective.{0,20}shift/gi,
-    /new understanding/gi,
-    /integration/gi,
-    /coming together/gi,
-    /I never thought of it that way/gi
-  ];
-
-  const matches: string[] = [];
-
-  for (const pattern of patterns) {
-    const found = text.match(pattern);
-    if (found) {
-      matches.push(...found.map(m => m.substring(0, 100)));
-    }
+async function detectThend(text: string): Promise<string[]> {
+  if (!text || text.trim().length < 50 || !process.env.ANTHROPIC_API_KEY) {
+    return [];
   }
 
-  return matches;
+  const prompt = `You are analyzing client speech from a psychotherapy session transcript to identify Thend — a specific structural event, not a lexical pattern.
+
+Thend is a register event: the client is in narrative or explanatory speech (Imaginary or Symbolic register) and Real-register material — body sensation, involuntary affect, or somatic experience — breaks through in a way the client did not initiate or anticipate.
+
+CLIENT SPEECH:
+"${text.slice(0, 4000)}"
+
+Identify moments that meet ALL of the following structural criteria:
+1. The client was engaged in narrative, explanation, or contextualization — not in somatic inquiry
+2. A body sensation, physical location, tightness, pressure, temperature, or involuntary affective quality entered the speech spontaneously — without being prompted
+3. The emotional or somatic material that arrived does not match the valence or intensity of the narrative the client was producing (affective disproportionality), OR the client appears surprised by what they said or felt
+4. The material that arrived is new — the client was not already tracking it as part of their narrative
+
+Do NOT identify:
+- Retrospective accounts of past insight ("it clicked last week", "I realized later")
+- Cognitive interpretations or summaries ("I understand now that...")
+- Emotional expression the client was already narrating or tracking
+- Neat insight statements — Thend is not insight, it is register arrival
+
+Respond ONLY with valid JSON, no preamble:
+{
+  "thendMoments": [
+    {
+      "description": "One sentence describing what broke through and how",
+      "evidence": "brief quote from the speech showing the moment"
+    }
+  ]
 }
 
-/**
- * Detect CYVC (Contextual/Choice) patterns
- */
-function detectCYVC(text: string): string[] {
-  const patterns = [
-    /sometimes.{0,30}other times/gi,
-    /depends on.{0,20}(?:context|situation)/gi,
-    /I (?:can|could) choose/gi,
-    /different in different/gi,
-    /flexibility/gi,
-    /adaptive/gi,
-    /it varies/gi,
-    /contextual/gi,
-    /I have options/gi
-  ];
+Return an empty array if no moments meet the full structural criteria. Do not lower the bar.`;
 
-  const matches: string[] = [];
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    });
 
-  for (const pattern of patterns) {
-    const found = text.match(pattern);
-    if (found) {
-      matches.push(...found.map(m => m.substring(0, 100)));
-    }
+    const textBlock = response.content.find((b: any) => b.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') return [];
+
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return Array.isArray(parsed.thendMoments)
+      ? parsed.thendMoments
+          .filter((m: any) => m.description && m.description.length > 0)
+          .map((m: any) => m.description as string)
+      : [];
+  } catch (error) {
+    console.error('🔬 [CSSPatterns] Thend detection error:', error);
+    return [];
+  }
+}
+
+async function detectCYVC(text: string): Promise<string[]> {
+  if (!text || text.trim().length < 50 || !process.env.ANTHROPIC_API_KEY) {
+    return [];
   }
 
-  return matches;
+  const prompt = `You are analyzing client speech from a psychotherapy session transcript to identify CYVC — Constant Yet Variable Conclusion. This is a specific structural state, not behavioral flexibility or situational adaptation.
+
+CYVC is operative simultaneity: the client holds both sides of a contradiction simultaneously and acts from a chosen position within that holding — without either side eliminating the choice, and without the presence of the other side preventing action. The contradiction has not resolved — both values or desires are still present — but the client is no longer tormented by the paradox. They inhabit it as a generative principle.
+
+CLIENT SPEECH:
+"${text.slice(0, 4000)}"
+
+Identify moments that meet the structural criteria of CYVC:
+1. The client names or implies both sides of a contradiction simultaneously — not alternating between them ("sometimes X, sometimes Y") but holding them at once
+2. The client speaks from a position of chosen action within that holding — not from exhaustion, resignation, or one side winning
+3. The client's relationship to the contradiction has changed in register: what previously came with distress now comes with recognition, observation, or even equanimity
+4. OR: the client begins to transmit the integration outward — they speak about someone else's stuck contradiction using language that implies they have already metabolized their own
+
+Do NOT identify:
+- Behavioral flexibility or situational adaptation ("I do different things in different contexts")
+- Resignation ("I guess I have to live with it")
+- One side of the contradiction suppressing the other
+- Cognitive inventory-taking ("I have options", "it depends")
+- Reported flexibility without evidence of the contradiction still being held
+
+Respond ONLY with valid JSON, no preamble:
+{
+  "cyvcMoments": [
+    {
+      "description": "One sentence describing the operative simultaneity and what the client is doing",
+      "evidence": "brief quote from the speech showing the moment"
+    }
+  ]
+}
+
+Return an empty array if no moments meet the full structural criteria. Do not lower the bar.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const textBlock = response.content.find((b: any) => b.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') return [];
+
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return Array.isArray(parsed.cyvcMoments)
+      ? parsed.cyvcMoments
+          .filter((m: any) => m.description && m.description.length > 0)
+          .map((m: any) => m.description as string)
+      : [];
+  } catch (error) {
+    console.error('🔬 [CSSPatterns] CYVC detection error:', error);
+    return [];
+  }
 }
 
 /**
