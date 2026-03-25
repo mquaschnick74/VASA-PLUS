@@ -551,9 +551,9 @@ router.post('/webhook', async (req, res) => {
 
       // FRAGMENT EXTRACTION: Extract narrative fragments from session transcript (fire-and-forget)
       const transcriptForFragments = message?.artifact?.messages || message?.transcript || message?.fullTranscript;
-      const cssStageForFragments = sensingSessionSummary?.dominantRegister ? undefined : undefined; // CSS stage comes from pattern detection below
+        const cssStageForFragments = sensingSessionSummary?.finalCSSStage ?? null;
       if (transcriptForFragments && userId) {
-        extractAndStoreFragments(userId, callId, transcriptForFragments)
+        extractAndStoreFragments(userId, callId, transcriptForFragments, cssStageForFragments)
           .then(result => {
             console.log(`📦 [FRAGMENTS] Extraction complete for ${callId}: ${result.fragmentCount} fragments, ${result.resonanceLinkCount} resonance links`);
           })
