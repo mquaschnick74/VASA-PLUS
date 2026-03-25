@@ -192,36 +192,39 @@ async function detectThend(text: string): Promise<string[]> {
     return [];
   }
 
-  const prompt = `You are analyzing client speech from a psychotherapy session transcript to identify Thend — a specific structural event, not a lexical pattern.
+  const prompt = `You are analyzing client speech from a psychotherapy session transcript to identify Thend — a specific structural event that requires precision to identify correctly.
 
-Thend is a register event: the client is in narrative or explanatory speech (Imaginary or Symbolic register) and Real-register material — body sensation, involuntary affect, or somatic experience — breaks through in a way the client did not initiate or anticipate.
+Thend is NOT: recognizing a contradiction, naming somatic cost, describing exhaustion, or articulating how a bind affects the body. These are valuable clinical moments but they are not Thend.
+
+Thend IS: the client beginning to operate FROM both poles of a contradiction simultaneously — not being caught inside it, but demonstrating the first signs of working from within it. The client has moved from "this bind is happening to me" to showing — through speech or action — that they can hold both sides at once, even briefly.
+
+REQUIRED structural criteria — ALL must be met:
+1. A named contradiction (CVDC) must already be present or named in the session — Thend cannot precede CVDC
+2. The client is not merely describing the contradiction's effects or costs on them — they are demonstrating movement that requires holding both poles
+3. The client's speech or described action shows them operating from inside the mechanism, not observing it from outside
+4. The shift is involuntary or surprising to the client — they did not plan to hold both sides, it happened
+
+HARD EXCLUSIONS — if any of these are present, it is NOT Thend:
+- Client is describing somatic symptoms of the contradiction (chest tightness, exhaustion, weight)
+- Client is narrating how the contradiction functions ("it's easier when there's something to push against")
+- Client is expressing resignation or adapted tolerance ("you learn to live with it")
+- Client is recognizing that the contradiction serves a function without operating from within that function
+- Client ends the passage expressing exhaustion, depletion, or "not quite sure"
 
 CLIENT SPEECH:
 "${text.slice(0, 4000)}"
-
-Identify moments that meet ALL of the following structural criteria:
-1. The client was engaged in narrative, explanation, or contextualization — not in somatic inquiry
-2. A body sensation, physical location, tightness, pressure, temperature, or involuntary affective quality entered the speech spontaneously — without being prompted
-3. The emotional or somatic material that arrived does not match the valence or intensity of the narrative the client was producing (affective disproportionality), OR the client appears surprised by what they said or felt
-4. The material that arrived is new — the client was not already tracking it as part of their narrative
-
-Do NOT identify:
-- Retrospective accounts of past insight ("it clicked last week", "I realized later")
-- Cognitive interpretations or summaries ("I understand now that...")
-- Emotional expression the client was already narrating or tracking
-- Neat insight statements — Thend is not insight, it is register arrival
 
 Respond ONLY with valid JSON, no preamble:
 {
   "thendMoments": [
     {
-      "description": "One sentence describing what broke through and how",
+      "description": "One sentence describing specifically how the client demonstrated operative movement from within the contradiction — not what they named, but what they did",
       "evidence": "brief quote from the speech showing the moment"
     }
   ]
 }
 
-Return an empty array if no moments meet the full structural criteria. Do not lower the bar.`;
+Return an empty array if the criteria are not fully met. When in doubt, return empty. False negatives are preferable to false positives here.`;
 
   try {
     const response = await anthropic.messages.create({
@@ -253,37 +256,39 @@ async function detectCYVC(text: string): Promise<string[]> {
     return [];
   }
 
-  const prompt = `You are analyzing client speech from a psychotherapy session transcript to identify CYVC — Constant Yet Variable Conclusion. This is a specific structural state, not behavioral flexibility or situational adaptation.
+  const prompt = `You are analyzing client speech from a psychotherapy session transcript to identify CYVC — Constant Yet Variable Conclusion. This requires precision. CYVC is rare and late-stage. It will not appear in early or mid-stage sessions.
 
-CYVC is operative simultaneity: the client holds both sides of a contradiction simultaneously and acts from a chosen position within that holding — without either side eliminating the choice, and without the presence of the other side preventing action. The contradiction has not resolved — both values or desires are still present — but the client is no longer tormented by the paradox. They inhabit it as a generative principle.
+CYVC is NOT: recognizing that a contradiction has a structural function, describing behavioral flexibility, noticing that the contradiction serves a purpose, or articulating how the mechanism works. These are observational — they describe the contradiction from outside.
+
+CYVC IS: the client actively attributing value or utility to holding the contradiction — not as an intellectual observation, but as a lived operational position. The client demonstrates they can choose which pole to act from without the act of choosing eliminating the other pole. This is accompanied by a register shift: what previously arrived with distress or exhaustion now arrives with something closer to equanimity, recognition, or even generativity.
+
+REQUIRED structural criteria — ALL must be met:
+1. Thend must have already occurred in the clinical history — CYVC cannot precede Thend
+2. The client is not merely recognizing that the contradiction is useful — they are operating from that recognition in a way that changes their relationship to the bind
+3. The emotional register around the contradiction has shifted — it no longer arrives only with distress, resignation, or exhaustion
+4. The client speaks about the mechanism from a position of agency, not depletion
+
+HARD EXCLUSIONS — if any of these are present, it is NOT CYVC:
+- Client expresses exhaustion, depletion, or "not quite sure" in the same passage
+- Client is describing that the contradiction "makes things easier" as a passive observation
+- Client is expressing resignation ("I guess I have to live with it")
+- Client is describing the function of the contradiction without demonstrating operative value from holding it
+- The surrounding context shows the client is still being acted upon by the contradiction rather than acting from within it
 
 CLIENT SPEECH:
 "${text.slice(0, 4000)}"
-
-Identify moments that meet the structural criteria of CYVC:
-1. The client names or implies both sides of a contradiction simultaneously — not alternating between them ("sometimes X, sometimes Y") but holding them at once
-2. The client speaks from a position of chosen action within that holding — not from exhaustion, resignation, or one side winning
-3. The client's relationship to the contradiction has changed in register: what previously came with distress now comes with recognition, observation, or even equanimity
-4. OR: the client begins to transmit the integration outward — they speak about someone else's stuck contradiction using language that implies they have already metabolized their own
-
-Do NOT identify:
-- Behavioral flexibility or situational adaptation ("I do different things in different contexts")
-- Resignation ("I guess I have to live with it")
-- One side of the contradiction suppressing the other
-- Cognitive inventory-taking ("I have options", "it depends")
-- Reported flexibility without evidence of the contradiction still being held
 
 Respond ONLY with valid JSON, no preamble:
 {
   "cyvcMoments": [
     {
-      "description": "One sentence describing the operative simultaneity and what the client is doing",
+      "description": "One sentence describing specifically how the client demonstrated operative value from holding the contradiction — not what they observed, but what they did or chose",
       "evidence": "brief quote from the speech showing the moment"
     }
   ]
 }
 
-Return an empty array if no moments meet the full structural criteria. Do not lower the bar.`;
+Return an empty array if the criteria are not fully met. When in doubt, return empty. False negatives are preferable to false positives here.`;
 
   try {
     const response = await anthropic.messages.create({
@@ -321,40 +326,19 @@ function determineStage(
 ): string {
   const cvdcCount = cvdcPatterns.length;
   const ibmCount = ibmPatterns.length;
-  const thendCount = thendIndicators.length;
-  const cyvcCount = cyvcPatterns.length;
 
-  // Terminal: Full recursive awareness with contextual flexibility
-  if (cyvcCount >= 2 && thendCount >= 1) {
-    return 'terminal';
-  }
-
-  // Completion: Active choice and flexibility
-  if (cyvcCount >= 1) {
-    return 'completion';
-  }
-
-  // Gesture toward: Integration beginning
-  if (thendCount >= 2) {
-    return 'gesture_toward';
-  }
-
-  if (thendCount > 0) {
-    // Suspension to Gesture toward: Pure integration moments
-    return 'suspension';
-  }
-
+  // NOTE: Thend and CYVC detectors are in shadow mode.
+  // Their outputs are returned in the CSSPatterns result for logging and arc tracking
+  // but do not drive stage determination here until detection precision is validated.
+  // Stage is derived from CVDC and IBM signals only.
   if (cvdcCount >= 2 || ibmCount >= 2) {
-    // Suspension: Multiple contradictions held
     return 'suspension';
   }
 
   if (cvdcCount >= 1 || ibmCount >= 1) {
-    // Focus bind: Clear contradiction identified
     return 'focus_bind';
   }
 
-  // Pointed origin: Default/starting stage
   return 'pointed_origin';
 }
 
