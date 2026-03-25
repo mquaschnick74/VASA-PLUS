@@ -308,27 +308,7 @@ export async function processTranscript(
   }
   session.processedTranscripts.add(transcriptHash);
 
-  const patterns = await detectCSSPatterns(transcript, false);
-
-  if (patterns.currentStage !== session.currentCSSStage) {
-    console.log(`🎯 CSS Stage progression: ${session.currentCSSStage} → ${patterns.currentStage}`);
-
-    const previousStage = session.currentCSSStage;
-    session.currentCSSStage = patterns.currentStage;
-
-    await supabase
-      .from('css_progressions')
-      .insert({
-        user_id: session.userId,
-        call_id: callId,
-        from_stage: previousStage,
-        to_stage: patterns.currentStage,
-        trigger_content: transcript.substring(0, 200),
-        agent_name: session.agentName
-      });
-  }
-
-  await storeCSSPatterns(session, patterns);
+  await storeCSSPatterns(session, await detectCSSPatterns(transcript, false));
 }
 
 export async function processEndOfCall(
