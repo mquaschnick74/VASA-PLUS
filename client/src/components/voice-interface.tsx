@@ -108,6 +108,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   const [typewriterMessageId, setTypewriterMessageId] = useState<string | null>(null);
   const [displayedContent, setDisplayedContent] = useState<Record<string, string>>({});
   const [showPatternGateModal, setShowPatternGateModal] = useState(false);
+  const [gateModalDescription, setGateModalDescription] = useState<string | null>(null);
   const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -211,6 +212,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
             if (data?.limits?.is_pattern_gated === true) {
               console.log('🔒 [PatternGate] Gate detected post-session — showing modal');
               setShowPatternGateModal(true);
+              setGateModalDescription(data.limits.pattern_gate_description || null);
             }
           } catch (err) {
             console.error('❌ [PatternGate] Failed to check post-session subscription status:', err);
@@ -1322,8 +1324,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                 You found something.
               </h2>
               <p className="text-white/70 text-sm leading-relaxed">
-                {subscription?.limits?.pattern_gate_description
-                  ? `"${subscription.limits.pattern_gate_description}"`
+                {(gateModalDescription || subscription?.limits?.pattern_gate_description)
+                  ? `"${gateModalDescription || subscription?.limits?.pattern_gate_description}"`
                   : "A pattern has emerged from your sessions — one that's yours to keep exploring."}
               </p>
               <p className="text-white/50 text-xs leading-relaxed">
