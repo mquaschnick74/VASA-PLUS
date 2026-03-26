@@ -16,62 +16,54 @@ export interface CSSPatterns {
 
 export type CSSStage = 'pointed_origin' | 'focus_bind' | 'suspension' | 'gesture_toward' | 'completion' | 'terminal';
 
-// Agent response markers to filter out
-const AGENT_MARKERS = [
-  /What\'s it like/gi,
-  /Can you tell me more/gi,
-  /How does that feel/gi,
-  /I hear you saying/gi,
-  /It sounds like/gi,
-  /What do you notice/gi,
-  /I\'m curious about/gi,
-  /Thank you for sharing/gi,
-  /That must be/gi,
-  /I can imagine/gi
-];
-
 /**
- * Extract user statements from a full transcript
+ * Extract user statements from a transcript using role prefix markers.
+ * Handles both "User:" / "AI:" prefixed transcripts and plain text fallback.
  */
 function extractUserStatements(transcript: string, debug: boolean = false): string[] {
-  // Split by sentences but preserve the full text structure
-  const sentences = transcript
+  const userStatements: string[] = [];
+
+  // Role-prefix path: transcript contains "User:" / "AI:" markers
+  if (/(?:^|\n)\s*(?:User|AI)\s*:/i.test(transcript)) {
+    const lines = transcript.split('\n');
+    let currentRole: string | null = null;
+    let currentContent: string[] = [];
+
+    for (const line of lines) {
+      const roleMatch = line.match(/^\s*(User|AI)\s*:\s*(.*)/i);
+      if (roleMatch) {
+        // Flush previous accumulation if it was a User turn
+        if (currentRole === 'user' && currentContent.length > 0) {
+          const text = currentContent.join(' ').trim();
+          if (text.length > 10) {
+            userStatements.push(text);
+            if (debug) console.log(`✅ User turn: "${text.substring(0, 60)}..."`);
+          }
+        }
+        currentRole = roleMatch[1].toLowerCase() === 'user' ? 'user' : 'agent';
+        currentContent = roleMatch[2] ? [roleMatch[2].trim()] : [];
+      } else if (currentRole) {
+        const trimmed = line.trim();
+        if (trimmed.length > 0) currentContent.push(trimmed);
+      }
+    }
+
+    // Flush final turn
+    if (currentRole === 'user' && currentContent.length > 0) {
+      const text = currentContent.join(' ').trim();
+      if (text.length > 10) userStatements.push(text);
+    }
+
+    if (debug) console.log(`📝 Role-based extraction: ${userStatements.length} user turns`);
+    return userStatements;
+  }
+
+  // Fallback: no role markers — return all sentences above minimum length
+  if (debug) console.log('📝 No role markers found — using full transcript');
+  return transcript
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(s => s.length > 10);
-
-  if (debug) {
-    console.log(`📝 Split into ${sentences.length} sentences`);
-  }
-
-  const userStatements: string[] = [];
-
-  for (const sentence of sentences) {
-    // Skip if it's likely an agent response
-    const isAgentResponse = AGENT_MARKERS.some(marker =>
-      marker.test(sentence)
-    );
-
-    // Skip questions (likely agent) - but not all questions
-    const isQuestion = sentence.trim().endsWith('?') && !sentence.includes('I');
-
-    // Prefer statements starting with "I" (likely user)
-    const startsWithI = /^I\s/i.test(sentence.trim());
-
-    // Include if it seems like a user statement
-    if (!isAgentResponse && (!isQuestion || startsWithI)) {
-      userStatements.push(sentence.trim());
-      if (debug) console.log(`✅ User statement: "${sentence.substring(0, 50)}..."`);
-    } else if (debug) {
-      console.log(`❌ Filtered out: "${sentence.substring(0, 50)}..." (agent:${isAgentResponse}, question:${isQuestion})`);
-    }
-  }
-
-  if (debug) {
-    console.log(`📝 Extracted ${userStatements.length} user statements from ${sentences.length} sentences`);
-  }
-
-  return userStatements;
 }
 
 /**

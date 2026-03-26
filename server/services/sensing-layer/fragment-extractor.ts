@@ -119,7 +119,7 @@ Return ONLY a JSON array (no markdown, no explanation, no preamble). Each elemen
   "fragment_type": one of "story" | "event" | "relationship_dynamic" | "emotional_disclosure" | "contradiction" | "behavioral_pattern" | "somatic_marker" | "metaphor" | "explicit_insight",
   "content_summary": "A 1-3 sentence summary capturing the therapeutic essence of this moment. Not raw transcript — distill what matters clinically. Include specific details (names, images, body locations) that the user used.",
   "characters": ["Array", "of", "people", "mentioned"] — use first names or roles (e.g., "mother", "manager"). Empty array if no people referenced.,
-  "content_domain": one of "romantic" | "professional" | "family" | "friendship" | "self_concept" | "business" | "somatic" | "existential",
+  "content_domain": MUST be exactly one of these eight values with no variation: "romantic" | "professional" | "family" | "friendship" | "self_concept" | "business" | "somatic" | "existential". Do not use any other value. Do not invent synonyms. If the domain is psychological or identity-related, use "self_concept". If it involves the body or physical sensation, use "somatic". If spiritual or about meaning, use "existential".,
   "register_signature": {
     "dominant": one of "Real" | "Imaginary" | "Symbolic",
     "stuckness": 0.0 to 1.0,
@@ -159,6 +159,58 @@ Return between 3 and 8 fragments. Fewer is fine for short sessions. Never fabric
       return [];
     }
 
+    const ALLOWED_CONTENT_DOMAINS = new Set([
+      'romantic', 'professional', 'family', 'friendship',
+      'self_concept', 'business', 'somatic', 'existential'
+    ]);
+
+    const CONTENT_DOMAIN_MAP: Record<string, string> = {
+      'interpersonal': 'friendship',
+      'relational': 'friendship',
+      'social': 'friendship',
+      'peer': 'friendship',
+      'psychological': 'self_concept',
+      'identity': 'self_concept',
+      'internal': 'self_concept',
+      'personal': 'self_concept',
+      'emotional': 'self_concept',
+      'mental': 'self_concept',
+      'trauma': 'existential',
+      'somatic_experience': 'somatic',
+      'body': 'somatic',
+      'physical': 'somatic',
+      'work': 'professional',
+      'career': 'professional',
+      'occupational': 'professional',
+      'financial': 'business',
+      'money': 'business',
+      'spiritual': 'existential',
+      'philosophical': 'existential',
+      'meaning': 'existential',
+      'purpose': 'existential',
+      'parental': 'family',
+      'sibling': 'family',
+      'partner': 'romantic',
+      'marital': 'romantic',
+      'intimate': 'romantic',
+    };
+
+    // Normalize content_domain before validation
+    for (const item of parsed) {
+      if (item.content_domain) {
+        const raw = String(item.content_domain).toLowerCase().trim();
+        if (!ALLOWED_CONTENT_DOMAINS.has(raw)) {
+          const mapped = CONTENT_DOMAIN_MAP[raw];
+          if (mapped) {
+            item.content_domain = mapped;
+          } else {
+            console.warn(`📦 [FRAGMENTS] Unknown content_domain "${raw}" — defaulting to self_concept`);
+            item.content_domain = 'self_concept';
+          }
+        }
+      }
+    }
+
     // Validate required fields on each element
     const validated = parsed.filter((item: any) => {
       return (
@@ -166,6 +218,7 @@ Return between 3 and 8 fragments. Fewer is fine for short sessions. Never fabric
         item.content_summary &&
         Array.isArray(item.characters) &&
         item.content_domain &&
+        ALLOWED_CONTENT_DOMAINS.has(item.content_domain) &&
         item.register_signature &&
         Array.isArray(item.emotional_markers) &&
         Array.isArray(item.structural_patterns) &&
