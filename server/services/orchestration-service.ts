@@ -1,5 +1,5 @@
 // Simplified Orchestration Service - CSS tracking only
-import { detectCSSPatterns, assessPatternConfidence } from './css-pattern-service';
+import { detectCSSPatterns } from './css-pattern-service';
 import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
@@ -474,7 +474,6 @@ export async function processEndOfCall(
 
 async function processFullTranscript(session: SessionState, transcript: string): Promise<any> {
   const patterns = await detectCSSPatterns(transcript, true);
-  const { confidence, reasoning } = assessPatternConfidence(patterns);
 
   console.log(`📊 Full transcript analysis:`);
   console.log(`  CSS Stage: ${patterns.currentStage}`);
@@ -491,18 +490,6 @@ async function processFullTranscript(session: SessionState, transcript: string):
 
   await storeCSSPatterns(session, patterns);
   await updateArcFromPatterns(session.userId, session.callId, patterns.thendIndicators, patterns.cyvcPatterns);
-
-  await supabase
-    .from('css_patterns')
-    .insert({
-      user_id: session.userId,
-      call_id: session.callId,
-      pattern_type: 'STAGE_ASSESSMENT',
-      content: `Stage: ${patterns.currentStage}. ${reasoning}`,
-      css_stage: patterns.currentStage,
-      confidence: confidence,
-      detected_at: new Date().toISOString()
-    });
 
   return patterns;
 }
