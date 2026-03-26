@@ -107,6 +107,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
 
   const [typewriterMessageId, setTypewriterMessageId] = useState<string | null>(null);
   const [displayedContent, setDisplayedContent] = useState<Record<string, string>>({});
+  const [showPatternGateModal, setShowPatternGateModal] = useState(false);
   const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -190,9 +191,35 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       setShowTranscript(true);
       localStorage.removeItem('vasa_text_session_id');
       localStorage.removeItem('vasa_text_transcript');
+
+      // PATTERN GATE: Re-fetch subscription 3 seconds after session ends.
+      // The gate is written server-side during end-of-call-report processing.
+      // The delay allows the webhook to complete before we check.
+      if (userId) {
+        setTimeout(async () => {
+          try {
+            const session = await supabase.auth.getSession();
+            const token = session.data.session?.access_token;
+            if (!token) return;
+
+            const response = await fetch(`${getApiUrl('/api/subscription/status')}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (data?.limits?.is_pattern_gated === true) {
+              console.log('🔒 [PatternGate] Gate detected post-session — showing modal');
+              setShowPatternGateModal(true);
+            }
+          } catch (err) {
+            console.error('❌ [PatternGate] Failed to check post-session subscription status:', err);
+          }
+        }, 3000);
+      }
     }
     prevSessionActive.current = isSessionActive;
-  }, [isSessionActive]);
+  }, [isSessionActive, userId]);
 
   const lastTranscriptLengthRef = useRef(0);
   useEffect(() => {
@@ -1284,6 +1311,43 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* PATTERN GATE MODAL — fires once, immediately after the session that triggers the gate */}
+      {showPatternGateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center space-y-6">
+              <div className="text-4xl">◈</div>
+              <h2 className="text-xl font-semibold text-white leading-snug">
+                You found something.
+              </h2>
+              <p className="text-white/70 text-sm leading-relaxed">
+                {subscription?.limits?.pattern_gate_description
+                  ? `"${subscription.limits.pattern_gate_description}"`
+                  : "A pattern has emerged from your sessions — one that's yours to keep exploring."}
+              </p>
+              <p className="text-white/50 text-xs leading-relaxed">
+                This is what iVASA is for. Keep the thread.
+              </p>
+              <button
+                onClick={() => {
+                  setShowPatternGateModal(false);
+                  setLocation('/pricing');
+                }}
+                className="w-full bg-white text-black font-medium py-3 px-6 rounded-xl hover:bg-white/90 transition-colors"
+              >
+                Keep going →
+              </button>
+              <button
+                onClick={() => setShowPatternGateModal(false)}
+                className="w-full text-white/40 text-xs hover:text-white/60 transition-colors"
+              >
+                I'll decide later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
