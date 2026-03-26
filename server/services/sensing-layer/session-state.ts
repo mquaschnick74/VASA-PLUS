@@ -752,6 +752,16 @@ export function assessSessionCSSStage(callId: string): { stage: CSSStage; confid
     ? Math.min(0.9, 0.4 + (maxScore - secondMax) * 0.3)
     : 0.3;
 
+  // Hysteresis: block regression unless new confidence significantly exceeds current.
+  // A lower-stage assessment can only overwrite the current stage if its confidence
+  // exceeds the current stage's confidence by at least the regression margin.
+  // This prevents a low-confidence pointed_origin assessment from overwriting a
+  // well-established focus_bind or higher stage seeded from prior session data.
+  const REGRESSION_CONFIDENCE_MARGIN = 0.2;
+  if (topIndex < currentIndex && confidence < session.sessionCSSStageConfidence + REGRESSION_CONFIDENCE_MARGIN) {
+    topStage = session.sessionCSSStage;
+  }
+
   // Persist back to session
   session.sessionCSSStage = topStage;
   session.sessionCSSStageConfidence = confidence;
