@@ -550,6 +550,25 @@ router.post('/webhook', async (req, res) => {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
       }
 
+      // PATTERN GATE CHECK: If sensing detected an explicitly-identified pattern, fire the gate
+      if (sensingSessionSummary && userId) {
+        const explicitPattern = sensingSessionSummary.patternsDetected.find(
+          (p: any) => p.userExplicitlyIdentified === true
+        );
+        if (explicitPattern) {
+          const description = explicitPattern.description || explicitPattern.evidence || 'Pattern recognized by user';
+          subscriptionService.firePatternGate(userId, description)
+            .then(fired => {
+              if (fired) {
+                console.log(`🚪 [PATTERN GATE] Gate fired for user ${userId} after session ${callId}`);
+              }
+            })
+            .catch(err => {
+              console.error(`🚪 [PATTERN GATE] Error checking gate for ${callId}:`, err);
+            });
+        }
+      }
+
       // FRAGMENT EXTRACTION: Extract narrative fragments from session transcript (fire-and-forget)
       const transcriptForFragments = message?.artifact?.messages || message?.transcript || message?.fullTranscript;
         const cssStageForFragments = sensingSessionSummary?.finalCSSStage ?? null;

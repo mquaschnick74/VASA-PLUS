@@ -19,6 +19,8 @@ interface SubscriptionData {
     subscription_owner_email?: string;
     is_trial?: boolean;
     trial_days_left?: number;
+    pattern_gate_fired?: boolean;
+    pattern_gate_description?: string | null;
   };
   user_id: string;
   subscription_tier: string;
@@ -151,7 +153,9 @@ export function useSubscription(userId: string | null) {
               subscription_owner_id: apiData.limits.subscription_owner_id,
               subscription_owner_email: apiData.limits.subscription_owner_email,
               is_trial: apiData.limits.is_trial,
-              trial_days_left: apiData.limits.trial_days_left
+              trial_days_left: apiData.limits.trial_days_left,
+              pattern_gate_fired: apiData.limits.pattern_gate_fired,
+              pattern_gate_description: apiData.limits.pattern_gate_description
             },
             user_id: userId,
             subscription_tier: apiData.limits.subscription_tier || 'trial',
@@ -334,7 +338,9 @@ export function useSubscription(userId: string | null) {
                 subscription_owner_id: apiData.limits.subscription_owner_id,
                 subscription_owner_email: apiData.limits.subscription_owner_email,
                 is_trial: apiData.limits.is_trial,
-                trial_days_left: apiData.limits.trial_days_left
+                trial_days_left: apiData.limits.trial_days_left,
+                pattern_gate_fired: apiData.limits.pattern_gate_fired,
+                pattern_gate_description: apiData.limits.pattern_gate_description
               },
               user_id: userId,
               subscription_tier: apiData.limits.subscription_tier || 'trial',

@@ -18,6 +18,8 @@ interface SubscriptionLimits {
   session_duration_limit?: number;
   client_limit?: number;
   clients_used?: number;
+  pattern_gate_fired?: boolean;
+  pattern_gate_description?: string | null;
 }
 
 export class SubscriptionService {
@@ -131,26 +133,29 @@ export class SubscriptionService {
     });
 
     const now = new Date();
+    const isPatternGated = subscription.subscription_status === 'pattern_gated';
     const isExpired = subscription.subscription_status === 'expired' ||
       (subscription.trial_ends_at && new Date(subscription.trial_ends_at) < now);
 
     const minutesRemaining = Math.max(0, (subscription.usage_minutes_limit || 0) - (subscription.usage_minutes_used || 0));
 
     const limits: SubscriptionLimits = {
-      can_use_voice: !isExpired && minutesRemaining > 0,
+      can_use_voice: !isExpired && !isPatternGated && minutesRemaining > 0,
       minutes_remaining: minutesRemaining,
       minutes_used: subscription.usage_minutes_used || 0,
       minutes_limit: subscription.usage_minutes_limit || 0,
-      subscription_active: !isExpired,
+      subscription_active: !isExpired && !isPatternGated,
       is_trial: subscription.subscription_status === 'trialing',
-      trial_days_left: subscription.trial_ends_at ? 
+      trial_days_left: subscription.trial_ends_at ?
         Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0,
       subscription_tier: subscription.subscription_tier,
       user_type: profile.user_type || 'individual',
       subscription_owner_id: userId,
       subscription_owner_email: profile.email,
       client_limit: subscription.client_limit || 0,
-      clients_used: subscription.clients_used || 0
+      clients_used: subscription.clients_used || 0,
+      pattern_gate_fired: subscription.pattern_gate_fired || false,
+      pattern_gate_description: subscription.pattern_gate_description || null,
     };
 
     console.log(`✅ [Depth ${depth}] Limits calculated:`, {
@@ -293,13 +298,88 @@ export class SubscriptionService {
       limits,
       subscription: {
         subscription_tier: limits.subscription_tier,
-        subscription_status: limits.is_trial ? 'trialing' : 'active',
+        subscription_status: limits.pattern_gate_fired ? 'pattern_gated' : (limits.is_trial ? 'trialing' : 'active'),
         usage_minutes_limit: limits.minutes_limit,
         usage_minutes_used: limits.minutes_used,
         client_limit: limits.client_limit || 0,
         clients_used: limits.clients_used || 0
       }
     };
+  }
+
+  /**
+   * Fire the pattern gate for a user.
+   * Idempotent: if already fired, this is a no-op.
+   * Requires: userExplicitlyIdentified === true on a structuredPatterns entry
+   *           AND the user has completed at least 2 prior therapeutic sessions.
+   */
+  async firePatternGate(userId: string, patternDescription: string): Promise<boolean> {
+    try {
+      console.log(`🚪 [PATTERN GATE] Checking gate conditions for user: ${userId}`);
+
+      // Check if gate already fired (idempotent)
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('pattern_gate_fired, subscription_status')
+        .eq('user_id', userId)
+        .single();
+
+      if (!subscription) {
+        console.warn(`⚠️ [PATTERN GATE] No subscription found for user: ${userId}`);
+        return false;
+      }
+
+      if (subscription.pattern_gate_fired) {
+        console.log(`🚪 [PATTERN GATE] Gate already fired for user: ${userId}, skipping`);
+        return true;
+      }
+
+      // Do not gate paying subscribers
+      if (['active', 'past_due'].includes(subscription.subscription_status)) {
+        console.log(`🚪 [PATTERN GATE] User ${userId} is a paying subscriber (${subscription.subscription_status}), skipping gate`);
+        return false;
+      }
+
+      // Check completed session count (at least 2 prior sessions)
+      const { count: sessionCount, error: countError } = await supabase
+        .from('therapeutic_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .not('end_time', 'is', null);
+
+      if (countError) {
+        console.error(`❌ [PATTERN GATE] Error counting sessions:`, countError);
+        return false;
+      }
+
+      if ((sessionCount || 0) < 2) {
+        console.log(`🚪 [PATTERN GATE] User ${userId} has only ${sessionCount} completed sessions, need at least 2`);
+        return false;
+      }
+
+      // Fire the gate
+      const { error: updateError } = await supabase
+        .from('subscriptions')
+        .update({
+          subscription_status: 'pattern_gated',
+          pattern_gate_fired: true,
+          pattern_gate_description: patternDescription,
+          pattern_gate_fired_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.error(`❌ [PATTERN GATE] Failed to fire gate:`, updateError);
+        return false;
+      }
+
+      console.log(`🚪 [PATTERN GATE] Gate fired for user ${userId}: "${patternDescription}"`);
+      return true;
+    } catch (error) {
+      console.error(`❌ [PATTERN GATE] Unexpected error:`, error);
+      return false;
+    }
   }
 }
 

@@ -231,6 +231,18 @@ router.post('/', async (req, res) => {
         else if (subscription.status === 'past_due') status = 'past_due';
         else if (subscription.status === 'unpaid') status = 'expired';
 
+        // If subscription lapses and pattern gate was previously fired, revert to pattern_gated
+        if (status === 'canceled' || status === 'expired') {
+          const { data: gateCheck } = await supabase
+            .from('subscriptions')
+            .select('pattern_gate_fired')
+            .eq('stripe_subscription_id', subscription.id)
+            .single();
+          if (gateCheck?.pattern_gate_fired) {
+            status = 'pattern_gated';
+          }
+        }
+
         const updateData: any = {
           subscription_status: status,
           current_period_end: new Date(subscription.current_period_end * 1000),
@@ -310,10 +322,19 @@ router.post('/', async (req, res) => {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
 
+        // If user previously hit pattern gate, revert to pattern_gated (not canceled)
+        const { data: existingSub } = await supabase
+          .from('subscriptions')
+          .select('pattern_gate_fired')
+          .eq('stripe_subscription_id', subscription.id)
+          .single();
+
+        const canceledStatus = existingSub?.pattern_gate_fired ? 'pattern_gated' : 'canceled';
+
         const { error } = await supabase
           .from('subscriptions')
           .update({
-            subscription_status: 'canceled',
+            subscription_status: canceledStatus,
             stripe_subscription_id: null,
             updated_at: new Date().toISOString(),
           })
