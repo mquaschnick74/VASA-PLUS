@@ -20,6 +20,7 @@ import {
 import { getPCAContextForAgent } from '../services/memory-service';
 import { formatFieldSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { findResonatingFragments } from '../services/sensing-layer/narrative-web';
+import { getArcPosition } from '../services/sensing-layer/arc-tracker';
 
 const router = Router();
 
@@ -96,7 +97,23 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     }
   }
 
-  const profileBlockBase = assembleProfileBlock(firstName, cachedProfile, isFirstSession);
+  let arcPosition = null;
+  if (userId && userId !== 'unknown' && !isFirstSession) {
+    try {
+      arcPosition = await getArcPosition(userId);
+    } catch (err) {
+      console.warn(`🔵 [CUSTOM-LLM] Arc position unavailable (non-fatal):`, err);
+    }
+  }
+
+  const profileBlockBase = assembleProfileBlock(
+    firstName,
+    cachedProfile,
+    isFirstSession,
+    arcPosition,
+    cachedProfile?.lastCSSStage ?? null,
+    cachedProfile?.lastCSSStageConfidence ?? null
+  );
   const profileBlock = pcaContext
     ? `${profileBlockBase}\n\n[CLINICAL CONTEXT]\n${pcaContext}`
     : profileBlockBase;

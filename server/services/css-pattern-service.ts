@@ -16,62 +16,54 @@ export interface CSSPatterns {
 
 export type CSSStage = 'pointed_origin' | 'focus_bind' | 'suspension' | 'gesture_toward' | 'completion' | 'terminal';
 
-// Agent response markers to filter out
-const AGENT_MARKERS = [
-  /What\'s it like/gi,
-  /Can you tell me more/gi,
-  /How does that feel/gi,
-  /I hear you saying/gi,
-  /It sounds like/gi,
-  /What do you notice/gi,
-  /I\'m curious about/gi,
-  /Thank you for sharing/gi,
-  /That must be/gi,
-  /I can imagine/gi
-];
-
 /**
- * Extract user statements from a full transcript
+ * Extract user statements from a transcript using role prefix markers.
+ * Handles both "User:" / "AI:" prefixed transcripts and plain text fallback.
  */
 function extractUserStatements(transcript: string, debug: boolean = false): string[] {
-  // Split by sentences but preserve the full text structure
-  const sentences = transcript
+  const userStatements: string[] = [];
+
+  // Role-prefix path: transcript contains "User:" / "AI:" markers
+  if (/(?:^|\n)\s*(?:User|AI)\s*:/i.test(transcript)) {
+    const lines = transcript.split('\n');
+    let currentRole: string | null = null;
+    let currentContent: string[] = [];
+
+    for (const line of lines) {
+      const roleMatch = line.match(/^\s*(User|AI)\s*:\s*(.*)/i);
+      if (roleMatch) {
+        // Flush previous accumulation if it was a User turn
+        if (currentRole === 'user' && currentContent.length > 0) {
+          const text = currentContent.join(' ').trim();
+          if (text.length > 10) {
+            userStatements.push(text);
+            if (debug) console.log(`✅ User turn: "${text.substring(0, 60)}..."`);
+          }
+        }
+        currentRole = roleMatch[1].toLowerCase() === 'user' ? 'user' : 'agent';
+        currentContent = roleMatch[2] ? [roleMatch[2].trim()] : [];
+      } else if (currentRole) {
+        const trimmed = line.trim();
+        if (trimmed.length > 0) currentContent.push(trimmed);
+      }
+    }
+
+    // Flush final turn
+    if (currentRole === 'user' && currentContent.length > 0) {
+      const text = currentContent.join(' ').trim();
+      if (text.length > 10) userStatements.push(text);
+    }
+
+    if (debug) console.log(`📝 Role-based extraction: ${userStatements.length} user turns`);
+    return userStatements;
+  }
+
+  // Fallback: no role markers — return all sentences above minimum length
+  if (debug) console.log('📝 No role markers found — using full transcript');
+  return transcript
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(s => s.length > 10);
-
-  if (debug) {
-    console.log(`📝 Split into ${sentences.length} sentences`);
-  }
-
-  const userStatements: string[] = [];
-
-  for (const sentence of sentences) {
-    // Skip if it's likely an agent response
-    const isAgentResponse = AGENT_MARKERS.some(marker =>
-      marker.test(sentence)
-    );
-
-    // Skip questions (likely agent) - but not all questions
-    const isQuestion = sentence.trim().endsWith('?') && !sentence.includes('I');
-
-    // Prefer statements starting with "I" (likely user)
-    const startsWithI = /^I\s/i.test(sentence.trim());
-
-    // Include if it seems like a user statement
-    if (!isAgentResponse && (!isQuestion || startsWithI)) {
-      userStatements.push(sentence.trim());
-      if (debug) console.log(`✅ User statement: "${sentence.substring(0, 50)}..."`);
-    } else if (debug) {
-      console.log(`❌ Filtered out: "${sentence.substring(0, 50)}..." (agent:${isAgentResponse}, question:${isQuestion})`);
-    }
-  }
-
-  if (debug) {
-    console.log(`📝 Extracted ${userStatements.length} user statements from ${sentences.length} sentences`);
-  }
-
-  return userStatements;
 }
 
 /**
@@ -164,8 +156,8 @@ export async function detectCSSPatterns(transcript: string, debug: boolean = fal
   const textToAnalyze = userText || transcript;
 
   const { cvdcPatterns: cvdcMatches, ibmPatterns: ibmMatches } = await detectClinicalPatternsWithLLM(textToAnalyze);
-  const thendIndicators = detectThend(textToAnalyze);
-  const cyvcPatterns = detectCYVC(textToAnalyze);
+  const thendIndicators = await detectThend(textToAnalyze);
+  const cyvcPatterns = await detectCYVC(textToAnalyze);
 
   const currentStage = determineStage(cvdcMatches, ibmMatches, thendIndicators, cyvcPatterns);
 
@@ -187,61 +179,132 @@ export async function detectCSSPatterns(transcript: string, debug: boolean = fal
   };
 }
 
-/**
- * Detect Thend (Therapeutic End/Shift) indicators
- */
-function detectThend(text: string): string[] {
-  const patterns = [
-    /something.{0,20}(?:shifted|changed|different)/gi,
-    /I (?:realize|understand|see) now/gi,
-    /it just (?:clicked|hit me|came together)/gi,
-    /suddenly makes sense/gi,
-    /I can see.{0,20}differently/gi,
-    /perspective.{0,20}shift/gi,
-    /new understanding/gi,
-    /integration/gi,
-    /coming together/gi,
-    /I never thought of it that way/gi
-  ];
-
-  const matches: string[] = [];
-
-  for (const pattern of patterns) {
-    const found = text.match(pattern);
-    if (found) {
-      matches.push(...found.map(m => m.substring(0, 100)));
-    }
+async function detectThend(text: string): Promise<string[]> {
+  if (!text || text.trim().length < 50 || !process.env.ANTHROPIC_API_KEY) {
+    return [];
   }
 
-  return matches;
+  const prompt = `You are analyzing client speech from a psychotherapy session transcript to identify Thend — a specific structural event that requires precision to identify correctly.
+
+Thend is NOT: recognizing a contradiction, naming somatic cost, describing exhaustion, or articulating how a bind affects the body. These are valuable clinical moments but they are not Thend.
+
+Thend IS: the client beginning to operate FROM both poles of a contradiction simultaneously — not being caught inside it, but demonstrating the first signs of working from within it. The client has moved from "this bind is happening to me" to showing — through speech or action — that they can hold both sides at once, even briefly.
+
+REQUIRED structural criteria — ALL must be met:
+1. A named contradiction (CVDC) must already be present or named in the session — Thend cannot precede CVDC
+2. The client is not merely describing the contradiction's effects or costs on them — they are demonstrating movement that requires holding both poles
+3. The client's speech or described action shows them operating from inside the mechanism, not observing it from outside
+4. The shift is involuntary or surprising to the client — they did not plan to hold both sides, it happened
+
+HARD EXCLUSIONS — if any of these are present, it is NOT Thend:
+- Client is describing somatic symptoms of the contradiction (chest tightness, exhaustion, weight)
+- Client is narrating how the contradiction functions ("it's easier when there's something to push against")
+- Client is expressing resignation or adapted tolerance ("you learn to live with it")
+- Client is recognizing that the contradiction serves a function without operating from within that function
+- Client ends the passage expressing exhaustion, depletion, or "not quite sure"
+
+CLIENT SPEECH:
+"${text.slice(0, 4000)}"
+
+Respond ONLY with valid JSON, no preamble:
+{
+  "thendMoments": [
+    {
+      "description": "One sentence describing specifically how the client demonstrated operative movement from within the contradiction — not what they named, but what they did",
+      "evidence": "brief quote from the speech showing the moment"
+    }
+  ]
 }
 
-/**
- * Detect CYVC (Contextual/Choice) patterns
- */
-function detectCYVC(text: string): string[] {
-  const patterns = [
-    /sometimes.{0,30}other times/gi,
-    /depends on.{0,20}(?:context|situation)/gi,
-    /I (?:can|could) choose/gi,
-    /different in different/gi,
-    /flexibility/gi,
-    /adaptive/gi,
-    /it varies/gi,
-    /contextual/gi,
-    /I have options/gi
-  ];
+Return an empty array if the criteria are not fully met. When in doubt, return empty. False negatives are preferable to false positives here.`;
 
-  const matches: string[] = [];
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    });
 
-  for (const pattern of patterns) {
-    const found = text.match(pattern);
-    if (found) {
-      matches.push(...found.map(m => m.substring(0, 100)));
-    }
+    const textBlock = response.content.find((b: any) => b.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') return [];
+
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return Array.isArray(parsed.thendMoments)
+      ? parsed.thendMoments
+          .filter((m: any) => m.description && m.description.length > 0)
+          .map((m: any) => m.description as string)
+      : [];
+  } catch (error) {
+    console.error('🔬 [CSSPatterns] Thend detection error:', error);
+    return [];
+  }
+}
+
+async function detectCYVC(text: string): Promise<string[]> {
+  if (!text || text.trim().length < 50 || !process.env.ANTHROPIC_API_KEY) {
+    return [];
   }
 
-  return matches;
+  const prompt = `You are analyzing client speech from a psychotherapy session transcript to identify CYVC — Constant Yet Variable Conclusion. This requires precision. CYVC is rare and late-stage. It will not appear in early or mid-stage sessions.
+
+CYVC is NOT: recognizing that a contradiction has a structural function, describing behavioral flexibility, noticing that the contradiction serves a purpose, or articulating how the mechanism works. These are observational — they describe the contradiction from outside.
+
+CYVC IS: the client actively attributing value or utility to holding the contradiction — not as an intellectual observation, but as a lived operational position. The client demonstrates they can choose which pole to act from without the act of choosing eliminating the other pole. This is accompanied by a register shift: what previously arrived with distress or exhaustion now arrives with something closer to equanimity, recognition, or even generativity.
+
+REQUIRED structural criteria — ALL must be met:
+1. Thend must have already occurred in the clinical history — CYVC cannot precede Thend
+2. The client is not merely recognizing that the contradiction is useful — they are operating from that recognition in a way that changes their relationship to the bind
+3. The emotional register around the contradiction has shifted — it no longer arrives only with distress, resignation, or exhaustion
+4. The client speaks about the mechanism from a position of agency, not depletion
+
+HARD EXCLUSIONS — if any of these are present, it is NOT CYVC:
+- Client expresses exhaustion, depletion, or "not quite sure" in the same passage
+- Client is describing that the contradiction "makes things easier" as a passive observation
+- Client is expressing resignation ("I guess I have to live with it")
+- Client is describing the function of the contradiction without demonstrating operative value from holding it
+- The surrounding context shows the client is still being acted upon by the contradiction rather than acting from within it
+
+CLIENT SPEECH:
+"${text.slice(0, 4000)}"
+
+Respond ONLY with valid JSON, no preamble:
+{
+  "cyvcMoments": [
+    {
+      "description": "One sentence describing specifically how the client demonstrated operative value from holding the contradiction — not what they observed, but what they did or chose",
+      "evidence": "brief quote from the speech showing the moment"
+    }
+  ]
+}
+
+Return an empty array if the criteria are not fully met. When in doubt, return empty. False negatives are preferable to false positives here.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const textBlock = response.content.find((b: any) => b.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') return [];
+
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return Array.isArray(parsed.cyvcMoments)
+      ? parsed.cyvcMoments
+          .filter((m: any) => m.description && m.description.length > 0)
+          .map((m: any) => m.description as string)
+      : [];
+  } catch (error) {
+    console.error('🔬 [CSSPatterns] CYVC detection error:', error);
+    return [];
+  }
 }
 
 /**
@@ -255,40 +318,19 @@ function determineStage(
 ): string {
   const cvdcCount = cvdcPatterns.length;
   const ibmCount = ibmPatterns.length;
-  const thendCount = thendIndicators.length;
-  const cyvcCount = cyvcPatterns.length;
 
-  // Terminal: Full recursive awareness with contextual flexibility
-  if (cyvcCount >= 2 && thendCount >= 1) {
-    return 'terminal';
-  }
-
-  // Completion: Active choice and flexibility
-  if (cyvcCount >= 1) {
-    return 'completion';
-  }
-
-  // Gesture toward: Integration beginning
-  if (thendCount >= 2) {
-    return 'gesture_toward';
-  }
-
-  if (thendCount > 0) {
-    // Suspension to Gesture toward: Pure integration moments
-    return 'suspension';
-  }
-
+  // NOTE: Thend and CYVC detectors are in shadow mode.
+  // Their outputs are returned in the CSSPatterns result for logging and arc tracking
+  // but do not drive stage determination here until detection precision is validated.
+  // Stage is derived from CVDC and IBM signals only.
   if (cvdcCount >= 2 || ibmCount >= 2) {
-    // Suspension: Multiple contradictions held
     return 'suspension';
   }
 
   if (cvdcCount >= 1 || ibmCount >= 1) {
-    // Focus bind: Clear contradiction identified
     return 'focus_bind';
   }
 
-  // Pointed origin: Default/starting stage
   return 'pointed_origin';
 }
 

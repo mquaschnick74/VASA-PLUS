@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { UserTherapeuticProfile } from '../services/sensing-layer/types';
+import type { ArcPosition } from '../services/sensing-layer/arc-tracker';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,21 +77,34 @@ export function clearFooterState(callId: string): void {
   footerStateCache.delete(callId);
 }
 // ─── Profile block assembly ───────────────────────────────────────────────────
-function assembleCSSStage(profile: UserTherapeuticProfile): string {
-  if (!profile.cssHistory || profile.cssHistory.length === 0) {
-    return 'Working stage: Pointed Origin — Prescripting underway.';
-  }
+function assembleCSSStage(
+  profile: UserTherapeuticProfile,
+  lastCSSStage: string | null,
+  lastCSSStageConfidence: number | null
+): string {
   const stageLabels: Record<string, string> = {
+    'pointed_origin': 'Pointed Origin',
     'pointed-origin': 'Pointed Origin',
+    'focus_bind': 'Focus/Bind',
     'focus-bind': 'Focus/Bind',
     'suspension': 'Suspension',
+    'gesture_toward': 'Gesture Toward',
     'gesture-toward': 'Gesture Toward',
     'completion': 'Completion',
     'terminal': 'Terminal',
   };
-  const latest = profile.cssHistory[0];
-  const label = stageLabels[latest.stage] ?? latest.stage;
-  return `Working stage: ${label} — in progress.`;
+
+  // Prefer lastCSSStage from css_arc_summary — milestone-assessed, hysteresis-weighted.
+  // cssHistory[0] is the last raw write from any path and is not safe to use directly.
+  if (lastCSSStage) {
+    const label = stageLabels[lastCSSStage] ?? lastCSSStage;
+    const confidence = lastCSSStageConfidence !== null ? lastCSSStageConfidence : 0;
+    const confidenceNote = confidence >= 0.7 ? '' : ' (early assessment)';
+    return `Working stage: ${label} — in progress.${confidenceNote}`;
+  }
+
+  // Fallback: no arc summary exists (first session or no milestone reached)
+  return 'Working stage: Pointed Origin — Prescripting underway.';
 }
 function assembleRegisterPattern(profile: UserTherapeuticProfile): string {
   if (!profile.registerHistory || profile.registerHistory.length === 0) {
@@ -114,10 +128,33 @@ function assemblePatterns(profile: UserTherapeuticProfile): string {
   const lines = profile.patterns.slice(0, 8).map(p => p.description).join('\n');
   return `Patterns: ${lines}`;
 }
+function assembleArcPosition(arcPosition: ArcPosition | null): string {
+  if (!arcPosition || arcPosition.activePosition === 'pre_thend') {
+    return 'Therapeutic arc: Pre-Thend — CVDC accumulation phase.';
+  }
+
+  const positionLabels: Record<string, string> = {
+    thend_candidate:    'Thend — candidate (single detection, not yet cross-session confirmed)',
+    thend_confirmed:    'Thend — confirmed',
+    cyvc_candidate:     'CYVC — candidate (Thend confirmed; CYVC accumulating)',
+    cyvc_confirmed:     'CYVC — confirmed',
+  };
+
+  const label = positionLabels[arcPosition.activePosition] ?? arcPosition.activePosition;
+  const evidenceLine = arcPosition.thendEvidence && arcPosition.activePosition !== 'pre_thend'
+    ? `\nArc evidence: ${arcPosition.thendEvidence}`
+    : '';
+
+  return `Therapeutic arc: ${label}.${evidenceLine}`;
+}
+
 export function assembleProfileBlock(
   firstName: string,
   profile: UserTherapeuticProfile | null,
-  isFirstSession: boolean
+  isFirstSession: boolean,
+  arcPosition: ArcPosition | null = null,
+  lastCSSStage: string | null = null,
+  lastCSSStageConfidence: number | null = null
 ): string {
   if (!profile || isFirstSession) {
     return `[CLIENT CONTEXT — ${firstName}]
@@ -132,9 +169,9 @@ Prior significant moments: No prior sessions.`;
     : 'Last session: No prior session summary available.';
 
   const block = `[CLIENT CONTEXT — ${firstName}]
-${assembleCSSStage(profile)}
+${assembleCSSStage(profile, lastCSSStage, lastCSSStageConfidence)}
 ${assembleRegisterPattern(profile)}
-Known CVDC: CVDC not yet identified — in active Prescripting.
+${assembleArcPosition(arcPosition)}
 ${assemblePatterns(profile)}
 ${lastSession}
 Prior significant moments: Not yet available — session finalizer build pending.`;

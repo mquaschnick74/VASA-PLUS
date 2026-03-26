@@ -1,9 +1,10 @@
 // Simplified Orchestration Service - CSS tracking only
-import { detectCSSPatterns, assessPatternConfidence } from './css-pattern-service';
+import { detectCSSPatterns } from './css-pattern-service';
 import { supabase } from './supabase-service';
 import { storeSessionContext } from './memory-service';
 import { parseAssistantOutput, extractCSSStage, needsSafetyIntervention, extractRegister } from '../utils/parseAssistantOutput';
 import { generateEnhancedSessionSummary } from './summary-service';
+import { updateArcFromPatterns } from './sensing-layer/arc-tracker';
 
 interface SessionState {
   userId: string;
@@ -308,7 +309,9 @@ export async function processTranscript(
   }
   session.processedTranscripts.add(transcriptHash);
 
-  await storeCSSPatterns(session, await detectCSSPatterns(transcript, false));
+  const patterns311 = await detectCSSPatterns(transcript, false);
+  await storeCSSPatterns(session, patterns311);
+  await updateArcFromPatterns(session.userId, session.callId, patterns311.thendIndicators, patterns311.cyvcPatterns);
 }
 
 export async function processEndOfCall(
@@ -471,7 +474,6 @@ export async function processEndOfCall(
 
 async function processFullTranscript(session: SessionState, transcript: string): Promise<any> {
   const patterns = await detectCSSPatterns(transcript, true);
-  const { confidence, reasoning } = assessPatternConfidence(patterns);
 
   console.log(`📊 Full transcript analysis:`);
   console.log(`  CSS Stage: ${patterns.currentStage}`);
@@ -487,18 +489,7 @@ async function processFullTranscript(session: SessionState, transcript: string):
     });
 
   await storeCSSPatterns(session, patterns);
-
-  await supabase
-    .from('css_patterns')
-    .insert({
-      user_id: session.userId,
-      call_id: session.callId,
-      pattern_type: 'STAGE_ASSESSMENT',
-      content: `Stage: ${patterns.currentStage}. ${reasoning}`,
-      css_stage: patterns.currentStage,
-      confidence: confidence,
-      detected_at: new Date().toISOString()
-    });
+  await updateArcFromPatterns(session.userId, session.callId, patterns.thendIndicators, patterns.cyvcPatterns);
 
   return patterns;
 }
