@@ -19,7 +19,7 @@ interface SubscriptionData {
     subscription_owner_email?: string;
     is_trial?: boolean;
     trial_days_left?: number;
-    pattern_gate_fired?: boolean;
+    is_pattern_gated?: boolean;
     pattern_gate_description?: string | null;
   };
   user_id: string;
@@ -154,7 +154,7 @@ export function useSubscription(userId: string | null) {
               subscription_owner_email: apiData.limits.subscription_owner_email,
               is_trial: apiData.limits.is_trial,
               trial_days_left: apiData.limits.trial_days_left,
-              pattern_gate_fired: apiData.limits.pattern_gate_fired,
+              is_pattern_gated: apiData.limits.is_pattern_gated,
               pattern_gate_description: apiData.limits.pattern_gate_description
             },
             user_id: userId,
@@ -339,7 +339,7 @@ export function useSubscription(userId: string | null) {
                 subscription_owner_email: apiData.limits.subscription_owner_email,
                 is_trial: apiData.limits.is_trial,
                 trial_days_left: apiData.limits.trial_days_left,
-                pattern_gate_fired: apiData.limits.pattern_gate_fired,
+                is_pattern_gated: apiData.limits.is_pattern_gated,
                 pattern_gate_description: apiData.limits.pattern_gate_description
               },
               user_id: userId,

@@ -423,7 +423,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   }, [isSessionActive, showDurationWarning, sessionDurationLimit]);
 
   const handleStartSession = () => {
-    if (subscription && subscription.limits?.pattern_gate_fired && subscription.subscription_status === 'pattern_gated') {
+    if (subscription && subscription.limits?.is_pattern_gated && subscription.subscription_status === 'pattern_gated') {
       alert(
         `You've made a meaningful discovery about yourself. To continue your therapeutic journey, please subscribe.`
       );
