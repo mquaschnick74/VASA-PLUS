@@ -560,7 +560,8 @@ router.post('/webhook', async (req, res) => {
             .from('therapeutic_sessions')
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId)
-            .neq('call_id', callId);
+            .neq('call_id', callId)
+            .not('end_time', 'is', null);
 
           if (countError) {
             console.error(`❌ [PatternGate] Failed to count sessions for user ${userId}:`, countError);
