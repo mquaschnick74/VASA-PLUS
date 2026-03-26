@@ -77,21 +77,34 @@ export function clearFooterState(callId: string): void {
   footerStateCache.delete(callId);
 }
 // ─── Profile block assembly ───────────────────────────────────────────────────
-function assembleCSSStage(profile: UserTherapeuticProfile): string {
-  if (!profile.cssHistory || profile.cssHistory.length === 0) {
-    return 'Working stage: Pointed Origin — Prescripting underway.';
-  }
+function assembleCSSStage(
+  profile: UserTherapeuticProfile,
+  lastCSSStage: string | null,
+  lastCSSStageConfidence: number | null
+): string {
   const stageLabels: Record<string, string> = {
+    'pointed_origin': 'Pointed Origin',
     'pointed-origin': 'Pointed Origin',
+    'focus_bind': 'Focus/Bind',
     'focus-bind': 'Focus/Bind',
     'suspension': 'Suspension',
+    'gesture_toward': 'Gesture Toward',
     'gesture-toward': 'Gesture Toward',
     'completion': 'Completion',
     'terminal': 'Terminal',
   };
-  const latest = profile.cssHistory[0];
-  const label = stageLabels[latest.stage] ?? latest.stage;
-  return `Working stage: ${label} — in progress.`;
+
+  // Prefer lastCSSStage from css_arc_summary — milestone-assessed, hysteresis-weighted.
+  // cssHistory[0] is the last raw write from any path and is not safe to use directly.
+  if (lastCSSStage) {
+    const label = stageLabels[lastCSSStage] ?? lastCSSStage;
+    const confidence = lastCSSStageConfidence !== null ? lastCSSStageConfidence : 0;
+    const confidenceNote = confidence >= 0.7 ? '' : ' (early assessment)';
+    return `Working stage: ${label} — in progress.${confidenceNote}`;
+  }
+
+  // Fallback: no arc summary exists (first session or no milestone reached)
+  return 'Working stage: Pointed Origin — Prescripting underway.';
 }
 function assembleRegisterPattern(profile: UserTherapeuticProfile): string {
   if (!profile.registerHistory || profile.registerHistory.length === 0) {
@@ -139,7 +152,9 @@ export function assembleProfileBlock(
   firstName: string,
   profile: UserTherapeuticProfile | null,
   isFirstSession: boolean,
-  arcPosition: ArcPosition | null = null
+  arcPosition: ArcPosition | null = null,
+  lastCSSStage: string | null = null,
+  lastCSSStageConfidence: number | null = null
 ): string {
   if (!profile || isFirstSession) {
     return `[CLIENT CONTEXT — ${firstName}]
@@ -154,7 +169,7 @@ Prior significant moments: No prior sessions.`;
     : 'Last session: No prior session summary available.';
 
   const block = `[CLIENT CONTEXT — ${firstName}]
-${assembleCSSStage(profile)}
+${assembleCSSStage(profile, lastCSSStage, lastCSSStageConfidence)}
 ${assembleRegisterPattern(profile)}
 ${assembleArcPosition(arcPosition)}
 ${assemblePatterns(profile)}

@@ -526,7 +526,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
               })
             },
         startSpeakingPlan: {
-          waitSeconds: 0.6,
+          waitSeconds: selectedAgent.voice.waitSeconds ?? 3.0,
           customEndpointingRules: [
             {
               type: 'assistant' as const,

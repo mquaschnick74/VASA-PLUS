@@ -106,7 +106,14 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     }
   }
 
-  const profileBlockBase = assembleProfileBlock(firstName, cachedProfile, isFirstSession, arcPosition);
+  const profileBlockBase = assembleProfileBlock(
+    firstName,
+    cachedProfile,
+    isFirstSession,
+    arcPosition,
+    cachedProfile?.lastCSSStage ?? null,
+    cachedProfile?.lastCSSStageConfidence ?? null
+  );
   const profileBlock = pcaContext
     ? `${profileBlockBase}\n\n[CLINICAL CONTEXT]\n${pcaContext}`
     : profileBlockBase;

@@ -20,6 +20,7 @@ export interface TherapeuticAgent {
     similarityBoost?: number;
     speed?: number;
     useSpeakerBoost?: boolean;
+    waitSeconds?: number;
     generationConfig?: {
       speed?: number;
     };
@@ -86,7 +87,8 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
       stability: 0.9,
       similarityBoost: 0.85,
       speed: 1.0,
-      useSpeakerBoost: true
+      useSpeakerBoost: true,
+      waitSeconds: 4.0
     },
     systemPrompt: 'Your name is Sarah. You are a therapeutic voice agent. [Full system prompt assembled by proxy]',
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
@@ -111,7 +113,8 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
       stability: 0.9,
       similarityBoost: 0.85,
       speed: 1.0,
-      useSpeakerBoost: true
+      useSpeakerBoost: true,
+      waitSeconds: 3.0
     },
     systemPrompt: 'Your name is Marcus. You are a therapeutic voice agent. [Full system prompt assembled by proxy]',
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
@@ -136,7 +139,8 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
       stability: 0.9,
       similarityBoost: 0.85,
       speed: 1.1,
-      useSpeakerBoost: true
+      useSpeakerBoost: true,
+      waitSeconds: 2.0
     },
     systemPrompt: 'Your name is Mathew. You are a therapeutic voice agent. [Full system prompt assembled by proxy]',
     firstMessageTemplate: (firstName: string, hasMemory: boolean) => {
@@ -161,7 +165,8 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
       stability: 0.5,
       similarityBoost: 0.75,
       speed: 1.0,
-      useSpeakerBoost: false
+      useSpeakerBoost: false,
+      waitSeconds: 6.0
     },
     systemPrompt: 'Your name is UNA. You are a therapeutic voice agent. [Full system prompt assembled by proxy]',
     firstMessageTemplate: (firstName: string, hasMemory: boolean, lastSessionSummary?: string | null) => {
