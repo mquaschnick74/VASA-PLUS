@@ -81,6 +81,10 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 Connect with an AI Guide
               </Button>
             </div>
+
+            <p className="text-xs text-muted-foreground text-center md:text-left mt-3 w-full">
+              No credit card required · Your story doesn't fit in a month.
+            </p>
           </div>
         </section>
 
@@ -151,19 +155,19 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           </div>
         </div>
 
-        {/* Secondary paths — lower visual weight, different audiences */}
+        {/* Secondary paths — distinct audiences, differentiated visually */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10">
           <Button
-            variant="outline"
-            className="w-full sm:w-auto justify-center px-6 border-white/20 text-white/70 hover:text-white hover:border-white/40"
+            variant="ghost"
+            className="w-full sm:w-auto justify-center px-6 bg-purple-500/20 border border-purple-400/50 text-purple-200 hover:bg-purple-500/30 hover:border-purple-400/80 hover:text-purple-100"
             onClick={() => setLocation('/ai-assisted-therapy')}
           >
             <Users className="w-4 h-4 mr-2" />
             AI-Assisted Therapy with a Real Human
           </Button>
           <Button
-            variant="outline"
-            className="w-full sm:w-auto justify-center px-6 border-white/20 text-white/70 hover:text-white hover:border-white/40"
+            variant="ghost"
+            className="w-full sm:w-auto justify-center px-6 bg-blue-500/20 border border-blue-400/50 text-blue-200 hover:bg-blue-500/30 hover:border-blue-400/80 hover:text-blue-100"
             onClick={() => setLocation('/signup/therapist')}
           >
             <Building2 className="w-4 h-4 mr-2" />
