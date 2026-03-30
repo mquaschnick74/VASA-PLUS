@@ -63,12 +63,9 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
           {/* Text + CTAs */}
           <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl -mt-8 md:mt-0">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight mb-8">
               You already know something's there.
             </h1>
-            <p className="text-lg text-muted-foreground mt-3 mb-8">
-              We help you find it.
-            </p>
 
             {/* CTA buttons */}
             <div className="flex flex-col gap-3 w-full sm:w-auto">
@@ -81,6 +78,10 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 Connect with an AI Guide
               </Button>
             </div>
+
+            <p className="text-lg text-muted-foreground mt-3">
+              We help you find it.
+            </p>
 
             <p className="text-xs text-muted-foreground text-center md:text-left mt-3 w-full">
               No credit card required · Your story doesn't fit in a month.
