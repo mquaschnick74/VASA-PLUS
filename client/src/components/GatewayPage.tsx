@@ -63,7 +63,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
           {/* Text + CTAs */}
           <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl -mt-8 md:mt-0">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight mb-8">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight mb-3">
               You already know something's there.
             </h1>
 
