@@ -348,21 +348,12 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack,
   if (formOnly) {
     return (
       <div className="glass rounded-2xl border border-white/10 p-6 md:p-8 w-full">
-        {/* Free trial banner — only show on signup mode */}
-        {mode === 'signup' && (
-          <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-lg py-2 px-3 mb-6">
-            <p className="text-sm font-semibold text-amber-400">
-              30-Day Free Trial with 180 Minutes — No Credit Card Required
-            </p>
-          </div>
-        )}
-
         {/* Welcome heading */}
         <h2 className="text-xl font-bold text-white text-center">
           {invitationMode ? 'Create Client Account' : (mode === 'signin' ? 'Welcome Back' : 'Create Your Account')}
         </h2>
         <p className="text-sm text-muted-foreground text-center mt-1 mb-6">
-          {mode === 'signin' ? 'Continue your therapeutic journey' : 'Start your 30-day free trial'}
+          {mode === 'signin' ? 'Continue your therapeutic journey' : 'No credit card required · Start free. Stay when it matters.'}
         </p>
 
         {/* Invitation banner if present */}
@@ -587,12 +578,7 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack,
             <Card className="glass rounded-2xl border-0">
           <CardContent className="p-5 md:p-7">
             <div className="space-y-5">
-              {/* Free Trial Banner */}
-              <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-lg py-2 px-3">
-                <p className="text-sm font-semibold text-amber-400">
-                  30-Day Free Trial with 180 Minutes — No Credit Card Required
-                </p>
-              </div>
+              {/* Free Trial Banner removed — commitment architecture replaces trial framing */}
 
               {/* ============= NEW: Invitation banner ============= */}
               {invitationMode && (
