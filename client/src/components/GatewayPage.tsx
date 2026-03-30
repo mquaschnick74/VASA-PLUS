@@ -156,22 +156,24 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           </div>
         </div>
 
-        {/* Secondary paths — distinct audiences, differentiated visually */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10">
+        {/* Secondary paths — high contrast against deep purple background */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
           <Button
             variant="ghost"
-            className="w-full sm:w-auto justify-center px-6 bg-purple-500/20 border border-purple-400/50 text-purple-200 hover:bg-purple-500/30 hover:border-purple-400/80 hover:text-purple-100"
+            size="lg"
+            className="w-full sm:w-auto justify-center px-7 bg-amber-500/25 border border-amber-400/70 text-amber-100 hover:bg-amber-500/40 hover:border-amber-300 hover:text-white shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:shadow-[0_0_30px_rgba(251,191,36,0.5)]"
             onClick={() => setLocation('/ai-assisted-therapy')}
           >
-            <Users className="w-4 h-4 mr-2" />
+            <Users className="w-5 h-5 mr-2" />
             AI-Assisted Therapy with a Real Human
           </Button>
           <Button
             variant="ghost"
-            className="w-full sm:w-auto justify-center px-6 bg-blue-500/20 border border-blue-400/50 text-blue-200 hover:bg-blue-500/30 hover:border-blue-400/80 hover:text-blue-100"
+            size="lg"
+            className="w-full sm:w-auto justify-center px-7 bg-sky-500/25 border border-sky-400/70 text-sky-100 hover:bg-sky-500/40 hover:border-sky-300 hover:text-white shadow-[0_0_20px_rgba(56,189,248,0.3)] hover:shadow-[0_0_30px_rgba(56,189,248,0.5)]"
             onClick={() => setLocation('/signup/therapist')}
           >
-            <Building2 className="w-4 h-4 mr-2" />
+            <Building2 className="w-5 h-5 mr-2" />
             For Therapists &amp; Clinics
           </Button>
         </div>
