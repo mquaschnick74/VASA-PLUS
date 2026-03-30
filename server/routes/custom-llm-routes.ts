@@ -21,6 +21,7 @@ import { getPCAContextForAgent } from '../services/memory-service';
 import { formatFieldSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { findResonatingFragments } from '../services/sensing-layer/narrative-web';
 import { getArcPosition } from '../services/sensing-layer/arc-tracker';
+import { recordCustomLLMResponseSent } from '../services/sensing-layer/silence-monitor';
 
 const router = Router();
 
@@ -345,6 +346,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     );
     res.write('data: [DONE]\n\n');
     res.end();
+    recordCustomLLMResponseSent(callId);
 
     const totalTime = Date.now() - requestStartTime;
     console.log(

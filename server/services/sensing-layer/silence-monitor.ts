@@ -4,10 +4,29 @@
 import { getCallState, isCallActive } from './call-state';
 import { injectSilenceContext, injectSpokenReEngagement } from './guidance-injector';
 import { getLastFooterState } from '../../prompts/pca-core';
+import { getActiveIBMCandidates, getLatestFieldAssessment } from './session-state';
 
 const MAX_MONITOR_DURATION_MS = 45 * 60 * 1000;
 const AGENT_QUIET_BUFFER_MS = 3000;
 const MAX_SILENCE_EVENTS = 4;
+
+// Buffer that covers the full custom-LLM → VAPI → TTS → playback → webhook pipeline.
+// Silence must not fire if a response was delivered to VAPI within this window,
+// even if speech-update: started has not yet arrived back from VAPI.
+const RESPONSE_DELIVERY_BUFFER_MS = 12000;
+
+// Tracks when the custom-LLM route last completed a response for a given call.
+// Set by recordCustomLLMResponseSent, checked in handleSilenceTimeout.
+const lastCustomLLMResponseSentAt = new Map<string, number>();
+
+/**
+ * Called by the custom-LLM route immediately after res.end().
+ * Records that a response is in flight so the silence monitor does not
+ * fire a second injection during the TTS pipeline delay.
+ */
+export function recordCustomLLMResponseSent(callId: string): void {
+  lastCustomLLMResponseSentAt.set(callId, Date.now());
+}
 
 interface SilenceTimer {
   timeout: NodeJS.Timeout;
@@ -67,7 +86,29 @@ function buildSilenceSignal(callId: string, silenceEventCount: number, silenceDu
   const register = footer?.register || 'imaginary';
   const posture = footer?.posture || 'prescripting';
 
-  return `[SILENCE — ${silenceDurationSeconds} seconds. Register: ${register}. Posture: ${posture}. Respond now.]`;
+  // IBM context — include hypothesis if visible so the agent is not flying blind
+  const ibmCandidates = getActiveIBMCandidates(callId);
+  const viableIBM = ibmCandidates.find(c => c.status === 'viable');
+  const accumulatingIBM = ibmCandidates.find(c => c.status === 'accumulating' && c.weightedAccumulation > 0.5);
+
+  let ibmFragment = '';
+  if (viableIBM) {
+    ibmFragment = ` IBM viable: ${viableIBM.hypothesis.substring(0, 120)}.`;
+  } else if (accumulatingIBM) {
+    ibmFragment = ` IBM forming: ${accumulatingIBM.hypothesis.substring(0, 100)}.`;
+  }
+
+  // Contact quality — only surface clinically significant values
+  const latestAssessment = getLatestFieldAssessment(callId);
+  const contactType = latestAssessment.contact_quality.type;
+  let contactFragment = '';
+  if (contactType === 'seeking_confirmation') {
+    contactFragment = ` Contact: seeking_confirmation.`;
+  } else if (contactType === 'withdrawing') {
+    contactFragment = ` Contact: withdrawing.`;
+  }
+
+  return `[SILENCE — ${silenceDurationSeconds} seconds. Register: ${register}. Posture: ${posture}.${ibmFragment}${contactFragment} Respond now.]`;
 }
 
 const TIER4_MESSAGES = [
@@ -135,6 +176,15 @@ async function handleSilenceTimeout(callId: string, armedGeneration?: number): P
       armTimer(callId);
       return;
     }
+  }
+
+  // Guard: a custom-LLM response was sent recently but VAPI has not yet fired
+  // speech-update: started (TTS pipeline in flight). Do not inject silence.
+  const lastResponseSent = lastCustomLLMResponseSentAt.get(callId);
+  if (lastResponseSent && Date.now() - lastResponseSent < RESPONSE_DELIVERY_BUFFER_MS) {
+    console.log(`🔇 [SILENCE] Custom-LLM response in flight (${Date.now() - lastResponseSent}ms ago), re-arming`);
+    armTimer(callId);
+    return;
   }
 
   timer.silenceEventCount++;
@@ -224,6 +274,7 @@ export function stopSilenceMonitor(callId: string): void {
     console.log(`🔇 [SILENCE] Stopped monitoring for call ${callId}`);
   }
   postInterventionSuppressedUntil.delete(callId);
+  lastCustomLLMResponseSentAt.delete(callId);
 }
 
 export function getActiveSilenceMonitorCount(): number {
