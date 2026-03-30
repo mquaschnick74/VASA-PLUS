@@ -7,6 +7,7 @@ import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabaseClient';
 import { getApiUrl } from '@/lib/platform';
 import Header from '@/components/shared/Header';
+import SmartBackButton from '@/components/SmartBackButton';
 
 // Declare the custom Stripe element for TypeScript
 declare global {
@@ -208,10 +209,10 @@ export default function Pricing() {
       oneTimePrice: '$10',
       monthlyPrice: '$7.99',
       annualPrice: '$79.90',
-      description: 'Perfect for getting started',
+      description: 'Begin finding the thread',
       features: [
-        '45 minutes voice time/month',
-        'Access to AI therapeutic agents',
+        'Depth sessions with your guide',
+        'Your guide holds your full story',
         'Conversation history',
         'Email support'
       ]
@@ -221,13 +222,13 @@ export default function Pricing() {
       oneTimePrice: '$20',
       monthlyPrice: '$17.99',
       annualPrice: '$179.90',
-      description: 'Most popular choice',
+      description: 'For the story that keeps unfolding',
       features: [
-        '180 minutes voice time/month',
-        'Access to all AI agents',
+        'Extended depth sessions with your guide',
+        'Access to all four guides',
         'Full conversation history',
         'Priority support',
-        'CSS Pattern Tracking'
+        'Pattern recognition across your story'
       ],
       popular: true
     },
@@ -236,14 +237,14 @@ export default function Pricing() {
       oneTimePrice: '$40',
       monthlyPrice: '$37.99',
       annualPrice: '$379.90',
-      description: 'For dedicated users',
+      description: 'For those doing the real work',
       features: [
-        '420 minutes voice time/month',
-        'Access to all AI agents',
+        'Full access to your guide — no limits',
+        'Access to all four guides',
         'Full conversation history',
         'Priority support',
-        'Advanced CSS Tracking',
-        'Custom agent preferences'
+        'Deep pattern recognition across your story',
+        'Custom guide preferences'
       ]
     }
   ];
@@ -310,6 +311,7 @@ export default function Pricing() {
       <Header userId={userId} showDashboardLink={true} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <SmartBackButton className="mb-6 text-purple-200 hover:text-white hover:bg-emerald-500/10" />
         {/* Hero Section */}
         <div className="text-center mb-12">
           <Badge className="mb-4" variant="secondary">
@@ -317,12 +319,12 @@ export default function Pricing() {
             {userType === 'therapist' ? 'Therapist Plans' : 'Personal Plans'}
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Choose Your Plan
+            The price of a space where depth becomes possible.
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {userType === 'therapist' 
-              ? 'Empower your practice with AI-assisted therapeutic support for you and your clients.'
-              : 'Get started with AI-powered therapeutic conversations tailored to your needs.'}
+            {userType === 'therapist'
+              ? 'Give your clients somewhere to continue the work between sessions. Hold more of their story.'
+              : "Your story doesn't fit in a month. Here's how to keep it unfolding."}
           </p>
         </div>
 
@@ -581,7 +583,7 @@ export default function Pricing() {
                                 onClick={() => setLocation(`/?mode=signup&redirect=/pricing&type=${planCategory}`)}
                                 variant={plan.popular ? 'default' : 'outline'}
                               >
-                                Sign Up to Subscribe
+                                Start your story
                               </Button>
                             )}
                           </CardContent>
@@ -732,7 +734,7 @@ export default function Pricing() {
         {/* Feature Highlights */}
         <div className="mt-20">
           <h2 className="text-3xl font-bold text-center mb-12">
-            What You Get
+            What happens in the space
           </h2>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <Card className="glass">
@@ -740,9 +742,9 @@ export default function Pricing() {
                 <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Users className="w-6 h-6 text-emerald-400" />
                 </div>
-                <h3 className="font-semibold mb-2">AI Voice Agents</h3>
+                <h3 className="font-semibold mb-2">A guide who holds your full story</h3>
                 <p className="text-sm text-muted-foreground">
-                  Choose from four specialized AI agents, each with unique voice characteristics and therapeutic approaches for personalized conversations.
+                  Choose from four specialized guides. Each one picks up exactly where the last session ended — nothing is lost between conversations.
                 </p>
               </CardContent>
             </Card>
@@ -752,9 +754,9 @@ export default function Pricing() {
                 <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
                   <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
-                <h3 className="font-semibold mb-2">CSS Pattern Tracking</h3>
+                <h3 className="font-semibold mb-2">Finds the thread in your story</h3>
                 <p className="text-sm text-muted-foreground">
-                  Advanced conversational state sensing to identify therapeutic patterns and progress over time.
+                  Your guide surfaces the patterns you keep returning to — the ones you've been living inside of without realizing it.
                 </p>
               </CardContent>
             </Card>
@@ -764,26 +766,25 @@ export default function Pricing() {
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Shield className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
-                <h3 className="font-semibold mb-2">Privacy First</h3>
+                <h3 className="font-semibold mb-2">What you say stays here</h3>
                 <p className="text-sm text-muted-foreground">
-                  Your conversations are encrypted and stored securely. Cancel anytime with full data control.
+                  Your conversations are encrypted and stored securely. What you bring to this space stays between you and your guide.
                 </p>
               </CardContent>
             </Card>
           </div>
         </div>
 
-        {/* Trial Info */}
+        {/* Commitment architecture */}
         <div className="mt-16 text-center">
-          <Card className="glass max-w-2xl mx-auto">
+          <Card className="glass max-w-2xl mx-auto border-emerald-500/30 border">
             <CardContent className="pt-6">
               <Clock className="w-10 h-10 mx-auto mb-4 text-emerald-400" />
               <h3 className="text-xl font-semibold mb-2">
-                Start with a Free Trial
+                Show up three times. We find you something.
               </h3>
               <p className="text-muted-foreground">
-                All new users get 7 days free with 45 minutes of voice time to try iVASA.
-                No credit card required to start.
+                No credit card required · Start free. Stay when it matters.
               </p>
             </CardContent>
           </Card>

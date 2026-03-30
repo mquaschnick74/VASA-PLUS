@@ -2,7 +2,7 @@
 // Premium landing page — dark, sophisticated, mobile-first design
 
 import { useLocation, Link } from 'wouter';
-import { Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
+import { Headphones, PenLine, Play, Sparkles, Users, Building2, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import phoneMockup from '../../../assets/phone-mockup.png';
 
@@ -37,13 +37,16 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           <div className="order-first md:order-last flex-shrink-0 md:animate-float">
             <div className="relative origin-top scale-[0.65] sm:scale-[0.80] md:scale-100 -mb-52 sm:-mb-28 md:mb-0">
               {/* Arrow affordance — outside the phone, upper-left (desktop only) */}
-              <div className="absolute -top-8 -left-36 pointer-events-none select-none z-10">
+              <div className="hidden md:block absolute -top-8 -left-36 pointer-events-none select-none z-10">
                 <img
                   src="/try-live-session.png"
                   alt="Try a live session"
                   className="w-48 opacity-90"
                 />
               </div>
+              <p className="md:hidden text-xs text-muted-foreground text-center mt-3 tracking-wide">
+                Tap to try a live session ↑
+              </p>
               {/* Phone button */}
               <button
                 onClick={onTryDemo}
@@ -60,12 +63,9 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
 
           {/* Text + CTAs */}
           <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl -mt-8 md:mt-0">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight">
-              Get to the Core of the Problem.
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight mb-3">
+              You already know something's there.
             </h1>
-            <p className="text-lg text-muted-foreground mt-3 mb-8">
-              Human Depth, powered by AI. Finally.
-            </p>
 
             {/* CTA buttons */}
             <div className="flex flex-col gap-3 w-full sm:w-auto">
@@ -74,28 +74,19 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 className="w-full sm:w-auto justify-start px-6 bg-emerald-500 hover:bg-emerald-600 border border-white/60"
                 onClick={() => setLocation('/signup/individual')}
               >
-                <Brain className="w-5 h-5" />
-                Connect with an AI Guide
-              </Button>
-              <Button
-                size="lg"
-                className="w-full sm:w-auto justify-start px-6"
-                onClick={() => setLocation('/ai-assisted-therapy')}
-              >
-                <Users className="w-5 h-5" />
-                AI-Assisted Therapy with a Real Human
-              </Button>
-              <Button
-                className="w-full sm:w-auto mt-1 justify-start px-6 shadow-[0_0_25px_rgba(0,208,98,0.7),0_0_50px_rgba(0,208,98,0.5),0_0_80px_rgba(0,208,98,0.3)] hover:shadow-[0_0_35px_rgba(0,208,98,0.8),0_0_70px_rgba(0,208,98,0.6),0_0_100px_rgba(0,208,98,0.4)]"
-                onClick={() => setLocation('/signup/therapist')}
-              >
-                <Building2 className="w-5 h-5" />
-                For Therapists &amp; Clinics
+                Let the story unfold...
               </Button>
             </div>
 
+            <p className="text-lg text-muted-foreground mt-3">
+              
+            </p>
+
             <p className="text-xs text-muted-foreground text-center md:text-left mt-3 w-full">
-              30-day free trial · 180 minutes · No credit card required
+              No credit card required · Start free. Stay when it matters.*
+            </p>
+            <p className="text-xs text-white/35 text-center md:text-left mt-1.5 w-full italic leading-relaxed">
+              *We track what you keep coming back to. When you see it — and you will — you'll know exactly what this is worth.
             </p>
           </div>
         </section>
@@ -167,6 +158,35 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
           </div>
         </div>
 
+        {/* Secondary paths — high contrast against deep purple background */}
+        <div className="flex items-center gap-4 mt-14 mb-5 max-w-xl mx-auto px-4">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent to-white/30" />
+          <p className="text-xs font-semibold text-white/80 tracking-[0.2em] uppercase whitespace-nowrap">
+            Other Options
+          </p>
+          <div className="flex-1 h-px bg-gradient-to-l from-transparent to-white/30" />
+        </div>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Button
+            variant="ghost"
+            size="lg"
+            className="w-full sm:w-auto justify-center px-7 bg-amber-500/25 border border-amber-400/70 text-amber-100 hover:bg-amber-500/40 hover:border-amber-300 hover:text-white shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:shadow-[0_0_30px_rgba(251,191,36,0.5)]"
+            onClick={() => setLocation('/ai-assisted-therapy')}
+          >
+            <Users className="w-5 h-5 mr-2" />
+            AI-Assisted Therapy with a Real Human
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            className="w-full sm:w-auto justify-center px-7 bg-sky-500/25 border border-sky-400/70 text-sky-100 hover:bg-sky-500/40 hover:border-sky-300 hover:text-white shadow-[0_0_20px_rgba(56,189,248,0.3)] hover:shadow-[0_0_30px_rgba(56,189,248,0.5)]"
+            onClick={() => setLocation('/signup/therapist')}
+          >
+            <Building2 className="w-5 h-5 mr-2" />
+            For Therapists &amp; Clinics
+          </Button>
+        </div>
+
         {/* Explore Resources card */}
         <Link href="/learn-more">
           <div className="glass-card rounded-2xl border border-white/10 p-6 md:p-8 max-w-3xl mx-auto mt-8 cursor-pointer hover:border-white/20 transition-all duration-300 group">
@@ -213,7 +233,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white">Pricing</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Explore plans for individuals and therapists</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">The price of a space where depth becomes possible</p>
                 </div>
               </div>
 

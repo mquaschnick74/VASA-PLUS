@@ -687,9 +687,9 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
             <span className="text-xs sm:text-sm text-muted-foreground">Welcome, {userContext.firstName}</span>
           </div>
         </div>
-        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid gap-4 sm:gap-6 lg:gap-8">
 
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
+          <div className="space-y-4 sm:space-y-6 lg:space-y-8">
 
             {subscriptionLoading && (
               <Card className="glass-strong rounded-xl sm:rounded-2xl border-0">
