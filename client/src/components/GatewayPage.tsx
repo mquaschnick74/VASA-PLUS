@@ -2,7 +2,7 @@
 // Premium landing page — dark, sophisticated, mobile-first design
 
 import { useLocation, Link } from 'wouter';
-import { Headphones, PenLine, Play, Sparkles, Brain, Users, Building2, Quote } from 'lucide-react';
+import { Headphones, PenLine, Play, Sparkles, Users, Building2, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import phoneMockup from '../../../assets/phone-mockup.png';
 
@@ -74,7 +74,6 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 className="w-full sm:w-auto justify-start px-6 bg-emerald-500 hover:bg-emerald-600 border border-white/60"
                 onClick={() => setLocation('/signup/individual')}
               >
-                <Brain className="w-5 h-5" />
                 Let the story unfold...
               </Button>
             </div>
