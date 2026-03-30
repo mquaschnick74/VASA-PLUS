@@ -157,7 +157,13 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
         </div>
 
         {/* Secondary paths — high contrast against deep purple background */}
-        <p className="text-sm text-muted-foreground text-center mt-10 mb-3 tracking-wide">Other Options:</p>
+        <div className="flex items-center gap-4 mt-14 mb-5 max-w-xl mx-auto px-4">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent to-white/30" />
+          <p className="text-xs font-semibold text-white/80 tracking-[0.2em] uppercase whitespace-nowrap">
+            Other Options
+          </p>
+          <div className="flex-1 h-px bg-gradient-to-l from-transparent to-white/30" />
+        </div>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button
             variant="ghost"
