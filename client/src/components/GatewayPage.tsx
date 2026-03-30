@@ -75,7 +75,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
                 onClick={() => setLocation('/signup/individual')}
               >
                 <Brain className="w-5 h-5" />
-                Connect with an AI Guide
+                Let the story unfold...
               </Button>
             </div>
 
