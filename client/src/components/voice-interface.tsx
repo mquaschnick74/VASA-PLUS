@@ -203,7 +203,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
             const token = session.data.session?.access_token;
             if (!token) return;
 
-            const response = await fetch(`${getApiUrl('/api/subscription/status')}`, {
+            const response = await fetch(getApiUrl(`/api/subscription/status/${userId}`), {
               headers: { Authorization: `Bearer ${token}` }
             });
             if (!response.ok) return;
