@@ -231,6 +231,22 @@ router.post('/', async (req, res) => {
         else if (subscription.status === 'past_due') status = 'past_due';
         else if (subscription.status === 'unpaid') status = 'expired';
 
+        // If Stripe marks this subscription as non-active, check if the user
+        // previously hit the pattern gate. If so, restore pattern_gated status
+        // rather than using a generic canceled/expired status.
+        if (['canceled', 'past_due', 'expired'].includes(status)) {
+          const { data: existingSub } = await supabase
+            .from('subscriptions')
+            .select('pattern_gate_fired')
+            .eq('stripe_subscription_id', subscription.id)
+            .maybeSingle();
+
+          if (existingSub?.pattern_gate_fired === true) {
+            status = 'pattern_gated';
+            console.log(`🔒 [PatternGate] Subscription lapsed for previously-gated user — restoring pattern_gated status`);
+          }
+        }
+
         const updateData: any = {
           subscription_status: status,
           current_period_end: new Date(subscription.current_period_end * 1000),
@@ -310,10 +326,23 @@ router.post('/', async (req, res) => {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
 
+        // Check if user previously hit pattern gate before marking as canceled
+        const { data: existingSub } = await supabase
+          .from('subscriptions')
+          .select('pattern_gate_fired')
+          .eq('stripe_subscription_id', subscription.id)
+          .maybeSingle();
+
+        const canceledStatus = existingSub?.pattern_gate_fired === true ? 'pattern_gated' : 'canceled';
+
+        if (existingSub?.pattern_gate_fired === true) {
+          console.log(`🔒 [PatternGate] Subscription deleted for previously-gated user — setting pattern_gated`);
+        }
+
         const { error } = await supabase
           .from('subscriptions')
           .update({
-            subscription_status: 'canceled',
+            subscription_status: canceledStatus,
             stripe_subscription_id: null,
             updated_at: new Date().toISOString(),
           })

@@ -107,6 +107,8 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
 
   const [typewriterMessageId, setTypewriterMessageId] = useState<string | null>(null);
   const [displayedContent, setDisplayedContent] = useState<Record<string, string>>({});
+  const [showPatternGateModal, setShowPatternGateModal] = useState(false);
+  const [gateModalDescription, setGateModalDescription] = useState<string | null>(null);
   const typewriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const typewriterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -190,9 +192,36 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       setShowTranscript(true);
       localStorage.removeItem('vasa_text_session_id');
       localStorage.removeItem('vasa_text_transcript');
+
+      // PATTERN GATE: Re-fetch subscription 3 seconds after session ends.
+      // The gate is written server-side during end-of-call-report processing.
+      // The delay allows the webhook to complete before we check.
+      if (userId) {
+        setTimeout(async () => {
+          try {
+            const session = await supabase.auth.getSession();
+            const token = session.data.session?.access_token;
+            if (!token) return;
+
+            const response = await fetch(getApiUrl(`/api/subscription/status/${userId}`), {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (data?.limits?.is_pattern_gated === true) {
+              console.log('🔒 [PatternGate] Gate detected post-session — showing modal');
+              setShowPatternGateModal(true);
+              setGateModalDescription(data.limits.pattern_gate_description || null);
+            }
+          } catch (err) {
+            console.error('❌ [PatternGate] Failed to check post-session subscription status:', err);
+          }
+        }, 3000);
+      }
     }
     prevSessionActive.current = isSessionActive;
-  }, [isSessionActive]);
+  }, [isSessionActive, userId]);
 
   const lastTranscriptLengthRef = useRef(0);
   useEffect(() => {
@@ -423,6 +452,13 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
   }, [isSessionActive, showDurationWarning, sessionDurationLimit]);
 
   const handleStartSession = () => {
+    if (subscription && subscription.limits?.is_pattern_gated && subscription.subscription_status === 'pattern_gated') {
+      alert(
+        `You've made a meaningful discovery about yourself. To continue your therapeutic journey, please subscribe.`
+      );
+      setLocation('/pricing');
+      return;
+    }
     if (subscription && subscription.limits?.can_use_voice === false) {
       alert(
         subscription.limits.is_using_therapist_subscription
@@ -673,10 +709,13 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className={`w-10 h-10 rounded-full ${
+                        subscription.subscription_status === 'pattern_gated' ? 'bg-purple-500/20' :
                         subscription.limits.minutes_remaining > 10 ? 'bg-green-500/20' :
                         subscription.limits.minutes_remaining > 0 ? 'bg-yellow-500/20' : 'bg-red-500/20'
                       } flex items-center justify-center`}>
-                        {subscription.limits.minutes_remaining > 10 ?
+                        {subscription.subscription_status === 'pattern_gated' ?
+                          <XCircle className="w-5 h-5 text-purple-500" /> :
+                          subscription.limits.minutes_remaining > 10 ?
                           <CheckCircle className="w-5 h-5 text-green-500" /> :
                           subscription.limits.minutes_remaining > 0 ?
                           <Clock className="w-5 h-5 text-yellow-500" /> :
@@ -685,27 +724,40 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
                       </div>
                       <div>
                         <p className="text-sm font-medium">
-                          {subscription.limits.subscription_tier === 'trial' ? 'Trial Account' :
+                          {subscription.subscription_status === 'pattern_gated' ? 'Pattern Discovered' :
+                           subscription.limits.subscription_tier === 'trial' ? 'Trial Account' :
                            subscription.limits.subscription_tier === 'pro' ? 'Pro Account' : 'Premium Account'}
                           {subscription.limits.is_using_therapist_subscription && (
                             <span className="ml-2 text-xs text-muted-foreground">(via therapist)</span>
                           )}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {subscription.limits.is_trial && (subscription.limits.trial_days_left ?? 0) > 0 && (
+                          {subscription.subscription_status === 'pattern_gated' ? (
                             <span className="block">
-                              {subscription.limits.trial_days_left} day{(subscription.limits.trial_days_left ?? 0) !== 1 ? 's' : ''} remaining
+                              {subscription.limits.pattern_gate_description
+                                ? `You recognized a pattern: "${subscription.limits.pattern_gate_description}". Subscribe to continue.`
+                                : 'You\'ve identified a meaningful pattern. Subscribe to continue your journey.'}
                             </span>
-                          )}
-                          <span className="block">{subscription.limits.minutes_remaining} minutes remaining</span>
-                          {subscription.limits.is_using_therapist_subscription && subscription.limits.subscription_owner_email && (
-                            <span className="block mt-1">Therapist: {subscription.limits.subscription_owner_email}</span>
+                          ) : (
+                            <>
+                              {subscription.limits.is_trial && (subscription.limits.trial_days_left ?? 0) > 0 && (
+                                <span className="block">
+                                  {subscription.limits.trial_days_left} day{(subscription.limits.trial_days_left ?? 0) !== 1 ? 's' : ''} remaining
+                                </span>
+                              )}
+                              <span className="block">{subscription.limits.minutes_remaining} minutes remaining</span>
+                              {subscription.limits.is_using_therapist_subscription && subscription.limits.subscription_owner_email && (
+                                <span className="block mt-1">Therapist: {subscription.limits.subscription_owner_email}</span>
+                              )}
+                            </>
                           )}
                         </p>
                       </div>
                     </div>
                     {!subscription.limits.is_using_therapist_subscription && (
-                      subscription.limits.subscription_tier === 'trial' ? (
+                      subscription.subscription_status === 'pattern_gated' ? (
+                        <Button variant="outline" size="sm" className="text-xs" onClick={() => setLocation('/pricing')}>Subscribe</Button>
+                      ) : subscription.limits.subscription_tier === 'trial' ? (
                         <Button variant="outline" size="sm" className="text-xs" onClick={() => setLocation('/pricing')}>Upgrade</Button>
                       ) : (
                         <Button variant="outline" size="sm" className="text-xs" onClick={handleManageSubscription}>Manage</Button>
@@ -1261,6 +1313,43 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* PATTERN GATE MODAL — fires once, immediately after the session that triggers the gate */}
+      {showPatternGateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center space-y-6">
+              <div className="text-4xl">◈</div>
+              <h2 className="text-xl font-semibold text-white leading-snug">
+                You found something.
+              </h2>
+              <p className="text-white/70 text-sm leading-relaxed">
+                {(gateModalDescription || subscription?.limits?.pattern_gate_description)
+                  ? `"${gateModalDescription || subscription?.limits?.pattern_gate_description}"`
+                  : "A pattern has emerged from your sessions — one that's yours to keep exploring."}
+              </p>
+              <p className="text-white/50 text-xs leading-relaxed">
+                This is what iVASA is for. Keep the thread.
+              </p>
+              <button
+                onClick={() => {
+                  setShowPatternGateModal(false);
+                  setLocation('/pricing');
+                }}
+                className="w-full bg-white text-black font-medium py-3 px-6 rounded-xl hover:bg-white/90 transition-colors"
+              >
+                Keep going →
+              </button>
+              <button
+                onClick={() => setShowPatternGateModal(false)}
+                className="w-full text-white/40 text-xs hover:text-white/60 transition-colors"
+              >
+                I'll decide later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

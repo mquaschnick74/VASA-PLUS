@@ -112,6 +112,9 @@ export const subscriptions = pgTable("subscriptions", {
   current_period_end: timestamp("current_period_end", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  pattern_gate_fired: boolean("pattern_gate_fired").notNull().default(false),
+  pattern_gate_description: text("pattern_gate_description"),
+  pattern_gate_fired_at: timestamp("pattern_gate_fired_at", { withTimezone: true }),
 });
 
 // Usage sessions tracking - FIXED to reference users.id

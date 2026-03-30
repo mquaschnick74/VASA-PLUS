@@ -546,6 +546,37 @@ router.post('/webhook', async (req, res) => {
         console.log(`   📈 Dominant register: ${sensingSessionSummary.dominantRegister}`);
         console.log(`   ⭐ Significant moments: ${sensingSessionSummary.significantMoments.length}`);
         console.log(`   🔄 Patterns detected: ${sensingSessionSummary.patternsDetected.length}`);
+
+        // PATTERN GATE: Check for explicit user self-recognition
+        const explicitPattern = sensingSessionSummary.structuredPatterns.find(
+          p => p.userExplicitlyIdentified === true
+        );
+
+        if (explicitPattern && userId) {
+          console.log(`🔍 [PatternGate] Explicit pattern detected: "${explicitPattern.description}"`);
+
+          // Count prior completed sessions for this user (excluding current call)
+          const { count: sessionCount, error: countError } = await supabase
+            .from('therapeutic_sessions')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .neq('call_id', callId)
+            .not('end_time', 'is', null);
+
+          if (countError) {
+            console.error(`❌ [PatternGate] Failed to count sessions for user ${userId}:`, countError);
+          } else {
+            const priorSessionCount = sessionCount ?? 0;
+            console.log(`🔍 [PatternGate] Prior completed sessions for user ${userId}: ${priorSessionCount}`);
+
+            if (priorSessionCount >= 1) {
+              // At least 1 prior session means this is session 2 or later
+              await subscriptionService.firePatternGate(userId, explicitPattern.description);
+            } else {
+              console.log(`⏭️ [PatternGate] Only ${priorSessionCount} prior session(s) — gate requires at least 1 prior. Skipping.`);
+            }
+          }
+        }
       } else {
         console.warn(`⚠️ [SENSING] No session to finalize for call ${callId}`);
       }

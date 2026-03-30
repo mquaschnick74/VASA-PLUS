@@ -18,6 +18,8 @@ interface SubscriptionLimits {
   session_duration_limit?: number;
   client_limit?: number;
   clients_used?: number;
+  is_pattern_gated: boolean;
+  pattern_gate_description: string | null;
 }
 
 export class SubscriptionService {
@@ -130,21 +132,22 @@ export class SubscriptionService {
       minutes_used: subscription.usage_minutes_used
     });
 
-    const now = new Date();
-    const isExpired = subscription.subscription_status === 'expired' ||
-      (subscription.trial_ends_at && new Date(subscription.trial_ends_at) < now);
+    const isPatternGated = subscription.subscription_status === 'pattern_gated' || subscription.pattern_gate_fired === true;
+    const isActive = subscription.subscription_status === 'active';
+    const isTrialing = subscription.subscription_status === 'trialing';
 
     const minutesRemaining = Math.max(0, (subscription.usage_minutes_limit || 0) - (subscription.usage_minutes_used || 0));
 
     const limits: SubscriptionLimits = {
-      can_use_voice: !isExpired && minutesRemaining > 0,
+      can_use_voice: isActive || (isTrialing && !isPatternGated),
       minutes_remaining: minutesRemaining,
       minutes_used: subscription.usage_minutes_used || 0,
       minutes_limit: subscription.usage_minutes_limit || 0,
-      subscription_active: !isExpired,
-      is_trial: subscription.subscription_status === 'trialing',
-      trial_days_left: subscription.trial_ends_at ? 
-        Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0,
+      subscription_active: isActive,
+      is_trial: isTrialing,
+      trial_days_left: 0,
+      is_pattern_gated: isPatternGated,
+      pattern_gate_description: subscription.pattern_gate_description || null,
       subscription_tier: subscription.subscription_tier,
       user_type: profile.user_type || 'individual',
       subscription_owner_id: userId,
@@ -258,9 +261,6 @@ export class SubscriptionService {
   }
 
   async createTrialSubscription(userId: string): Promise<boolean> {
-    const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + 30);
-
     console.log(`🆕 Creating trial subscription for user: ${userId}`);
 
     const { error } = await supabase
@@ -270,9 +270,6 @@ export class SubscriptionService {
         subscription_tier: 'trial',
         subscription_status: 'trialing',
         plan_type: 'recurring',
-        trial_ends_at: trialEndDate.toISOString(),
-        trial_minutes_limit: 180,
-        usage_minutes_limit: 180,
         usage_minutes_used: 0
       });
 
@@ -293,13 +290,68 @@ export class SubscriptionService {
       limits,
       subscription: {
         subscription_tier: limits.subscription_tier,
-        subscription_status: limits.is_trial ? 'trialing' : 'active',
+        subscription_status: limits.is_pattern_gated ? 'pattern_gated' : (limits.is_trial ? 'trialing' : 'active'),
         usage_minutes_limit: limits.minutes_limit,
         usage_minutes_used: limits.minutes_used,
         client_limit: limits.client_limit || 0,
         clients_used: limits.clients_used || 0
       }
     };
+  }
+
+  /**
+   * Fire the pattern gate for a user.
+   * Sets subscription_status to 'pattern_gated' and records the pattern description.
+   * Idempotent: if pattern_gate_fired is already true, does nothing.
+   * Only callable when subscription_status is 'trialing'.
+   */
+  async firePatternGate(userId: string, patternDescription: string): Promise<boolean> {
+    console.log(`🔒 [PatternGate] Attempting to fire for user: ${userId}`);
+
+    // Fetch current subscription
+    const { data: subscription, error: fetchError } = await supabase
+      .from('subscriptions')
+      .select('id, subscription_status, pattern_gate_fired')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (fetchError || !subscription) {
+      console.error(`❌ [PatternGate] Could not fetch subscription for user ${userId}:`, fetchError);
+      return false;
+    }
+
+    // Idempotent guard
+    if (subscription.pattern_gate_fired === true) {
+      console.log(`⏭️ [PatternGate] Already fired for user ${userId} — skipping`);
+      return false;
+    }
+
+    // Only fire on trialing subscriptions
+    if (subscription.subscription_status !== 'trialing') {
+      console.log(`⏭️ [PatternGate] Status is '${subscription.subscription_status}' — gate only fires on trialing`);
+      return false;
+    }
+
+    const { error: updateError } = await supabase
+      .from('subscriptions')
+      .update({
+        subscription_status: 'pattern_gated',
+        pattern_gate_fired: true,
+        pattern_gate_description: patternDescription,
+        pattern_gate_fired_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', subscription.id);
+
+    if (updateError) {
+      console.error(`❌ [PatternGate] Failed to fire gate for user ${userId}:`, updateError);
+      return false;
+    }
+
+    console.log(`✅ [PatternGate] Fired for user ${userId}: "${patternDescription.slice(0, 60)}"`);
+    return true;
   }
 }
 
