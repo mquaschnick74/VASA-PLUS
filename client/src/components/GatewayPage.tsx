@@ -84,7 +84,10 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
             </p>
 
             <p className="text-xs text-muted-foreground text-center md:text-left mt-3 w-full">
-              No credit card required · The story unfolding before your eyes will show you its value.
+              No credit card required · Start free. Stay when it matters.*
+            </p>
+            <p className="text-xs text-white/35 text-center md:text-left mt-1.5 w-full italic leading-relaxed">
+              *We track what you keep coming back to. When you see it — and you will — you'll know exactly what this is worth.
             </p>
           </div>
         </section>
