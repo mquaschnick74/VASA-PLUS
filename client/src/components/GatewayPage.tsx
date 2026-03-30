@@ -79,7 +79,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
             </div>
 
             <p className="text-lg text-muted-foreground mt-3">
-              We help you find it.
+              
             </p>
 
             <p className="text-xs text-muted-foreground text-center md:text-left mt-3 w-full">
