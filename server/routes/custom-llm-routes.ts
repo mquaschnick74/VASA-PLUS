@@ -7,6 +7,7 @@ import {
   getLatestFieldAssessment,
   getPriorFieldSummary,
   recordFieldAssessment,
+  recordLastAgentPosture,
   getSessionCSSStage,
   assessSessionCSSStage,
 } from '../services/sensing-layer/session-state';
@@ -326,6 +327,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
             cvdc: parsed.cvdc || null,
           };
           setLastFooterState(callId, footerState);
+          if (footerState.posture) {
+            recordLastAgentPosture(callId, footerState.posture);
+          }
           console.log(
             `🔵 [CUSTOM-LLM] Footer parsed: register=${footerState.register} posture=${footerState.posture} css=${footerState.css} movement=${footerState.movement}`
           );
