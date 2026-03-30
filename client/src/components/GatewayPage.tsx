@@ -84,7 +84,7 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
             </p>
 
             <p className="text-xs text-muted-foreground text-center md:text-left mt-3 w-full">
-              No credit card required · Your story doesn't fit in a month.
+              No credit card required · Your story unfolding before your eyes will show you the value.
             </p>
           </div>
         </section>
@@ -157,7 +157,8 @@ export default function GatewayPage({ onTryDemo }: GatewayPageProps) {
         </div>
 
         {/* Secondary paths — high contrast against deep purple background */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
+        <p className="text-sm text-muted-foreground text-center mt-10 mb-3 tracking-wide">Other Options:</p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button
             variant="ghost"
             size="lg"
