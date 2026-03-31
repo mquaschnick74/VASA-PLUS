@@ -31,7 +31,7 @@ const openai = new OpenAI({
 });
 
 // Per-call streaming lock — prevents duplicate streams from concurrent VAPI requests
-const streamingCallIds = new Set<string>();
+const processedTurns = new Map<string, number>();
 
 const postInterventionActive = new Map<string, boolean>();
 
@@ -53,7 +53,7 @@ const THINKING_PHRASES: Record<string, string> = {
 const LLM_THINKING_THRESHOLD_MS = 4000;
 
 export function clearCustomLLMCache(callId: string): void {
-  streamingCallIds.delete(callId);
+  processedTurns.delete(callId);
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
   lastFieldAssessmentExchange.delete(callId);
@@ -144,8 +144,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   console.log(`🔵 [CUSTOM-LLM] Prompt size: ${fullSystemPrompt.length} chars (~${Math.round(fullSystemPrompt.length / 4)} tokens)`);
 
   // Step 4: Streaming lock gate
-  if (streamingCallIds.has(callId)) {
-    console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId}`);
+  const lastProcessedTurn = processedTurns.get(callId) ?? -1;
+  if (numUserTurns <= lastProcessedTurn) {
+    console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId} turn=${numUserTurns} (already processed turn ${lastProcessedTurn})`);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -160,7 +161,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     res.end();
     return;
   }
-  streamingCallIds.add(callId);
+  processedTurns.set(callId, numUserTurns);
 
   // Step 4a: Field assessment session picture + background sensing
   const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content;
@@ -432,7 +433,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       }
     }
   } finally {
-    streamingCallIds.delete(callId);
   }
 });
 
