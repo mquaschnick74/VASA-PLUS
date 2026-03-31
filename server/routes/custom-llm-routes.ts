@@ -236,22 +236,12 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  try {
-    // Step 5: Stream from OpenAI with look-ahead footer detection.
-    //
-    // Chunks are sent to VAPI as they arrive, holding back LOOK_AHEAD chars
-    // to catch the ---STATE: delimiter even if it arrives split across chunks.
-    // When ---STATE: is found, everything before it has already been sent.
-    // Everything from ---STATE: onward accumulates in footerBuffer for parsing
-    // after the stream ends. setLastFooterState is called once at the end —
-    // consumed by the NEXT request for this callId, so cross-turn timing unchanged.
+  // Start thinking indicator timer — inject brief vocalization if LLM exceeds threshold
+  let thinkingInjected = false;
+  const agentKey = agentId.toLowerCase();
+  const thinkingPhrase = THINKING_PHRASES[agentKey] ?? 'Mm.';
 
-    // Start thinking indicator timer — inject brief vocalization if LLM exceeds threshold
-    let thinkingInjected = false;
-    const agentKey = agentId.toLowerCase();
-    const thinkingPhrase = THINKING_PHRASES[agentKey] ?? 'Mm.';
-
-    const thinkingTimer = setTimeout(async () => {
+  const thinkingTimer = setTimeout(async () => {
       try {
         const injected = await injectSpokenReEngagement(callId, thinkingPhrase);
         if (injected) {
@@ -263,24 +253,23 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       }
     }, LLM_THINKING_THRESHOLD_MS);
 
-    let completion;
-    try {
-      completion = await openai.chat.completions.create({
-        model: req.body.model || 'gpt-4o',
-        messages: modifiedMessages,
-        temperature: req.body.temperature ?? 0.7,
-        max_completion_tokens: req.body.max_tokens ?? 300,
-        stream: true,
-      });
-    } finally {
-      clearTimeout(thinkingTimer);
-    }
+  try {
+    // Step 5: Stream from OpenAI with look-ahead footer detection.
+    //
+    // Chunks are sent to VAPI as they arrive, holding back LOOK_AHEAD chars
+    // to catch the ---STATE: delimiter even if it arrives split across chunks.
+    // When ---STATE: is found, everything before it has already been sent.
+    // Everything from ---STATE: onward accumulates in footerBuffer for parsing
+    // after the stream ends. setLastFooterState is called once at the end —
+    // consumed by the NEXT request for this callId, so cross-turn timing unchanged.
 
-    // If a thinking phrase was injected, pause briefly so it finishes
-    // playing before the actual response begins streaming.
-    if (thinkingInjected) {
-      await new Promise(resolve => setTimeout(resolve, 1200));
-    }
+    const completion = await openai.chat.completions.create({
+      model: req.body.model || 'gpt-4o',
+      messages: modifiedMessages,
+      temperature: req.body.temperature ?? 0.7,
+      max_completion_tokens: req.body.max_tokens ?? 300,
+      stream: true,
+    });
 
     let pendingBuffer = '';  // chars held back for look-ahead
     let footerBuffer = '';   // accumulates everything from ---STATE: onward
@@ -288,12 +277,26 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     let firstChunkId = '';
     let lastChunkId = '';
     let totalSentLength = 0;
+    let firstContentChunk = true;
 
     for await (const chunk of completion) {
       if (!firstChunkId) firstChunkId = chunk.id;
       lastChunkId = chunk.id;
       const delta = chunk.choices?.[0]?.delta?.content;
       if (!delta) continue;
+
+      // Clear thinking timer on first content — this is the actual signal
+      // that the LLM has started producing output.
+      if (firstContentChunk) {
+        clearTimeout(thinkingTimer);
+        firstContentChunk = false;
+
+        // If a thinking phrase was injected, pause briefly so it finishes
+        // playing before the actual response begins streaming.
+        if (thinkingInjected) {
+          await new Promise(resolve => setTimeout(resolve, 1200));
+        }
+      }
 
       if (inFooter) {
         footerBuffer += delta;
@@ -396,6 +399,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       `🔵 [CUSTOM-LLM] Complete: call=${callId} turns=${numUserTurns}/${numAssistantTurns} total=${totalTime}ms sent=${totalSentLength} chars`
     );
   } catch (error: any) {
+    clearTimeout(thinkingTimer);
     console.error(`🔴 [CUSTOM-LLM] OpenAI error: ${error.message}`, { callId, userId, agentId });
     if (!res.headersSent) {
       res.status(500).json({ error: 'LLM request failed', message: error.message });
