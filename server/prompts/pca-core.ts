@@ -47,7 +47,6 @@ export const LAYER_2 = readLayer('layer-2.txt');
 export const LAYER_3 = readLayer('layer-3.txt');
 export const LAYER_4 = readLayer('layer-4.txt');
 export const LAYER_6 = readLayer('layer-6.txt');
-export const HSFB_PROTOCOL = readLayer('hsfb-protocol.txt');
 // ─── Agent prefixes ───────────────────────────────────────────────────────────
 let agentPrefixesRaw: Record<string, string> = {};
 try {
@@ -233,8 +232,6 @@ export function assembleSystemPrompt(
     LAYER_3,
     '',
     LAYER_4,
-    '',
-    HSFB_PROTOCOL,
     '',
     LAYER_6,
   );
