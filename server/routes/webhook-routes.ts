@@ -37,6 +37,7 @@ import {
 import { startSilenceMonitor, resetSilenceTimer, stopSilenceMonitor, suppressSilenceMonitor, clearPostInterventionSuppression } from '../services/sensing-layer/silence-monitor';
 import { extractAndStoreFragments } from '../services/sensing-layer/fragment-extractor';
 import { updateArcFromTranscript } from '../services/sensing-layer/arc-tracker';
+import { clearCustomLLMCache, confirmTurnPlayed } from './custom-llm-routes';
 
 const router = Router();
 
@@ -731,6 +732,9 @@ router.post('/webhook', async (req, res) => {
         if (speechRole === 'assistant') {
           const isSpeaking = speechStatus === 'started';
           setAgentSpeakingState(callId, isSpeaking);
+          if (isSpeaking) {
+            confirmTurnPlayed(callId);
+          }
           console.log(`🎙️ [SPEECH] Agent speaking state: ${speechStatus} for call ${callId}`);
 
           if (speechStatus === 'stopped') {

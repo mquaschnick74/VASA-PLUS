@@ -30,8 +30,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Per-call streaming lock — prevents duplicate streams from concurrent VAPI requests
-const processedTurns = new Map<string, number>();
+// Tracks the turn number of the most recently sent LLM response per call.
+// Updated each time we send a real response.
+const lastSentTurn = new Map<string, number>();
+
+// Tracks the turn number that VAPI has confirmed playing (via speech-update: started).
+// Gate blocks any request at or below this number.
+const confirmedTurns = new Map<string, number>();
 
 const postInterventionActive = new Map<string, boolean>();
 
@@ -53,11 +58,25 @@ const THINKING_PHRASES: Record<string, string> = {
 const LLM_THINKING_THRESHOLD_MS = 4000;
 
 export function clearCustomLLMCache(callId: string): void {
-  processedTurns.delete(callId);
+  lastSentTurn.delete(callId);
+  confirmedTurns.delete(callId);
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
   lastFieldAssessmentExchange.delete(callId);
   clearFooterState(callId);
+}
+
+/**
+ * Called by the webhook handler when speech-update: started fires.
+ * Confirms that VAPI has accepted and is playing the last response we sent.
+ * This advances the confirmation gate, blocking any further retries for that turn.
+ */
+export function confirmTurnPlayed(callId: string): void {
+  const turn = lastSentTurn.get(callId);
+  if (turn !== undefined) {
+    confirmedTurns.set(callId, turn);
+    console.log(`🔵 [CUSTOM-LLM] Turn confirmed by VAPI speech-start: call=${callId} turn=${turn}`);
+  }
 }
 
 // ─── Footer constants ─────────────────────────────────────────────────────────
@@ -144,19 +163,17 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   console.log(`🔵 [CUSTOM-LLM] Prompt size: ${fullSystemPrompt.length} chars (~${Math.round(fullSystemPrompt.length / 4)} tokens)`);
 
   // Step 4: Streaming lock gate
-  const lastProcessedTurn = processedTurns.get(callId) ?? -1;
-  if (numUserTurns <= lastProcessedTurn) {
-    // Allow silence-injection requests through — these are VAPI re-triggers from
-    // Tier 1-3 silence monitor add-message calls. They carry no new user turn but
-    // must produce a real LLM response. Identifiable by a system message starting
-    // with "[SILENCE —" in the messages array.
+  const lastConfirmedTurn = confirmedTurns.get(callId) ?? -1;
+  if (numUserTurns <= lastConfirmedTurn) {
+    // VAPI has already confirmed it played a response for this turn.
+    // Check if this is a silence injection (which must always pass through).
     const isSilenceInjection = messages.some(
       (m: { role: string; content: string }) =>
         m.role === 'system' && m.content.startsWith('[SILENCE —')
     );
 
     if (!isSilenceInjection) {
-      console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId} turn=${numUserTurns} (already processed turn ${lastProcessedTurn})`);
+      console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId} turn=${numUserTurns} (VAPI confirmed turn ${lastConfirmedTurn})`);
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
@@ -173,11 +190,16 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     }
 
     console.log(`🔵 [CUSTOM-LLM] Silence injection allowed through: call=${callId} turn=${numUserTurns}`);
-    // Do not update processedTurns — silence injections don't advance the turn record.
-    // A real VAPI retry for this same turn will still be suppressed.
   }
-  if (!messages.some((m: { role: string; content: string }) => m.role === 'system' && m.content.startsWith('[SILENCE —'))) {
-    processedTurns.set(callId, numUserTurns);
+
+  // Record the turn number of the response we are about to send.
+  // This will be confirmed (or not) when speech-update: started arrives.
+  const isSilenceReq = messages.some(
+    (m: { role: string; content: string }) =>
+      m.role === 'system' && m.content.startsWith('[SILENCE —')
+  );
+  if (!isSilenceReq) {
+    lastSentTurn.set(callId, numUserTurns);
   }
 
   // Step 4a: Field assessment session picture + background sensing
