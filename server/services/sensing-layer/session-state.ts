@@ -81,6 +81,12 @@ export interface SessionAccumulator {
 
   // Field assessments — rolling store for priorFieldSummary computation
   fieldAssessments: FieldAssessmentOutput[];
+
+  // HSFB and agent posture tracking
+  lastAgentPosture: string | null;
+  hsfbExecutedAtExchange: number | null;
+  hsfbOutcome: 'new_material' | 'absorption' | 'pending' | null;
+  consecutiveAbsorptionExchanges: number;
   }
 
 /**
@@ -158,6 +164,10 @@ export function initializeSession(
       lastCSSMilestoneExchange: 0,
       activeIBMCandidates: [],
       fieldAssessments: [],
+      lastAgentPosture: null,
+      hsfbExecutedAtExchange: null,
+      hsfbOutcome: null,
+      consecutiveAbsorptionExchanges: 0,
   };
 
   activeSessions.set(callId, accumulator);
@@ -839,6 +849,46 @@ export function recordFieldAssessment(
     }
   }
 
+  // Assess HSFB outcome if pending
+  if (
+    session.hsfbOutcome === 'pending' &&
+    session.hsfbExecutedAtExchange != null &&
+    session.exchangeCount > session.hsfbExecutedAtExchange
+  ) {
+    const registerShift = assessment.register.current !== 'Imaginary';
+    const somaticPresent = assessment.investment.investment_type === 'somatic_emergence';
+    const ibmDecreasing = assessment.ibm.contradiction_strength < 0.5;
+
+    if (registerShift || somaticPresent || ibmDecreasing) {
+      recordHSFBOutcome(callId, 'new_material');
+    } else {
+      recordHSFBOutcome(callId, 'absorption');
+    }
+  }
+
+  // Absorption counter — tracks consecutive exchanges meeting Imaginary absorption conditions.
+  // Conditions: IBM strong, register Imaginary, movement static, no somatic/register-shift investment.
+  // Resets when Real surfaces, somatic emerges, or IBM meaningfully decreases.
+  const absorptionConditionsMet =
+    assessment.register.current === 'Imaginary' &&
+    (assessment.register.movement === 'static' || assessment.register.movement === null) &&
+    assessment.ibm.contradiction_strength > 0.7 &&
+    assessment.ibm.behavioral_alignment_strength > 0.5 &&
+    assessment.investment.investment_type !== 'somatic_emergence' &&
+    assessment.investment.investment_type !== 'register_shift';
+
+  if (absorptionConditionsMet) {
+    session.consecutiveAbsorptionExchanges++;
+    if (session.consecutiveAbsorptionExchanges >= 2) {
+      console.log(`🔲 [ABSORPTION] ${session.consecutiveAbsorptionExchanges} consecutive absorption exchanges for call ${callId}`);
+    }
+  } else {
+    if (session.consecutiveAbsorptionExchanges > 0) {
+      console.log(`🔲 [ABSORPTION] Counter reset at exchange ${exchangeCount} for call ${callId} (was ${session.consecutiveAbsorptionExchanges})`);
+    }
+    session.consecutiveAbsorptionExchanges = 0;
+  }
+
   console.log(`🔬 [FieldAssessment] Recorded for exchange ${exchangeCount} — register: ${assessment.register.current}, IBM strength: ${assessment.ibm.contradiction_strength.toFixed(2)}, critical: ${assessment.critical_moment}`);
 
   if (assessment.critical_moment && assessment.critical_moment_reason) {
@@ -872,5 +922,84 @@ export function getPriorFieldSummary(callId: string): string {
   if (!session || session.fieldAssessments.length === 0) {
     return 'none';
   }
-  return buildPriorFieldSummary(session.fieldAssessments);
+
+  let summary = buildPriorFieldSummary(session.fieldAssessments);
+
+  // Append HSFB context if relevant
+  if (session.hsfbExecutedAtExchange != null) {
+    const exchangesSinceHSFB = session.exchangeCount - session.hsfbExecutedAtExchange;
+    if (exchangesSinceHSFB <= 3) {
+      summary += `\n\nHSFB CONTEXT: HSFB was executed at exchange ${session.hsfbExecutedAtExchange} (${exchangesSinceHSFB} exchange(s) ago). Outcome: ${session.hsfbOutcome ?? 'pending assessment'}. When interpreting the client's current response, assess whether it represents new material produced by HSFB (register shift, somatic reference, new narrative content) or absorption (same organizing structure, Imaginary metabolizing, minimal or confirmatory response without movement).`;
+    }
+  }
+
+  // Append last agent posture if not already captured in field summary
+  if (session.lastAgentPosture && session.lastAgentPosture !== 'prescripting') {
+    summary += `\n\nPRIOR AGENT POSTURE: ${session.lastAgentPosture}.`;
+  }
+
+  return summary;
+}
+
+/**
+ * Record the agent's last posture for context in field assessment.
+ * Called by the custom-LLM route after footer is parsed.
+ */
+export function recordLastAgentPosture(callId: string, posture: string): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+  session.lastAgentPosture = posture;
+
+  // If posture is HSFB, record execution exchange
+  if (posture === 'hsfb') {
+    session.hsfbExecutedAtExchange = session.exchangeCount;
+    session.hsfbOutcome = 'pending';
+    console.log(`🔲 [HSFB] Execution recorded at exchange ${session.exchangeCount} for call ${callId}`);
+  }
+}
+
+/**
+ * Record whether HSFB produced new material or was absorbed.
+ * Called by the field assessment after the first client utterance
+ * following an HSFB execution.
+ *
+ * Detection logic: if HSFB was executed and the subsequent field assessment
+ * shows register shift OR somatic reference OR new narrative material not
+ * present in prior assessments — outcome is 'new_material'.
+ * If register remains static, Real absent, and IBM holding or increasing —
+ * outcome is 'absorption'.
+ */
+export function recordHSFBOutcome(
+  callId: string,
+  outcome: 'new_material' | 'absorption'
+): void {
+  const session = activeSessions.get(callId);
+  if (!session) return;
+  session.hsfbOutcome = outcome;
+  console.log(`🔲 [HSFB] Outcome recorded: ${outcome} for call ${callId}`);
+}
+
+/**
+ * Get HSFB status for the current session.
+ */
+export function getHSFBStatus(callId: string): {
+  executed: boolean;
+  executedAtExchange: number | null;
+  outcome: 'new_material' | 'absorption' | 'pending' | null;
+} {
+  const session = activeSessions.get(callId);
+  return {
+    executed: session?.hsfbExecutedAtExchange != null,
+    executedAtExchange: session?.hsfbExecutedAtExchange ?? null,
+    outcome: session?.hsfbOutcome ?? null,
+  };
+}
+
+/**
+ * Get the count of consecutive exchanges meeting Imaginary absorption conditions.
+ * Used by formatFieldSessionPicture to determine when HSFB is indicated.
+ */
+export function getConsecutiveAbsorptionExchanges(callId: string): number {
+  const session = activeSessions.get(callId);
+  return session?.consecutiveAbsorptionExchanges ?? 0;
 }

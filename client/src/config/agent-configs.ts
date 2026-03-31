@@ -166,7 +166,7 @@ export const THERAPEUTIC_AGENTS: TherapeuticAgent[] = [
       similarityBoost: 0.75,
       speed: 1.0,
       useSpeakerBoost: false,
-      waitSeconds: 6.0
+      waitSeconds: 5.0
     },
     systemPrompt: 'Your name is UNA. You are a therapeutic voice agent. [Full system prompt assembled by proxy]',
     firstMessageTemplate: (firstName: string, hasMemory: boolean, lastSessionSummary?: string | null) => {

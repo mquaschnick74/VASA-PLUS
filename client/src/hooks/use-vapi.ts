@@ -527,18 +527,6 @@ Do NOT call the tool unless you actually need more context beyond what is alread
             },
         startSpeakingPlan: {
           waitSeconds: selectedAgent.voice.waitSeconds ?? 3.0,
-          customEndpointingRules: [
-            {
-              type: 'assistant' as const,
-              regex: '(feel|body|inside you|imagine|what happens|remind you|what.?s that about|where do you notice|what comes up|what shifted|say more about|sit with)',
-              timeoutSeconds: 8.0
-            },
-            {
-              type: 'customer' as const,
-              regex: '(,\\s*$|\\.{2,}\\s*$|—\\s*$|-\\s*$)',
-              timeoutSeconds: 6.0
-            }
-          ]
         },
         stopSpeakingPlan: {
           numWords: 5,

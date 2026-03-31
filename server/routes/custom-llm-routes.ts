@@ -7,6 +7,7 @@ import {
   getLatestFieldAssessment,
   getPriorFieldSummary,
   recordFieldAssessment,
+  recordLastAgentPosture,
   getSessionCSSStage,
   assessSessionCSSStage,
 } from '../services/sensing-layer/session-state';
@@ -18,7 +19,7 @@ import {
   type FooterState,
 } from '../prompts/pca-core';
 import { getPCAContextForAgent } from '../services/memory-service';
-import { formatFieldSessionPicture } from '../services/sensing-layer/guidance-injector';
+import { formatFieldSessionPicture, injectSpokenReEngagement } from '../services/sensing-layer/guidance-injector';
 import { findResonatingFragments } from '../services/sensing-layer/narrative-web';
 import { getArcPosition } from '../services/sensing-layer/arc-tracker';
 import { recordCustomLLMResponseSent } from '../services/sensing-layer/silence-monitor';
@@ -39,6 +40,17 @@ const initializedCalls = new Set<string>();
 
 // Reserved for future per-request gating of post-intervention state
 const lastFieldAssessmentExchange = new Map<string, number>();
+
+// Brief vocalizations injected when LLM processing exceeds threshold.
+// One phrase per agent — minimal, presence-signaling, clinically neutral.
+const THINKING_PHRASES: Record<string, string> = {
+  sarah: "I'm here.",
+  marcus: 'Mm.',
+  mathew: 'Mm.',
+  una: 'Mm.',
+};
+
+const LLM_THINKING_THRESHOLD_MS = 4000;
 
 export function clearCustomLLMCache(callId: string): void {
   streamingCallIds.delete(callId);
@@ -224,6 +236,23 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
+  // Start thinking indicator timer — inject brief vocalization if LLM exceeds threshold
+  let thinkingInjected = false;
+  const agentKey = agentId.toLowerCase();
+  const thinkingPhrase = THINKING_PHRASES[agentKey] ?? 'Mm.';
+
+  const thinkingTimer = setTimeout(async () => {
+      try {
+        const injected = await injectSpokenReEngagement(callId, thinkingPhrase);
+        if (injected) {
+          thinkingInjected = true;
+          console.log(`🧠 [THINKING] Injected "${thinkingPhrase}" for call ${callId} (LLM > ${LLM_THINKING_THRESHOLD_MS}ms)`);
+        }
+      } catch (err) {
+        console.warn(`🧠 [THINKING] Injection failed for call ${callId}:`, err);
+      }
+    }, LLM_THINKING_THRESHOLD_MS);
+
   try {
     // Step 5: Stream from OpenAI with look-ahead footer detection.
     //
@@ -248,12 +277,26 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     let firstChunkId = '';
     let lastChunkId = '';
     let totalSentLength = 0;
+    let firstContentChunk = true;
 
     for await (const chunk of completion) {
       if (!firstChunkId) firstChunkId = chunk.id;
       lastChunkId = chunk.id;
       const delta = chunk.choices?.[0]?.delta?.content;
       if (!delta) continue;
+
+      // Clear thinking timer on first content — this is the actual signal
+      // that the LLM has started producing output.
+      if (firstContentChunk) {
+        clearTimeout(thinkingTimer);
+        firstContentChunk = false;
+
+        // If a thinking phrase was injected, pause briefly so it finishes
+        // playing before the actual response begins streaming.
+        if (thinkingInjected) {
+          await new Promise(resolve => setTimeout(resolve, 1200));
+        }
+      }
 
       if (inFooter) {
         footerBuffer += delta;
@@ -326,6 +369,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
             cvdc: parsed.cvdc || null,
           };
           setLastFooterState(callId, footerState);
+          if (footerState.posture) {
+            recordLastAgentPosture(callId, footerState.posture);
+          }
           console.log(
             `🔵 [CUSTOM-LLM] Footer parsed: register=${footerState.register} posture=${footerState.posture} css=${footerState.css} movement=${footerState.movement}`
           );
@@ -353,6 +399,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       `🔵 [CUSTOM-LLM] Complete: call=${callId} turns=${numUserTurns}/${numAssistantTurns} total=${totalTime}ms sent=${totalSentLength} chars`
     );
   } catch (error: any) {
+    clearTimeout(thinkingTimer);
     console.error(`🔴 [CUSTOM-LLM] OpenAI error: ${error.message}`, { callId, userId, agentId });
     if (!res.headersSent) {
       res.status(500).json({ error: 'LLM request failed', message: error.message });
