@@ -38,6 +38,10 @@ const lastSentTurn = new Map<string, number>();
 // Gate blocks any request at or below this number.
 const confirmedTurns = new Map<string, number>();
 
+// Tracks turns currently being streamed. Keyed as `${callId}:${numUserTurns}`.
+// Prevents two concurrent requests for the same turn both producing responses.
+const inFlightTurns = new Set<string>();
+
 const postInterventionActive = new Map<string, boolean>();
 
 // Track whether a session has been initialized for a given callId
@@ -60,6 +64,12 @@ const LLM_THINKING_THRESHOLD_MS = 4000;
 export function clearCustomLLMCache(callId: string): void {
   lastSentTurn.delete(callId);
   confirmedTurns.delete(callId);
+  // Clean up any in-flight entries for this call
+  for (const key of inFlightTurns) {
+    if (key.startsWith(`${callId}:`)) {
+      inFlightTurns.delete(key);
+    }
+  }
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
   lastFieldAssessmentExchange.delete(callId);
@@ -200,6 +210,28 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   );
   if (!isSilenceReq) {
     lastSentTurn.set(callId, numUserTurns);
+  }
+
+  // Block concurrent requests for the same turn that are already in-flight.
+  const turnKey = `${callId}:${numUserTurns}`;
+  if (inFlightTurns.has(turnKey) && !isSilenceReq) {
+    console.log(`🔵 [CUSTOM-LLM] In-flight duplicate suppressed: call=${callId} turn=${numUserTurns}`);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.write(
+      `data: ${JSON.stringify({
+        id: 'skip',
+        object: 'chat.completion.chunk',
+        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+      })}\n\n`
+    );
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return;
+  }
+  if (!isSilenceReq) {
+    inFlightTurns.add(turnKey);
   }
 
   // Step 4a: Field assessment session picture + background sensing
@@ -430,6 +462,10 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
       })}\n\n`
     );
+    // Release in-flight lock — this turn's stream is complete.
+    if (!isSilenceReq) {
+      inFlightTurns.delete(turnKey);
+    }
     res.write('data: [DONE]\n\n');
     res.end();
     recordCustomLLMResponseSent(callId);
@@ -472,6 +508,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       }
     }
   } finally {
+    inFlightTurns.delete(turnKey); // always release on any exit path
   }
 });
 
