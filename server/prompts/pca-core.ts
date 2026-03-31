@@ -175,7 +175,7 @@ ${assemblePatterns(profile)}
 ${lastSession}
 Prior significant moments: Not yet available — session finalizer build pending.`;
   const approxTokens = Math.round(block.length / 4);
-  if (approxTokens > 200) {
+  if (approxTokens > 300) {
     console.warn(`[PCA-CORE] Profile block for ${firstName} is ~${approxTokens} tokens — exceeds soft cap.`);
   }
   return block;
