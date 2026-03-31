@@ -19,7 +19,7 @@ import {
   type FooterState,
 } from '../prompts/pca-core';
 import { getPCAContextForAgent } from '../services/memory-service';
-import { formatFieldSessionPicture } from '../services/sensing-layer/guidance-injector';
+import { formatFieldSessionPicture, injectSpokenReEngagement } from '../services/sensing-layer/guidance-injector';
 import { findResonatingFragments } from '../services/sensing-layer/narrative-web';
 import { getArcPosition } from '../services/sensing-layer/arc-tracker';
 import { recordCustomLLMResponseSent } from '../services/sensing-layer/silence-monitor';
@@ -40,6 +40,17 @@ const initializedCalls = new Set<string>();
 
 // Reserved for future per-request gating of post-intervention state
 const lastFieldAssessmentExchange = new Map<string, number>();
+
+// Brief vocalizations injected when LLM processing exceeds threshold.
+// One phrase per agent — minimal, presence-signaling, clinically neutral.
+const THINKING_PHRASES: Record<string, string> = {
+  sarah: "I'm here.",
+  marcus: 'Mm.',
+  mathew: 'Mm.',
+  una: 'Mm.',
+};
+
+const LLM_THINKING_THRESHOLD_MS = 4000;
 
 export function clearCustomLLMCache(callId: string): void {
   streamingCallIds.delete(callId);
@@ -235,13 +246,41 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     // after the stream ends. setLastFooterState is called once at the end —
     // consumed by the NEXT request for this callId, so cross-turn timing unchanged.
 
-    const completion = await openai.chat.completions.create({
-      model: req.body.model || 'gpt-4o',
-      messages: modifiedMessages,
-      temperature: req.body.temperature ?? 0.7,
-      max_completion_tokens: req.body.max_tokens ?? 300,
-      stream: true,
-    });
+    // Start thinking indicator timer — inject brief vocalization if LLM exceeds threshold
+    let thinkingInjected = false;
+    const agentKey = agentId.toLowerCase();
+    const thinkingPhrase = THINKING_PHRASES[agentKey] ?? 'Mm.';
+
+    const thinkingTimer = setTimeout(async () => {
+      try {
+        const injected = await injectSpokenReEngagement(callId, thinkingPhrase);
+        if (injected) {
+          thinkingInjected = true;
+          console.log(`🧠 [THINKING] Injected "${thinkingPhrase}" for call ${callId} (LLM > ${LLM_THINKING_THRESHOLD_MS}ms)`);
+        }
+      } catch (err) {
+        console.warn(`🧠 [THINKING] Injection failed for call ${callId}:`, err);
+      }
+    }, LLM_THINKING_THRESHOLD_MS);
+
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: req.body.model || 'gpt-4o',
+        messages: modifiedMessages,
+        temperature: req.body.temperature ?? 0.7,
+        max_completion_tokens: req.body.max_tokens ?? 300,
+        stream: true,
+      });
+    } finally {
+      clearTimeout(thinkingTimer);
+    }
+
+    // If a thinking phrase was injected, pause briefly so it finishes
+    // playing before the actual response begins streaming.
+    if (thinkingInjected) {
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    }
 
     let pendingBuffer = '';  // chars held back for look-ahead
     let footerBuffer = '';   // accumulates everything from ---STATE: onward
