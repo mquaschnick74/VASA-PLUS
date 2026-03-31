@@ -146,22 +146,39 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   // Step 4: Streaming lock gate
   const lastProcessedTurn = processedTurns.get(callId) ?? -1;
   if (numUserTurns <= lastProcessedTurn) {
-    console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId} turn=${numUserTurns} (already processed turn ${lastProcessedTurn})`);
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.write(
-      `data: ${JSON.stringify({
-        id: 'skip',
-        object: 'chat.completion.chunk',
-        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-      })}\n\n`
+    // Allow silence-injection requests through — these are VAPI re-triggers from
+    // Tier 1-3 silence monitor add-message calls. They carry no new user turn but
+    // must produce a real LLM response. Identifiable by a system message starting
+    // with "[SILENCE —" in the messages array.
+    const isSilenceInjection = messages.some(
+      (m: { role: string; content: string }) =>
+        m.role === 'system' && m.content.startsWith('[SILENCE —')
     );
-    res.write('data: [DONE]\n\n');
-    res.end();
-    return;
+
+    if (!isSilenceInjection) {
+      console.log(`🔵 [CUSTOM-LLM] Duplicate suppressed: call=${callId} turn=${numUserTurns} (already processed turn ${lastProcessedTurn})`);
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.write(
+        `data: ${JSON.stringify({
+          id: 'skip',
+          object: 'chat.completion.chunk',
+          choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+        })}\n\n`
+      );
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+
+    console.log(`🔵 [CUSTOM-LLM] Silence injection allowed through: call=${callId} turn=${numUserTurns}`);
+    // Do not update processedTurns — silence injections don't advance the turn record.
+    // A real VAPI retry for this same turn will still be suppressed.
   }
-  processedTurns.set(callId, numUserTurns);
+  if (!messages.some((m: { role: string; content: string }) => m.role === 'system' && m.content.startsWith('[SILENCE —'))) {
+    processedTurns.set(callId, numUserTurns);
+  }
 
   // Step 4a: Field assessment session picture + background sensing
   const currentUtterance = messages.filter(m => m.role === 'user').pop()?.content;
