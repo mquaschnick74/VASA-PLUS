@@ -86,6 +86,7 @@ export interface SessionAccumulator {
   lastAgentPosture: string | null;
   hsfbExecutedAtExchange: number | null;
   hsfbOutcome: 'new_material' | 'absorption' | 'pending' | null;
+  consecutiveAbsorptionExchanges: number;
   }
 
 /**
@@ -166,6 +167,7 @@ export function initializeSession(
       lastAgentPosture: null,
       hsfbExecutedAtExchange: null,
       hsfbOutcome: null,
+      consecutiveAbsorptionExchanges: 0,
   };
 
   activeSessions.set(callId, accumulator);
@@ -864,6 +866,29 @@ export function recordFieldAssessment(
     }
   }
 
+  // Absorption counter — tracks consecutive exchanges meeting Imaginary absorption conditions.
+  // Conditions: IBM strong, register Imaginary, movement static, no somatic/register-shift investment.
+  // Resets when Real surfaces, somatic emerges, or IBM meaningfully decreases.
+  const absorptionConditionsMet =
+    assessment.register.current === 'Imaginary' &&
+    (assessment.register.movement === 'static' || assessment.register.movement === null) &&
+    assessment.ibm.contradiction_strength > 0.7 &&
+    assessment.ibm.behavioral_alignment_strength > 0.5 &&
+    assessment.investment.investment_type !== 'somatic_emergence' &&
+    assessment.investment.investment_type !== 'register_shift';
+
+  if (absorptionConditionsMet) {
+    session.consecutiveAbsorptionExchanges++;
+    if (session.consecutiveAbsorptionExchanges >= 2) {
+      console.log(`🔲 [ABSORPTION] ${session.consecutiveAbsorptionExchanges} consecutive absorption exchanges for call ${callId}`);
+    }
+  } else {
+    if (session.consecutiveAbsorptionExchanges > 0) {
+      console.log(`🔲 [ABSORPTION] Counter reset at exchange ${exchangeCount} for call ${callId} (was ${session.consecutiveAbsorptionExchanges})`);
+    }
+    session.consecutiveAbsorptionExchanges = 0;
+  }
+
   console.log(`🔬 [FieldAssessment] Recorded for exchange ${exchangeCount} — register: ${assessment.register.current}, IBM strength: ${assessment.ibm.contradiction_strength.toFixed(2)}, critical: ${assessment.critical_moment}`);
 
   if (assessment.critical_moment && assessment.critical_moment_reason) {
@@ -968,4 +993,13 @@ export function getHSFBStatus(callId: string): {
     executedAtExchange: session?.hsfbExecutedAtExchange ?? null,
     outcome: session?.hsfbOutcome ?? null,
   };
+}
+
+/**
+ * Get the count of consecutive exchanges meeting Imaginary absorption conditions.
+ * Used by formatFieldSessionPicture to determine when HSFB is indicated.
+ */
+export function getConsecutiveAbsorptionExchanges(callId: string): number {
+  const session = activeSessions.get(callId);
+  return session?.consecutiveAbsorptionExchanges ?? 0;
 }

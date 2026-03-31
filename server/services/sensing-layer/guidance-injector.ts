@@ -5,7 +5,7 @@ import { TherapeuticGuidance, TherapeuticPosture, EnhancedTherapeuticGuidance, R
 import { TherapeuticStateVector } from './state-vector';
 import type { ResonanceResult } from './narrative-web';
 import { getControlUrl, getCallState, getAgentSpeakingState, isCallActive } from './call-state';
-import { getSessionState, getActiveIBMCandidates, getSessionCSSStage } from './session-state';
+import { getSessionState, getActiveIBMCandidates, getSessionCSSStage, getConsecutiveAbsorptionExchanges } from './session-state';
 import { FieldAssessmentOutput } from './field-assessment';
 import { getLastFooterState } from '../../prompts/pca-core';
 
@@ -239,9 +239,18 @@ export function formatSessionPicture(
 
   const cssStage = stateVector.coupled.cssStage;
 
+  const legacyConsecutiveAbsorption = getConsecutiveAbsorptionExchanges(callId);
+  const legacyViableCandidate = getActiveIBMCandidates(callId).find(c => c.status === 'viable');
+  const legacyAbsorptionHSFBIndicated =
+    legacyConsecutiveAbsorption >= 2 &&
+    cssStage !== 'pointed_origin' &&
+    legacyViableCandidate != null;
+
   const toolAvailability =
     cssStage === 'pointed_origin'
       ? 'Tools: Prescripting only. HSFB not available. No somatic checks.'
+      : legacyAbsorptionHSFBIndicated
+      ? `Tools: HSFB: indicated — Imaginary absorption confirmed (${legacyConsecutiveAbsorption} consecutive exchanges). The narrative arc cannot produce access. Branch now.`
       : cssStage === 'focus_bind'
       ? 'Tools: Prescripting. HSFB available if stuckness confirmed.'
       : 'Tools: Prescripting. HSFB available.';
@@ -746,10 +755,18 @@ export function formatFieldSessionPicture(
     narrativeLine = `Narrative: ${top.content_summary}${stage}${signals}${constellation}`;
   }
 
-  // Tool availability from session CSS stage
+  // Tool availability from session CSS stage, with absorption-based HSFB indication
+  const consecutiveAbsorption = getConsecutiveAbsorptionExchanges(callId);
+  const absorptionHSFBIndicated =
+    consecutiveAbsorption >= 2 &&
+    sessionCSSStage !== 'pointed_origin' &&
+    viableCandidate != null;
+
   const toolAvailability =
     sessionCSSStage === 'pointed_origin'
       ? 'Tools: Prescripting only. HSFB not available. No somatic checks.'
+      : absorptionHSFBIndicated
+      ? `Tools: HSFB: indicated — Imaginary absorption confirmed (${consecutiveAbsorption} consecutive exchanges). The narrative arc cannot produce access. Branch now.`
       : sessionCSSStage === 'focus_bind'
       ? 'Tools: Prescripting. HSFB available if stuckness confirmed.'
       : 'Tools: Prescripting. HSFB available.';
