@@ -28,7 +28,7 @@ function readLayer(filename: string): string {
   }
 }
 // ─── Layer 1: Theoretical Foundation ─────────────────────────────────────────
-function readLayer1(): string {
+function _readLayer1(): string {
   const candidates = [
     path.join(process.cwd(), 'The_Theoretical_Foundations_of_VASA.txt'),
     path.join(process.cwd(), 'attached_assets', 'The_Theoretical_Foundations_of_VASA.txt'),
@@ -77,7 +77,7 @@ export function clearFooterState(callId: string): void {
 }
 // ─── Profile block assembly ───────────────────────────────────────────────────
 function assembleCSSStage(
-  profile: UserTherapeuticProfile,
+  _profile: UserTherapeuticProfile,
   lastCSSStage: string | null,
   lastCSSStageConfidence: number | null
 ): string {
@@ -140,7 +140,7 @@ function assembleArcPosition(arcPosition: ArcPosition | null): string {
   };
 
   const label = positionLabels[arcPosition.activePosition] ?? arcPosition.activePosition;
-  const evidenceLine = arcPosition.thendEvidence && arcPosition.activePosition !== 'pre_thend'
+  const evidenceLine = arcPosition.thendEvidence && (arcPosition.activePosition as string) !== 'pre_thend'
     ? `\nArc evidence: ${arcPosition.thendEvidence}`
     : '';
 
