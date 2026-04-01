@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Mic, Volume2 } from 'lucide-react';
 import { THERAPEUTIC_AGENTS, getAgentById } from '../config/agent-configs';
+import { AIDisclosureCard } from '@/components/AIDisclosureCard';
 import useDemoVapi from '@/hooks/use-demo-vapi';
 
 // localStorage keys for abuse prevention
@@ -311,7 +312,10 @@ export default function DemoVoiceCard() {
       {/* Ready State - Agent Selection Grid */}
       {!isSessionActive && !hasReachedLimit && !demoEnded && (
         <>
-          <h3 className="text-center text-lg font-semibold text-white mb-6">Choose your guide:</h3>
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <h3 className="text-lg font-semibold text-white">Choose your guide:</h3>
+            <AIDisclosureCard />
+          </div>
 
           {/* Agent grid — uses same CSS classes as dashboard AgentSelector */}
           {/* 2x2 on mobile (override default), 2x2 on desktop via agent-grid class */}

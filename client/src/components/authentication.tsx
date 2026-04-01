@@ -353,7 +353,7 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack,
           {invitationMode ? 'Create Client Account' : (mode === 'signin' ? 'Welcome Back' : 'Create Your Account')}
         </h2>
         <p className="text-sm text-muted-foreground text-center mt-1 mb-6">
-          {mode === 'signin' ? 'Continue your therapeutic journey' : 'No credit card required · Start free. Stay when it matters.'}
+          {mode === 'signin' ? 'Continue your guided journey' : 'No credit card required · Start free. Stay when it matters.'}
         </p>
 
         {/* Invitation banner if present */}
@@ -603,8 +603,8 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack,
                 <div className="flex items-center justify-center gap-2">
                   <p className="text-sm text-muted-foreground">
                     {mode === 'signup' 
-                      ? 'Start your therapeutic journey' 
-                      : 'Continue your therapeutic journey'}
+                      ? 'Start your guided journey' 
+                      : 'Continue your guided journey'}
                   </p>
                   <AIDisclosureCard className="inline-block" />
                 </div>
@@ -759,10 +759,10 @@ export default function Authentication({ setUserId, preSelectedUserType, onBack,
           <div className="mt-24 mb-24 w-full overflow-hidden">
             <div className="text-center mb-12">
               <h2 className="text-4xl md:text-5xl font-bold text-emerald-500 mb-4">
-                Meet Your AI Therapeutic Guides
+                Meet Your AI Guides
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Choose from four specialized AI Guides, each with unique approaches to therapeutic conversation
+                Choose from four specialized AI Guides, each with unique approaches to guided conversation
               </p>
             </div>
             <AgentCarousel />
