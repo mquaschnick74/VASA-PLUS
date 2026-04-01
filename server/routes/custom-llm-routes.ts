@@ -298,6 +298,15 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
+  // Close the confirmed-turn gate now — we are committed to this OpenAI call.
+  // Closing here (rather than at stream-end) prevents VAPI's growing-transcript
+  // requests from getting through after the in-flight lock releases. Any request
+  // for this turn arriving after this point is a duplicate and will be suppressed.
+  if (!isSilenceReq) {
+    confirmedTurns.set(callId, numUserTurns);
+    console.log(`🔵 [CUSTOM-LLM] Gate closed at OpenAI commit: call=${callId} turn=${numUserTurns}`);
+  }
+
   try {
     // Step 5: Stream from OpenAI with look-ahead footer detection.
     //
