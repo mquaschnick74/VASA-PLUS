@@ -50,6 +50,11 @@ const initializedCalls = new Set<string>();
 // Reserved for future per-request gating of post-intervention state
 const lastFieldAssessmentExchange = new Map<string, number>();
 
+// Tracks the character length of the last user utterance we successfully streamed
+// a response for. Used to distinguish true duplicates (same content — block) from
+// the final complete-transcript request (longer content — allow through).
+const lastRespondedUtteranceLength = new Map<string, number>();
+
 
 export function clearCustomLLMCache(callId: string): void {
   lastSentTurn.delete(callId);
@@ -63,6 +68,7 @@ export function clearCustomLLMCache(callId: string): void {
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
   lastFieldAssessmentExchange.delete(callId);
+  lastRespondedUtteranceLength.delete(callId);
   clearFooterState(callId);
 }
 
@@ -203,8 +209,17 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   }
 
   // Block concurrent requests for the same turn that are already in-flight.
+  // Exception: if the current utterance is longer than what we last responded to,
+  // this is the final complete-transcript request after VAPI's endpointing fired —
+  // allow it through so the user gets a response to their complete utterance.
   const turnKey = `${callId}:${numUserTurns}`;
-  if (inFlightTurns.has(turnKey) && !isSilenceReq) {
+  const currentUtteranceLengthForGate = messages
+    .filter((m: { role: string; content: string }) => m.role === 'user')
+    .pop()?.content?.length ?? 0;
+  const lastLength = lastRespondedUtteranceLength.get(callId) ?? 0;
+  const isGrownTranscript = currentUtteranceLengthForGate > lastLength;
+
+  if (inFlightTurns.has(turnKey) && !isSilenceReq && !isGrownTranscript) {
     console.log(`🔵 [CUSTOM-LLM] In-flight duplicate suppressed: call=${callId} turn=${numUserTurns}`);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -219,6 +234,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     res.write('data: [DONE]\n\n');
     res.end();
     return;
+  }
+  if (isGrownTranscript && inFlightTurns.has(turnKey) && !isSilenceReq) {
+    console.log(`🔵 [CUSTOM-LLM] Grown transcript allowed: call=${callId} turn=${numUserTurns} (${lastLength}→${currentUtteranceLengthForGate} chars)`);
   }
   if (!isSilenceReq) {
     inFlightTurns.add(turnKey);
@@ -436,6 +454,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     // already-closed gate, which is correct.
     if (!isSilenceReq) {
       inFlightTurns.delete(turnKey);
+      lastRespondedUtteranceLength.set(callId, currentUtteranceLengthForGate);
       confirmedTurns.set(callId, numUserTurns);
       console.log(`🔵 [CUSTOM-LLM] Gate closed at stream-end: call=${callId} turn=${numUserTurns}`);
     }
