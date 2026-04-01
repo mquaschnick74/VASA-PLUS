@@ -713,19 +713,14 @@ export function formatFieldSessionPicture(
     }
   }
 
-  // CVDC derived from IBM candidate state (current turn, not lagged footer)
-  let cvdcLine: string;
+  // IBM candidate state — behavioral contradiction tracking
   const clientNamedCandidate = ibmCandidates.find(c => c.status === 'resolved_client');
   const viableCandidate = ibmCandidates.find(c => c.status === 'viable');
-  if (clientNamedCandidate) {
-    cvdcLine = `CVDC: named — client has identified the contradiction`;
-  } else if (viableCandidate) {
-    cvdcLine = `CVDC: articulable — ${viableCandidate.hypothesis}`;
-  } else {
-    // Fall back to prior footer state if available, otherwise not yet visible
-    const footerCvdc = getLastFooterState(callId)?.cvdc;
-    cvdcLine = footerCvdc ? `CVDC: ${footerCvdc}` : 'CVDC: not yet visible';
-  }
+
+  // CVDC has no independent tracking yet — do not derive from IBM hypothesis.
+  // IBM viability indicates the behavioral contradiction pattern is accumulating.
+  // CVDC articulability is a separate clinical determination not yet implemented.
+  const cvdcLine = 'CVDC: no independent tracking — see IBM line';
 
   // Narrative resonance
   let narrativeLine: string;
