@@ -72,7 +72,7 @@ export function clearCustomLLMCache(callId: string): void {
   confirmedTurns.delete(callId);
   thinkingPhraseInFlight.delete(callId);
   // Clean up any in-flight entries for this call
-  for (const key of inFlightTurns) {
+  for (const key of Array.from(inFlightTurns)) {
     if (key.startsWith(`${callId}:`)) {
       inFlightTurns.delete(key);
     }
@@ -477,13 +477,20 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         id: lastChunkId || 'resp',
         object: 'chat.completion.chunk',
         choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-      })}\n\n`
+      })}\\n\\n`
     );
-    // Release in-flight lock — this turn's stream is complete.
+    // Release in-flight lock and close the confirmed-turn gate at stream completion.
+    // Closing the gate here (not waiting for speech-start) prevents the window
+    // between stream-end and speech-start from being exploited by subsequent
+    // conversation-update requests that would produce duplicate full responses.
+    // speech-start events will arrive after this and become no-ops on an
+    // already-closed gate, which is correct.
     if (!isSilenceReq) {
       inFlightTurns.delete(turnKey);
+      confirmedTurns.set(callId, numUserTurns);
+      console.log(`🔵 [CUSTOM-LLM] Gate closed at stream-end: call=${callId} turn=${numUserTurns}`);
     }
-    res.write('data: [DONE]\n\n');
+    res.write('data: [DONE]\\n\\n');
     res.end();
     recordCustomLLMResponseSent(callId);
 
