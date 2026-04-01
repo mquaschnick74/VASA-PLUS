@@ -176,8 +176,18 @@ export async function persistSessionProfile(
   console.log(`💾 [Profile Writer] Persisting profile for user ${userId}:`);
   console.log(`   Patterns: ${patterns.length} session → ${filteredPatterns.length} after confidence/cap filter, Historical: ${historicalMaterial.length}, Connections: ${symbolicConnections.length}`);
 
+  // Persist CVDC state unconditionally — domain accumulation and coherence
+  // assessment must run even when no behavioral patterns were detected
+  if (cvdcContribution && sessionId) {
+    try {
+      await persistCVDCState(userId, sessionId, cvdcContribution, narrativeFragmentsSummary || '');
+    } catch (cvdcError) {
+      console.error('❌ [Profile Writer] CVDC persistence failed (non-fatal):', cvdcError);
+    }
+  }
+
   if (filteredPatterns.length === 0 && historicalMaterial.length === 0 && symbolicConnections.length === 0) {
-    console.log(`💾 [Profile Writer] Nothing to persist — skipping`);
+    console.log(`💾 [Profile Writer] Nothing else to persist — skipping`);
     return;
   }
 
@@ -185,11 +195,6 @@ export async function persistSessionProfile(
     const patternIdMap = await persistPatterns(userId, filteredPatterns);
     const historicalIdMap = await persistHistoricalMaterial(userId, historicalMaterial);
     await persistSymbolicMappings(userId, symbolicConnections, patternIdMap, historicalIdMap);
-
-    // Persist CVDC state if contribution data was provided
-    if (cvdcContribution && sessionId) {
-      await persistCVDCState(userId, sessionId, cvdcContribution, narrativeFragmentsSummary || '');
-    }
 
     console.log(`💾 [Profile Writer] Done in ${Date.now() - startTime}ms`);
   } catch (error) {
