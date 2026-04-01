@@ -53,7 +53,7 @@ const lastFieldAssessmentExchange = new Map<string, number>();
 // Brief vocalizations injected when LLM processing exceeds threshold.
 // One phrase per agent — minimal, presence-signaling, clinically neutral.
 const THINKING_PHRASES: Record<string, string> = {
-  sarah: "I'm here.",
+  sarah: "Mm.",
   marcus: 'Mm.',
   mathew: 'Mm.',
   una: 'Mm.',
