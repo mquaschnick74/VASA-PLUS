@@ -634,7 +634,36 @@ export class SensingLayerService {
       // Get CVDC contribution from session state before it's cleared
       const sessionStateForCVDC = getSessionState(callId);
       const cvdcContribution = sessionStateForCVDC?.cvdcSessionContribution;
-      const narrativeSummary = summary.patternsDetected.join('; ');
+      // Build narrative material summary grouped by domain for CVDC coherence assessment
+      let narrativeSummary: string;
+      try {
+        const { data: fragmentRows, error: fragError } = await supabase
+          .from('narrative_fragments')
+          .select('content_domain, content_summary')
+          .eq('user_id', summary.userId)
+          .order('created_at', { ascending: false })
+          .limit(30);
+
+        if (fragError || !fragmentRows || fragmentRows.length === 0) {
+          narrativeSummary = summary.patternsDetected.join('; ');
+        } else {
+          const byDomain = new Map<string, string[]>();
+          for (const row of fragmentRows) {
+            if (!row.content_domain || !row.content_summary) continue;
+            const list = byDomain.get(row.content_domain) || [];
+            list.push(row.content_summary);
+            byDomain.set(row.content_domain, list);
+          }
+          narrativeSummary = Array.from(byDomain)
+            .map(([domain, summaries]) => `${domain}: ${summaries.join('; ')}`)
+            .join('\n');
+          if (!narrativeSummary) {
+            narrativeSummary = summary.patternsDetected.join('; ');
+          }
+        }
+      } catch {
+        narrativeSummary = summary.patternsDetected.join('; ');
+      }
 
       if (summary.structuredPatterns.length > 0 || summary.structuredHistorical.length > 0 || summary.structuredConnections.length > 0 || cvdcContribution) {
         console.log(`💾 [Sensing Layer] Persisting user profile data...`);
