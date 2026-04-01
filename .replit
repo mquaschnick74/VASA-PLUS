@@ -41,3 +41,7 @@ integrations = ["javascript_supabase:1.0.0", "javascript_stripe:1.0.0"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
