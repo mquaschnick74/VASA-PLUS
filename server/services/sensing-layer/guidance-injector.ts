@@ -713,33 +713,14 @@ export function formatFieldSessionPicture(
     }
   }
 
-  // CVDC derived from IBM candidate state (current turn, not lagged footer)
-  let cvdcLine: string;
+  // IBM candidate state — behavioral contradiction tracking
   const clientNamedCandidate = ibmCandidates.find(c => c.status === 'resolved_client');
   const viableCandidate = ibmCandidates.find(c => c.status === 'viable');
-  if (clientNamedCandidate) {
-    cvdcLine = `CVDC: named — client has identified the contradiction`;
-  } else if (viableCandidate) {
-    cvdcLine = `CVDC: articulable — ${viableCandidate.hypothesis}`;
-  } else {
-    // Fall back to prior footer state if available, otherwise not yet visible
-    const footerCvdc = getLastFooterState(callId)?.cvdc;
-    cvdcLine = footerCvdc ? `CVDC: ${footerCvdc}` : 'CVDC: not yet visible';
-  }
 
-  // Posture derived from IBM candidate state, gated by CSS stage.
-  // Fissure and impressionation are not available during pointed_origin —
-  // IBM accumulates and reports, but the posture directive is suppressed
-  // until the map advances to focus_bind.
-  let postureLine: string | null = null;
-  if (sessionCSSStage !== 'pointed_origin') {
-    if (clientNamedCandidate) {
-      postureLine = `Posture: impressionation — client has named the contradiction. Hold the living tension.`;
-    } else if (viableCandidate) {
-      postureLine = `Posture: fissure — IBM viable, register gate satisfied. CVDC is articulable. Name the contradiction.`;
-    }
-  }
-  // prescripting (default) — no posture line emitted
+  // CVDC has no independent tracking yet — do not derive from IBM hypothesis.
+  // IBM viability indicates the behavioral contradiction pattern is accumulating.
+  // CVDC articulability is a separate clinical determination not yet implemented.
+  const cvdcLine = 'CVDC: no independent tracking — see IBM line';
 
   // Narrative resonance
   let narrativeLine: string;
@@ -766,7 +747,7 @@ export function formatFieldSessionPicture(
     sessionCSSStage === 'pointed_origin'
       ? 'Tools: Prescripting only. HSFB not available. No somatic checks.'
       : absorptionHSFBIndicated
-      ? `Tools: HSFB: indicated — Imaginary absorption confirmed (${consecutiveAbsorption} consecutive exchanges). The narrative arc cannot produce access. Branch now.`
+      ? `Tools: HSFB: indicated — Imaginary absorption confirmed (${consecutiveAbsorption} consecutive exchanges). The narrative arc cannot produce access.`
       : sessionCSSStage === 'focus_bind'
       ? 'Tools: Prescripting. HSFB available if stuckness confirmed.'
       : 'Tools: Prescripting. HSFB available.';
@@ -792,7 +773,6 @@ export function formatFieldSessionPicture(
     `CSS: ${cssLabel}`,
     cvdcLine,
     ibmLine,
-    ...(postureLine ? [postureLine] : []),
     ...(investmentLine ? [investmentLine] : []),
     narrativeLine,
     ...(fieldAssessment.critical_moment && fieldAssessment.critical_moment_reason
