@@ -298,15 +298,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  // Close the confirmed-turn gate now — we are committed to this OpenAI call.
-  // Closing here (rather than at stream-end) prevents VAPI's growing-transcript
-  // requests from getting through after the in-flight lock releases. Any request
-  // for this turn arriving after this point is a duplicate and will be suppressed.
-  if (!isSilenceReq) {
-    confirmedTurns.set(callId, numUserTurns);
-    console.log(`🔵 [CUSTOM-LLM] Gate closed at OpenAI commit: call=${callId} turn=${numUserTurns}`);
-  }
-
   try {
     // Step 5: Stream from OpenAI with look-ahead footer detection.
     //
@@ -489,7 +480,14 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       }
     }
   } finally {
-    inFlightTurns.delete(turnKey); // always release on any exit path
+    // Hold the in-flight lock for 2500ms after stream completes before releasing.
+    // This covers the window between our stream-end and VAPI's speech-start event,
+    // during which VAPI sends additional growing-transcript requests for the same turn.
+    // The confirmed-turn gate (closed at speech-start) is the permanent block.
+    // This is only the temporary bridge until speech-start arrives.
+    setTimeout(() => {
+      inFlightTurns.delete(turnKey);
+    }, 2500);
   }
 });
 
