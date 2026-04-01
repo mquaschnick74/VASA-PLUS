@@ -42,6 +42,12 @@ const confirmedTurns = new Map<string, number>();
 // Prevents two concurrent requests for the same turn both producing responses.
 const inFlightTurns = new Set<string>();
 
+// Tracks whether a thinking phrase is currently in flight for a given call.
+// When true, the next speech-update: started event is from the thinking phrase,
+// not the LLM response — confirmTurnPlayed must skip that event and wait for
+// the subsequent one (the actual LLM response) to close the gate.
+const thinkingPhraseInFlight = new Map<string, boolean>();
+
 const postInterventionActive = new Map<string, boolean>();
 
 // Track whether a session has been initialized for a given callId
@@ -64,6 +70,7 @@ const LLM_THINKING_THRESHOLD_MS = 4000;
 export function clearCustomLLMCache(callId: string): void {
   lastSentTurn.delete(callId);
   confirmedTurns.delete(callId);
+  thinkingPhraseInFlight.delete(callId);
   // Clean up any in-flight entries for this call
   for (const key of inFlightTurns) {
     if (key.startsWith(`${callId}:`)) {
@@ -82,6 +89,15 @@ export function clearCustomLLMCache(callId: string): void {
  * This advances the confirmation gate, blocking any further retries for that turn.
  */
 export function confirmTurnPlayed(callId: string): void {
+  // If a thinking phrase is in flight, this speech-start is from the phrase playing,
+  // not from the LLM response. Consume the flag and return — the next speech-start
+  // (from the actual LLM response) will confirm the turn correctly.
+  if (thinkingPhraseInFlight.get(callId)) {
+    thinkingPhraseInFlight.delete(callId);
+    console.log(`🔵 [CUSTOM-LLM] Thinking phrase speech-start consumed — gate held open for LLM response: call=${callId}`);
+    return;
+  }
+
   const turn = lastSentTurn.get(callId);
   if (turn !== undefined) {
     confirmedTurns.set(callId, turn);
@@ -318,6 +334,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         const injected = await injectSpokenReEngagement(callId, thinkingPhrase);
         if (injected) {
           thinkingInjected = true;
+          thinkingPhraseInFlight.set(callId, true);
           console.log(`🧠 [THINKING] Injected "${thinkingPhrase}" for call ${callId} (LLM > ${LLM_THINKING_THRESHOLD_MS}ms)`);
         }
       } catch (err) {
