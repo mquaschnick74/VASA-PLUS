@@ -866,16 +866,13 @@ export function recordFieldAssessment(
     }
   }
 
-  // Absorption counter — tracks consecutive exchanges meeting Imaginary absorption conditions.
-  // Conditions: IBM strong, register Imaginary, movement static, no somatic/register-shift investment.
-  // Resets when Real surfaces, somatic emerges, or IBM meaningfully decreases.
-  const absorptionConditionsMet =
-    assessment.register.current === 'Imaginary' &&
-    (assessment.register.movement === 'static' || assessment.register.movement === null) &&
-    assessment.ibm.contradiction_strength > 0.7 &&
-    assessment.ibm.behavioral_alignment_strength > 0.5 &&
-    assessment.investment.investment_type !== 'somatic_emergence' &&
-    assessment.investment.investment_type !== 'register_shift';
+  // Absorption counter — detects Imaginary absorption: verbal acknowledgment of a naming
+  // without register shift, returning immediately to the same organizing frame.
+  // Driven by semantic field assessment rather than behavioral proxies — the prior
+  // approximation (IBM strength + Imaginary register + static movement) was clinically
+  // inverted at the key moment, when verbal acknowledgment could briefly reduce IBM
+  // contradiction_strength and cause the counter to reset when it should increment.
+  const absorptionConditionsMet = assessment.imaginary_absorption?.present === true;
 
   if (absorptionConditionsMet) {
     session.consecutiveAbsorptionExchanges++;

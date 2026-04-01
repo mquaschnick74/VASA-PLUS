@@ -280,6 +280,32 @@ something the narrative was covering.
 NONE: No significant investment signal is present in this utterance.
 
 
+── 8. IMAGINARY ABSORPTION ──────────────────────────────────────────────────
+
+Imaginary absorption is a discrete clinical event: the client has verbally acknowledged a
+contradiction, naming, or reflection directed at them by the agent, and has immediately
+re-entered the same organizing frame without any shift in register.
+
+This is not avoidance, deflection, or resistance — those are defense movements. Absorption
+is a genuine reception that metabolizes the living tension into understanding. The client
+hears the naming, confirms it, and continues as before. The living paradox has become a
+dead one — the client now knows about the contradiction rather than being inside the
+tension of it.
+
+Mark present as true only when all four conditions hold:
+— A naming, contradiction, or reflection from the agent was received verbally by the
+  client (not avoided or deflected — the client acknowledged it)
+— The client's response returns immediately to the same organizing structure or frame
+— No register shift is present in this utterance
+— No somatic reference or Real-register contact is present
+
+Mark present as false when:
+— The client avoids, deflects, or resists the naming (that is defense, not absorption)
+— The reception produces any register movement, however brief
+— There is no prior agent naming in the recent exchange history to be absorbed
+— The client has not yet received a naming (early session, prescripting phase)
+
+
 ── 7. CRITICAL MOMENT ───────────────────────────────────────────────────────
 
 A critical moment is a turn in which the field has shifted in a way that warrants
@@ -352,7 +378,11 @@ Begin your response with { and end with }.
     "investment_type": "elaboration_without_prompting | return_to_material | emotional_disproportionality | somatic_emergence | naming_attempt | register_shift | none"
   },
   "critical_moment": false,
-  "critical_moment_reason": "one sentence or null"
+  "critical_moment_reason": "one sentence or null",
+  "imaginary_absorption": {
+    "present": false,
+    "evidence": "one sentence or null"
+  }
 }`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -410,6 +440,10 @@ export interface FieldAssessmentOutput {
   };
   critical_moment: boolean;
   critical_moment_reason: string | null;
+  imaginary_absorption: {
+    present: boolean;
+    evidence: string | null;
+  };
 }
 
 export const DEFAULT_FIELD_ASSESSMENT: FieldAssessmentOutput = {
@@ -442,6 +476,10 @@ export const DEFAULT_FIELD_ASSESSMENT: FieldAssessmentOutput = {
   },
   critical_moment: false,
   critical_moment_reason: null,
+  imaginary_absorption: {
+    present: false,
+    evidence: null,
+  },
 };
 
 // ─── Prior Field Summary ──────────────────────────────────────────────────────
