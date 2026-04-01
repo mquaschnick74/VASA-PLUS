@@ -872,7 +872,15 @@ export function recordFieldAssessment(
   // approximation (IBM strength + Imaginary register + static movement) was clinically
   // inverted at the key moment, when verbal acknowledgment could briefly reduce IBM
   // contradiction_strength and cause the counter to reset when it should increment.
-  const absorptionConditionsMet = assessment.imaginary_absorption?.present === true;
+  // Absorption requires a viable IBM candidate — if no naming has occurred,
+  // there is nothing to absorb. This gate prevents the counter from firing
+  // on client closures ("I'm fine") that occur before any contradiction
+  // has been articulated and named.
+  const viableIBMExists = session.activeIBMCandidates.some(
+    c => c.status === 'viable' || c.status === 'resolved_client'
+  );
+  const absorptionConditionsMet =
+    viableIBMExists && assessment.imaginary_absorption?.present === true;
 
   if (absorptionConditionsMet) {
     session.consecutiveAbsorptionExchanges++;
