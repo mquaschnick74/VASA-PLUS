@@ -55,6 +55,12 @@ const lastFieldAssessmentExchange = new Map<string, number>();
 // the final complete-transcript request (longer content — allow through).
 const lastRespondedUtteranceLength = new Map<string, number>();
 
+// Tracks a per-call timer that re-opens the confirmed-turn gate if VAPI has not
+// sent speech-start within 3500ms of stream-end. If VAPI discards our response
+// (user was still speaking), speech-start never fires — this timer detects that
+// and re-opens the gate so the final complete-transcript request can get through.
+const playbackConfirmationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 
 export function clearCustomLLMCache(callId: string): void {
   lastSentTurn.delete(callId);
@@ -69,6 +75,11 @@ export function clearCustomLLMCache(callId: string): void {
   postInterventionActive.delete(callId);
   lastFieldAssessmentExchange.delete(callId);
   lastRespondedUtteranceLength.delete(callId);
+  const existingTimer = playbackConfirmationTimers.get(callId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    playbackConfirmationTimers.delete(callId);
+  }
   clearFooterState(callId);
 }
 
@@ -82,6 +93,13 @@ export function confirmTurnPlayed(callId: string): void {
   if (turn !== undefined) {
     confirmedTurns.set(callId, turn);
     console.log(`🔵 [CUSTOM-LLM] Turn confirmed by VAPI speech-start: call=${callId} turn=${turn}`);
+  }
+  // Cancel the playback confirmation timer — VAPI is playing our response,
+  // gate stays closed permanently.
+  const timer = playbackConfirmationTimers.get(callId);
+  if (timer) {
+    clearTimeout(timer);
+    playbackConfirmationTimers.delete(callId);
   }
 }
 
@@ -209,17 +227,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   }
 
   // Block concurrent requests for the same turn that are already in-flight.
-  // Exception: if the current utterance is longer than what we last responded to,
-  // this is the final complete-transcript request after VAPI's endpointing fired —
-  // allow it through so the user gets a response to their complete utterance.
   const turnKey = `${callId}:${numUserTurns}`;
-  const currentUtteranceLengthForGate = messages
-    .filter((m: { role: string; content: string }) => m.role === 'user')
-    .pop()?.content?.length ?? 0;
-  const lastLength = lastRespondedUtteranceLength.get(callId) ?? 0;
-  const isGrownTranscript = currentUtteranceLengthForGate > lastLength;
-
-  if (inFlightTurns.has(turnKey) && !isSilenceReq && !isGrownTranscript) {
+  if (inFlightTurns.has(turnKey) && !isSilenceReq) {
     console.log(`🔵 [CUSTOM-LLM] In-flight duplicate suppressed: call=${callId} turn=${numUserTurns}`);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -234,9 +243,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     res.write('data: [DONE]\n\n');
     res.end();
     return;
-  }
-  if (isGrownTranscript && inFlightTurns.has(turnKey) && !isSilenceReq) {
-    console.log(`🔵 [CUSTOM-LLM] Grown transcript allowed: call=${callId} turn=${numUserTurns} (${lastLength}→${currentUtteranceLengthForGate} chars)`);
   }
   if (!isSilenceReq) {
     inFlightTurns.add(turnKey);
@@ -454,9 +460,19 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     // already-closed gate, which is correct.
     if (!isSilenceReq) {
       inFlightTurns.delete(turnKey);
-      lastRespondedUtteranceLength.set(callId, currentUtteranceLengthForGate);
-      confirmedTurns.set(callId, numUserTurns);
-      console.log(`🔵 [CUSTOM-LLM] Gate closed at stream-end: call=${callId} turn=${numUserTurns}`);
+      // Start a playback confirmation timer. If VAPI plays our response,
+      // speech-start will fire within ~1-2s (TTS processing) and cancel this timer.
+      // If speech-start does NOT fire within 3500ms, VAPI discarded our response
+      // (user was still speaking) — re-open the gate so the final complete-transcript
+      // request can get through and produce a response VAPI will actually play.
+      const existingTimer = playbackConfirmationTimers.get(callId);
+      if (existingTimer) clearTimeout(existingTimer);
+      const confirmTimer = setTimeout(() => {
+        playbackConfirmationTimers.delete(callId);
+        confirmedTurns.delete(callId);
+        console.log(`🔵 [CUSTOM-LLM] Playback not confirmed — gate re-opened: call=${callId} turn=${numUserTurns}`);
+      }, 3500);
+      playbackConfirmationTimers.set(callId, confirmTimer);
     }
     res.write('data: [DONE]\\n\\n');
     res.end();
