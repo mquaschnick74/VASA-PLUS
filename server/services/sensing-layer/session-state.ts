@@ -923,7 +923,24 @@ export function getPriorFieldSummary(callId: string): string {
     return 'none';
   }
 
-  let summary = buildPriorFieldSummary(session.fieldAssessments);
+  // Build IBM state from candidate accumulator — authoritative running state
+  // that survives single-exchange drops in contradiction_present.
+  const candidates = session.activeIBMCandidates.filter(
+    c => c.status === 'accumulating' || c.status === 'viable'
+  );
+  const leadCandidate = candidates.find(c => c.status === 'viable') ?? candidates[0] ?? null;
+
+  const candidateIBMState = leadCandidate
+    ? {
+        contradiction_strength: leadCandidate.weightedAccumulation / 2.0,
+        stated_position: leadCandidate.statedPosition || null,
+        evidence_summary: leadCandidate.confirmingSignals.slice(-1)[0]?.evidenceStatement ?? '',
+        hypothesis: leadCandidate.hypothesis,
+        status: leadCandidate.status,
+      }
+    : undefined;
+
+  let summary = buildPriorFieldSummary(session.fieldAssessments, candidateIBMState);
 
   // Append HSFB context if relevant
   if (session.hsfbExecutedAtExchange != null) {

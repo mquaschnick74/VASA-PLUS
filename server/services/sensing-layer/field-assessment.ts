@@ -446,6 +446,14 @@ export const DEFAULT_FIELD_ASSESSMENT: FieldAssessmentOutput = {
 
 // ─── Prior Field Summary ──────────────────────────────────────────────────────
 
+export interface CandidateIBMState {
+  contradiction_strength: number;
+  stated_position: string | null;
+  evidence_summary: string;
+  hypothesis: string | null;
+  status: string;
+}
+
 /**
  * Computes the structured summary string the prompt template expects.
  * Reads directly from stored FieldAssessmentOutput objects — no LLM call.
@@ -454,13 +462,13 @@ export const DEFAULT_FIELD_ASSESSMENT: FieldAssessmentOutput = {
  */
 export function buildPriorFieldSummary(
   priorAssessments: FieldAssessmentOutput[],
+  candidateIBMState?: CandidateIBMState,
 ): string {
   if (priorAssessments.length === 0) {
     return 'none';
   }
 
   const window = priorAssessments.slice(-5);
-  const latest = window[window.length - 1];
 
   const registerHistory = window.map(a => a.register.current);
 
@@ -469,13 +477,21 @@ export function buildPriorFieldSummary(
     contact_seeking_pattern: a.contact_quality.contact_seeking_pattern,
   }));
 
-  const ibmState = {
-    contradiction_strength: latest.ibm.contradiction_strength,
-    stated_position: latest.ibm.stated_position,
-    evidence_summary: latest.ibm.evidence,
-  };
+  // Use candidate accumulator state when provided — it is the authoritative running
+  // IBM state. The field assessment's own ibm object is per-utterance and can drop
+  // to zero on any single exchange where the signal is not visible, which would
+  // break the LLM's ability to carry the contradiction forward.
+  const ibmState = candidateIBMState ?? (() => {
+    const latest = window[window.length - 1];
+    return {
+      contradiction_strength: latest.ibm.contradiction_strength,
+      stated_position: latest.ibm.stated_position,
+      evidence_summary: latest.ibm.evidence,
+      hypothesis: latest.ibm.hypothesis,
+      status: latest.ibm.contradiction_present ? 'accumulating' : 'none',
+    };
+  })();
 
-  // All distinct stage names that have accumulated signals across the full session
   const allSignalStages = new Set<string>();
   for (const assessment of priorAssessments) {
     for (const signal of assessment.css_signals) {
