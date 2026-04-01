@@ -42,12 +42,6 @@ const confirmedTurns = new Map<string, number>();
 // Prevents two concurrent requests for the same turn both producing responses.
 const inFlightTurns = new Set<string>();
 
-// Tracks whether a thinking phrase is currently in flight for a given call.
-// When true, the next speech-update: started event is from the thinking phrase,
-// not the LLM response — confirmTurnPlayed must skip that event and wait for
-// the subsequent one (the actual LLM response) to close the gate.
-const thinkingPhraseInFlight = new Map<string, boolean>();
-
 const postInterventionActive = new Map<string, boolean>();
 
 // Track whether a session has been initialized for a given callId
@@ -56,21 +50,10 @@ const initializedCalls = new Set<string>();
 // Reserved for future per-request gating of post-intervention state
 const lastFieldAssessmentExchange = new Map<string, number>();
 
-// Brief vocalizations injected when LLM processing exceeds threshold.
-// One phrase per agent — minimal, presence-signaling, clinically neutral.
-const THINKING_PHRASES: Record<string, string> = {
-  sarah: "Mm.",
-  marcus: 'Mm.',
-  mathew: 'Mm.',
-  una: 'Mm.',
-};
-
-const LLM_THINKING_THRESHOLD_MS = 4000;
 
 export function clearCustomLLMCache(callId: string): void {
   lastSentTurn.delete(callId);
   confirmedTurns.delete(callId);
-  thinkingPhraseInFlight.delete(callId);
   // Clean up any in-flight entries for this call
   for (const key of Array.from(inFlightTurns)) {
     if (key.startsWith(`${callId}:`)) {
@@ -89,15 +72,6 @@ export function clearCustomLLMCache(callId: string): void {
  * This advances the confirmation gate, blocking any further retries for that turn.
  */
 export function confirmTurnPlayed(callId: string): void {
-  // If a thinking phrase is in flight, this speech-start is from the phrase playing,
-  // not from the LLM response. Consume the flag and return — the next speech-start
-  // (from the actual LLM response) will confirm the turn correctly.
-  if (thinkingPhraseInFlight.get(callId)) {
-    thinkingPhraseInFlight.delete(callId);
-    console.log(`🔵 [CUSTOM-LLM] Thinking phrase speech-start consumed — gate held open for LLM response: call=${callId}`);
-    return;
-  }
-
   const turn = lastSentTurn.get(callId);
   if (turn !== undefined) {
     confirmedTurns.set(callId, turn);
@@ -324,24 +298,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  // Start thinking indicator timer — inject brief vocalization if LLM exceeds threshold
-  let thinkingInjected = false;
-  const agentKey = agentId.toLowerCase();
-  const thinkingPhrase = THINKING_PHRASES[agentKey] ?? 'Mm.';
-
-  const thinkingTimer = setTimeout(async () => {
-      try {
-        const injected = await injectSpokenReEngagement(callId, thinkingPhrase);
-        if (injected) {
-          thinkingInjected = true;
-          thinkingPhraseInFlight.set(callId, true);
-          console.log(`🧠 [THINKING] Injected "${thinkingPhrase}" for call ${callId} (LLM > ${LLM_THINKING_THRESHOLD_MS}ms)`);
-        }
-      } catch (err) {
-        console.warn(`🧠 [THINKING] Injection failed for call ${callId}:`, err);
-      }
-    }, LLM_THINKING_THRESHOLD_MS);
-
   try {
     // Step 5: Stream from OpenAI with look-ahead footer detection.
     //
@@ -377,14 +333,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       // Clear thinking timer on first content — this is the actual signal
       // that the LLM has started producing output.
       if (firstContentChunk) {
-        clearTimeout(thinkingTimer);
         firstContentChunk = false;
-
-        // If a thinking phrase was injected, pause briefly so it finishes
-        // playing before the actual response begins streaming.
-        if (thinkingInjected) {
-          await new Promise(resolve => setTimeout(resolve, 1200));
-        }
       }
 
       if (inFooter) {
@@ -499,7 +448,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       `🔵 [CUSTOM-LLM] Complete: call=${callId} turns=${numUserTurns}/${numAssistantTurns} total=${totalTime}ms sent=${totalSentLength} chars`
     );
   } catch (error: any) {
-    clearTimeout(thinkingTimer);
     console.error(`🔴 [CUSTOM-LLM] OpenAI error: ${error.message}`, { callId, userId, agentId });
     if (!res.headersSent) {
       res.status(500).json({ error: 'LLM request failed', message: error.message });
