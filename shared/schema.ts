@@ -249,24 +249,6 @@ export const sessionTranscripts = pgTable("session_transcripts", {
   timestamp: timestamp("timestamp", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
-// CSS progressions table - UPDATED with new columns
-export const cssProgressions = pgTable("css_progressions", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
-  call_id: text("call_id").notNull(),
-  from_stage: varchar("from_stage", { length: 50 }),
-  to_stage: varchar("to_stage", { length: 50 }).notNull(),
-  trigger_content: text("trigger_content").notNull(),
-  transition_time: timestamp("transition_time", { withTimezone: true }).default(sql`timezone('utc', now())`),
-  agent_name: text("agent_name"),
-  created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
-  emotional_intensity: varchar("emotional_intensity", { length: 10 }),
-  // NEW COLUMNS:
-  trigger_type: varchar("trigger_type", { length: 20 }), // 'CVDC', 'IBM', 'THEND', 'CYVC'
-  confidence: real("confidence"),
-  transition_context: jsonb("transition_context"),
-});
-
 // CSS patterns table - NO CHANGES but note the valid values
 export const cssPatterns = pgTable("css_patterns", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -500,11 +482,6 @@ export const insertSessionTranscriptSchema = createInsertSchema(sessionTranscrip
   timestamp: true,
 });
 
-export const insertCssProgressionSchema = createInsertSchema(cssProgressions).omit({
-  id: true,
-  created_at: true,
-});
-
 export const insertCssPatternsSchema = createInsertSchema(cssPatterns).omit({
   id: true,
   detected_at: true,
@@ -532,8 +509,6 @@ export type TherapeuticContext = typeof therapeuticContext.$inferSelect;
 export type InsertTherapeuticContext = z.infer<typeof insertTherapeuticContextSchema>;
 export type SessionTranscript = typeof sessionTranscripts.$inferSelect;
 export type InsertSessionTranscript = z.infer<typeof insertSessionTranscriptSchema>;
-export type CssProgression = typeof cssProgressions.$inferSelect;
-export type InsertCssProgression = z.infer<typeof insertCssProgressionSchema>;
 export type CssPattern = typeof cssPatterns.$inferSelect;
 export type InsertCssPattern = z.infer<typeof insertCssPatternsSchema>;
 // NEW: Type for therapeutic movements
@@ -1017,36 +992,6 @@ export const userPushNotificationPreferences = pgTable("user_push_notification_p
   updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
 });
 
-// Scheduled notifications table - for session reminders and future notifications
-export const scheduledNotifications = pgTable("scheduled_notifications", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-
-  // Notification content
-  title: varchar("title", { length: 255 }).notNull(),
-  body: text("body").notNull(),
-  notification_type: varchar("notification_type", { length: 50 }).notNull(), // 'session_reminder', 'therapeutic_followup', 'announcement'
-
-  // Scheduling
-  scheduled_for: timestamp("scheduled_for", { withTimezone: true }).notNull(),
-
-  // Status tracking
-  status: varchar("status", { length: 20 }).default("pending"), // 'pending', 'sent', 'failed', 'cancelled'
-  sent_at: timestamp("sent_at", { withTimezone: true }),
-  error_message: text("error_message"),
-
-  // Reference data
-  reference_id: uuid("reference_id"),
-  reference_type: varchar("reference_type", { length: 50 }),
-
-  // Custom data payload
-  data: jsonb("data").default({}),
-
-  // Timestamps
-  created_at: timestamp("created_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
-  updated_at: timestamp("updated_at", { withTimezone: true }).default(sql`timezone('utc', now())`),
-});
-
 // Notification history table - audit trail of sent notifications
 export const notificationHistory = pgTable("notification_history", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1083,8 +1028,6 @@ export type DeviceToken = typeof deviceTokens.$inferSelect;
 export type InsertDeviceToken = typeof deviceTokens.$inferInsert;
 export type UserPushNotificationPreferences = typeof userPushNotificationPreferences.$inferSelect;
 export type InsertUserPushNotificationPreferences = typeof userPushNotificationPreferences.$inferInsert;
-export type ScheduledNotification = typeof scheduledNotifications.$inferSelect;
-export type InsertScheduledNotification = typeof scheduledNotifications.$inferInsert;
 export type NotificationHistory = typeof notificationHistory.$inferSelect;
 export type InsertNotificationHistory = typeof notificationHistory.$inferInsert;
 

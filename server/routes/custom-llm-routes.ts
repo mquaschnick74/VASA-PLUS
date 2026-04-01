@@ -285,7 +285,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         latestFieldAssessment,
         numUserTurns,
         callId,
-        resonance
+        resonance,
+        cachedProfile?.cvdcState ?? null
       );
 
       let lastUserIdx = -1;

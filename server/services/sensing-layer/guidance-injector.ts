@@ -677,7 +677,8 @@ export function formatFieldSessionPicture(
   fieldAssessment: FieldAssessmentOutput,
   exchangeCount: number,
   callId: string,
-  resonance?: ResonanceResult | null
+  resonance?: ResonanceResult | null,
+  cvdcState?: import('./types').UserCVDCState | null
 ): string {
   const cssStageLabels: Record<string, string> = {
     pointed_origin: 'Pointed Origin',
@@ -713,33 +714,21 @@ export function formatFieldSessionPicture(
     }
   }
 
-  // CVDC derived from IBM candidate state (current turn, not lagged footer)
+  // CVDC field state from persisted cross-session data
   let cvdcLine: string;
-  const clientNamedCandidate = ibmCandidates.find(c => c.status === 'resolved_client');
   const viableCandidate = ibmCandidates.find(c => c.status === 'viable');
-  if (clientNamedCandidate) {
-    cvdcLine = `CVDC: named — client has identified the contradiction`;
-  } else if (viableCandidate) {
-    cvdcLine = `CVDC: articulable — ${viableCandidate.hypothesis}`;
+  if (cvdcState) {
+    const patternTruncated = cvdcState.cross_domain_pattern
+      ? (cvdcState.cross_domain_pattern.length > 100
+        ? cvdcState.cross_domain_pattern.substring(0, 100) + '...'
+        : cvdcState.cross_domain_pattern)
+      : 'accumulating';
+    cvdcLine = `CVDC: ${cvdcState.status} (confidence: ${cvdcState.status_confidence.toFixed(2)}) — ${patternTruncated}`;
+    cvdcLine += `\nDomains covered: ${cvdcState.domains_covered.join(', ')}`;
+    cvdcLine += `\nMovement: ${cvdcState.movement_direction}`;
   } else {
-    // Fall back to prior footer state if available, otherwise not yet visible
-    const footerCvdc = getLastFooterState(callId)?.cvdc;
-    cvdcLine = footerCvdc ? `CVDC: ${footerCvdc}` : 'CVDC: not yet visible';
+    cvdcLine = 'CVDC: no data — narrative accumulation in progress';
   }
-
-  // Posture derived from IBM candidate state, gated by CSS stage.
-  // Fissure and impressionation are not available during pointed_origin —
-  // IBM accumulates and reports, but the posture directive is suppressed
-  // until the map advances to focus_bind.
-  let postureLine: string | null = null;
-  if (sessionCSSStage !== 'pointed_origin') {
-    if (clientNamedCandidate) {
-      postureLine = `Posture: impressionation — client has named the contradiction. Hold the living tension.`;
-    } else if (viableCandidate) {
-      postureLine = `Posture: fissure — IBM viable, register gate satisfied. CVDC is articulable. Name the contradiction.`;
-    }
-  }
-  // prescripting (default) — no posture line emitted
 
   // Narrative resonance
   let narrativeLine: string;
@@ -792,7 +781,6 @@ export function formatFieldSessionPicture(
     `CSS: ${cssLabel}`,
     cvdcLine,
     ibmLine,
-    ...(postureLine ? [postureLine] : []),
     ...(investmentLine ? [investmentLine] : []),
     narrativeLine,
     ...(fieldAssessment.critical_moment && fieldAssessment.critical_moment_reason
