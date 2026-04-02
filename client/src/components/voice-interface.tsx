@@ -8,6 +8,7 @@ import useVapi from '@/hooks/use-vapi';
 import AvatarAura, { AuraState } from '@/components/AvatarAura';
 import AgentSelector from './AgentSelector';
 import { TechnicalSupportCard } from './TechnicalSupportCard';
+import { DepthConstellation } from './DepthConstellation';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
 import { handleLogout } from '@/lib/auth-helpers';
@@ -56,6 +57,8 @@ interface UserContext {
   sessionCount: number;
   sessionDurationLimit?: number;
   onboarding?: OnboardingData | null;
+  depthStage?: string | null;
+  depthConfidence?: number | null;
 }
 
 const AGENT_COLOR_MAP: Record<string, string> = {
@@ -784,7 +787,14 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
               </Card>
             )}
 
-            <TechnicalSupportCard />
+            <DepthConstellation
+              sessionCount={userContext.sessionCount}
+              isPatternGated={subscription?.limits?.is_pattern_gated ?? false}
+              patternDescription={subscription?.limits?.pattern_gate_description ?? null}
+              isSubscribed={subscription?.subscription_status === 'active'}
+              depthStage={userContext.depthStage ?? null}
+              firstName={userContext.firstName}
+            />
 
             <AgentSelector
               selectedAgentId={selectedAgentId}
