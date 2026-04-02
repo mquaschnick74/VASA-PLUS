@@ -148,14 +148,17 @@ export function DepthConstellation({
           {/* Star 1 — first session */}
           <circle cx={90}  cy={42} r={3.5} fill={s1.ring} />
           <circle cx={90}  cy={42} r={1.8} fill={s1.core} />
+          <text x={90} y={56} textAnchor="middle" fontSize={7} fill={s1.ring} opacity={m1 ? 0.85 : 0.35}>first session</text>
 
           {/* Star 2 — returning */}
           <circle cx={182} cy={26} r={3.5} fill={s2.ring} />
           <circle cx={182} cy={26} r={1.8} fill={s2.core} />
+          <text x={182} y={40} textAnchor="middle" fontSize={7} fill={s2.ring} opacity={m2 ? 0.85 : 0.35}>returning</text>
 
           {/* Star 3 — deepening */}
           <circle cx={302} cy={52} r={3.5} fill={s3.ring} />
           <circle cx={302} cy={52} r={1.8} fill={s3.core} />
+          <text x={302} y={66} textAnchor="middle" fontSize={7} fill={s3.ring} opacity={m3 ? 0.85 : 0.35}>deepening</text>
 
           {/* Star 4 — pattern found (pulsing halo when earned) */}
           {m4 && (
@@ -166,10 +169,12 @@ export function DepthConstellation({
           <circle cx={405} cy={28} r={m4 ? 8 : 5}   fill={m4 ? '#5b3fcf' : '#4a3880'} />
           <circle cx={405} cy={28} r={m4 ? 4 : 2.5} fill={m4 ? '#c4b5fd' : '#9d8aed'} />
           {m4 && <circle cx={405} cy={28} r={1.5} fill="#ede9fe" />}
+          <text x={405} y={50} textAnchor="middle" fontSize={7} fill={m4 ? '#c4b5fd' : '#7c6bd4'} opacity={m4 ? 0.9 : 0.35}>pattern found</text>
 
           {/* Star 5 — committed */}
           <circle cx={500} cy={58} r={3.5} fill={s5.ring} />
           <circle cx={500} cy={58} r={1.8} fill={s5.core} />
+          <text x={500} y={72} textAnchor="middle" fontSize={7} fill={s5.ring} opacity={m5 ? 0.85 : 0.35}>committed</text>
 
           {/* ── Depth stage track ── */}
 
