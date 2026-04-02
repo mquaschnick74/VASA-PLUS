@@ -19,7 +19,7 @@ import {
   type FooterState,
 } from '../prompts/pca-core';
 import { getPCAContextForAgent } from '../services/memory-service';
-import { formatFieldSessionPicture, injectSpokenReEngagement } from '../services/sensing-layer/guidance-injector';
+import { formatFieldSessionPicture } from '../services/sensing-layer/guidance-injector';
 import { findResonatingFragments } from '../services/sensing-layer/narrative-web';
 import { getArcPosition } from '../services/sensing-layer/arc-tracker';
 import { recordCustomLLMResponseSent } from '../services/sensing-layer/silence-monitor';
