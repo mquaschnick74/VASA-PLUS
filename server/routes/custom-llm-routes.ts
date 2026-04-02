@@ -50,22 +50,23 @@ const initializedCalls = new Set<string>();
 // Reserved for future per-request gating of post-intervention state
 const lastFieldAssessmentExchange = new Map<string, number>();
 
-// Brief vocalizations injected when LLM processing exceeds threshold.
-// One phrase per agent — minimal, presence-signaling, clinically neutral.
-const THINKING_PHRASES: Record<string, string> = {
-  sarah: "I'm here.",
-  marcus: 'Mm.',
-  mathew: 'Mm.',
-  una: 'Mm.',
-};
+// Tracks the character length of the last user utterance we successfully streamed
+// a response for. Used to distinguish true duplicates (same content — block) from
+// the final complete-transcript request (longer content — allow through).
+const lastRespondedUtteranceLength = new Map<string, number>();
 
-const LLM_THINKING_THRESHOLD_MS = 4000;
+// Tracks a per-call timer that re-opens the confirmed-turn gate if VAPI has not
+// sent speech-start within 3500ms of stream-end. If VAPI discards our response
+// (user was still speaking), speech-start never fires — this timer detects that
+// and re-opens the gate so the final complete-transcript request can get through.
+const playbackConfirmationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 
 export function clearCustomLLMCache(callId: string): void {
   lastSentTurn.delete(callId);
   confirmedTurns.delete(callId);
   // Clean up any in-flight entries for this call
-  for (const key of inFlightTurns) {
+  for (const key of Array.from(inFlightTurns)) {
     if (key.startsWith(`${callId}:`)) {
       inFlightTurns.delete(key);
     }
@@ -73,6 +74,12 @@ export function clearCustomLLMCache(callId: string): void {
   initializedCalls.delete(callId);
   postInterventionActive.delete(callId);
   lastFieldAssessmentExchange.delete(callId);
+  lastRespondedUtteranceLength.delete(callId);
+  const existingTimer = playbackConfirmationTimers.get(callId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    playbackConfirmationTimers.delete(callId);
+  }
   clearFooterState(callId);
 }
 
@@ -86,6 +93,13 @@ export function confirmTurnPlayed(callId: string): void {
   if (turn !== undefined) {
     confirmedTurns.set(callId, turn);
     console.log(`🔵 [CUSTOM-LLM] Turn confirmed by VAPI speech-start: call=${callId} turn=${turn}`);
+  }
+  // Cancel the playback confirmation timer — VAPI is playing our response,
+  // gate stays closed permanently.
+  const timer = playbackConfirmationTimers.get(callId);
+  if (timer) {
+    clearTimeout(timer);
+    playbackConfirmationTimers.delete(callId);
   }
 }
 
@@ -309,23 +323,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  // Start thinking indicator timer — inject brief vocalization if LLM exceeds threshold
-  let thinkingInjected = false;
-  const agentKey = agentId.toLowerCase();
-  const thinkingPhrase = THINKING_PHRASES[agentKey] ?? 'Mm.';
-
-  const thinkingTimer = setTimeout(async () => {
-      try {
-        const injected = await injectSpokenReEngagement(callId, thinkingPhrase);
-        if (injected) {
-          thinkingInjected = true;
-          console.log(`🧠 [THINKING] Injected "${thinkingPhrase}" for call ${callId} (LLM > ${LLM_THINKING_THRESHOLD_MS}ms)`);
-        }
-      } catch (err) {
-        console.warn(`🧠 [THINKING] Injection failed for call ${callId}:`, err);
-      }
-    }, LLM_THINKING_THRESHOLD_MS);
-
   try {
     // Step 5: Stream from OpenAI with look-ahead footer detection.
     //
@@ -361,14 +358,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       // Clear thinking timer on first content — this is the actual signal
       // that the LLM has started producing output.
       if (firstContentChunk) {
-        clearTimeout(thinkingTimer);
         firstContentChunk = false;
-
-        // If a thinking phrase was injected, pause briefly so it finishes
-        // playing before the actual response begins streaming.
-        if (thinkingInjected) {
-          await new Promise(resolve => setTimeout(resolve, 1200));
-        }
       }
 
       if (inFooter) {
@@ -461,13 +451,31 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         id: lastChunkId || 'resp',
         object: 'chat.completion.chunk',
         choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-      })}\n\n`
+      })}\\n\\n`
     );
-    // Release in-flight lock — this turn's stream is complete.
+    // Release in-flight lock and close the confirmed-turn gate at stream completion.
+    // Closing the gate here (not waiting for speech-start) prevents the window
+    // between stream-end and speech-start from being exploited by subsequent
+    // conversation-update requests that would produce duplicate full responses.
+    // speech-start events will arrive after this and become no-ops on an
+    // already-closed gate, which is correct.
     if (!isSilenceReq) {
       inFlightTurns.delete(turnKey);
+      // Start a playback confirmation timer. If VAPI plays our response,
+      // speech-start will fire within ~1-2s (TTS processing) and cancel this timer.
+      // If speech-start does NOT fire within 3500ms, VAPI discarded our response
+      // (user was still speaking) — re-open the gate so the final complete-transcript
+      // request can get through and produce a response VAPI will actually play.
+      const existingTimer = playbackConfirmationTimers.get(callId);
+      if (existingTimer) clearTimeout(existingTimer);
+      const confirmTimer = setTimeout(() => {
+        playbackConfirmationTimers.delete(callId);
+        confirmedTurns.delete(callId);
+        console.log(`🔵 [CUSTOM-LLM] Playback not confirmed — gate re-opened: call=${callId} turn=${numUserTurns}`);
+      }, 3500);
+      playbackConfirmationTimers.set(callId, confirmTimer);
     }
-    res.write('data: [DONE]\n\n');
+    res.write('data: [DONE]\\n\\n');
     res.end();
     recordCustomLLMResponseSent(callId);
 
@@ -476,7 +484,6 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       `🔵 [CUSTOM-LLM] Complete: call=${callId} turns=${numUserTurns}/${numAssistantTurns} total=${totalTime}ms sent=${totalSentLength} chars`
     );
   } catch (error: any) {
-    clearTimeout(thinkingTimer);
     console.error(`🔴 [CUSTOM-LLM] OpenAI error: ${error.message}`, { callId, userId, agentId });
     if (!res.headersSent) {
       res.status(500).json({ error: 'LLM request failed', message: error.message });
@@ -509,7 +516,14 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       }
     }
   } finally {
-    inFlightTurns.delete(turnKey); // always release on any exit path
+    // Hold the in-flight lock for 2500ms after stream completes before releasing.
+    // This covers the window between our stream-end and VAPI's speech-start event,
+    // during which VAPI sends additional growing-transcript requests for the same turn.
+    // The confirmed-turn gate (closed at speech-start) is the permanent block.
+    // This is only the temporary bridge until speech-start arrives.
+    setTimeout(() => {
+      inFlightTurns.delete(turnKey);
+    }, 2500);
   }
 });
 

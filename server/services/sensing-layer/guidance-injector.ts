@@ -755,7 +755,7 @@ export function formatFieldSessionPicture(
     sessionCSSStage === 'pointed_origin'
       ? 'Tools: Prescripting only. HSFB not available. No somatic checks.'
       : absorptionHSFBIndicated
-      ? `Tools: HSFB: indicated — Imaginary absorption confirmed (${consecutiveAbsorption} consecutive exchanges). The narrative arc cannot produce access. Branch now.`
+      ? `Tools: HSFB: indicated — Imaginary absorption confirmed (${consecutiveAbsorption} consecutive exchanges). The narrative arc cannot produce access.`
       : sessionCSSStage === 'focus_bind'
       ? 'Tools: Prescripting. HSFB available if stuckness confirmed.'
       : 'Tools: Prescripting. HSFB available.';

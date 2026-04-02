@@ -880,16 +880,21 @@ export function recordFieldAssessment(
     }
   }
 
-  // Absorption counter — tracks consecutive exchanges meeting Imaginary absorption conditions.
-  // Conditions: IBM strong, register Imaginary, movement static, no somatic/register-shift investment.
-  // Resets when Real surfaces, somatic emerges, or IBM meaningfully decreases.
+  // Absorption counter — detects Imaginary absorption: verbal acknowledgment of a naming
+  // without register shift, returning immediately to the same organizing frame.
+  // Driven by semantic field assessment rather than behavioral proxies — the prior
+  // approximation (IBM strength + Imaginary register + static movement) was clinically
+  // inverted at the key moment, when verbal acknowledgment could briefly reduce IBM
+  // contradiction_strength and cause the counter to reset when it should increment.
+  // Absorption requires a viable IBM candidate — if no naming has occurred,
+  // there is nothing to absorb. This gate prevents the counter from firing
+  // on client closures ("I'm fine") that occur before any contradiction
+  // has been articulated and named.
+  const viableIBMExists = session.activeIBMCandidates.some(
+    c => c.status === 'viable' || c.status === 'resolved_client'
+  );
   const absorptionConditionsMet =
-    assessment.register.current === 'Imaginary' &&
-    (assessment.register.movement === 'static' || assessment.register.movement === null) &&
-    assessment.ibm.contradiction_strength > 0.7 &&
-    assessment.ibm.behavioral_alignment_strength > 0.5 &&
-    assessment.investment.investment_type !== 'somatic_emergence' &&
-    assessment.investment.investment_type !== 'register_shift';
+    viableIBMExists && assessment.imaginary_absorption?.present === true;
 
   if (absorptionConditionsMet) {
     session.consecutiveAbsorptionExchanges++;
@@ -937,7 +942,24 @@ export function getPriorFieldSummary(callId: string): string {
     return 'none';
   }
 
-  let summary = buildPriorFieldSummary(session.fieldAssessments);
+  // Build IBM state from candidate accumulator — authoritative running state
+  // that survives single-exchange drops in contradiction_present.
+  const candidates = session.activeIBMCandidates.filter(
+    c => c.status === 'accumulating' || c.status === 'viable'
+  );
+  const leadCandidate = candidates.find(c => c.status === 'viable') ?? candidates[0] ?? null;
+
+  const candidateIBMState = leadCandidate
+    ? {
+        contradiction_strength: leadCandidate.weightedAccumulation / 2.0,
+        stated_position: leadCandidate.statedPosition || null,
+        evidence_summary: leadCandidate.confirmingSignals.slice(-1)[0]?.evidenceStatement ?? '',
+        hypothesis: leadCandidate.hypothesis,
+        status: leadCandidate.status,
+      }
+    : undefined;
+
+  let summary = buildPriorFieldSummary(session.fieldAssessments, candidateIBMState);
 
   // Append HSFB context if relevant
   if (session.hsfbExecutedAtExchange != null) {
