@@ -178,7 +178,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
     });
   }, [onTranscript]);
 
-  const { data: subscription, isLoading: subscriptionLoading } = useSubscription(userId);
+  const { data: subscription, isLoading: subscriptionLoading, watchForPatternGate } = useSubscription(userId);
 
   safeLog('subscription_status', { tier: subscription?.limits?.subscription_tier, loading: subscriptionLoading });
 
@@ -197,27 +197,11 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
       // The gate is written server-side during end-of-call-report processing.
       // The delay allows the webhook to complete before we check.
       if (userId) {
-        setTimeout(async () => {
-          try {
-            const session = await supabase.auth.getSession();
-            const token = session.data.session?.access_token;
-            if (!token) return;
-
-            const response = await fetch(getApiUrl(`/api/subscription/status/${userId}`), {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            if (!response.ok) return;
-
-            const data = await response.json();
-            if (data?.limits?.is_pattern_gated === true) {
-              console.log('🔒 [PatternGate] Gate detected post-session — showing modal');
-              setShowPatternGateModal(true);
-              setGateModalDescription(data.limits.pattern_gate_description || null);
-            }
-          } catch (err) {
-            console.error('❌ [PatternGate] Failed to check post-session subscription status:', err);
-          }
-        }, 3000);
+        watchForPatternGate((description) => {
+          console.log('🔒 [PatternGate] Gate detected post-session — showing modal');
+          setShowPatternGateModal(true);
+          setGateModalDescription(description);
+        });
       }
     }
     prevSessionActive.current = isSessionActive;
@@ -453,10 +437,7 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
 
   const handleStartSession = () => {
     if (subscription && subscription.limits?.is_pattern_gated && subscription.subscription_status === 'pattern_gated') {
-      alert(
-        `You've made a meaningful discovery about yourself. To continue your therapeutic journey, please subscribe.`
-      );
-      setLocation('/pricing');
+      setShowPatternGateModal(true);
       return;
     }
     if (subscription && subscription.limits?.can_use_voice === false) {
