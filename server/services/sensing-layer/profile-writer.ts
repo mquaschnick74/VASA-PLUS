@@ -626,7 +626,7 @@ export async function persistCVDCState(
       try {
         const promotionResponse = await anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 300,
+          max_tokens: 600,
           messages: [{
             role: 'user',
             content: `You are assessing whether a coherent operational pattern of a single underlying psychological mechanism is visible across the following narrative domains from a client's life.
