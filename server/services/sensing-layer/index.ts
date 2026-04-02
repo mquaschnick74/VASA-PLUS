@@ -62,7 +62,8 @@ import {
   MovementAssessmentResult,
   PatternType,
   AwarenessLevel,
-  SymbolicConnectionType
+  SymbolicConnectionType,
+  UserCVDCState
 } from './types';
 
 const profileCache = new Map<string, { profile: UserTherapeuticProfile; loadedAt: number }>();
@@ -233,6 +234,14 @@ export class SensingLayerService {
         recordSignificantMoment(input.callId, significance.type, significance.description, guidance);
       }
 
+      // 7a. CVDC: detect resistance after naming attempt and track breakthrough events
+      if (sessionState.lastAgentPosture === 'challenge' && coupledOSR.movement.indicators.resistance > 0.5) {
+        sessionState.cvdcSessionContribution.resistanceAfterNamingCount++;
+      }
+      if (significance.isSignificant && significance.type === 'breakthrough') {
+        sessionState.cvdcSessionContribution.breakthroughEventIds.push(`${input.callId}-${input.exchangeCount}`);
+      }
+
       // 8. Track patterns and connections in memory (not DB)
       for (const pattern of patterns.activePatterns) {
         recordPatternDetected(input.callId, pattern.description);
@@ -251,6 +260,10 @@ export class SensingLayerService {
           evidence: pattern.utteranceEvidence,
           userExplicitlyIdentified: false
         });
+        // CVDC: track pattern contributions this session
+        if (!sessionState.cvdcSessionContribution.patternContributionsThisSession.includes(pattern.description)) {
+          sessionState.cvdcSessionContribution.patternContributionsThisSession.push(pattern.description);
+        }
       }
 
       for (const emerging of patterns.emergingPatterns) {
@@ -544,8 +557,24 @@ export class SensingLayerService {
         agentName: 'marcus'
       });
       resonance = fastSenseResult.resonance;
+
+      // CVDC: track domains opened this session from resonating fragments
+      const sessionForCVDC = getSessionState(input.callId);
+      if (sessionForCVDC && resonance) {
+        for (const fragment of resonance.matchedFragments) {
+          if (fragment.content_domain && !sessionForCVDC.cvdcSessionContribution.domainsOpenedThisSession.includes(fragment.content_domain)) {
+            sessionForCVDC.cvdcSessionContribution.domainsOpenedThisSession.push(fragment.content_domain);
+          }
+        }
+      }
     } catch (err) {
       console.warn('[sensing] fastSense resonance query failed, continuing without narrative context:', err);
+    }
+
+    // CVDC: detect resistance after naming attempt
+    const sessionForResistance = getSessionState(input.callId);
+    if (sessionForResistance && movement.indicators.resistance > 0.5 && sessionForResistance.lastAgentPosture === 'challenge') {
+      sessionForResistance.cvdcSessionContribution.resistanceAfterNamingCount++;
     }
 
     console.log(`⚡ [FAST] Sensing complete in ${Date.now() - fastStart}ms: posture=${guidance.posture}`);
@@ -566,8 +595,18 @@ export class SensingLayerService {
     try {
       const profile = await this.getUserProfile(userId);
       profileCache.set(callId, { profile, loadedAt: Date.now() });
-      initializeSession(callId, userId, sessionId, profile.lastCSSStage, profile.lastCSSStageConfidence);
-      console.log(`👤 [SENSING] Profile pre-cached for call ${callId}, CSS arc seeded: ${profile.lastCSSStage ?? 'pointed_origin'} (${profile.lastCSSStageConfidence ?? 0.3})`);
+      const session = initializeSession(callId, userId, sessionId, profile.lastCSSStage, profile.lastCSSStageConfidence);
+
+      // Populate CVDC session contribution from loaded profile
+      if (profile.cvdcState) {
+        session.cvdcSessionContribution.inheritedStatus = profile.cvdcState.status;
+        session.cvdcSessionContribution.inheritedConfidence = profile.cvdcState.status_confidence;
+      }
+      if (profile.domainCoverageSummary) {
+        session.cvdcSessionContribution.domainsFromPriorSessions = profile.domainCoverageSummary;
+      }
+
+      console.log(`👤 [SENSING] Profile pre-cached for call ${callId}, CSS arc seeded: ${profile.lastCSSStage ?? 'pointed_origin'} (${profile.lastCSSStageConfidence ?? 0.3}), CVDC: ${profile.cvdcState?.status ?? 'none'}`);
     } catch (error) {
       console.error(`❌ [SENSING] Failed to pre-cache profile, initializing with defaults:`, error);
       initializeSession(callId, userId, sessionId);
@@ -592,13 +631,50 @@ export class SensingLayerService {
     try {
       await this.storeSessionSummary(summary);
 
-      if (summary.structuredPatterns.length > 0 || summary.structuredHistorical.length > 0 || summary.structuredConnections.length > 0) {
+      // Get CVDC contribution from session state before it's cleared
+      const sessionStateForCVDC = getSessionState(callId);
+      const cvdcContribution = sessionStateForCVDC?.cvdcSessionContribution;
+      // Build narrative material summary grouped by domain for CVDC coherence assessment
+      let narrativeSummary: string;
+      try {
+        const { data: fragmentRows, error: fragError } = await supabase
+          .from('narrative_fragments')
+          .select('content_domain, content_summary')
+          .eq('user_id', summary.userId)
+          .order('created_at', { ascending: false })
+          .limit(30);
+
+        if (fragError || !fragmentRows || fragmentRows.length === 0) {
+          narrativeSummary = summary.patternsDetected.join('; ');
+        } else {
+          const byDomain = new Map<string, string[]>();
+          for (const row of fragmentRows) {
+            if (!row.content_domain || !row.content_summary) continue;
+            const list = byDomain.get(row.content_domain) || [];
+            list.push(row.content_summary);
+            byDomain.set(row.content_domain, list);
+          }
+          narrativeSummary = Array.from(byDomain)
+            .map(([domain, summaries]) => `${domain}: ${summaries.join('; ')}`)
+            .join('\n');
+          if (!narrativeSummary) {
+            narrativeSummary = summary.patternsDetected.join('; ');
+          }
+        }
+      } catch {
+        narrativeSummary = summary.patternsDetected.join('; ');
+      }
+
+      if (summary.structuredPatterns.length > 0 || summary.structuredHistorical.length > 0 || summary.structuredConnections.length > 0 || cvdcContribution) {
         console.log(`💾 [Sensing Layer] Persisting user profile data...`);
         await persistSessionProfile(
           summary.userId,
           summary.structuredPatterns,
           summary.structuredHistorical,
-          summary.structuredConnections
+          summary.structuredConnections,
+          cvdcContribution,
+          summary.sessionId,
+          narrativeSummary
         );
       }
 
@@ -756,7 +832,9 @@ export class SensingLayerService {
         registerResult,
         cssResult,
         lastSessionResult,
-        cssArcResult
+        cssArcResult,
+        domainCoverageResult,
+        cvdcStateResult
       ] = await Promise.all([
         supabase
           .from('user_patterns')
@@ -809,6 +887,19 @@ export class SensingLayerService {
           .eq('user_id', userId)
           .eq('context_type', 'css_arc_summary')
           .order('created_at', { ascending: false })
+          .limit(1),
+
+        // Domain coverage: count narrative fragments per content_domain
+        supabase
+          .from('narrative_fragments')
+          .select('content_domain')
+          .eq('user_id', userId),
+
+        // CVDC operational state
+        supabase
+          .from('user_cvdc_state')
+          .select('*')
+          .eq('user_id', userId)
           .limit(1)
       ]);
 
@@ -817,6 +908,21 @@ export class SensingLayerService {
       const symbolicMappings = this.transformSymbolicMappings(mappingsResult.data || []);
       const registerHistory = this.transformRegisterHistory(registerResult.data || []);
       const cssHistory = this.transformCSSHistory(cssResult.data || []);
+
+      // Aggregate domain coverage: count fragments per domain, keep domains with >= 2
+      const domainCounts = new Map<string, number>();
+      for (const row of (domainCoverageResult.data || [])) {
+        if (row.content_domain) {
+          domainCounts.set(row.content_domain, (domainCounts.get(row.content_domain) || 0) + 1);
+        }
+      }
+      const domainCoverageSummary: string[] = [];
+      for (const [domain, count] of domainCounts) {
+        if (count >= 2) domainCoverageSummary.push(domain);
+      }
+
+      // CVDC state
+      const cvdcState: UserCVDCState | null = cvdcStateResult.data?.[0] ?? null;
 
       let lastCSSStage: import('./types').CSSStage | null = null;
       let lastCSSStageConfidence: number | null = null;
@@ -840,6 +946,8 @@ export class SensingLayerService {
         lastSessionSummary: lastSessionResult.data?.[0]?.content ?? null,
         lastCSSStage,
         lastCSSStageConfidence,
+        domainCoverageSummary,
+        cvdcState,
       };
 
     } catch (error) {

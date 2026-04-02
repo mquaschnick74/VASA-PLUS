@@ -677,7 +677,8 @@ export function formatFieldSessionPicture(
   fieldAssessment: FieldAssessmentOutput,
   exchangeCount: number,
   callId: string,
-  resonance?: ResonanceResult | null
+  resonance?: ResonanceResult | null,
+  cvdcState?: import('./types').UserCVDCState | null
 ): string {
   const cssStageLabels: Record<string, string> = {
     pointed_origin: 'Pointed Origin',
@@ -713,14 +714,21 @@ export function formatFieldSessionPicture(
     }
   }
 
-  // IBM candidate state — behavioral contradiction tracking
-  const clientNamedCandidate = ibmCandidates.find(c => c.status === 'resolved_client');
+  // CVDC field state from persisted cross-session data
+  let cvdcLine: string;
   const viableCandidate = ibmCandidates.find(c => c.status === 'viable');
-
-  // CVDC has no independent tracking yet — do not derive from IBM hypothesis.
-  // IBM viability indicates the behavioral contradiction pattern is accumulating.
-  // CVDC articulability is a separate clinical determination not yet implemented.
-  const cvdcLine = 'CVDC: no independent tracking — see IBM line';
+  if (cvdcState) {
+    const patternTruncated = cvdcState.cross_domain_pattern
+      ? (cvdcState.cross_domain_pattern.length > 100
+        ? cvdcState.cross_domain_pattern.substring(0, 100) + '...'
+        : cvdcState.cross_domain_pattern)
+      : 'accumulating';
+    cvdcLine = `CVDC: ${cvdcState.status} (confidence: ${cvdcState.status_confidence.toFixed(2)}) — ${patternTruncated}`;
+    cvdcLine += `\nDomains covered: ${cvdcState.domains_covered.join(', ')}`;
+    cvdcLine += `\nMovement: ${cvdcState.movement_direction}`;
+  } else {
+    cvdcLine = 'CVDC: no data — narrative accumulation in progress';
+  }
 
   // Narrative resonance
   let narrativeLine: string;

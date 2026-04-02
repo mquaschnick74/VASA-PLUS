@@ -13,7 +13,8 @@ import {
   CSSStage,
   CSSSignal,
   IBMCandidate,
-  IBMSignalContribution
+  IBMSignalContribution,
+  CVDCSessionContribution
 } from './types';
 import {
   TherapeuticStateVector,
@@ -87,6 +88,9 @@ export interface SessionAccumulator {
   hsfbExecutedAtExchange: number | null;
   hsfbOutcome: 'new_material' | 'absorption' | 'pending' | null;
   consecutiveAbsorptionExchanges: number;
+
+  // CVDC operational state contribution for this session
+  cvdcSessionContribution: CVDCSessionContribution;
   }
 
 /**
@@ -168,6 +172,16 @@ export function initializeSession(
       hsfbExecutedAtExchange: null,
       hsfbOutcome: null,
       consecutiveAbsorptionExchanges: 0,
+      cvdcSessionContribution: {
+        inheritedStatus: 'none',
+        inheritedConfidence: 0,
+        domainsOpenedThisSession: [],
+        domainsFromPriorSessions: [],
+        patternContributionsThisSession: [],
+        statusChangeThisSession: false,
+        breakthroughEventIds: [],
+        resistanceAfterNamingCount: 0
+      },
   };
 
   activeSessions.set(callId, accumulator);

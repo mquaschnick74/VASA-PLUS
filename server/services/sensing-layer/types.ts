@@ -31,6 +31,8 @@ export interface UserTherapeuticProfile {
   lastSessionSummary?: string | null;
   lastCSSStage?: CSSStage | null;
   lastCSSStageConfidence?: number | null;
+  domainCoverageSummary?: string[];
+  cvdcState?: UserCVDCState | null;
 }
 
 export interface UserPattern {
@@ -568,6 +570,35 @@ export interface SensingLayerOutputRow {
   therapeutic_guidance: TherapeuticGuidance;
   processing_time_ms: number;
   created_at?: string;
+}
+
+// ─────────────────────────────────────────────
+// CVDC Operational State Types
+// ─────────────────────────────────────────────
+
+export interface CVDCSessionContribution {
+  inheritedStatus: 'candidate' | 'articulable' | 'none';
+  inheritedConfidence: number;
+  domainsOpenedThisSession: string[];
+  domainsFromPriorSessions: string[];
+  patternContributionsThisSession: string[];
+  statusChangeThisSession: boolean;
+  breakthroughEventIds: string[];
+  resistanceAfterNamingCount: number;
+}
+
+export interface UserCVDCState {
+  id: string;
+  user_id: string;
+  status: 'candidate' | 'articulable';
+  status_confidence: number;
+  domains_covered: string[];
+  cross_domain_pattern: string | null;
+  mechanism_description: string | null;
+  movement_direction: 'toward_utility' | 'toward_dead_end' | 'undetermined';
+  session_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─────────────────────────────────────────────

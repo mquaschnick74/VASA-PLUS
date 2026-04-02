@@ -4,12 +4,17 @@
 // Called at end-of-call from finalizeSession().
 
 import { supabase } from '../supabase-service';
+import Anthropic from '@anthropic-ai/sdk';
 import {
   SessionPatternRecord,
   SessionHistoricalRecord,
   SessionSymbolicRecord,
-  UserPatternRow
+  UserPatternRow,
+  CVDCSessionContribution,
+  UserCVDCState
 } from './types';
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ─────────────────────────────────────────────
 // DB Constraint Mapping Functions
@@ -152,7 +157,10 @@ export async function persistSessionProfile(
   userId: string,
   patterns: SessionPatternRecord[],
   historicalMaterial: SessionHistoricalRecord[],
-  symbolicConnections: SessionSymbolicRecord[]
+  symbolicConnections: SessionSymbolicRecord[],
+  cvdcContribution?: CVDCSessionContribution,
+  sessionId?: string,
+  narrativeFragmentsSummary?: string
 ): Promise<void> {
   const startTime = Date.now();
 
@@ -168,8 +176,18 @@ export async function persistSessionProfile(
   console.log(`💾 [Profile Writer] Persisting profile for user ${userId}:`);
   console.log(`   Patterns: ${patterns.length} session → ${filteredPatterns.length} after confidence/cap filter, Historical: ${historicalMaterial.length}, Connections: ${symbolicConnections.length}`);
 
+  // Persist CVDC state unconditionally — domain accumulation and coherence
+  // assessment must run even when no behavioral patterns were detected
+  if (cvdcContribution && sessionId) {
+    try {
+      await persistCVDCState(userId, sessionId, cvdcContribution, narrativeFragmentsSummary || '');
+    } catch (cvdcError) {
+      console.error('❌ [Profile Writer] CVDC persistence failed (non-fatal):', cvdcError);
+    }
+  }
+
   if (filteredPatterns.length === 0 && historicalMaterial.length === 0 && symbolicConnections.length === 0) {
-    console.log(`💾 [Profile Writer] Nothing to persist — skipping`);
+    console.log(`💾 [Profile Writer] Nothing else to persist — skipping`);
     return;
   }
 
@@ -562,4 +580,214 @@ function resolveForeignKey(
   }
 
   return bestId;
+}
+
+// ─────────────────────────────────────────────
+// 4. CVDC State Persistence
+// ─────────────────────────────────────────────
+
+export async function persistCVDCState(
+  userId: string,
+  sessionId: string,
+  contribution: CVDCSessionContribution,
+  narrativeFragmentsSummary: string
+): Promise<void> {
+  const startTime = Date.now();
+  console.log(`💾 [CVDC Writer] Persisting CVDC state for user ${userId}`);
+
+  try {
+    // Step 5a — Load existing state
+    const { data: existingRows, error: fetchError } = await supabase
+      .from('user_cvdc_state')
+      .select('*')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (fetchError) {
+      logSupabaseError('Error fetching existing CVDC state', fetchError);
+      return;
+    }
+
+    const existing: UserCVDCState | null = existingRows?.[0] ?? null;
+
+    // Step 5b — Aggregate domains
+    const domainSet = new Set<string>([
+      ...contribution.domainsFromPriorSessions,
+      ...contribution.domainsOpenedThisSession
+    ]);
+    const domainsCovered = Array.from(domainSet);
+
+    // Step 5c — Check promotion gate
+    let newStatus: 'candidate' | 'articulable' = existing?.status ?? 'candidate';
+    let newConfidence: number = existing?.status_confidence ?? 0;
+    let crossDomainPattern: string | null = existing?.cross_domain_pattern ?? null;
+
+    if (domainsCovered.length >= 2) {
+      try {
+        const promotionResponse = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 600,
+          messages: [{
+            role: 'user',
+            content: `You are assessing whether a coherent operational pattern of a single underlying psychological mechanism is visible across the following narrative domains from a client's life.
+
+Domains covered: ${JSON.stringify(domainsCovered)}
+Narrative material summary: ${narrativeFragmentsSummary}
+Prior cross-domain pattern (if exists): ${crossDomainPattern || 'none'}
+
+Assess: Is there a coherent pattern of a single underlying mechanism operating consistently across at least two of these domains?
+
+Respond in JSON only:
+{
+  "coherent": true | false,
+  "confidence": 0.0-1.0,
+  "pattern_description": "description of the cross-domain pattern if coherent, null if not"
+}`
+          }]
+        });
+
+        const promotionText = promotionResponse.content[0].type === 'text' ? promotionResponse.content[0].text : '';
+        const promotionJson = JSON.parse(promotionText.replace(/```json\n?|\n?```/g, '').trim());
+
+        if (promotionJson.coherent && promotionJson.confidence > 0.6) {
+          newStatus = 'articulable';
+          newConfidence = promotionJson.confidence;
+          crossDomainPattern = promotionJson.pattern_description;
+          console.log(`🎯 [CVDC Writer] Promotion to articulable: ${crossDomainPattern} (confidence: ${newConfidence})`);
+        } else {
+          newStatus = 'candidate';
+          newConfidence = promotionJson.confidence || newConfidence;
+        }
+      } catch (llmError) {
+        console.warn(`⚠️ [CVDC Writer] Promotion gate LLM call failed, keeping existing status:`, llmError);
+      }
+    }
+
+    // Step 5d — Check reversion gate (only if currently articulable)
+    if (existing?.status === 'articulable' && contribution.patternContributionsThisSession.length > 0) {
+      try {
+        const reversionResponse = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 200,
+          messages: [{
+            role: 'user',
+            content: `A client has an established cross-domain pattern: "${existing.cross_domain_pattern}"
+Current confidence: ${existing.status_confidence}
+
+This session produced new pattern material: ${JSON.stringify(contribution.patternContributionsThisSession)}
+
+Does this new material contradict or undermine the established cross-domain pattern?
+
+Respond in JSON only:
+{
+  "contradicts": true | false,
+  "contradiction_strength": 0.0-1.0
+}`
+          }]
+        });
+
+        const reversionText = reversionResponse.content[0].type === 'text' ? reversionResponse.content[0].text : '';
+        const reversionJson = JSON.parse(reversionText.replace(/```json\n?|\n?```/g, '').trim());
+
+        const reversionThreshold = existing.status_confidence * 0.7;
+        if (reversionJson.contradicts && reversionJson.contradiction_strength > reversionThreshold) {
+          newStatus = 'candidate';
+          newConfidence = existing.status_confidence * (1 - reversionJson.contradiction_strength);
+          console.log(`⚠️ [CVDC Writer] Reversion to candidate: contradiction strength ${reversionJson.contradiction_strength} exceeded threshold ${reversionThreshold.toFixed(2)}`);
+        }
+      } catch (llmError) {
+        console.warn(`⚠️ [CVDC Writer] Reversion gate LLM call failed, keeping existing status:`, llmError);
+      }
+    }
+
+    // Step 5e — Generate or refine mechanism_description
+    let mechanismDescription: string | null = existing?.mechanism_description ?? null;
+    if (domainsCovered.length >= 1) {
+      try {
+        const mechanismResponse = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 400,
+          messages: [{
+            role: 'user',
+            content: `Produce a clinical description of the underlying psychological mechanism operating in this client's life.
+
+Domains covered: ${JSON.stringify(domainsCovered)}
+Cross-domain pattern: ${crossDomainPattern || 'not yet established'}
+This session's pattern contributions: ${JSON.stringify(contribution.patternContributionsThisSession)}
+Prior mechanism description: ${mechanismDescription || 'none — this is the first description'}
+
+${mechanismDescription ? 'Refine the prior description — do not discard it. Integrate new session material.' : 'Produce a first-pass clinical description.'}
+
+Respond with the mechanism description only, no JSON wrapper. Maximum 200 words.`
+          }]
+        });
+
+        const mechanismText = mechanismResponse.content[0].type === 'text' ? mechanismResponse.content[0].text : '';
+        if (mechanismText.trim()) {
+          mechanismDescription = mechanismText.trim();
+        }
+      } catch (llmError) {
+        console.warn(`⚠️ [CVDC Writer] Mechanism description LLM call failed, keeping existing:`, llmError);
+      }
+    }
+
+    // Step 5f — Assess movement_direction (direct logic, no LLM)
+    let movementDirection: 'toward_utility' | 'toward_dead_end' | 'undetermined' = 'undetermined';
+    if (contribution.breakthroughEventIds.length > 0 && contribution.resistanceAfterNamingCount === 0) {
+      movementDirection = 'toward_utility';
+    } else if (contribution.resistanceAfterNamingCount >= 2 && contribution.breakthroughEventIds.length === 0) {
+      movementDirection = 'toward_dead_end';
+    }
+
+    // Step 5g — Upsert
+    const now = new Date().toISOString();
+    const sessionCount = (existing?.session_count ?? 0) + 1;
+
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from('user_cvdc_state')
+        .update({
+          status: newStatus,
+          status_confidence: newConfidence,
+          domains_covered: domainsCovered,
+          cross_domain_pattern: crossDomainPattern,
+          mechanism_description: mechanismDescription,
+          movement_direction: movementDirection,
+          session_count: sessionCount,
+          updated_at: now
+        })
+        .eq('id', existing.id);
+
+      if (updateError) {
+        logSupabaseError('Error updating CVDC state', updateError);
+      } else {
+        console.log(`🔄 [CVDC Writer] Updated: status=${newStatus}, confidence=${newConfidence.toFixed(2)}, domains=${domainsCovered.length}, movement=${movementDirection}`);
+      }
+    } else {
+      const { error: insertError } = await supabase
+        .from('user_cvdc_state')
+        .insert({
+          user_id: userId,
+          status: newStatus,
+          status_confidence: newConfidence,
+          domains_covered: domainsCovered,
+          cross_domain_pattern: crossDomainPattern,
+          mechanism_description: mechanismDescription,
+          movement_direction: movementDirection,
+          session_count: sessionCount,
+          created_at: now,
+          updated_at: now
+        });
+
+      if (insertError) {
+        logSupabaseError('Error inserting CVDC state', insertError);
+      } else {
+        console.log(`✨ [CVDC Writer] Created: status=${newStatus}, domains=${domainsCovered.length}`);
+      }
+    }
+
+    console.log(`💾 [CVDC Writer] Done in ${Date.now() - startTime}ms`);
+  } catch (error) {
+    console.error('❌ [CVDC Writer] Error persisting CVDC state:', error);
+  }
 }
