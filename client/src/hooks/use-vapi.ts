@@ -469,6 +469,7 @@ Do NOT call the tool unless you actually need more context beyond what is alread
 
       const assistantConfig = {
         name: `VASA-${selectedAgent.name}`,
+        fillerInjectionEnabled: false,
         ...(selectedAgent.name.toLowerCase() === 'mathew' && { interruptionsEnabled: true }),
         model: {
           provider: 'custom-llm',
