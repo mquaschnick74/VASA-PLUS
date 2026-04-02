@@ -1,7 +1,7 @@
 // Location: client/src/hooks/use-subscription.ts
 // FIXED VERSION - Uses backend API to properly handle therapist-client relationships
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getApiUrl } from '@/lib/platform';
 
@@ -38,6 +38,8 @@ export function useSubscription(userId: string | null) {
   const [data, setData] = useState<SubscriptionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
+  const patternGateTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     if (!userId) {
@@ -283,15 +285,67 @@ export function useSubscription(userId: string | null) {
     // Cleanup
     return () => {
       isMounted = false;
+      isMountedRef.current = false;
+      patternGateTimersRef.current.forEach(clearTimeout);
+      patternGateTimersRef.current = [];
       subscription.unsubscribe();
       relationshipSubscription.unsubscribe();
     };
+  }, [userId]);
+
+  const watchForPatternGate = useCallback((onGateDetected: (description: string | null) => void): void => {
+    // Cancel any in-flight watch before starting a new one
+    patternGateTimersRef.current.forEach(clearTimeout);
+    patternGateTimersRef.current = [];
+
+    if (!userId) return;
+
+    // Retry schedule (ms from session end). Covers the full server-side pipeline:
+    // VAPI sends end-of-call-report (1-5s) + finalizeSession LLM call (5-15s) + DB write.
+    const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000, 90000];
+    let gateFound = false;
+
+    const checkOnce = async () => {
+      if (gateFound || !isMountedRef.current) return;
+
+      try {
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+        if (!token) return;
+
+        const response = await fetch(getApiUrl(`/api/subscription/status/${userId}`), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        if (!response.ok) return;
+
+        const apiData = await response.json();
+        if (apiData?.limits?.is_pattern_gated === true) {
+          gateFound = true;
+          patternGateTimersRef.current.forEach(clearTimeout);
+          patternGateTimersRef.current = [];
+          console.log('🔒 [PatternGate] Gate detected via watch — firing callback');
+          onGateDetected(apiData.limits.pattern_gate_description || null);
+        }
+      } catch (err) {
+        console.error('❌ [PatternGate] Watch poll failed:', err);
+      }
+    };
+
+    RETRY_DELAYS_MS.forEach(delay => {
+      const timer = setTimeout(checkOnce, delay);
+      patternGateTimersRef.current.push(timer);
+    });
   }, [userId]);
 
   return {
     data,
     isLoading,
     error,
+    watchForPatternGate,
     refetch: async () => {
       if (userId) {
         setIsLoading(true);

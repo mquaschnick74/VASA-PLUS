@@ -336,6 +336,43 @@ When critical_moment is false, critical_moment_reason must be null. Do not gener
 reason when the moment is not critical.
 
 
+── 9. EXPLICIT PATTERN IDENTIFICATION ───────────────────────────────────────
+
+Explicit pattern identification is a discrete clinical event: the client has named a
+recurring structure in their own behavior, relational position, or emotional response
+from a position of genuine self-observation. They are not describing a single experience —
+they are naming something they can see repeating in themselves.
+
+This is distinct from:
+— Symbolic register generally: a client in Symbolic register is observing their
+  experience but has not necessarily named a recurring pattern in themselves
+— Naming attempt: the client is reaching for language for something not yet fully named
+— Agent-initiated naming that the client confirms: the agent names something and the
+  client agrees — this is not explicit pattern identification by the client
+— Imaginary absorption: the client has received a naming and returned to the same
+  organizing frame without register shift
+
+Mark present as true only when all of the following hold:
+— The client produces the identification themselves — it is not the agent's naming
+  being confirmed or absorbed
+— The statement refers to a recurring structure: the client perceives themselves doing
+  or being something repeatedly ("I always...", "every time...", "I keep...",
+  "I can see that I...", "I do this when...")
+— The client is naming their own behavior, pattern, or relational position —
+  not narrating an event or describing someone else
+— The identification arrives in this utterance — it is not a restatement of something
+  already fully named and established earlier in the session
+
+When present is true:
+— statement: the exact quote from the client's utterance that contains the identification
+— inferred_pattern: one concise phrase (under 15 words) describing the structural
+  pattern the client has identified — what they are actually seeing about themselves
+— confidence: 0.0-1.0 scoring how clearly all four conditions above are met
+
+When present is false, statement and inferred_pattern must be null and confidence must
+be 0.0. Do not speculate. Only mark true when the conditions are unambiguously met.
+
+
 ─────────────────────────────────────────────────────────────────────────────
 OUTPUT
 ─────────────────────────────────────────────────────────────────────────────
@@ -382,6 +419,12 @@ Begin your response with { and end with }.
   "imaginary_absorption": {
     "present": false,
     "evidence": "one sentence or null"
+  },
+  "explicit_pattern_identification": {
+    "present": false,
+    "statement": "exact quote from client utterance or null",
+    "inferred_pattern": "concise pattern description under 15 words, or null",
+    "confidence": 0.0
   }
 }`;
 
@@ -444,6 +487,12 @@ export interface FieldAssessmentOutput {
     present: boolean;
     evidence: string | null;
   };
+  explicit_pattern_identification: {
+    present: boolean;
+    statement: string | null;
+    inferred_pattern: string | null;
+    confidence: number;
+  };
 }
 
 export const DEFAULT_FIELD_ASSESSMENT: FieldAssessmentOutput = {
@@ -479,6 +528,12 @@ export const DEFAULT_FIELD_ASSESSMENT: FieldAssessmentOutput = {
   imaginary_absorption: {
     present: false,
     evidence: null,
+  },
+  explicit_pattern_identification: {
+    present: false,
+    statement: null,
+    inferred_pattern: null,
+    confidence: 0,
   },
 };
 
