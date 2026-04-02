@@ -638,6 +638,28 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       .order('created_at', { ascending: false })
       .limit(10);
 
+    // Fetch CSS arc stage for depth visualization
+    let depthStage: string | null = null;
+    let depthConfidence: number | null = null;
+    try {
+      const { data: cssArc } = await supabase
+        .from('therapeutic_context')
+        .select('content')
+        .eq('user_id', userId)
+        .eq('context_type', 'css_arc_summary')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cssArc?.content) {
+        const parsed = JSON.parse(cssArc.content);
+        depthStage = parsed.stage ?? null;
+        depthConfidence = parsed.confidence ?? null;
+      }
+    } catch {
+      // Non-fatal — visualization falls back to null state
+    }
+
     // Get session duration limit if client has therapist
     let sessionDurationLimit = 7200; // Default 2 hours for individuals
 
@@ -681,6 +703,8 @@ router.get('/user-context/:userId', authenticateToken, async (req: AuthRequest, 
       firstName: user.first_name || 'there',
       sessionCount: sessions?.length || 0,
       sessionDurationLimit,
+      depthStage,
+      depthConfidence,
       onboarding: onboardingData ? {
         voice: onboardingData.voice_response || '',
         journey: onboardingData.journey_response || '',
