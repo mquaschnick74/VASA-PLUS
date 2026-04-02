@@ -15,7 +15,7 @@ const STAGE_NAMES: Record<string, string> = {
   suspension: 'At the edge',
   gesture_toward: 'Breaking through',
   completion: 'Landing',
-  terminal: 'Witnessing',
+  terminal: 'Achieving',
 };
 
 const STAGE_COPY: Record<string, (name: string) => string> = {
@@ -35,7 +35,7 @@ const STAGES = [
   { key: 'suspension',     label: 'At the edge',x: 240, fill: 200 },
   { key: 'gesture_toward', label: 'Breaking',   x: 340, fill: 300 },
   { key: 'completion',     label: 'Landing',    x: 440, fill: 400 },
-  { key: 'terminal',       label: 'Witnessing', x: 540, fill: 500 },
+  { key: 'terminal',       label: 'Achieving', x: 540, fill: 500 },
 ];
 
 export function DepthConstellation({
