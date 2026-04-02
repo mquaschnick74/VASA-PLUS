@@ -10,6 +10,7 @@ import {
   recordLastAgentPosture,
   getSessionCSSStage,
   assessSessionCSSStage,
+  recordStructuredPattern,
 } from '../services/sensing-layer/session-state';
 import {
   assembleSystemPrompt,
@@ -280,6 +281,17 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
           recordFieldAssessment(callId, assessment, numUserTurns);
           if (numUserTurns > 0 && numUserTurns % 5 === 0) {
             assessSessionCSSStage(callId);
+          }
+          if (assessment.explicit_pattern_identification?.present === true) {
+            const epi = assessment.explicit_pattern_identification;
+            recordStructuredPattern(callId, {
+              description: epi.inferred_pattern || epi.statement || 'Pattern identified by client',
+              patternType: 'cognitive',
+              confidence: epi.confidence,
+              evidence: epi.statement || '',
+              userExplicitlyIdentified: true
+            });
+            console.log(`🔒 [PatternGate] Explicit pattern identification recorded for call ${callId}: "${(epi.inferred_pattern || '').slice(0, 60)}"`);
           }
         }).catch(err =>
           console.error(`🔵 [CUSTOM-LLM] Field assessment background error:`, err)
