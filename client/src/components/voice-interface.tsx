@@ -7,7 +7,6 @@ import { AlertTriangle, Clock, CheckCircle, XCircle, HelpCircle, Mic, MessageSqu
 import useVapi from '@/hooks/use-vapi';
 import AvatarAura, { AuraState } from '@/components/AvatarAura';
 import AgentSelector from './AgentSelector';
-import { TechnicalSupportCard } from './TechnicalSupportCard';
 import { DepthConstellation } from './DepthConstellation';
 import { getAgentById } from '../config/agent-configs';
 import { supabase } from '@/lib/supabaseClient';
@@ -1337,6 +1336,15 @@ export default function VoiceInterface({ userId, setUserId, hideLogoutButton: _h
               >
                 I'll decide later
               </button>
+              <p className="text-white/25 text-xs leading-relaxed pt-2 border-t border-white/10">
+                Don't feel like this reflects your experience?{' '}
+                <a
+                  href="mailto:tech.support@ivasa.ai"
+                  className="underline hover:text-white/50 transition-colors"
+                >
+                  tech.support@ivasa.ai
+                </a>
+              </p>
             </div>
           </div>
         </div>
